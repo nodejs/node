@@ -34,7 +34,8 @@ class Flags {
   int64_t GetInt(std::string_view name, int64_t default_value) const;
   double GetDouble(std::string_view name, double default_value) const;
   bool GetBool(std::string_view name, bool default_value) const;
-  // Splits a flag value on `separator`, dropping empty pieces.
+  // Splits all occurrences of a flag value on `separator`, dropping empty
+  // pieces.
   std::vector<std::string> GetList(std::string_view name,
                                    char separator = ',') const;
 
@@ -47,7 +48,7 @@ class Flags {
   std::string ToString() const;
 
  private:
-  std::map<std::string, std::string, std::less<>> values_;
+  std::map<std::string, std::vector<std::string>, std::less<>> values_;
   mutable std::set<std::string, std::less<>> queried_;
   std::vector<std::string> positional_;
 };

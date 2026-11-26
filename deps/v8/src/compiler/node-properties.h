@@ -134,10 +134,10 @@ class V8_EXPORT_PRIVATE NodeProperties {
 
   // Returns whether the node acts as the identity function on a value
   // input. The input that is passed through is returned via {out_value}.
-  static bool IsValueIdentity(Node* node, Node** out_value) {
+  static bool IsValueIdentity(Node* node, Node** out_value = nullptr) {
     switch (node->opcode()) {
       case IrOpcode::kTypeGuard:
-        *out_value = GetValueInput(node, 0);
+        if (out_value) *out_value = GetValueInput(node, 0);
         return true;
       default:
         return false;

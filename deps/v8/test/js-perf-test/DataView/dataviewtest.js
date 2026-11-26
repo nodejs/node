@@ -14,6 +14,10 @@ new BenchmarkSuite('DataViewTest-DataView-Floats', [1000], [
   new Benchmark('DataViewTest-DataView-Floats', false, false, 0, doTestDataViewFloats),
 ]);
 
+new BenchmarkSuite('DataViewTest-DataView-Float16', [1000], [
+  new Benchmark('DataViewTest-DataView-Float16', false, false, 0, doTestDataViewFloat16),
+]);
+
 new BenchmarkSuite('DataViewTest-TypedArray-BigEndian', [1000], [
   new Benchmark('DataViewTest-TypedArray-BigEndian', false, false, 0, doTestTypedArrayBigEndian),
 ]);
@@ -24,6 +28,10 @@ new BenchmarkSuite('DataViewTest-TypedArray-LittleEndian', [1000], [
 
 new BenchmarkSuite('DataViewTest-TypedArray-Floats', [1000], [
   new Benchmark('DataViewTest-TypedArray-Floats', false, false, 0, doTestTypedArrayFloats),
+]);
+
+new BenchmarkSuite('DataViewTest-TypedArray-Float16', [1000], [
+  new Benchmark('DataViewTest-TypedArray-Float16', false, false, 0, doTestTypedArrayFloat16),
 ]);
 
 function doTestDataViewBigEndian() {
@@ -46,8 +54,16 @@ function doTestDataViewFloats() {
   doFloatIterations(true);
 }
 
+function doTestDataViewFloat16() {
+  return doFloat16Iterations(true);
+}
+
 function doTestTypedArrayFloats() {
   doFloatIterations(false);
+}
+
+function doTestTypedArrayFloat16() {
+  return doFloat16Iterations(false);
 }
 
 function doIterations(littleEndian, dataView) {
@@ -149,6 +165,51 @@ function doOneFloatIterationJS(buffer) {
     sum += float32array[i/4 + 2];
     sum += float32array[i/4 + 3];
   }
+}
+
+function doFloat16Iterations(dataView) {
+  var buffer = new ArrayBuffer(1000 * 4);
+  var iterations = 10;
+  var sum = 0;
+  if (dataView) {
+    for (var i = 0; i < iterations; i++) {
+      sum += doOneFloat16IterationDV(buffer, i);
+    }
+  } else {
+    for (var i = 0; i < iterations; i++) {
+      sum += doOneFloat16IterationTA(buffer, i);
+    }
+  }
+  return sum;
+}
+
+function doOneFloat16IterationDV(buffer, seed) {
+  var view = new DataView(buffer);
+  for (var i = 0; i < view.byteLength; i += 4) {
+    var v = (i + seed) * 0.5;
+    view.setFloat16(i, v, true);
+    view.setFloat16(i + 2, v, false);
+  }
+  var sum = 0;
+  for (var i = 0; i < view.byteLength; i += 4) {
+    sum += view.getFloat16(i, true);
+    sum += view.getFloat16(i + 2, false);
+  }
+  return sum;
+}
+
+function doOneFloat16IterationTA(buffer, seed) {
+  var float16array = new Float16Array(buffer);
+  for (var i = 0; i < float16array.length; i += 2) {
+    var v = (i + seed) * 0.5;
+    float16array[i] = v;
+    float16array[i + 1] = -v;
+  }
+  var sum = 0;
+  for (var i = 0; i < float16array.length; i += 2) {
+    sum += float16array[i] - float16array[i + 1];
+  }
+  return sum;
 }
 
 function BigEndian(buffer, opt_byteOffset) {

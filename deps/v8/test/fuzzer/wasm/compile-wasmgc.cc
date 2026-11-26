@@ -27,9 +27,9 @@ class WasmCompileWasmGCFuzzer : public WasmExecutionFuzzer {
 V8_SYMBOL_USED extern "C" int LLVMFuzzerInitialize(int* argc, char*** argv) {
   // shared_heap and shared_strings are needed for
   // shared-everything-threads fuzzing.
-  i::v8_flags.shared_heap = true;
-  i::v8_flags.shared_strings = true;
-  i::v8_flags.wasm_shared = true;
+  i::v8_flags.shared_heap.Set(true);
+  i::v8_flags.shared_strings.Set(true);
+  i::v8_flags.wasm_shared.Set(true);
 
   v8_fuzzer::FuzzerSupport::InitializeFuzzerSupport(argc, argv);
   return 0;

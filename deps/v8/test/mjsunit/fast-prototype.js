@@ -70,7 +70,7 @@ function test(use_new, add_first, set__proto__) {
   var proto = use_new ? new Super() : {};
 
   // New object is fast.
-  assertTrue(use_new || %HasFastProperties(proto));
+  assertTrue(%HasFastProperties(proto));
 
   if (add_first) {
     AddProps(proto);
@@ -78,15 +78,15 @@ function test(use_new, add_first, set__proto__) {
     assertFalse(%HasFastProperties(proto));
     DoProtoMagic(proto, set__proto__);
     // Making it a prototype makes it fast again.
-    assertEquals(!%IsDictPropertyConstTrackingEnabled(),
+    assertEquals(!%IsDictPrototypesEnabled(),
                  %HasFastProperties(proto));
   } else {
     DoProtoMagic(proto, set__proto__);
     // Still fast
-    assertEquals(!%IsDictPropertyConstTrackingEnabled(),
+    assertEquals(!%IsDictPrototypesEnabled(),
                  %HasFastProperties(proto));
     AddProps(proto);
-    assertEquals(!%IsDictPropertyConstTrackingEnabled(),
+    assertEquals(!%IsDictPrototypesEnabled(),
                  %HasFastProperties(proto));
   }
   return proto;
@@ -113,7 +113,7 @@ function test_fast_prototype() {
     assertTrue(key == 'a');
     break;
   }
-  if (!%IsDictPropertyConstTrackingEnabled())
+  if (!%IsDictPrototypesEnabled())
     assertTrue(%HasFastProperties(x));
   delete x.b;
   for (key in x) {
@@ -121,10 +121,10 @@ function test_fast_prototype() {
     break;
   }
 
-  assertEquals(!%IsDictPropertyConstTrackingEnabled(),
+  assertEquals(!%IsDictPrototypesEnabled(),
                %HasFastProperties(x));
   x.d = 4;
-  assertEquals(!%IsDictPropertyConstTrackingEnabled(),
+  assertEquals(!%IsDictPrototypesEnabled(),
                %HasFastProperties(x));
   for (key in x) {
     assertTrue(key == 'a');

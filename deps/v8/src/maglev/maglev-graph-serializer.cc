@@ -6,22 +6,32 @@
 
 #include <algorithm>
 #include <array>
+#include <cctype>
 #include <iomanip>
+#include <optional>
 #include <ostream>
 #include <sstream>
+#include <string>
+#include <string_view>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "src/base/platform/platform.h"
 #include "src/base/string-format.h"
 #include "src/base/vector.h"
 #include "src/flags/flags.h"
+#include "src/heap/local-heap.h"
+#include "src/heap/parked-scope.h"
 #include "src/maglev/maglev-basic-block.h"
 #include "src/maglev/maglev-compilation-info.h"
+#include "src/maglev/maglev-deopt-frame-visitor.h"
 #include "src/maglev/maglev-graph-labeller.h"
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-graph.h"
 #include "src/maglev/maglev-ir.h"
+#include "src/maglev/maglev-node-type.h"
+#include "src/maglev/maglev-range.h"
 #include "src/objects/bytecode-array.h"
 #include "src/objects/code-inl.h"
 #include "src/objects/feedback-vector.h"
@@ -52,9 +62,206 @@ const char* RepresentationSuperscript(ValueRepresentation repr) {
     case ValueRepresentation::kHoleyFloat64:
       return "\\u02B0\\u1DA0";
     case ValueRepresentation::kIntPtr:
+      return "\\u1D35\\u1D56";
     case ValueRepresentation::kRawPtr:
     case ValueRepresentation::kNone:
-      UNREACHABLE();
+      return "";
+  }
+}
+
+class MaybeUnparkForPrint {
+ public:
+  MaybeUnparkForPrint() {
+    LocalHeap* local_heap = LocalHeap::Current();
+    if (local_heap && local_heap->IsParked()) {
+      scope_.emplace(local_heap);
+    }
+  }
+
+ private:
+  std::optional<UnparkedScope> scope_;
+};
+
+std::string PrintNodeParamsToString(const NodeBase* node) {
+  std::ostringstream os;
+  switch (node->opcode()) {
+#define V(Name)                          \
+  case Opcode::k##Name:                  \
+    node->Cast<Name>()->PrintParams(os); \
+    break;
+    NODE_BASE_LIST(V)
+#undef V
+  }
+  return os.str();
+}
+
+std::string CollapseAndTrimWhitespace(std::string_view input) {
+  std::string out;
+  out.reserve(input.size());
+  bool prev_space = true;
+  for (char c : input) {
+    if (c == '\n' || c == '\r' || c == '\t' || c == ' ') {
+      if (!prev_space) {
+        out.push_back(' ');
+        prev_space = true;
+      }
+    } else {
+      out.push_back(c);
+      prev_space = false;
+    }
+  }
+  if (!out.empty() && out.back() == ' ') {
+    out.pop_back();
+  }
+  return out;
+}
+
+// Removes leading "0x<hex> " addresses right before "<...>" (such as HeapObject
+// ShortPrint prefixes like "0x1234abcd <NativeContext[305]>") so inline node
+// titles stay compact while full addresses remain in Properties custom data.
+std::string StripHeapAddressesBeforeAngles(std::string_view input) {
+  std::string out;
+  out.reserve(input.size());
+  for (size_t i = 0; i < input.size();) {
+    if (i + 2 < input.size() && input[i] == '0' && input[i + 1] == 'x' &&
+        (i == 0 || (!std::isalnum(static_cast<unsigned char>(input[i - 1])) &&
+                    input[i - 1] != '_'))) {
+      size_t j = i + 2;
+      while (j < input.size() &&
+             std::isxdigit(static_cast<unsigned char>(input[j]))) {
+        ++j;
+      }
+      if (j - (i + 2) >= 4 && j + 1 < input.size() && input[j] == ' ' &&
+          input[j + 1] == '<') {
+        i = j + 1;
+        continue;
+      }
+    }
+    out.push_back(input[i]);
+    ++i;
+  }
+  return out;
+}
+
+std::string TruncateUtf8Inline(std::string_view s, size_t max_len) {
+  if (s.size() <= max_len) return std::string(s);
+  size_t cut = max_len;
+  while (cut > 0 && (static_cast<unsigned char>(s[cut]) & 0xC0) == 0x80) {
+    --cut;
+  }
+  std::string out(s.substr(0, cut));
+  out += "...";
+  return out;
+}
+
+bool HasSingleOuterBrackets(std::string_view s) {
+  if (s.size() < 2) return false;
+  const char open = s.front();
+  const char close = s.back();
+  if (!((open == '(' && close == ')') || (open == '[' && close == ']'))) {
+    return false;
+  }
+  int depth = 0;
+  for (size_t i = 0; i < s.size() - 1; ++i) {
+    if (s[i] == open) {
+      ++depth;
+    } else if (s[i] == close) {
+      --depth;
+      if (depth == 0) return false;
+    }
+  }
+  return depth == 1;
+}
+
+// Turbolizer inserts operation titles via d3 `.html(...)` inside SVG <tspan>,
+// so unescaped `<` / `>` would be parsed as HTML tags by existing Turbolizer
+// builds and swallow the remainder of the title (including closing `)`/`]`).
+std::string ReplaceAngleBracketsForTitle(std::string_view input) {
+  std::string out;
+  out.reserve(input.size());
+  for (char c : input) {
+    if (c == '<') {
+      out +=
+          "\xE2\x80\xB9";  // U+2039 SINGLE LEFT-POINTING ANGLE QUOTATION MARK
+    } else if (c == '>') {
+      out +=
+          "\xE2\x80\xBA";  // U+203A SINGLE RIGHT-POINTING ANGLE QUOTATION MARK
+    } else {
+      out.push_back(c);
+    }
+  }
+  return out;
+}
+
+std::string FormatInlineParams(const NodeBase* node,
+                               const std::string& raw_params) {
+  std::string cleaned = CollapseAndTrimWhitespace(raw_params);
+  if (cleaned.empty()) return "";
+  cleaned = StripHeapAddressesBeforeAngles(cleaned);
+
+  std::string_view inner = cleaned;
+  if (HasSingleOuterBrackets(inner)) {
+    inner = inner.substr(1, inner.size() - 2);
+  }
+  if (inner.empty()) return "";
+
+  const bool use_parens = node->input_count() == 0 && !node->Is<Phi>();
+  const size_t max_len = use_parens ? 64 : 48;
+  std::string body =
+      ReplaceAngleBracketsForTitle(TruncateUtf8Inline(inner, max_len));
+  return use_parens ? ("(" + body + ")") : ("[" + body + "]");
+}
+
+std::string FormatOpEffects(OpProperties props) {
+  std::ostringstream os;
+  bool first = true;
+  auto add = [&](const char* name) {
+    if (!first) os << ", ";
+    first = false;
+    os << name;
+  };
+  if (props.can_read()) add("can_read");
+  if (props.can_write()) add("can_write");
+  if (props.can_allocate()) add("can_allocate");
+  if (props.can_eager_deopt()) add("can_eager_deopt");
+  if (props.can_lazy_deopt()) add("can_lazy_deopt");
+  if (props.is_deopt_checkpoint()) add("deopt_checkpoint");
+  if (props.can_throw()) add("can_throw");
+  if (props.is_call()) add("call");
+  if (props.is_deferred_call()) add("deferred_call");
+  if (props.not_idempotent()) add("not_idempotent");
+  if (props.is_conversion()) add("conversion");
+  if (first && props.is_pure()) add("pure");
+  return os.str();
+}
+
+bool IsStoreToNonEscapedObject(const NodeBase* node) {
+  if (CanBeStoreToNonEscapedObject(node->opcode())) {
+    DCHECK_GT(node->input_count(), 0);
+    if (const InlinedAllocation* alloc =
+            node->input(0).node()->TryCast<InlinedAllocation>()) {
+      return alloc->HasBeenAnalysed() && alloc->HasBeenElided();
+    }
+  }
+  return false;
+}
+
+void PrintControlTargets(std::ostream& os, const ControlNode* node) {
+  if (const auto* uncond = node->TryCast<UnconditionalControlNode>()) {
+    os << "target: b" << uncond->target()->id();
+  } else if (const auto* branch = node->TryCast<BranchControlNode>()) {
+    os << "true: b" << branch->if_true()->id() << ", false: b"
+       << branch->if_false()->id();
+  } else if (const auto* sw = node->TryCast<Switch>()) {
+    os << "targets: [";
+    for (int i = 0; i < sw->size(); ++i) {
+      if (i > 0) os << ", ";
+      os << "b" << sw->targets()[i].block_ptr()->id();
+    }
+    os << "]";
+    if (sw->has_fallthrough()) {
+      os << ", fallthrough: b" << sw->fallthrough()->id();
+    }
   }
 }
 
@@ -113,6 +320,11 @@ class JSONMaglevGraphWriter {
   }
 
   void Print() {
+    MaybeUnparkForPrint unpark;
+    std::optional<MaglevGraphLabellerScope> labeller_scope;
+    if (GetCurrentGraphLabeller() == nullptr) {
+      labeller_scope.emplace(labeller_);
+    }
     InitializeVirtualNodeIds();
     os_ << "{\n\"nodes\":[";
     PrintNodes();
@@ -121,6 +333,314 @@ class JSONMaglevGraphWriter {
     os_ << "\n],\n\"blocks\":[";
     PrintBlocks();
     os_ << "\n]}";
+  }
+
+  void PrintCustomData(MaglevPhase phase) {
+    MaybeUnparkForPrint unpark;
+    std::optional<MaglevGraphLabellerScope> labeller_scope;
+    if (GetCurrentGraphLabeller() == nullptr) {
+      labeller_scope.emplace(labeller_);
+    }
+
+    const bool has_regalloc_data = !graph_->compilation_info()->is_turbolev() &&
+                                   phase >= MaglevPhase::kAnyUseMarking;
+
+    using CustomEntry = std::pair<int, std::string>;
+    std::vector<CustomEntry> properties_data;
+    std::vector<CustomEntry> representations_data;
+    std::vector<CustomEntry> use_count_data;
+    std::vector<CustomEntry> regalloc_data;
+    std::vector<CustomEntry> types_data;
+    std::vector<CustomEntry> ranges_data;
+    std::vector<CustomEntry> block_properties_data;
+
+    auto record_node = [&](const NodeBase* node) {
+      const int id = labeller_->NodeId(node);
+
+      {
+        std::ostringstream os;
+        bool first = true;
+        auto sep = [&]() {
+          if (!first) os << ", ";
+          first = false;
+        };
+
+        std::string raw_params =
+            CollapseAndTrimWhitespace(PrintNodeParamsToString(node));
+        if (!raw_params.empty()) {
+          sep();
+          os << raw_params;
+        }
+        if (const Phi* phi = node->TryCast<Phi>()) {
+          if (phi->is_exception_phi()) {
+            sep();
+            os << "exception";
+          }
+          if (phi->is_loop_phi()) {
+            sep();
+            os << "loop";
+          }
+          UseRepresentationSet hints = const_cast<Phi*>(phi)->use_repr_hints();
+          if (!hints.empty()) {
+            sep();
+            os << "hints: " << hints;
+          }
+          UseRepresentationSet same_loop_hints =
+              const_cast<Phi*>(phi)->same_loop_use_repr_hints();
+          if (!same_loop_hints.empty()) {
+            sep();
+            os << "same_loop_hints: " << same_loop_hints;
+          }
+        }
+        if (const ControlNode* ctrl = node->TryCast<ControlNode>()) {
+          std::ostringstream target_os;
+          PrintControlTargets(target_os, ctrl);
+          if (!target_os.str().empty()) {
+            sep();
+            os << target_os.str();
+          }
+        }
+        if (const ValueNode* val = node->TryCast<ValueNode>()) {
+          if (val->is_tagged()) {
+            sep();
+            os << (val->decompresses_tagged_result() ? "decompressed"
+                                                     : "compressed");
+          } else if (!val->Is<Float64Constant>() &&
+                     !val->Is<ChangeInt32ToFloat64>()) {
+            sep();
+            os << (val->can_truncate_to_int32() ? "can truncate to int32"
+                                                : "cannot truncate to int32");
+          }
+          if (const InlinedAllocation* alloc =
+                  val->TryCast<InlinedAllocation>()) {
+            if (alloc->HasBeenAnalysed()) {
+              sep();
+              os << (alloc->HasBeenElided() ? "elided" : "escaping");
+            }
+          }
+        }
+        if (has_regalloc_data && node->has_inputs()) {
+          sep();
+          os << "inputs: [";
+          for (int i = 0; i < node->input_count(); ++i) {
+            if (i > 0) os << ", ";
+            os << node->input(i).operand();
+          }
+          os << "]";
+        }
+        if (IsStoreToNonEscapedObject(node)) {
+          sep();
+          os << "elided store";
+        }
+        std::string prop_str = os.str();
+        if (!prop_str.empty()) {
+          properties_data.emplace_back(id, std::move(prop_str));
+        }
+      }
+
+      if (const ValueNode* val = node->TryCast<ValueNode>()) {
+        {
+          std::ostringstream os;
+          os << val->value_representation();
+          if (val->is_tagged()) {
+            os << (val->decompresses_tagged_result() ? " (decompressed)"
+                                                     : " (compressed)");
+          }
+          representations_data.emplace_back(id, os.str());
+        }
+
+        {
+          std::ostringstream os;
+          if (val->unused_inputs_were_visited()) {
+            os << "dead";
+          } else {
+            os << val->use_count() << " uses";
+            if (!val->is_used()) {
+              if (val->opcode() != Opcode::kAllocationBlock &&
+                  val->properties().is_required_when_unused()) {
+                os << " (required)";
+              } else {
+                os << " (dead)";
+              }
+            }
+            if (const InlinedAllocation* alloc =
+                    val->TryCast<InlinedAllocation>()) {
+              os << ", " << alloc->non_escaping_use_count()
+                 << " non-escaping uses";
+              if (alloc->HasBeenAnalysed() && alloc->HasBeenElided()) {
+                os << " (elided)";
+              }
+            }
+          }
+          use_count_data.emplace_back(id, os.str());
+        }
+
+        if (has_regalloc_data) {
+          std::ostringstream os;
+          bool first = true;
+          auto sep = [&]() {
+            if (!first) os << ", ";
+            first = false;
+          };
+          if (val->has_id()) {
+            sep();
+            os << "#" << val->regalloc_info()->id();
+          }
+          RegallocValueNodeInfo* node_info = val->regalloc_info();
+          if (!node_info->result().operand().IsInvalid()) {
+            sep();
+            os << "-> " << node_info->result().operand();
+            if (node_info->result().operand().IsAllocated() &&
+                node_info->is_spilled() &&
+                node_info->spill_slot() != node_info->result().operand()) {
+              os << " (spilled: " << node_info->spill_slot() << ")";
+            }
+          }
+          if (node_info->has_valid_live_range()) {
+            sep();
+            os << "live range: [" << node_info->live_range().start << "-"
+               << node_info->live_range().end << "]";
+          }
+          std::string reg_str = os.str();
+          if (!reg_str.empty()) {
+            regalloc_data.emplace_back(id, std::move(reg_str));
+          }
+        }
+
+        if (const Phi* phi = val->TryCast<Phi>()) {
+          if (phi->type() != NodeType::kUnknown) {
+            std::ostringstream os;
+            os << phi->type();
+            if (phi->is_loop_phi() &&
+                phi->post_loop_type() != NodeType::kUnknown &&
+                phi->post_loop_type() != phi->type()) {
+              os << " (post_loop: " << phi->post_loop_type() << ")";
+            }
+            types_data.emplace_back(id, os.str());
+          }
+        } else {
+          const ValueNode* unwrapped = val->UnwrapAliases();
+          if (!unwrapped->Is<Phi>() &&
+              unwrapped->value_representation() !=
+                  ValueRepresentation::kRawPtr &&
+              unwrapped->value_representation() != ValueRepresentation::kNone) {
+            NodeType static_type =
+                const_cast<ValueNode*>(unwrapped)->GetStaticType(
+                    graph_->broker());
+            if (static_type != NodeType::kUnknown) {
+              std::ostringstream os;
+              os << static_type;
+              types_data.emplace_back(id, os.str());
+            }
+          }
+
+          const ValueNode* range_base = val;
+          while (range_base->is_conversion()) {
+            range_base = range_base->input_node(0);
+          }
+          if (!range_base->Is<Phi>()) {
+            Range r = val->GetStaticRange();
+            if (!r.is_all()) {
+              std::ostringstream os;
+              os << r;
+              ranges_data.emplace_back(id, os.str());
+            }
+          }
+        }
+      } else {
+        if (IsStoreToNonEscapedObject(node)) {
+          use_count_data.emplace_back(id, "elided");
+        }
+        if (has_regalloc_data && node->has_id()) {
+          std::ostringstream os;
+          os << "#" << node->regalloc_info()->id();
+          regalloc_data.emplace_back(id, os.str());
+        }
+      }
+    };
+
+    for (const BasicBlock* block : *graph_) {
+      if (block->is_dead()) continue;
+
+      {
+        std::ostringstream os;
+        bool first = true;
+        auto sep = [&]() {
+          if (!first) os << ", ";
+          first = false;
+        };
+        if (block->is_loop()) {
+          sep();
+          if (block->state()->is_loop_with_peeled_iteration()) {
+            os << "peeled loop";
+          } else if (block->has_state() &&
+                     block->state()->is_resumable_loop()) {
+            os << "resumable loop";
+          } else {
+            os << "loop header";
+          }
+        }
+        if (block->is_edge_split_block()) {
+          sep();
+          os << "edge split";
+        }
+        if (block->is_start_block_of_switch_case()) {
+          sep();
+          os << "switch case";
+        }
+        if (block->is_exception_handler_block()) {
+          sep();
+          os << "exception handler";
+        }
+        if (block->is_deferred()) {
+          sep();
+          os << "deferred";
+        }
+        std::string blk_str = os.str();
+        if (!blk_str.empty()) {
+          block_properties_data.emplace_back(block->id(), std::move(blk_str));
+        }
+      }
+
+      if (block->has_phi()) {
+        for (const Phi* phi : *block->phis()) {
+          record_node(phi);
+        }
+      }
+      for (const Node* node : block->nodes()) {
+        if (node == nullptr) continue;
+        record_node(node);
+      }
+      if (block->control_node()) {
+        record_node(block->control_node());
+      }
+    }
+
+    auto emit_custom_data = [&](const char* name, const char* target,
+                                const std::vector<CustomEntry>& entries) {
+      if (entries.empty()) return;
+      os_ << "{\"name\":\"" << name
+          << "\", \"type\":\"turboshaft_custom_data\", "
+             "\"data_target\":\""
+          << target << "\", \"data\":[";
+      bool first = true;
+      for (const auto& [key, value] : entries) {
+        os_ << (first ? "\n" : ",\n") << "{\"key\":" << key << ", \"value\":\""
+            << base::JSONEscaped(value) << "\"}";
+        first = false;
+      }
+      os_ << "]},\n";
+    };
+
+    emit_custom_data("Properties", "operations", properties_data);
+    emit_custom_data("Representations", "operations", representations_data);
+    emit_custom_data("Use Count", "operations", use_count_data);
+    if (has_regalloc_data) {
+      emit_custom_data("Regalloc", "operations", regalloc_data);
+    }
+    emit_custom_data("Types", "operations", types_data);
+    emit_custom_data("Range", "operations", ranges_data);
+    emit_custom_data("Properties", "blocks", block_properties_data);
   }
 
  private:
@@ -138,10 +658,12 @@ class JSONMaglevGraphWriter {
       PrintDeoptFrameAndDependencies(frame->parent(), block, first);
     }
 
-    VirtualObjectList vos = frame->GetVirtualObjects();
-    for (VirtualObject* vo : vos) {
-      PrintVirtualObjectAndDependencies(vo, block, first);
-    }
+    frame->ForEachValue([&](ValueNode* val) {
+      if (!val) return;
+      if (const VirtualObject* vo = val->TryGetVirtualObject()) {
+        PrintVirtualObjectAndDependencies(vo, block, first);
+      }
+    });
 
     int id = deopt_frame_ids_[frame];
     PrintDeoptFrameNode(frame, id, block, first);
@@ -151,21 +673,21 @@ class JSONMaglevGraphWriter {
   void PrintVirtualObjectAndDependencies(const VirtualObject* vo,
                                          const BasicBlock* block, bool* first) {
     if (vo == nullptr) return;
-    if (printed_virtual_objects_.find(vo) != printed_virtual_objects_.end()) {
+    if (!printed_virtual_objects_.insert(vo).second) {
       return;
     }
 
     for (int i = 0; i < vo->slot_count(); ++i) {
       ValueNode* val = vo->get_by_index(i);
-      if (val && val->Is<VirtualObject>()) {
-        PrintVirtualObjectAndDependencies(val->Cast<VirtualObject>(), block,
-                                          first);
+      if (val) {
+        if (const VirtualObject* nested = val->TryGetVirtualObject()) {
+          PrintVirtualObjectAndDependencies(nested, block, first);
+        }
       }
     }
 
     int id = virtual_object_ids_[vo];
     PrintVirtualObjectNode(vo, id, block, first);
-    printed_virtual_objects_.insert(vo);
   }
   void PrintNodeAndDependencies(const NodeBase* node, const BasicBlock* block,
                                 bool* first) {
@@ -191,6 +713,8 @@ class JSONMaglevGraphWriter {
 
     int id = labeller_->NodeId(node);
     os_ << "{\"id\":" << id << ",";
+    std::string inline_params =
+        FormatInlineParams(node, PrintNodeParamsToString(node));
     if (node->Is<Phi>()) {
       const Phi* phi = node->Cast<Phi>();
       os_ << "\"title\":\"Phi"
@@ -198,9 +722,17 @@ class JSONMaglevGraphWriter {
       if (phi->is_exception_phi()) {
         os_ << "\\u2091";
       }
+      if (!inline_params.empty()) {
+        os_ << base::JSONEscaped(inline_params);
+      }
       os_ << "\",";
     } else {
-      os_ << "\"title\":\"" << OpcodeToString(node->opcode()) << "\",";
+      std::ostringstream title_stream;
+      title_stream << OpcodeToString(node->opcode());
+      if (!inline_params.empty()) {
+        title_stream << inline_params;
+      }
+      os_ << "\"title\":\"" << base::JSONEscaped(title_stream) << "\",";
     }
     if (block) {
       os_ << "\"block_id\":" << block->id() << ",";
@@ -210,11 +742,8 @@ class JSONMaglevGraphWriter {
     if (node->Is<ControlNode>() || node->properties().can_throw()) {
       os_ << "\"control\":true,";
     }
-    os_ << "\"op_effects\":\"\"";
-    if (node->Is<Phi>()) {
-      const Phi* phi = node->Cast<Phi>();
-      os_ << ", \"properties\":\"Owner: " << phi->owner().ToString() << "\"";
-    }
+    os_ << "\"op_effects\":\""
+        << base::JSONEscaped(FormatOpEffects(node->properties())) << "\"";
 
     const MaglevGraphLabeller::Provenance& provenance =
         labeller_->GetNodeProvenance(node);
@@ -406,10 +935,12 @@ class JSONMaglevGraphWriter {
     if (deopt_frame_ids_.find(frame) != deopt_frame_ids_.end()) return;
     deopt_frame_ids_[frame] = next_virtual_id_++;
 
-    VirtualObjectList vos = frame->GetVirtualObjects();
-    for (VirtualObject* vo : vos) {
-      RegisterVirtualObject(vo);
-    }
+    frame->ForEachValue([&](ValueNode* val) {
+      if (!val) return;
+      if (const VirtualObject* vo = val->TryGetVirtualObject()) {
+        RegisterVirtualObject(vo);
+      }
+    });
 
     if (frame->parent()) {
       RegisterDeoptFrame(frame->parent());
@@ -418,35 +949,26 @@ class JSONMaglevGraphWriter {
 
   void RegisterVirtualObject(const VirtualObject* vo) {
     if (vo == nullptr) return;
-    if (virtual_object_ids_.find(vo) != virtual_object_ids_.end()) return;
-    virtual_object_ids_[vo] = next_virtual_id_++;
+    if (!virtual_object_ids_.emplace(vo, next_virtual_id_).second) return;
+    ++next_virtual_id_;
 
     for (int i = 0; i < vo->slot_count(); i++) {
       ValueNode* val = vo->get_by_index(i);
-      if (val && val->Is<VirtualObject>()) {
-        RegisterVirtualObject(val->Cast<VirtualObject>());
+      if (val) {
+        if (const VirtualObject* nested = val->TryGetVirtualObject()) {
+          RegisterVirtualObject(nested);
+        }
       }
     }
   }
 
-  int GetValueNodeId(const ValueNode* val, const VirtualObjectList& vos = {}) {
-    val = val->UnwrapIdentities();
-    if (val->Is<VirtualObject>()) {
-      auto it = virtual_object_ids_.find(val->Cast<VirtualObject>());
+  int GetValueNodeId(ValueNode* val) {
+    if (const VirtualObject* vo = val->TryGetVirtualObject()) {
+      auto it = virtual_object_ids_.find(vo);
       DCHECK(it != virtual_object_ids_.end());
       return it->second;
     }
-    if (val->opcode() == Opcode::kInlinedAllocation && !vos.is_empty()) {
-      const InlinedAllocation* alloc = val->Cast<InlinedAllocation>();
-      if (alloc->HasBeenAnalysed() && alloc->HasBeenElided()) {
-        VirtualObject* vo = vos.FindAllocatedWith(alloc);
-        if (vo) {
-          auto it = virtual_object_ids_.find(vo);
-          DCHECK(it != virtual_object_ids_.end());
-          return it->second;
-        }
-      }
-    }
+    val = val->UnwrapAliases();
     return labeller_->NodeId(val);
   }
 
@@ -467,7 +989,8 @@ class JSONMaglevGraphWriter {
           << "\\n";
     }
     os_ << "Func: "
-        << frame->GetSharedFunctionInfo().object()->DebugNameCStr().get()
+        << base::JSONEscaped(
+               frame->GetSharedFunctionInfo().object()->DebugNameCStr().get())
         << "\\n";
     os_ << "\"";
 
@@ -504,13 +1027,20 @@ class JSONMaglevGraphWriter {
     os_ << "\"op_effects\":\"\",";
 
     os_ << "\"properties\":\"";
+    if (vo->has_static_map()) {
+      std::ostringstream map_os;
+      map_os << *vo->map()->object();
+      os_ << "Map: "
+          << base::JSONEscaped(CollapseAndTrimWhitespace(map_os.str()))
+          << "\\n";
+    }
     os_ << "Slots: " << vo->slot_count() << "\\n";
     for (int i = 0; i < vo->slot_count(); ++i) {
       ValueNode* val = vo->get_by_index(i);
       os_ << "  slot " << i << ": ";
       if (val) {
-        if (val->Is<VirtualObject>()) {
-          os_ << "VirtualObject[#" << val->Cast<VirtualObject>()->id() << "]";
+        if (const VirtualObject* nested_vo = val->TryGetVirtualObject()) {
+          os_ << "VirtualObject[#" << nested_vo->id() << "]";
         } else {
           os_ << OpcodeToString(val->opcode()) << "n" << labeller_->NodeId(val);
         }
@@ -538,76 +1068,11 @@ class JSONMaglevGraphWriter {
       PrintVirtualEdge(parent_id, id, "frame-state", first);
     }
 
-    VirtualObjectList vos = frame->GetVirtualObjects();
-
-    if (frame->type() == DeoptFrame::FrameType::kInterpretedFrame) {
-      const CompactInterpreterFrameState* state =
-          frame->as_interpreted().frame_state();
-      const MaglevCompilationUnit& unit = frame->as_interpreted().unit();
-
-      state->ForEachParameter(
-          unit, [&](ValueNode* val, interpreter::Register reg) {
-            if (val) {
-              int val_id = GetValueNodeId(val, vos);
-              PrintVirtualEdge(val_id, id, "frame-state", first);
-            }
-          });
-      state->ForEachLocal(unit, [&](ValueNode* val, interpreter::Register reg) {
-        if (val) {
-          int val_id = GetValueNodeId(val, vos);
-          PrintVirtualEdge(val_id, id, "frame-state", first);
-        }
-      });
-      if (state->liveness()->AccumulatorIsLive()) {
-        ValueNode* val = state->accumulator(unit);
-        if (val) {
-          int val_id = GetValueNodeId(val, vos);
-          PrintVirtualEdge(val_id, id, "frame-state", first);
-        }
-      }
-      ValueNode* closure = frame->as_interpreted().closure();
-      if (closure) {
-        int closure_id = GetValueNodeId(closure, vos);
-        PrintVirtualEdge(closure_id, id, "frame-state", first);
-      }
-    } else if (frame->type() == DeoptFrame::FrameType::kInlinedArgumentsFrame) {
-      ValueNode* closure = frame->as_inlined_arguments().closure();
-      if (closure) {
-        int closure_id = GetValueNodeId(closure, vos);
-        PrintVirtualEdge(closure_id, id, "frame-state", first);
-      }
-      for (ValueNode* val : frame->as_inlined_arguments().arguments()) {
-        if (val) {
-          int val_id = GetValueNodeId(val, vos);
-          PrintVirtualEdge(val_id, id, "frame-state", first);
-        }
-      }
-    } else if (frame->type() ==
-               DeoptFrame::FrameType::kConstructInvokeStubFrame) {
-      ValueNode* receiver = frame->as_construct_stub().receiver();
-      if (receiver) {
-        int receiver_id = GetValueNodeId(receiver, vos);
-        PrintVirtualEdge(receiver_id, id, "frame-state", first);
-      }
-      ValueNode* context = frame->as_construct_stub().context();
-      if (context) {
-        int context_id = GetValueNodeId(context, vos);
-        PrintVirtualEdge(context_id, id, "frame-state", first);
-      }
-    } else if (frame->type() ==
-               DeoptFrame::FrameType::kBuiltinContinuationFrame) {
-      for (ValueNode* val : frame->as_builtin_continuation().parameters()) {
-        if (val) {
-          int val_id = GetValueNodeId(val, vos);
-          PrintVirtualEdge(val_id, id, "frame-state", first);
-        }
-      }
-      ValueNode* context = frame->as_builtin_continuation().context();
-      if (context) {
-        int context_id = GetValueNodeId(context, vos);
-        PrintVirtualEdge(context_id, id, "frame-state", first);
-      }
-    }
+    frame->ForEachValue([&](ValueNode* val) {
+      if (!val) return;
+      int val_id = GetValueNodeId(val);
+      PrintVirtualEdge(val_id, id, "frame-state", first);
+    });
   }
 
   void PrintEdgesForVirtualObject(const VirtualObject* vo, int id,
@@ -733,25 +1198,14 @@ void JsonPrintBytecodeSource(std::ostream& os, int source_id,
                              Tagged<FeedbackVector> feedback_vector = {}) {
   os << "\"" << source_id << "\" : {";
   os << "\"sourceId\": " << source_id;
-  os << ", \"functionName\": \"" << function_name << "\"";
+  os << ", \"functionName\": \"" << base::JSONEscaped(function_name) << "\"";
   os << ", \"bytecodeSource\": ";
   bytecode_array->PrintJson(os);
   os << ", \"feedbackVector\": \"";
   if (!feedback_vector.is_null()) {
     std::stringstream stream;
     Print(feedback_vector, stream);
-    std::string s = stream.str();
-    for (char c : s) {
-      if (c == '\n') {
-        os << "\\n";
-      } else if (c == '"') {
-        os << "\\\"";
-      } else if (c == '\\') {
-        os << "\\\\";
-      } else {
-        os << c;
-      }
-    }
+    os << base::JSONEscaped(stream.str());
   }
   os << "\"}";
 }
@@ -794,7 +1248,7 @@ void JsonPrintFunctionSource(std::ostream& os, int source_id,
 
   os << "{ ";
   os << "\"sourceId\": " << source_id;
-  os << ", \"functionName\": \"" << function_name << "\" ";
+  os << ", \"functionName\": \"" << base::JSONEscaped(function_name) << "\" ";
 
   int start = 0;
   int end = 0;
@@ -846,13 +1300,20 @@ std::ostream& operator<<(std::ostream& os, const MaglevGraphAsJSON& ad) {
   return os;
 }
 
+std::ostream& operator<<(std::ostream& os, const MaglevCustomDataAsJSON& ad) {
+  JSONMaglevGraphWriter writer(os, ad.graph);
+  writer.PrintCustomData(ad.phase);
+  return os;
+}
+
 void PrintMaglevGraphAsJSON(MaglevCompilationInfo* info, Graph* graph,
                             MaglevPhase phase) {
   if (info->trace_json_enabled()) {
     MaglevJsonFile json_of(info, std::ios_base::app);
     json_of << "{\"name\":\"" << PhaseName(phase)
             << "\",\"type\":\"maglev_graph\",\"data\":" << AsJSON(graph)
-            << "},\n";
+            << "},\n"
+            << CustomDataAsJSON(graph, phase);
   }
 }
 
@@ -872,10 +1333,7 @@ void FinalizeMaglevLogging(Isolate* isolate, MaglevCompilationInfo* info,
   std::unique_ptr<char[]> debug_name =
       info->toplevel_function()->shared()->DebugNameCStr();
   code->Disassemble(debug_name.get(), disassembly_stream, isolate);
-  std::string disassembly_string(disassembly_stream.str());
-  for (const auto& c : disassembly_string) {
-    json_of << AsEscapedUC16ForJSON(c);
-  }
+  json_of << base::JSONEscaped(disassembly_stream.str());
 #endif
   json_of << "\"}\n],\n";  // Close phases array
 

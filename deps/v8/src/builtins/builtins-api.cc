@@ -248,6 +248,10 @@ HandleApiCallAsFunctionOrConstructorDelegate(Isolate* isolate,
     }
     // Check for exceptions and return result.
     RETURN_FAILURE_IF_EXCEPTION(isolate);
+    if (is_construct_call && !IsJSReceiver(result)) {
+      THROW_NEW_ERROR_RETURN_FAILURE(
+          isolate, NewTypeError(MessageTemplate::kIllegalInvocation));
+    }
   }
   return result;
 }

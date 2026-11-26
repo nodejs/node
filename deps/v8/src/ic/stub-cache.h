@@ -31,18 +31,20 @@ class SCTableReference {
 
 class V8_EXPORT_PRIVATE StubCache {
  public:
+  // An entry is either empty (all fields zero, i.e. Smi::zero()) or holds a
+  // valid name, handler and map. Generated code and Get() only read {value}
+  // after both {key} and {map} matched, which never happens for an empty
+  // entry.
   struct Entry {
-    // {key} is a tagged Name pointer, may be cleared by setting to empty
-    // string.
+    // {key} is a tagged Name pointer.
     StrongTaggedValue key;
     // {value} is a tagged heap object reference (weak or strong), equivalent
     // to a Tagged<MaybeObject>'s payload.
     TaggedValue value;
-    // {map} is a tagged Map pointer, may be cleared by setting to Smi::zero().
+    // {map} is a tagged Map pointer.
     StrongTaggedValue map;
   };
 
-  void Initialize();
   // Access cache for entry hash(name, map).
   void Set(Tagged<Name> name, Tagged<Map> map, Tagged<MaybeObject> handler);
   Tagged<MaybeObject> Get(Tagged<Name> name, Tagged<Map> map);
@@ -89,6 +91,9 @@ class V8_EXPORT_PRIVATE StubCache {
   static const int kPrimaryTableSize = (1 << kPrimaryTableBits);
   static const int kSecondaryTableBits = 10;
   static const int kSecondaryTableSize = (1 << kSecondaryTableBits);
+
+  static_assert(base::bits::IsPowerOfTwo(kPrimaryTableSize));
+  static_assert(base::bits::IsPowerOfTwo(kSecondaryTableSize));
 
   static int PrimaryOffsetForTesting(Tagged<Name> name, Tagged<Map> map);
   static int SecondaryOffsetForTesting(Tagged<Name> name, Tagged<Map> map);

@@ -22,10 +22,17 @@ enum class FreeMemoryHandling : uint8_t {
   // Do not discard or decommit free memory.
   kRetainMemory,
   // Return memory to the system as much as possible:
-  // - Discard free address ranges as they are found, if supported by the
-  //   current build configuration (see CanDiscardMemory()).
+  // - Purge free address ranges on normal pages as they are found, if enabled
+  //   (see PurgeMemoryMode).
   // - Decommit pooled pages at the end of a sweep cycle.
   kReleaseMemory
+};
+
+// Specifies how free system pages on normal pages are purged during
+// memory-reducing sweeps.
+enum class PurgeMemoryMode : uint8_t {
+  kOff,
+  kDiscard,
 };
 
 struct MarkingConfig {

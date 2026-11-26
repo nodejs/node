@@ -157,6 +157,18 @@ void MaglevCompilationUnit::InitializeSpecializationContextForInlined(
   // closure was created (e.g. when a factory function is inlined into `caller_`
   // and returns a fresh closure allocated in a new FunctionContext with the
   // same ScopeInfo as `caller_->specialization_context()`).
+  if (const InlinedAllocation* alloc = function->TryCast<InlinedAllocation>();
+      alloc != nullptr &&
+      alloc->object()->object_type() == vobj::ObjectType::kJSFunction) {
+    const VirtualObject* vobj = alloc->object();
+    const auto* data = vobj->specialization_context_data();
+    DCHECK_NOT_NULL(data);
+    DCHECK_EQ(vobj->shared_function_info(broker()), *shared_function_info_);
+    DCHECK_EQ(data->context_scope_info.value(), scope_info);
+    specialization_context_ = data->specialization_context;
+    incoming_context_scope_info_ = data->context_scope_info;
+    return;
+  }
   if (FastCreateClosure* fast_closure =
           function->TryCast<FastCreateClosure>()) {
     DCHECK_EQ(fast_closure->shared_function_info(), *shared_function_info_);

@@ -628,7 +628,8 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
 
   // Some deopts don't invalidate InstructionStream (e.g. lazy deopts, or when
   // preparing for OSR from Maglev to Turbofan).
-  if (code_validity == Deoptimizer::CodeValidity::kUnaffected) {
+  if (code_validity == Deoptimizer::CodeValidity::kUnaffected ||
+      code_validity == Deoptimizer::CodeValidity::kUnaffectedOsr) {
     // If there's a turbolevved inner OSR loop and a maglevved outer OSR loop,
     // force the outer loop to be turbolevved.
     //
@@ -653,6 +654,23 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
     if (deopt_reason == DeoptimizeReason::kPrepareForOnStackReplacement &&
         function->ActiveTierIsMaglev(isolate)) {
       isolate->tiering_manager()->MarkForTurboFanOptimization(*function);
+    }
+
+    // OSR code that deopts outside of its loop stays cached, so each later
+    // call enters it and may deopt again. Tier up the function itself.
+    if (code_validity == Deoptimizer::CodeValidity::kUnaffectedOsr &&
+        !function->IsTieringRequestedOrInProgress(isolate)) {
+      if (optimized_code->kind() == CodeKind::TURBOFAN_JS) {
+        if (!function->ActiveTierIsTurbofan(isolate)) {
+          isolate->tiering_manager()->MarkForTurboFanOptimization(*function);
+        }
+      } else {
+        DCHECK_EQ(optimized_code->kind(), CodeKind::MAGLEV);
+        if (function->ActiveTierIsIgnition(isolate) ||
+            function->ActiveTierIsBaseline(isolate)) {
+          isolate->tiering_manager()->MarkForMaglevOptimization(*function);
+        }
+      }
     }
 
     return ReadOnlyRoots(isolate).undefined_value();

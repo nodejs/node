@@ -1509,21 +1509,6 @@ TEST_F(AssemblerIa32Test, CpuFeatures_ProbeImpl) {
                 CpuFeatures::IsSupported(SSSE3));
   CHECK_IMPLIES(CpuFeatures::IsSupported(SSSE3),
                 CpuFeatures::IsSupported(SSE3));
-
-  // Check the reverse, if an older extension is not supported, a newer
-  // extension cannot be supported.
-  CHECK_IMPLIES(!CpuFeatures::IsSupported(SSE3),
-                !CpuFeatures::IsSupported(SSSE3));
-  CHECK_IMPLIES(!CpuFeatures::IsSupported(SSSE3),
-                !CpuFeatures::IsSupported(SSE4_1));
-  CHECK_IMPLIES(!CpuFeatures::IsSupported(SSE4_1),
-                !CpuFeatures::IsSupported(SSE4_2));
-  CHECK_IMPLIES(!CpuFeatures::IsSupported(SSE4_2),
-                !CpuFeatures::IsSupported(AVX));
-  CHECK_IMPLIES(!CpuFeatures::IsSupported(AVX),
-                !CpuFeatures::IsSupported(AVX2));
-  CHECK_IMPLIES(!CpuFeatures::IsSupported(AVX),
-                !CpuFeatures::IsSupported(FMA3));
 }
 
 #undef __

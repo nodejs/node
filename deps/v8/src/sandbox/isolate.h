@@ -15,10 +15,11 @@ namespace v8::internal {
 
 class Isolate;
 
-// A reference to an Isolate that only exposes the sandbox-related parts of an
-// isolate, in particular the various pointer tables. Can be used off-thread
-// and implicitly constructed from both an Isolate* and a LocalIsolate*.
-#ifdef V8_ENABLE_SANDBOX
+// A reference to an Isolate that only exposes the pointer-compression- and
+// sandbox-related parts of an isolate, in particular the various pointer
+// tables. Can be used off-thread and implicitly constructed from both an
+// Isolate* and a LocalIsolate*.
+#ifdef V8_COMPRESS_POINTERS
 
 class V8_EXPORT_PRIVATE IsolateForSandbox final {
  public:
@@ -31,10 +32,12 @@ class V8_EXPORT_PRIVATE IsolateForSandbox final {
   inline ExternalPointerTable::Space* GetExternalPointerTableSpaceFor(
       ExternalPointerTagRange tag_range, Address host);
 
+#ifdef V8_ENABLE_SANDBOX
   inline TrustedPointerTable& GetTrustedPointerTableFor(
       TrustedPointerTagRange tag_range);
   inline TrustedPointerTable::Space* GetTrustedPointerTableSpaceFor(
       TrustedPointerTagRange tag_range, Address host);
+#endif  // V8_ENABLE_SANDBOX
 
   inline JSDispatchTable& GetJSDispatchTable();
 
@@ -55,35 +58,14 @@ class V8_EXPORT_PRIVATE IsolateForSandbox final {
 
 V8_INLINE IsolateForSandbox GetCurrentIsolateForSandbox();
 
-#else  // V8_ENABLE_SANDBOX
-
-class V8_EXPORT_PRIVATE IsolateForSandbox final {
- public:
-  template <typename IsolateT>
-  constexpr IsolateForSandbox(IsolateT*) {}  // NOLINT(runtime/explicit)
-
-  constexpr IsolateForSandbox() = default;
-};
-
-V8_INLINE IsolateForSandbox GetCurrentIsolateForSandbox() { return {}; }
-
-#endif  // V8_ENABLE_SANDBOX
-
-#ifdef V8_COMPRESS_POINTERS
 class V8_EXPORT_PRIVATE IsolateForPointerCompression final {
  public:
   template <typename IsolateT>
   IsolateForPointerCompression(IsolateT* isolate)  // NOLINT(runtime/explicit)
       : isolate_(isolate->ForSandbox()) {}
-#ifdef V8_ENABLE_SANDBOX
   IsolateForPointerCompression(
       IsolateForSandbox isolate)  // NOLINT(runtime/explicit)
       : isolate_(isolate.isolate_) {}
-#else
-  constexpr IsolateForPointerCompression(
-      IsolateForSandbox)  // NOLINT(runtime/explicit)
-      : isolate_(nullptr) {}
-#endif
 
   inline ExternalPointerTable& GetExternalPointerTableFor(
       ExternalPointerTagRange tag_range);
@@ -98,7 +80,19 @@ class V8_EXPORT_PRIVATE IsolateForPointerCompression final {
  private:
   Isolate* const isolate_;
 };
-#else   // V8_COMPRESS_POINTERS
+
+#else  // V8_COMPRESS_POINTERS
+
+class V8_EXPORT_PRIVATE IsolateForSandbox final {
+ public:
+  template <typename IsolateT>
+  constexpr IsolateForSandbox(IsolateT*) {}  // NOLINT(runtime/explicit)
+
+  constexpr IsolateForSandbox() = default;
+};
+
+V8_INLINE IsolateForSandbox GetCurrentIsolateForSandbox() { return {}; }
+
 class V8_EXPORT_PRIVATE IsolateForPointerCompression final {
  public:
   template <typename IsolateT>
@@ -108,6 +102,7 @@ class V8_EXPORT_PRIVATE IsolateForPointerCompression final {
       IsolateForSandbox)  // NOLINT(runtime/explicit)
   {}
 };
+
 #endif  // V8_COMPRESS_POINTERS
 
 }  // namespace v8::internal

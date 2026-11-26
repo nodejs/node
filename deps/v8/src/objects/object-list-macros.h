@@ -127,7 +127,6 @@ namespace internal {
   V(DescriptorArray)                            \
   V(DictionaryTemplateInfo)                     \
   V(DoubleStringCache)                          \
-  V(EmbedderDataArray)                          \
   V(EphemeronHashTable)                         \
   V(ExternalOneByteString)                      \
   V(ExternalString)                             \
@@ -184,6 +183,8 @@ namespace internal {
   V(JSIteratorConcatHelper)                     \
   V(JSIteratorZipHelper)                        \
   V(JSIteratorZipKeyedHelper)                   \
+  V(JSIteratorChunksHelper)                     \
+  V(JSIteratorWindowsHelper)                    \
   V(JSMap)                                      \
   V(JSMapIterator)                              \
   V(JSMessageObject)                            \
@@ -203,8 +204,6 @@ namespace internal {
   V(JSSet)                                      \
   V(JSSetIterator)                              \
   V(JSShadowRealm)                              \
-  V(JSSharedArray)                              \
-  V(JSSharedStruct)                             \
   V(JSSpecialObject)                            \
   V(JSStringIterator)                           \
   V(JSDetachedTypedArray)                       \
@@ -316,11 +315,11 @@ namespace internal {
 // but exist for the sake of type checking, for example IsCallable().
 #define VIRTUAL_OBJECT_TYPE_LIST(V) \
   V(AccessCheckNeeded)              \
-  V(AlwaysSharedSpaceJSObject)      \
   V(BigIntWrapper)                  \
   V(BooleanWrapper)                 \
   V(Callable)                       \
   V(Constructor)                    \
+  V(DescriptorLookupTable)          \
   V(Filler)                         \
   V(HandlerTable)                   \
   V(JSContextExtensionObject)       \

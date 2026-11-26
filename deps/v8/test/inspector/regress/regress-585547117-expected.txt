@@ -1,0 +1,5 @@
+Tests that StaleRegister in an unoptimized generator frame is treated as optimized out
+arguments[0]: 1
+live1 unavailable: true
+setVariableValue rejected: true
+final result: 16

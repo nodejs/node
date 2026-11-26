@@ -33,9 +33,7 @@ class ConsoleCallArguments;
 }  // namespace debug
 
 namespace api_internal {
-V8_EXPORT v8::Local<v8::Value> GetFunctionTemplateData(
-    v8::Isolate* isolate, v8::Local<v8::Data> raw_target);
-V8_EXPORT v8::Local<v8::Data> GetFunctionTemplateDataV2(
+V8_EXPORT v8::Local<v8::Data> GetFunctionTemplateData(
     v8::Isolate* isolate, v8::Local<v8::Data> raw_target);
 }  // namespace api_internal
 
@@ -140,10 +138,9 @@ class FunctionCallbackInfo {
   V8_INLINE Local<Value> NewTarget() const;
   /** Indicates whether this is a regular call or a construct call. */
   V8_INLINE bool IsConstructCall() const;
-  /** The data argument specified when creating the callback. */
-  V8_DEPRECATED("Use DataV2 instead")
-  V8_INLINE Local<Value> Data() const;
   /** The data argument specified when creating the callback as `v8::Data`. */
+  V8_INLINE Local<v8::Data> Data() const;
+  V8_DEPRECATE_SOON("Use Data() instead")
   V8_INLINE Local<v8::Data> DataV2() const;
   /** The current Isolate. */
   V8_INLINE Isolate* GetIsolate() const;
@@ -239,16 +236,10 @@ class PropertyCallbackInfo {
   V8_INLINE Isolate* GetIsolate() const;
 
   /**
-   * \return The data set in the configuration, i.e., in
-   * `NamedPropertyHandlerConfiguration` or
-   * `IndexedPropertyHandlerConfiguration.`
-   */
-  V8_DEPRECATED("Use DataV2 instead")
-  V8_INLINE Local<Value> Data() const;
-
-  /**
    * \return The data set in the callback configuration as `v8::Data`.
    */
+  V8_INLINE Local<v8::Data> Data() const;
+  V8_DEPRECATE_SOON("Use Data() instead")
   V8_INLINE Local<v8::Data> DataV2() const;
 
   /**
@@ -298,12 +289,9 @@ class PropertyCallbackInfo {
   // ShouldThrowOnError() can return true only for setter/definer/deleter
   // callbacks which match [[Set]]/[[DefineOwnProperty]]/[[Delete]]
   // operations. We detect these operations by return value type - they
-  // all return boolean value, even though setter/deleter callbacks are
-  // still using v8::PropertyCallbackInfo<void>.
-  // TODO(https://crbug.com/348660658): cleanup this, once the callbacks are
-  // migrated to a new return type.
+  // all return boolean value.
   static constexpr bool HasShouldThrowOnError() {
-    return std::is_same_v<T, v8::Boolean> || std::is_same_v<T, void>;
+    return std::is_same_v<T, v8::Boolean>;
   }
 
   // Indicates whether this is a named accessor/interceptor callback call
@@ -653,15 +641,14 @@ Local<Value> FunctionCallbackInfo<T>::NewTarget() const {
 }
 
 template <typename T>
-Local<Value> FunctionCallbackInfo<T>::Data() const {
+Local<v8::Data> FunctionCallbackInfo<T>::Data() const {
   auto target = Local<v8::Data>::FromSlot(&values_[kTargetIndex]);
   return api_internal::GetFunctionTemplateData(GetIsolate(), target);
 }
 
 template <typename T>
 Local<v8::Data> FunctionCallbackInfo<T>::DataV2() const {
-  auto target = Local<v8::Data>::FromSlot(&values_[kTargetIndex]);
-  return api_internal::GetFunctionTemplateDataV2(GetIsolate(), target);
+  return Data();
 }
 
 template <typename T>
@@ -696,19 +683,16 @@ Isolate* PropertyCallbackInfo<T>::GetIsolate() const {
 }
 
 template <typename T>
-Local<Value> PropertyCallbackInfo<T>::Data() const {
-  internal::Address callback_info = args_[kCallbackInfoIndex];
-  internal::Address data =
-      I::ReadTaggedPointerField(callback_info, I::kCallbackInfoDataOffset);
-  return Local<Value>::New(GetIsolate(), data);
-}
-
-template <typename T>
-Local<v8::Data> PropertyCallbackInfo<T>::DataV2() const {
+Local<v8::Data> PropertyCallbackInfo<T>::Data() const {
   internal::Address callback_info = args_[kCallbackInfoIndex];
   internal::Address data =
       I::ReadTaggedPointerField(callback_info, I::kCallbackInfoDataOffset);
   return Local<v8::Data>::New(GetIsolate(), data);
+}
+
+template <typename T>
+Local<v8::Data> PropertyCallbackInfo<T>::DataV2() const {
+  return Data();
 }
 
 template <typename T>

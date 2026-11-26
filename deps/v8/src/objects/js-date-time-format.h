@@ -14,6 +14,7 @@
 
 #include "src/base/bit-field.h"
 #include "src/execution/isolate.h"
+#include "src/objects/bit-field-group.h"
 #include "src/objects/intl-objects.h"
 #include "src/objects/managed.h"
 #include "unicode/uversion.h"
@@ -137,32 +138,44 @@ V8_OBJECT class JSDateTimeFormat : public JSObject {
       int32_t explicit_components_in_options);
   inline int32_t explicit_components_in_options() const;
 
-  // Bit positions in |flags|.
-  using HourCycleBits =
-      base::BitField<JSDateTimeFormat::HourCycle, 0, 3, uint32_t>;
-  using DateStyleBits = HourCycleBits::Next<JSDateTimeFormat::DateTimeStyle, 3>;
-  using TimeStyleBits = DateStyleBits::Next<JSDateTimeFormat::DateTimeStyle, 3>;
-  using HasToLocaleStringTimeZoneBit = TimeStyleBits::Next<bool, 1>;
-  using ExplicitComponentsInOptionsBits =
-      HasToLocaleStringTimeZoneBit::Next<int32_t, 11>;
+  struct Flags : BitFieldGroup<Flags, uint32_t> {
+    using BitFieldGroup::BitFieldGroup;
 
-  static_assert(HourCycleBits::is_valid(HourCycle::kUndefined));
-  static_assert(HourCycleBits::is_valid(HourCycle::kH11));
-  static_assert(HourCycleBits::is_valid(HourCycle::kH12));
-  static_assert(HourCycleBits::is_valid(HourCycle::kH23));
-  static_assert(HourCycleBits::is_valid(HourCycle::kH24));
+    using HourCycleBits = First<JSDateTimeFormat::HourCycle, 3>;
+    using DateStyleBits =
+        HourCycleBits::Next<JSDateTimeFormat::DateTimeStyle, 3>;
+    using TimeStyleBits =
+        DateStyleBits::Next<JSDateTimeFormat::DateTimeStyle, 3>;
+    using HasToLocaleStringTimeZoneBit = TimeStyleBits::Next<bool, 1>;
+    using ExplicitComponentsInOptionsBits =
+        HasToLocaleStringTimeZoneBit::Next<int32_t, 11>;
 
-  static_assert(DateStyleBits::is_valid(DateTimeStyle::kUndefined));
-  static_assert(DateStyleBits::is_valid(DateTimeStyle::kFull));
-  static_assert(DateStyleBits::is_valid(DateTimeStyle::kLong));
-  static_assert(DateStyleBits::is_valid(DateTimeStyle::kMedium));
-  static_assert(DateStyleBits::is_valid(DateTimeStyle::kShort));
+    BIT_FIELD_GROUP_ACCESSORS(hour_cycle, HourCycleBits)
+    BIT_FIELD_GROUP_ACCESSORS(date_style, DateStyleBits)
+    BIT_FIELD_GROUP_ACCESSORS(time_style, TimeStyleBits)
+    BIT_FIELD_GROUP_ACCESSORS(has_to_locale_string_time_zone,
+                              HasToLocaleStringTimeZoneBit)
+    BIT_FIELD_GROUP_ACCESSORS(explicit_components_in_options,
+                              ExplicitComponentsInOptionsBits)
+  };
 
-  static_assert(TimeStyleBits::is_valid(DateTimeStyle::kUndefined));
-  static_assert(TimeStyleBits::is_valid(DateTimeStyle::kFull));
-  static_assert(TimeStyleBits::is_valid(DateTimeStyle::kLong));
-  static_assert(TimeStyleBits::is_valid(DateTimeStyle::kMedium));
-  static_assert(TimeStyleBits::is_valid(DateTimeStyle::kShort));
+  static_assert(Flags::HourCycleBits::is_valid(HourCycle::kUndefined));
+  static_assert(Flags::HourCycleBits::is_valid(HourCycle::kH11));
+  static_assert(Flags::HourCycleBits::is_valid(HourCycle::kH12));
+  static_assert(Flags::HourCycleBits::is_valid(HourCycle::kH23));
+  static_assert(Flags::HourCycleBits::is_valid(HourCycle::kH24));
+
+  static_assert(Flags::DateStyleBits::is_valid(DateTimeStyle::kUndefined));
+  static_assert(Flags::DateStyleBits::is_valid(DateTimeStyle::kFull));
+  static_assert(Flags::DateStyleBits::is_valid(DateTimeStyle::kLong));
+  static_assert(Flags::DateStyleBits::is_valid(DateTimeStyle::kMedium));
+  static_assert(Flags::DateStyleBits::is_valid(DateTimeStyle::kShort));
+
+  static_assert(Flags::TimeStyleBits::is_valid(DateTimeStyle::kUndefined));
+  static_assert(Flags::TimeStyleBits::is_valid(DateTimeStyle::kFull));
+  static_assert(Flags::TimeStyleBits::is_valid(DateTimeStyle::kLong));
+  static_assert(Flags::TimeStyleBits::is_valid(DateTimeStyle::kMedium));
+  static_assert(Flags::TimeStyleBits::is_valid(DateTimeStyle::kShort));
 
   inline Tagged<String> locale() const;
   inline void set_locale(Tagged<String> value,
@@ -187,8 +200,8 @@ V8_OBJECT class JSDateTimeFormat : public JSObject {
   inline void set_bound_format(Tagged<UnionOf<JSFunction, Undefined>> value,
                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline int flags() const;
-  inline void set_flags(int value);
+  inline Flags flags() const;
+  inline void set_flags(Flags value);
 
   // [has_to_locale_string_time_zone]: true if the timezone is set from
   // toLocaleStringTimeZone
@@ -205,7 +218,7 @@ V8_OBJECT class JSDateTimeFormat : public JSObject {
   TaggedMember<Foreign> icu_simple_date_format_;
   TaggedMember<Foreign> icu_date_interval_format_;
   TaggedMember<UnionOf<JSFunction, Undefined>> bound_format_;
-  TaggedMember<Smi> flags_ V8_TQ_TYPE(SmiTagged<JSDateTimeFormatFlags>);
+  SmiBitFieldMember<Flags> flags_;
 } V8_OBJECT_END;
 
 inline constexpr int JSDateTimeFormat::kHeaderSize = sizeof(JSDateTimeFormat);

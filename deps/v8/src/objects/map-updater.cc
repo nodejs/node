@@ -372,17 +372,8 @@ std::optional<Tagged<Map>> MapUpdater::TryUpdateNoLock(Isolate* isolate,
 
   // Check the state of the root map.
   Tagged<Map> root_map = old_map->FindRootMap();
-  if (root_map->is_deprecated()) {
-    Tagged<JSFunction> constructor =
-        Cast<JSFunction>(root_map->GetConstructor());
-    DCHECK(constructor->has_initial_map());
-    DCHECK(constructor->initial_map()->is_dictionary_map());
-    if (constructor->initial_map()->elements_kind() !=
-        old_map->elements_kind()) {
-      return {};
-    }
-    return constructor->initial_map();
-  }
+  // Root maps shall not be deprecated.
+  CHECK(!root_map->is_deprecated());
 
   if (root_map->prototype() != old_map->prototype()) {
     auto maybe_transition =
@@ -486,7 +477,13 @@ void MapUpdater::CompleteInobjectSlackTracking(Isolate* isolate,
       int old_visitor_id = Map::GetVisitorId(map);
       int new_unused = map->UnusedPropertyFields() - slack;
 #endif
-      map->set_instance_size(map->InstanceSizeFromSlack(slack));
+      // Synchronize with the concurrent sweeper (see
+      // `LiveObjectRange::iterator::ReadMapAndSize`): if the sweeper observes
+      // this shrunk `instance_size` via an acquire load, a subsequent reload of
+      // an object's map is guaranteed to see any map migration that happened
+      // before slack tracking completed.
+      DCHECK(IsJSObjectMap(map));
+      map->set_instance_size(map->InstanceSizeFromSlack(slack), kReleaseStore);
       map->set_construction_counter(Map::kNoSlackTracking);
       DCHECK_EQ(old_visitor_id, Map::GetVisitorId(map));
       DCHECK_EQ(new_unused, map->UnusedPropertyFields());
@@ -886,6 +883,12 @@ DirectHandle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
     // we'd need to generalize old_details with the root_details here.
     PropertyDetails root_details =
         root_map_->instance_descriptors()->GetDetails(i);
+    DCHECK_EQ(old_details.kind(), root_details.kind());
+    DCHECK_EQ(old_details.location(), root_details.location());
+    DCHECK_IMPLIES(old_details.location() == PropertyLocation::kDescriptor,
+                   EqualImmutableValues(
+                       old_descriptors_->GetStrongValue(i),
+                       root_map_->instance_descriptors()->GetStrongValue(i)));
     DCHECK_EQ(
         old_details.representation().generalize(root_details.representation()),
         root_details.representation());
@@ -1040,7 +1043,11 @@ DirectHandle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
     }
   }
 
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+  new_descriptors->CopyFromOrRebuildLookupTable(*old_descriptors_);
+#else
   new_descriptors->Sort();
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
   return new_descriptors;
 }
 

@@ -21,7 +21,6 @@
 
 namespace v8 {
 
-class ArrayBuffer;
 class ArrayBufferBase;
 class Promise;
 
@@ -33,40 +32,38 @@ class NativeModule;
  * An owned byte buffer with associated size.
  */
 struct OwnedBuffer {
-  V8_DEPRECATE_SOON("Use as_span() instead")
-  std::unique_ptr<const uint8_t[]> buffer;
-  V8_DEPRECATE_SOON("Use as_span() instead")
-  size_t size = 0;
-
-  START_ALLOW_USE_DEPRECATED()
   OwnedBuffer() = default;
   ~OwnedBuffer() = default;
-
-  V8_DEPRECATE_SOON(
-      "Use as_span() instead; external construction is deprecated")
-  OwnedBuffer(std::unique_ptr<const uint8_t[]> buffer, size_t size)
-      : buffer(std::move(buffer)), size(size) {}
 
   OwnedBuffer(const OwnedBuffer&) = delete;
   OwnedBuffer& operator=(const OwnedBuffer&) = delete;
 
   OwnedBuffer(OwnedBuffer&& other) noexcept
-      : buffer(std::move(other.buffer)), size(std::exchange(other.size, 0)) {}
+      : buffer_(std::move(other.buffer_)),
+        size_(std::exchange(other.size_, 0)) {}
 
   OwnedBuffer& operator=(OwnedBuffer&& other) noexcept {
     if (this != &other) {
-      buffer = std::move(other.buffer);
-      size = std::exchange(other.size, 0);
+      buffer_ = std::move(other.buffer_);
+      size_ = std::exchange(other.size_, 0);
     }
     return *this;
   }
 
-  constexpr bool empty() const { return size == 0; }
+  constexpr bool empty() const { return size_ == 0; }
 
   constexpr std::span<const uint8_t> as_span() const {
-    return {buffer.get(), size};
+    return {buffer_.get(), size_};
   }
-  END_ALLOW_USE_DEPRECATED()
+
+ private:
+  friend class CompiledWasmModule;
+
+  OwnedBuffer(std::unique_ptr<const uint8_t[]> buffer, size_t size)
+      : buffer_(std::move(buffer)), size_(size) {}
+
+  std::unique_ptr<const uint8_t[]> buffer_;
+  size_t size_ = 0;
 };
 
 /**
@@ -105,11 +102,6 @@ class V8_EXPORT WasmMemoryObject : public Object {
  public:
   WasmMemoryObject() = delete;
 
-  /**
-   * Returns underlying ArrayBuffer.
-   */
-  V8_DEPRECATE_SOON("Use GetBuffer instead")
-  Local<ArrayBuffer> Buffer();
   /**
    * Returns underlying ArrayBuffer or SharedArrayBuffer.
    */

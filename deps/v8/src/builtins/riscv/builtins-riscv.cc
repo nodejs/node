@@ -443,7 +443,10 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(
     MacroAssembler* masm, Register sfi, Register bytecode, Register scratch1,
     Register scratch2, Label* is_baseline, Label* is_unavailable) {
   ASM_CODE_COMMENT(masm);
-  Label is_interpreter_data, is_bytecode_array, is_code;
+  Label is_interpreter_data, is_bytecode_array;
+#if !V8_JITLESS_BOOL
+  Label is_code;
+#endif
   Register data = bytecode;
   __ LoadTrustedUnknownPointerField(
       data,
@@ -1213,10 +1216,54 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
               Operand(interrupt_limit));
   }
 
+  // Reduce interrupt budget.
+  Label budget_interrupt;
+  {
+    ASM_CODE_COMMENT_STRING(masm, "Update Interrupt Budget");
+    UseScratchRegisterScope temps(masm);
+    Register interrupt_budget = temps.Acquire();
+    Register bytecode_length = temps.Acquire();
+    Register bytecode_array = descriptor.GetRegisterParameter(
+        BaselineOutOfLinePrologueDescriptor::kInterpreterBytecodeArray);
+    __ Lw(interrupt_budget,
+          FieldMemOperand(feedback_cell,
+                          offsetof(FeedbackCell, interrupt_budget_)));
+    __ SmiUntagField(
+        bytecode_length,
+        FieldMemOperand(bytecode_array, offsetof(BytecodeArray, length_)));
+    __ Sub32(interrupt_budget, interrupt_budget, Operand(bytecode_length));
+    __ Sw(interrupt_budget,
+          FieldMemOperand(feedback_cell,
+                          offsetof(FeedbackCell, interrupt_budget_)));
+    __ Branch(&budget_interrupt, lt, interrupt_budget, Operand(zero_reg));
+  }
+
   // Do "fast" return to the caller pc in ra.
   // TODO(v8:11429): Document this frame setup better.
   __ Ret();
 
+  __ bind(&budget_interrupt);
+  {
+    ASM_CODE_COMMENT_STRING(masm, "Budget interrupt call");
+    FrameScope frame_scope(masm, StackFrame::INTERNAL);
+    // Save incoming new target or generator
+    __ Push(kJavaScriptCallNewTargetRegister);
+#if defined(V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE) && \
+    defined(V8_TARGET_ARCH_RISCV64)
+    __ PushDispatchHandle(kJavaScriptCallDispatchHandleRegister, feedback_cell,
+                          feedback_vector);
+#endif
+    __ Push(closure);
+    __ CallRuntime(Runtime::kBytecodeBudgetInterrupt_Sparkplug, 1);
+#if defined(V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE) && \
+    defined(V8_TARGET_ARCH_RISCV64)
+    __ PopDispatchHandle(kJavaScriptCallDispatchHandleRegister, feedback_cell,
+                         feedback_vector);
+#endif
+    __ Pop(kJavaScriptCallNewTargetRegister);
+  }
+  __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
+  __ Ret();
 
   __ bind(&call_stack_guard);
   {
@@ -2668,6 +2715,10 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
   Label stack_overflow;
   __ StackOverflowCheck(len, kScratchReg, a5, &stack_overflow);
 
+  // Skip argument setup if we don't need to push any varargs.
+  Label done;
+  __ Branch(&done, eq, len, Operand(zero_reg), Label::Distance::kNear);
+
   // Move the arguments already in the stack,
   // including the receiver and the return address.
   // a4: Number of arguments to make room for.
@@ -2678,11 +2729,10 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
   // Push arguments onto the stack (thisArgument is already on the stack).
   {
     UseScratchRegisterScope temps(masm);
-    Label done, push, loop;
+    Label push, loop;
     Register src = a6;
     Register scratch = temps.Acquire();
     __ AddWord(src, args, OFFSET_OF_DATA_START(FixedArray) - kHeapObjectTag);
-    __ Branch(&done, eq, len, Operand(zero_reg), Label::Distance::kNear);
     __ SllWord(scratch, len, kTaggedSizeLog2);
     __ SubWord(scratch, sp, Operand(scratch));
 #if !V8_STATIC_ROOTS_BOOL
@@ -2706,8 +2756,8 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
     __ AddWord(a7, a7, Operand(kSystemPointerSize));
     __ AddWord(scratch, scratch, Operand(kTaggedSize));
     __ Branch(&loop, ne, scratch, Operand(sp));
-    __ bind(&done);
   }
+  __ bind(&done);
 
   // Tail-call to the actual Call or Construct builtin.
   __ TailCallBuiltin(target_builtin);
@@ -3225,8 +3275,8 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
   __ bind(&done);
 
   // Increment the total invocation count of the function.
-  __ LoadTaggedField(scratch,
-                     FieldMemOperand(vector, OFFSET_OF_DATA_START(FixedArray)));
+  __ LoadTaggedSignedField(
+      scratch, FieldMemOperand(vector, OFFSET_OF_DATA_START(FixedArray)));
   if (SmiValuesAre31Bits()) {
     __ Add32(scratch, scratch, Operand(Smi::FromInt(1)));
   } else {
@@ -5504,6 +5554,8 @@ void Builtins::Generate_DeoptimizationEntry_LazyAfterFastCall(
   __ PopAll(kCalleeSaveRegisters);
   __ PopAll(kCalleeSaveFPRegisters);
   __ LeaveFrame(StackFrame::INTERNAL);
+  __ TailCallBuiltin(Builtin::kDeoptimizationEntry_Lazy);
+
   __ bind(&no_exception);
 
   // Deoptimization expects that the return value of the API call is in the

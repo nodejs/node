@@ -6,6 +6,7 @@
 #define V8_COMPILER_TURBOSHAFT_TYPER_H_
 
 #include <limits>
+#include <vector>
 
 #include "src/base/logging.h"
 #include "src/base/vector.h"
@@ -424,11 +425,10 @@ struct FloatOperationTyper {
 
   static type_t Set(std::vector<float_t> elements, uint32_t special_values,
                     Zone* zone) {
-    if (base::erase_if(elements, [](float_t v) { return std::isnan(v); }) > 0) {
+    if (std::erase_if(elements, [](float_t v) { return std::isnan(v); }) > 0) {
       special_values |= type_t::kNaN;
     }
-    if (base::erase_if(elements, [](float_t v) { return IsMinusZero(v); }) >
-        0) {
+    if (std::erase_if(elements, [](float_t v) { return IsMinusZero(v); }) > 0) {
       special_values |= type_t::kMinusZero;
     }
     base::sort(elements);
@@ -493,10 +493,10 @@ struct FloatOperationTyper {
     if (l.has_minus_zero()) CombineWithLeft(-0.0);
     if (l.has_nan()) CombineWithLeft(nan_v<Bits>);
 
-    if (base::erase_if(results, [](float_t v) { return std::isnan(v); }) > 0) {
+    if (std::erase_if(results, [](float_t v) { return std::isnan(v); }) > 0) {
       special_values |= type_t::kNaN;
     }
-    if (base::erase_if(results, [](float_t v) { return IsMinusZero(v); }) > 0) {
+    if (std::erase_if(results, [](float_t v) { return IsMinusZero(v); }) > 0) {
       special_values |= type_t::kMinusZero;
     }
     base::sort(results);

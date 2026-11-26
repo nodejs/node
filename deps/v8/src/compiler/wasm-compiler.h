@@ -39,7 +39,7 @@ class SourcePositionTable;
 
 namespace wasm {
 class WireBytesStorage;
-enum Suspend : int;
+enum Suspend : uint8_t;
 enum CallOrigin { kCalledFromWasm, kCalledFromJS };
 }  // namespace wasm
 

@@ -159,6 +159,37 @@ function Test() {
   assertEquals(Sub, sub.constructor);
   assertEquals(Super.prototype, Object.getPrototypeOf(Sub.prototype));
 
+  // Sealed JS object behavior with non-null prototype.
+  // Also run on a sealed empty JS object to verify consistency.
+  let sealed_js_obj = Object.seal(Object.create(Sub.prototype));
+  for (const obj of [sub, sealed_js_obj]) {
+    assertSame(obj, Object.freeze(obj));
+    assertSame(obj, Object.seal(obj));
+    assertSame(obj, Object.preventExtensions(obj));
+    assertSame(obj, Object.setPrototypeOf(obj, Sub.prototype));
+    assertThrows(() => Object.setPrototypeOf(obj, Super.prototype), TypeError);
+    assertThrows(() => Object.setPrototypeOf(obj, null), TypeError);
+    assertTrue(Reflect.setPrototypeOf(obj, Sub.prototype));
+    assertFalse(Reflect.setPrototypeOf(obj, Super.prototype));
+    assertFalse(Reflect.setPrototypeOf(obj, null));
+    assertTrue(Reflect.preventExtensions(obj));
+    assertFalse(Reflect.defineProperty(obj, "x", {value: 1}));
+    assertTrue(Reflect.deleteProperty(obj, "rootProp"));
+    assertFalse(Reflect.set(obj, "x", 1));
+    assertFalse(Reflect.set(obj, "rootProp", "override"));
+    assertEquals("root", obj.rootProp);
+    assertEquals(1, obj.x = 1);
+    assertSame(undefined, obj.x);
+    assertThrows(() => {
+      "use strict";
+      obj.x = 1;
+    }, TypeError);
+    assertTrue(delete obj.rootProp);
+    assertEquals("root", obj.rootProp);
+    assertEquals("{}", JSON.stringify(obj));
+    assertEquals('{"rootProp":"root"}', JSON.stringify(obj, ["rootProp"]));
+  }
+
   // Mixed prototype chain.
   let js_sub = {jsProp: "js"};
   Object.setPrototypeOf(js_sub, sub);
@@ -177,6 +208,19 @@ function Test() {
 for (let i = 0; i < 3; i++) Test();
 %OptimizeFunctionOnNextCall(Test);
 Test();
+
+{
+  let sub = new Sub(2, 3);
+  Super.prototype.self = sub;
+  assertThrows(() => JSON.stringify(sub, ["self"]), TypeError);
+  delete Super.prototype.self;
+
+  Sub.prototype.toJSON = function() {
+    return {sub: this.subMethod()};
+  };
+  assertEquals('{"sub":3}', JSON.stringify(sub));
+  delete Sub.prototype.toJSON;
+}
 
 // Passing {null} constructors when setting up constructors throws.
 let bad_imports = {...imports};

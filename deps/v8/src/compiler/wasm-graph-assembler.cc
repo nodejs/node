@@ -84,7 +84,7 @@ Node* WasmGraphAssembler::BuildSmiShiftBitsConstant32() {
 
 Node* WasmGraphAssembler::BuildChangeInt32ToSmi(Node* value) {
   // With pointer compression, only the lower 32 bits are used.
-  return COMPRESS_POINTERS_BOOL ? BitcastWord32ToWord64(Word32Shl(
+  return COMPRESS_POINTERS_BOOL ? ChangeUint32ToUint64(Word32Shl(
                                       value, BuildSmiShiftBitsConstant32()))
                                 : WordShl(BuildChangeInt32ToIntPtr(value),
                                           BuildSmiShiftBitsConstant());
@@ -196,7 +196,7 @@ Node* WasmGraphAssembler::InitializeImmutableInObject(ObjectAccess access,
 
 Node* WasmGraphAssembler::BuildDecodeSandboxedExternalPointer(
     Node* handle, ExternalPointerTagRange tag_range, Node* isolate_root) {
-#if V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
   Node* index = Word32Shr(handle, Int32Constant(kExternalPointerIndexShift));
   Node* offset = ChangeUint32ToUint64(
       Word32Shl(index, Int32Constant(kExternalPointerTableEntrySizeLog2)));
@@ -239,13 +239,13 @@ Node* WasmGraphAssembler::BuildDecodeSandboxedExternalPointer(
   }
 #else
   UNREACHABLE();
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
 }
 
 Node* WasmGraphAssembler::BuildLoadExternalPointerFromObject(
     Node* object, int field_offset, ExternalPointerTagRange tag_range,
     Node* isolate_root) {
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
   DCHECK(!tag_range.IsEmpty());
   Node* handle = LoadFromObject(MachineType::Uint32(), object,
                                 field_offset - kHeapObjectTag);
@@ -253,7 +253,7 @@ Node* WasmGraphAssembler::BuildLoadExternalPointerFromObject(
 #else
   return LoadFromObject(MachineType::Pointer(), object,
                         field_offset - kHeapObjectTag);
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
 }
 
 Node* WasmGraphAssembler::IsSmi(Node* object) {

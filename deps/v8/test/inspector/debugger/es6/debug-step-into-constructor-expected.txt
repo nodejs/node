@@ -1,0 +1,39 @@
+Tests stepping into constructors.
+--- TestBreakPointInConstructor ---
+Pause at: var x = 1;    // 1.
+Pause at: var y = 2;    // 2.
+Pause at: done = true;  // 3.
+Pause at: }
+stepCount: 4
+--- TestDefaultConstructor ---
+Pause at: var x = 1;    // 1.
+Pause at: var y = 2;    // 2.
+Pause at: done = true;  // 3.
+Pause at: }
+stepCount: 4
+--- TestStepInto ---
+Pause at: new Derived();  // -1.
+Pause at: class Derived extends Base {}  // 0.
+Pause at: var x = 1;    // 1.
+Pause at: var y = 2;    // 2.
+Pause at: done = true;  // 3.
+Pause at: }
+stepCount: 4
+--- TestExtraIndirection ---
+Pause at: new Derived2();  // -2.
+Pause at: class Derived2 extends Derived {}  // -1.
+Pause at: class Derived extends Base {}  // 0.
+Pause at: var x = 1;    // 1.
+Pause at: var y = 2;    // 2.
+Pause at: done = true;  // 3.
+Pause at: }
+stepCount: 4
+--- TestBoundClass ---
+Pause at: new bound();  // -1.
+Pause at: class Derived extends Base {}  // 0.
+Pause at: var x = 1;    // 1.
+Pause at: var y = 2;    // 2.
+Pause at: done = true;  // 3.
+Pause at: }
+stepCount: 4
+allLinesMatched: true

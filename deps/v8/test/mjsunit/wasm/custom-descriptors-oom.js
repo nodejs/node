@@ -29,6 +29,7 @@ let constructors =
 // Data payload 1: too many static properties
 let data_statics = [
   1, // num_prototypes
+  0x7f, // parentidx = -1
   1, // has_constructor
   1, // constructor_name_length
   65, // "A"
@@ -39,6 +40,7 @@ let data_segment_statics = builder.addPassiveDataSegment(data_statics);
 // Data payload 2: too many methods
 let data_methods = [
   1, // num_prototypes
+  0x7f, // parentidx = -1
   0, // has_constructor
   ...wasmUnsignedLeb(0xFFFFFFF) // num_methods
 ];

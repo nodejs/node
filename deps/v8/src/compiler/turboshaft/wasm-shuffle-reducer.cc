@@ -554,7 +554,7 @@ void WasmShuffleAnalyzer::ProcessReplaceLane(
         ElementSizeInBytes(Simd128ReplaceLaneOp::element_rep(replace_op.kind));
     if (load->saturated_use_count.Is(1) &&
         load->loaded_rep.SizeInBytes() == replace_bytes &&
-        !load->kind.tagged_base && !load->kind.is_atomic) {
+        !load->kind.tagged_base && !load->kind.is_atomic()) {
       AddLoadLaneCandidate(load, replace_op);
     }
   }

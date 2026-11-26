@@ -215,6 +215,7 @@ class _Extractor:
   def __init__(self, parsed, v8_root: str):
     self.parsed = parsed
     self.v8_root = v8_root
+    self._layouts: dict[str, ClassLayout] = {}
 
   def _position(self, cursor: cindex.Cursor) -> str:
     pos = extract.position(cursor, self.v8_root)
@@ -701,6 +702,8 @@ class _Extractor:
 
   def extract_class_layout(self, name: str, cursor: cindex.Cursor,
                            layout_cursors: dict) -> ClassLayout:
+    if name in self._layouts:
+      return self._layouts[name]
     mark_visited(self.parsed, cursor)
     size = cursor.type.get_size()
     if size <= 0:
@@ -721,10 +724,9 @@ class _Extractor:
       if base_name is None or base_name not in layout_cursors:
         raise LayoutError(
             f"{_where(cursor)}: {name}: no ancestor with an exported layout")
-      base_cursor = layout_cursors[base_name]
-      base_size = base_cursor.type.get_size()
-      if base_size <= 0:
-        raise LayoutError(f"{name}: sizeof({base_name}) failed ({base_size})")
+      base_size = self.extract_class_layout(base_name,
+                                            layout_cursors[base_name],
+                                            layout_cursors).size
 
     members: list = []
     self._collect_members(cursor.type, base_name, members)
@@ -753,10 +755,29 @@ class _Extractor:
       else:
         fields.append(self._make_field(member, offset))
 
+    # Under the Microsoft C++ ABI, #pragma pack cannot lower an explicit
+    # alignas(N), so sizeof(class) may include < alignof(class) bytes of
+    # trailing alignment padding beyond the packed base subobject size.
+    packed_size = base_size + sum(f.size for f in fields)
+    if packed_size < size < packed_size + align:
+      if tail is not None or (fields and fields[-1].size == 0):
+        raise LayoutError(
+            f"{_where(cursor)}: {name}: fields end at offset {packed_size}, "
+            f"but sizeof({name}) is {size} (padded to alignof({name}) == "
+            f"{align}). Because offset != sizeof({name}), the zero-length "
+            f"array at offset {packed_size} (FLEXIBLE_ARRAY_MEMBER) was "
+            f"treated as a char[0] padding field instead of a flexible tail. "
+            f"To fix: either add {size - packed_size} bytes of explicit "
+            f"padding before FLEXIBLE_ARRAY_MEMBER in C++, or update "
+            f"extract_class_layout in tools/metagen/layout_extract.py to "
+            f"compare zero-length array offsets against the end of the fixed "
+            f"fields ({packed_size}) instead of sizeof({name}).")
+      size = packed_size
+
     qualified = f"v8::internal::{name}"
     qualified_base = (f"v8::internal::{base_name}"
                       if base_name is not None else None)
-    return ClassLayout(
+    layout = ClassLayout(
         cpp_name=qualified,
         position=self._position(cursor),
         base_cpp_name=qualified_base,
@@ -766,6 +787,8 @@ class _Extractor:
         fields=tuple(fields),
         tail=tail,
         annotations=ann)
+    self._layouts[name] = layout
+    return layout
 
 
 # Read configuration sizes from the aliases that define them in the parsed

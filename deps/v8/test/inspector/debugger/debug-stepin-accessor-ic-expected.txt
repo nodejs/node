@@ -1,0 +1,3 @@
+Tests stepping into accessor ICs.
+breakCount: 86
+allLinesHaveBreakComment: true

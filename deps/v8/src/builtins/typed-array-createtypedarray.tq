@@ -428,16 +428,16 @@ transitioning macro TypedArrayCreateByLength(
       IsResizableArrayBuffer(newTypedArray.buffer));
 
   if (IsDetachedBuffer(newTypedArray.buffer)) deferred {
-      ThrowTypeError(
-          MessageTemplate::kTypedArrayDetachedErrorOperation, methodName);
-    }
+    ThrowTypeError(
+        MessageTemplate::kTypedArrayDetachedErrorOperation, methodName);
+  }
 
   // 3. If argumentList is a List of a single Number, then
   //   a. If newTypedArray.[[ArrayLength]] < argumentList[0], throw a
   //      TypeError exception.
   if (newTypedArrayLength < Convert<uintptr>(length)) deferred {
-      ThrowTypeError(MessageTemplate::kTypedArrayTooShort);
-    }
+    ThrowTypeError(MessageTemplate::kTypedArrayTooShort);
+  }
 
   // 4. Return newTypedArray.
   return newTypedArray;
@@ -572,8 +572,8 @@ transitioning macro TypedArraySpeciesCreateByLength(
         typedArray, TypedArrayAccessMode::kRead)
         otherwise Fail;
     if (createdArrayLength < length) deferred {
-        ThrowTypeError(MessageTemplate::kTypedArrayTooShort);
-      }
+      ThrowTypeError(MessageTemplate::kTypedArrayTooShort);
+    }
   } label Fail {
     ThrowTypeError(MessageTemplate::kTypedArrayTooShort);
   }

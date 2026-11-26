@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <cstdio>
 #include <cstring>
 #include <memory>
 #include <string>
@@ -29,6 +30,10 @@
 
 #include <cerrno>
 #include <csignal>
+
+#if defined(LEAK_SANITIZER) || defined(ADDRESS_SANITIZER)
+#include <sanitizer/lsan_interface.h>
+#endif  // defined(LEAK_SANITIZER) || defined(ADDRESS_SANITIZER)
 #endif
 
 #ifdef V8_ENABLE_FUZZTEST
@@ -187,7 +192,14 @@ int RunForkServer() {
       close(err_pipe[1]);
 
       GTEST_FLAG_SET(filter, test_filter);
-      return RUN_ALL_TESTS();
+      int ret = RUN_ALL_TESTS();
+      // Flush all open FILE* streams before LSan, which calls _exit() on leaks.
+      fflush(nullptr);
+#if defined(LEAK_SANITIZER) || defined(ADDRESS_SANITIZER)
+      __lsan_do_leak_check();
+#endif
+      // Skip static destructors in the disposable child process.
+      _exit(ret);
     }
 
     close(out_pipe[1]);
@@ -241,7 +253,8 @@ int RunForkServer() {
   close(ctrl_in_fd);
   close(ctrl_out_fd);
   // The server itself never ran a test, so skip static destructors and
-  // sanitizer exit hooks (e.g. LSan). Children return from RUN_ALL_TESTS().
+  // sanitizer exit hooks (e.g. LSan). Children run their own LSan check
+  // before calling _exit().
   _exit(0);
 }
 

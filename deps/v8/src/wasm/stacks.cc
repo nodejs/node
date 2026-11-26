@@ -11,6 +11,7 @@
 #include "src/heap/heap-layout-inl.h"
 #include "src/objects/code-inl.h"
 #include "src/objects/slots-inl.h"
+#include "src/utils/utils.h"
 #include "src/wasm/wasm-objects.h"
 
 namespace v8::internal::wasm {
@@ -52,6 +53,13 @@ class VerifyNoYoungPointersVisitor : public RootVisitor {
   }
 };
 #endif  // DEBUG
+
+#if V8_OS_WIN && !defined(USE_SIMULATOR)
+thread_local uintptr_t central_stack_limit = 0;
+#ifdef DEBUG
+thread_local bool is_teb_on_central_stack = true;
+#endif
+#endif  // V8_OS_WIN && !defined(USE_SIMULATOR)
 
 }  // namespace
 
@@ -150,9 +158,18 @@ StackMemory::StackSegment::StackSegment(size_t pages) {
 StackMemory::StackSegment::~StackSegment() {
   PageAllocator* allocator = GetPlatformPageAllocator();
   size_t page_size = allocator->AllocatePageSize();
-  if (!allocator->DecommitPages(limit_ - page_size, size_ + 2 * page_size)) {
-    V8::FatalProcessOutOfMemory(nullptr, "Decommit stack memory");
-  }
+  // Stacks are retired while still running on them, which is why
+  // {StackPool::Add} defers their destruction. They must never be destroyed
+  // while in use.
+#ifdef DEBUG
+  Address current_sp = GetCurrentStackPosition();
+  DCHECK(current_sp < reinterpret_cast<Address>(limit_) ||
+         current_sp >= base());
+#endif
+  // Release the whole reservation, including both guard pages. Only
+  // decommitting the pages would keep the address range (and its page tables)
+  // reserved forever.
+  FreePages(allocator, limit_ - page_size, size_ + 2 * page_size);
 }
 
 void StackMemory::IterateWasmFXRoots(v8::internal::RootVisitor* v) {
@@ -268,15 +285,11 @@ bool StackMemory::Grow(Address parent_frame_fp, size_t min_size) {
            active_segment_->size_, active_segment_->limit_,
            active_segment_->limit_ + active_segment_->size_);
   }
-#if V8_OS_WIN
-  base::Stack::SetCurrentThreadStackBounds(
-      reinterpret_cast<uintptr_t>(active_segment_->limit_),
-      active_segment_->base());
-#endif
+  SetCurrentThreadStackBounds();
   return true;
 }
 
-Address StackMemory::Shrink() {
+Address StackMemory::ShrinkSegment() {
   DCHECK(owned_);
   DCHECK_NE(active_segment_->prev_segment_, nullptr);
   Address parent_frame_fp = active_segment_->parent_frame_fp;
@@ -288,25 +301,62 @@ Address StackMemory::Shrink() {
            active_segment_->limit_,
            active_segment_->limit_ + active_segment_->size_);
   }
-#if V8_OS_WIN
-  base::Stack::SetCurrentThreadStackBounds(
-      reinterpret_cast<uintptr_t>(active_segment_->limit_),
-      active_segment_->base());
-#endif
+  return parent_frame_fp;
+}
+
+Address StackMemory::Shrink() {
+  Address parent_frame_fp = ShrinkSegment();
+  SetCurrentThreadStackBounds();
   return parent_frame_fp;
 }
 
 void StackMemory::ShrinkTo(Address stack_address) {
+  DCHECK(owned_);
   DCHECK_NOT_NULL(active_segment_);
   while (active_segment_) {
     if (stack_address <= active_segment_->base() &&
         stack_address >= reinterpret_cast<Address>(active_segment_->limit_)) {
       return;
     }
-    Shrink();
+    ShrinkSegment();
   }
   UNREACHABLE();
 }
+
+#if V8_OS_WIN && !defined(USE_SIMULATOR)
+void StackMemory::SwitchStackBoundsFromCentral() {
+  DCHECK(owned_);
+#ifdef DEBUG
+  DCHECK(is_teb_on_central_stack);
+  is_teb_on_central_stack = false;
+#endif
+  // Ensure the OS central stack start is cached before overwriting TEB.
+  uintptr_t stack_start = base::Stack::GetStackStart();
+  uintptr_t limit = base::Stack::GetCommittedStackLimit();
+  DCHECK_GE(limit, base::Stack::GetReservedStackLimit());
+  DCHECK_LE(limit, stack_start);
+  USE(stack_start);
+  central_stack_limit = limit;
+  base::Stack::SetCurrentThreadStackBounds(this->limit(), this->base());
+}
+
+void StackMemory::SetCurrentThreadStackBounds() {
+  DCHECK(owned_);
+  DCHECK(!is_teb_on_central_stack);
+  base::Stack::SetCurrentThreadStackBounds(limit(), base());
+}
+
+// static
+void StackMemory::RestoreCentralStackBounds() {
+#ifdef DEBUG
+  DCHECK(!is_teb_on_central_stack);
+  is_teb_on_central_stack = true;
+#endif
+  DCHECK_NE(central_stack_limit, 0);
+  base::Stack::SetCurrentThreadStackBounds(central_stack_limit,
+                                           base::Stack::GetStackStart());
+}
+#endif  // V8_OS_WIN && !defined(USE_SIMULATOR)
 
 void StackMemory::Reset() {
   active_segment_ = first_segment_;
@@ -321,10 +371,6 @@ void StackMemory::Reset() {
   signature_id_ = CanonicalTypeIndex{kInvalidCanonicalIndex};
   wasm_code_ = nullptr;
   contains_only_old_pointers_ = false;
-}
-
-bool StackMemory::IsValidContinuation(Tagged<WasmContinuationObject> cont) {
-  return current_cont_ == cont;
 }
 
 std::unique_ptr<StackMemory> StackPool::GetOrAllocate() {

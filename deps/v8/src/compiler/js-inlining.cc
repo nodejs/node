@@ -28,6 +28,7 @@
 #include "src/wasm/canonical-types.h"
 #include "src/wasm/names-provider.h"
 #include "src/wasm/string-builder.h"
+#include "src/wasm/wasm-debug.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace v8 {
@@ -241,11 +242,11 @@ Reduction JSInliner::InlineCall(Node* call, Node* new_target, Node* context,
         graph()->NewNode(common()->EffectPhi(input_count),
                          static_cast<int>(effects.size()), &effects.front());
     ReplaceWithValue(call, value_output, effect_output, control_output);
-    return Changed(value_output);
+    return Replace(value_output);
   } else {
     ReplaceWithValue(call, jsgraph()->Dead(), jsgraph()->Dead(),
                      jsgraph()->Dead());
-    return Changed(call);
+    return Replace(jsgraph()->Dead());
   }
 }
 
@@ -445,11 +446,22 @@ JSInliner::WasmInlineResult JSInliner::TryWasmInlining(
     TRACE("- not inlining: wasm inlining into try catch is not supported");
     return {};
   }
+  if (wasm_call_params.has_break_on_entry() ||
+      (native_module->HasDebugInfo() &&
+       native_module->GetDebugInfo()->HasBreakpoint(fct_index))) {
+    TRACE("- not inlining: wasm function has breakpoints");
+    return {};
+  }
 
   TFGraph::SubgraphScope graph_scope(graph());
   SourcePosition call_pos = source_positions_->GetSourcePosition(call_node);
   // Calculate hypothetical inlining id, so if we can't inline, we do not add
   // the wasm function to the list of inlined functions.
+  if (info_->HasReachedMaxInliningId()) {
+    TRACE("- not inlining: maximum inlining id has been reached");
+    info_->set_could_not_inline_all_candidates();
+    return {};
+  }
   int inlining_id = static_cast<int>(info_->inlined_functions().size());
   bool can_inline_body = compiler::TryWasmInlining(
       fct_index, native_module, inlining_id, jsgraph(), source_positions_);
@@ -754,6 +766,13 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
     // In that case, we simply don't inline.
     TRACE("Not inlining " << *shared_info << " into " << outer_shared_info
                           << " because source positions are missing.");
+    return NoChange();
+  }
+
+  if (info_->HasReachedMaxInliningId()) {
+    TRACE("Not inlining " << *shared_info << " into " << outer_shared_info
+                          << " because maximum inlining id has been reached.");
+    info_->set_could_not_inline_all_candidates();
     return NoChange();
   }
 

@@ -526,6 +526,9 @@ TEST_F(RunWasmRelaxedSimdTest, RunWasm_F32x8Qfma_turbofan) {
   uint8_t param2 = 1;
   uint8_t param3 = 2;
 
+  TSSimd256VerifyScope ts_scope(
+      r.zone(), TSSimd256VerifyScope::VerifyHaveOpcode<
+                    compiler::turboshaft::Opcode::kSimd256Ternary>);
   r.Build(
       {WASM_SIMD_STORE_MEM(
            WASM_ZERO,
@@ -563,6 +566,9 @@ TEST_F(RunWasmRelaxedSimdTest, RunWasm_F32x8Qfms_turbofan) {
   uint8_t param2 = 1;
   uint8_t param3 = 2;
 
+  TSSimd256VerifyScope ts_scope(
+      r.zone(), TSSimd256VerifyScope::VerifyHaveOpcode<
+                    compiler::turboshaft::Opcode::kSimd256Ternary>);
   r.Build(
       {WASM_SIMD_STORE_MEM(
            WASM_ZERO,
@@ -600,6 +606,9 @@ TEST_F(RunWasmRelaxedSimdTest, RunWasm_F64x4Qfma_turbofan) {
   uint8_t param2 = 1;
   uint8_t param3 = 2;
 
+  TSSimd256VerifyScope ts_scope(
+      r.zone(), TSSimd256VerifyScope::VerifyHaveOpcode<
+                    compiler::turboshaft::Opcode::kSimd256Ternary>);
   r.Build(
       {WASM_SIMD_STORE_MEM(
            WASM_ZERO,
@@ -637,6 +646,9 @@ TEST_F(RunWasmRelaxedSimdTest, RunWasm_F64x4Qfms_turbofan) {
   uint8_t param2 = 1;
   uint8_t param3 = 2;
 
+  TSSimd256VerifyScope ts_scope(
+      r.zone(), TSSimd256VerifyScope::VerifyHaveOpcode<
+                    compiler::turboshaft::Opcode::kSimd256Ternary>);
   r.Build(
       {WASM_SIMD_STORE_MEM(
            WASM_ZERO,
@@ -684,6 +696,9 @@ void RelaxedLaneSelectRevecTest(const T l1[kElems], const T l2[kElems],
   uint8_t temp2 = r.AllocateLocal(kWasmS128);
   constexpr uint8_t offset = 16;
 
+  TSSimd256VerifyScope ts_scope(
+      r.zone(), TSSimd256VerifyScope::VerifyHaveOpcode<
+                    compiler::turboshaft::Opcode::kSimd256Ternary>);
   r.Build(
       {WASM_LOCAL_SET(
            temp1,
@@ -786,6 +801,9 @@ TEST_F(RunWasmRelaxedSimdTest, RunWasm_I32x8DotI8x32I7x32AddS) {
   uint8_t param1 = 0;
   uint8_t param2 = 1;
   uint8_t param3 = 2;
+  TSSimd256VerifyScope ts_scope(
+      r.zone(), TSSimd256VerifyScope::VerifyHaveOpcode<
+                    compiler::turboshaft::Opcode::kSimd256Ternary>);
   r.Build({WASM_SIMD_STORE_MEM(
                WASM_ZERO,
                WASM_SIMD_TERNOP(kExprI32x4DotI8x16I7x16AddS,
@@ -821,6 +839,9 @@ TEST_F(RunWasmRelaxedSimdTest, RunWasm_I16x16DotI8x32I7x32S) {
   int16_t* memory = r.builder().AddMemoryElems<int16_t>(16);
   uint8_t param1 = 0, param2 = 1;
 
+  TSSimd256VerifyScope ts_scope(
+      r.zone(), TSSimd256VerifyScope::VerifyHaveOpcode<
+                    compiler::turboshaft::Opcode::kSimd256Binop>);
   r.Build({WASM_SIMD_STORE_MEM(
                WASM_ZERO,
                WASM_SIMD_BINOP(kExprI16x8DotI8x16I7x16S,

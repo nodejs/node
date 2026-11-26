@@ -1,4 +1,7 @@
 specific_include_rules = {
+  "sha-256.cc": [
+    "+openssl",
+  ],
   "utils.h": [
     "+third_party/siphash",
   ],

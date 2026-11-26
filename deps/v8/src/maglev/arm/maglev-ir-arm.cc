@@ -312,7 +312,7 @@ void Int32Divide::GenerateCode(MaglevAssembler* masm,
           // Truncated value of anything divided by 0 is 0.
           __ b(ne, &right_is_neg);
           __ Move(out, 0);
-          __ b(*done);
+          __ Jump(*done);
 
           // Return -left if right = -1.
           // This avoids a hardware exception if left = INT32_MIN.
@@ -323,7 +323,7 @@ void Int32Divide::GenerateCode(MaglevAssembler* masm,
           __ cmp(right, Operand(-1));
           __ b(ne, *do_division);
           __ rsb(out, left, Operand(0));
-          __ b(*done);
+          __ Jump(*done);
         },
         do_division, done, left, right, out);
 
@@ -548,10 +548,6 @@ void Int32ModulusWithOverflow::SetValueLocationConstraints() {
 }
 void Int32ModulusWithOverflow::GenerateCode(MaglevAssembler* masm,
                                             const ProcessingState& state) {
-  // If AreAliased(lhs, rhs):
-  //   deopt if lhs < 0  // Minus zero.
-  //   0
-  //
   // Using same algorithm as in MachineLoweringReducer:
   //   if rhs <= 0 then
   //     rhs = -rhs
@@ -575,17 +571,8 @@ void Int32ModulusWithOverflow::GenerateCode(MaglevAssembler* masm,
   static constexpr DeoptimizeReason deopt_reason =
       DeoptimizeReason::kDivisionByZero;
 
-  if (lhs == rhs) {
-    // For the modulus algorithm described above, lhs and rhs must not alias
-    // each other.
-    __ tst(lhs, lhs);
-    // TODO(victorgomes): This ideally should be kMinusZero, but Maglev only
-    // allows one deopt reason per IR.
-    __ EmitEagerDeoptIf(mi, deopt_reason, this);
-    __ Move(ToRegister(result()), 0);
-    return;
-  }
-
+  // For the modulus algorithm described above, lhs and rhs must not alias
+  // each other.
   DCHECK_NE(lhs, rhs);
 
   ZoneLabelRef done(masm);
@@ -1043,7 +1030,7 @@ void UnsafeFloat64ToHoleyFloat64::GenerateCode(MaglevAssembler* masm,
 
 namespace {
 
-enum class ReduceInterruptBudgetType { kLoop, kReturn };
+enum class ReduceInterruptBudgetType { kLoop, kEntry };
 
 void HandleInterruptsAndTiering(MaglevAssembler* masm, ZoneLabelRef done,
                                 Node* node, ReduceInterruptBudgetType type,
@@ -1067,7 +1054,7 @@ void HandleInterruptsAndTiering(MaglevAssembler* masm, ZoneLabelRef done,
     __ CallRuntime(Runtime::kBytecodeBudgetLoopInterrupt_Maglev, 2);
     save_register_state.DefineSafepointWithLazyDeopt(node->lazy_deopt_info());
   } else {
-    DCHECK_EQ(type, ReduceInterruptBudgetType::kReturn);
+    DCHECK_EQ(type, ReduceInterruptBudgetType::kEntry);
     SaveRegisterStateForCall save_register_state(masm,
                                                  node->register_snapshot());
     Register function = scratch0;
@@ -1078,7 +1065,7 @@ void HandleInterruptsAndTiering(MaglevAssembler* masm, ZoneLabelRef done,
     __ CallRuntime(Runtime::kBytecodeBudgetInterrupt_Maglev, 1);
     save_register_state.DefineSafepoint();
   }
-  __ b(*done);
+  __ Jump(*done);
 }
 
 void GenerateReduceInterruptBudget(MaglevAssembler* masm, Node* node,
@@ -1111,15 +1098,15 @@ void ReduceInterruptBudgetForLoop::GenerateCode(MaglevAssembler* masm,
   }
 }
 
-int ReduceInterruptBudgetForReturn::MaxCallStackArgs() const { return 1; }
-void ReduceInterruptBudgetForReturn::SetValueLocationConstraints() {
+int ReduceInterruptBudgetForEntry::MaxCallStackArgs() const { return 1; }
+void ReduceInterruptBudgetForEntry::SetValueLocationConstraints() {
   UseRegister(FeedbackCellInput());
   set_temporaries_needed(1);
 }
-void ReduceInterruptBudgetForReturn::GenerateCode(
-    MaglevAssembler* masm, const ProcessingState& state) {
+void ReduceInterruptBudgetForEntry::GenerateCode(MaglevAssembler* masm,
+                                                 const ProcessingState& state) {
   GenerateReduceInterruptBudget(masm, this, ToRegister(FeedbackCellInput()),
-                                ReduceInterruptBudgetType::kReturn, amount());
+                                ReduceInterruptBudgetType::kEntry, amount());
 }
 
 // ---
@@ -1151,13 +1138,18 @@ void Return::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
   __ LeaveFrame(StackFrame::MAGLEV);
 
   // If actual is bigger than formal, then we should use it to free up the stack
-  // arguments.
-  Label corrected_args_count;
-  __ Move(params_size, formal_params_size);
-  __ cmp(params_size, actual_params_size);
-  __ b(kGreaterThanEqual, &corrected_args_count);
-  __ Move(params_size, actual_params_size);
-  __ bind(&corrected_args_count);
+  // arguments. Both counts include the receiver, so without formal parameters
+  // the actual count is never smaller.
+  if (formal_params_size > 1) {
+    Label corrected_args_count;
+    __ Move(params_size, formal_params_size);
+    __ cmp(params_size, actual_params_size);
+    __ b(kGreaterThanEqual, &corrected_args_count);
+    __ Move(params_size, actual_params_size);
+    __ bind(&corrected_args_count);
+  } else {
+    params_size = actual_params_size;
+  }
 
   // Drop receiver + arguments according to dynamic arguments size.
   __ DropArguments(params_size);

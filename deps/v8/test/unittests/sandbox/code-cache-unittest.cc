@@ -75,7 +75,6 @@ std::vector<uint8_t> BytecodeWrapperWithExport(uint32_t index) {
   object.Put(Bytecodes::NewObject::Encode(SnapshotSpace::kOld), "");
   object.Put(Bytecodes::kRootArray, "");
   object.PutUint30(static_cast<uint32_t>(RootIndex::kBytecodeWrapperMap), "");
-  object.Put(Bytecodes::kTrustedPointerPrefix, "");
   object.Put(Bytecodes::kTrustedExportRef, "");
   object.PutUint30(index, "");
   return *object.data();

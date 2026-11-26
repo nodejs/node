@@ -35,6 +35,8 @@ The script prints one line for each check:
 | `selftest --offline` | All checks pass. |
 | `selftest --d8` | All checks pass against `out/fuzzbuild/d8`. |
 | `roundtrip --no-run` | 0 real failures on `test/mjsunit`. |
+| `fuzzilli flag sync` | `tools/d8_flag_sync.py --profile=fuzzilli --check-draws=300000 --strict` passes against `tools/tests/testdata/v8_common_profile.swift`. |
+| `tools/tests` | All Python unit tests in `tools/tests/` pass. |
 | golden traces | Information only: the number of changed files in `testdata/`. |
 | Markdown links | `tools/dev/markdown_checker.py` accepts the changed Markdown files. |
 | STE language | See step 4. |
@@ -71,15 +73,16 @@ experimental/redline/skills/redline-presubmit/scripts/ste_check.py
 Advisory findings, for example passive voice, do not make the check fail. Use
 `--verbose` to see them, and fix them if the text stays clear.
 
-The linter is `ste_lint.py` in google3, so you need access to `/google/src`.
-`ste_check.py` runs it with `vpython3` and
-[scripts/ste_lint.vpython3](scripts/ste_lint.vpython3), which supplies
+The linter is `ste_lint_main.py` in google3, so you need access to
+`/google/src`. `ste_check.py` runs it with `vpython3` and
+[scripts/ste_lint.vpython.toml](scripts/ste_lint.vpython.toml), which supplies
 absl-py. Set `STE_LINT` to use another copy of the linter. To lint one more
 file, for example a draft of a commit message:
 
 ```shell
-vpython3 -vpython-spec experimental/redline/skills/redline-presubmit/scripts/ste_lint.vpython3 \
-  /google/src/files/head/depot/google3/learning/gemini/agents/skills/communication/asd_ste100/ste_lint.py FILE
+PYTHONPATH=/google/src/files/head/depot \
+  vpython3 -vpython-spec experimental/redline/skills/redline-presubmit/scripts/ste_lint.vpython.toml \
+  /google/src/files/head/depot/google3/learning/gemini/agents/skills/communication/asd_ste100/ste_lint_main.py FILE
 ```
 
 If you cannot use the linter, apply the main rules yourself: one instruction
@@ -133,7 +136,8 @@ Tested:
 ```
 
 If a check does not apply, write why. If you did not do a check, write that.
-After the upload, start a CQ dry run: the presubmit bots also check the
+Upload the CL and start a CQ dry run only when the user asks for it
+([AGENTS.md](../../AGENTS.md) section 3.1). The presubmit bots also check the
 formatting and the Markdown links.
 
 ## Known problems
@@ -146,3 +150,5 @@ formatting and the Markdown links.
   the base revision. Commit or stash your changes first.
 - `ste_check.py` exits with status 3 and `check.sh` shows SKIP if the linter is
   not available.
+- For a CL on top of another CL, set the upstream branch to the lower CL.
+  Otherwise `git cl format` and `git cl lint` also check the lower CL.

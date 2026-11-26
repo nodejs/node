@@ -203,6 +203,9 @@ class Committee final {
     DCHECK_IMPLIES(IsArrayList(o),
                    maybe_host.has_value() &&
                        IsTemplateInfoWithProperties(maybe_host.value()));
+    DCHECK_IMPLIES(
+        IsFunctionTemplateRareData(o),
+        maybe_host.has_value() && IsFunctionTemplateInfo(maybe_host.value()));
     return true;
   }
 
@@ -270,13 +273,19 @@ class Committee final {
     // v8::FunctionTemplate::SealAndPrepareForPromotionToReadOnly(..).
     return o->should_promote_to_read_only() ? kPromote : kReject;
   }
-  DEF_PROMO_CANDIDATE(FunctionTemplateRareData)
+  // The rare data stays mutable unless its v8::FunctionTemplate was explicitly
+  // requested to be promoted to RO space.
+  DEF_MATCH_HOST_CANDIDATE(FunctionTemplateRareData)
 
   static PromoRecommendation GetPromoRecommendationCode(Committee* committee,
                                                         Isolate* isolate,
                                                         Tagged<Code> o) {
-    return Builtins::kCodeObjectsAreInROSpace && o->is_builtin() ? kPromote
-                                                                 : kReject;
+    // Only embedded builtins can live in RO space. Copies of the interpreter
+    // entry trampoline have a builtin id but an on-heap InstructionStream.
+    return Builtins::kCodeObjectsAreInROSpace && o->is_builtin() &&
+                   !o->has_instruction_stream()
+               ? kPromote
+               : kReject;
   }
   static PromoRecommendation GetPromoRecommendationCodeWrapper(
       Committee* committee, Isolate* isolate, Tagged<CodeWrapper> o) {
@@ -303,7 +312,7 @@ class Committee final {
     // verbatim, preserving dead objects. As a workaround, exclude this builtin
     // id from RO allocation.
     // TODO(jgruber): A better solution. Remove the liveness assumption (see
-    // test-heap-profiler.cc)? Overwrite dead RO objects with fillers
+    // heap-profiler-unittest.cc)? Overwrite dead RO objects with fillers
     // pre-serialization? Implement a RO GC pass pre-serialization?
     if (o->HasBuiltinId() && o->builtin_id() != Builtin::kIllegal) {
       // Any uncompiled builtin SFI must have a script and have been rejected
@@ -571,14 +580,16 @@ class ReadOnlyPromotionImpl final : public AllStatic {
    public:
     UpdatePointersVisitor(Isolate* isolate, const HeapObjectMap* moves)
         : isolate_(isolate), moves_(moves) {
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
       for (auto [_src, dst] : *moves_) {
         promoted_objects_.emplace(dst);
+#ifdef V8_ENABLE_SANDBOX
         if (IsExposedTrustedObject(dst)) {
           PromoteTrustedPointerEntryFor(TrustedCast<ExposedTrustedObject>(dst));
         }
-      }
 #endif  // V8_ENABLE_SANDBOX
+      }
+#endif  // V8_COMPRESS_POINTERS
     }
 
     // The RootVisitor interface.
@@ -609,7 +620,7 @@ class ReadOnlyPromotionImpl final : public AllStatic {
     }
     void VisitExternalPointer(Tagged<HeapObject> host,
                               ExternalPointerSlot slot) final {
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
       if (promoted_objects_.find(host) == promoted_objects_.end()) return;
 
       // If we reach here, `host` is a moved object with external pointer slots
@@ -635,7 +646,7 @@ class ReadOnlyPromotionImpl final : public AllStatic {
       if (V8_UNLIKELY(v8_flags.trace_read_only_promotion_verbose)) {
         LogUpdatedExternalPointerTableEntry(host, slot, slot_value);
       }
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
     }
     void VisitTrustedPointer(Tagged<HeapObject> host, TrustedPointerSlot slot,
                              TrustedPointerMode mode) final {
@@ -652,9 +663,8 @@ class ReadOnlyPromotionImpl final : public AllStatic {
     void VisitCompressedRootPointers(Root root, const char* description,
                                      OffHeapObjectSlot start,
                                      OffHeapObjectSlot end) override {
-      // We shouldn't have moved any string table contents or SharedStructType
-      // registry contents (which is what OffHeapObjectSlot currently refers
-      // to).
+      // We shouldn't have moved any string table contents (which is what
+      // OffHeapObjectSlot currently refers to).
       for (OffHeapObjectSlot slot = start; slot < end; slot++) {
         Tagged<Object> o = slot.load(isolate_);
         if (!IsHeapObject(o)) continue;
@@ -837,9 +847,11 @@ class ReadOnlyPromotionImpl final : public AllStatic {
     Isolate* const isolate_;
     const HeapObjectMap* moves_;
 
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
     HeapObjectSet promoted_objects_;
+#endif  // V8_COMPRESS_POINTERS
 
+#ifdef V8_ENABLE_SANDBOX
     // When an object owning an pointer table entry is relocated to the RO
     // space, it cannot just update the entry to point to its new location
     // (see b/330450848). A new pointer table entry must be allocated for the

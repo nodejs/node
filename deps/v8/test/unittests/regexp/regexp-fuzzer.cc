@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/objects/js-regexp-inl.h"
 #include "src/regexp/regexp.h"
 #include "test/unittests/fuzztest.h"
 #include "test/unittests/regexp/regexp-grammar.h"
@@ -20,7 +21,7 @@ class RegExpTest : public fuzztest::PerFuzzTestFixtureAdapter<TestWithContext> {
         isolate_(isolate()),
         i_isolate_(reinterpret_cast<i::Isolate*>(isolate_)),
         factory_(i_isolate_->factory()) {
-    internal::v8_flags.expose_gc = true;
+    internal::v8_flags.expose_gc.Set(true);
   }
   ~RegExpTest() override = default;
 
@@ -103,8 +104,9 @@ void RegExpTest<T>::Test(i::DirectHandle<i::JSRegExp> regexp,
                          i::DirectHandle<i::String> subject) {
   v8::TryCatch try_catch(isolate_);
   // Exceptions will be swallowed by the try/catch above.
-  USE(i::RegExp::Exec_Single(i_isolate_, regexp, subject, 0,
-                             i::RegExpMatchInfo::New(i_isolate_, 2)));
+  USE(i::RegExp::Exec_Single(
+      i_isolate_, i::direct_handle(regexp->data(i_isolate_), i_isolate_),
+      subject, 0, i::RegExpMatchInfo::New(i_isolate_, 2)));
 }
 
 template <class T>

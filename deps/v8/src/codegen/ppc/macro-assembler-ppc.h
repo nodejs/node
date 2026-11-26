@@ -767,6 +767,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   }
   void CheckPageFlag(Register object, Register scratch, int mask, Condition cc,
                      Label* condition_met);
+  void JumpIfMarking(Label* is_marking);
 
   void PreCheckSkippedWriteBarrier(Register object, Register value,
                                    Register scratch, Label* ok);
@@ -1061,6 +1062,12 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void DecompressTagged(Register destination, MemOperand field_operand);
   void DecompressTagged(Register destination, Register source);
   void DecompressTagged(const Register& destination, Tagged_t immediate);
+
+  // Loads a field containing an off-heap ("external") pointer and untags it if
+  // necessary.
+  void LoadExternalPointerField(Register destination, MemOperand field_operand,
+                                ExternalPointerTagRange tag_range,
+                                Register isolate_root = no_reg);
 
   void LoadF64(DoubleRegister dst, const MemOperand& mem);
   void LoadF32(DoubleRegister dst, const MemOperand& mem);

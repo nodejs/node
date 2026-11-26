@@ -352,34 +352,28 @@ void StatsCollector::NotifyFreedMemory(int64_t size) {
 #endif  // DEBUG
 }
 
-void StatsCollector::IncrementDiscardedMemory(size_t value) {
-  const size_t old =
-      discarded_bytes_.fetch_add(value, std::memory_order_relaxed);
+void StatsCollector::IncrementPurgedMemory(size_t value) {
+  const size_t old = purged_bytes_.fetch_add(value, std::memory_order_relaxed);
   DCHECK_GE(old + value, old);
   USE(old);
 }
 
-void StatsCollector::DecrementDiscardedMemory(size_t value) {
-  const size_t old =
-      discarded_bytes_.fetch_sub(value, std::memory_order_relaxed);
+void StatsCollector::DecrementPurgedMemory(size_t value) {
+  const size_t old = purged_bytes_.fetch_sub(value, std::memory_order_relaxed);
   DCHECK_GE(old, old - value);
   USE(old);
 }
 
-void StatsCollector::ResetDiscardedMemory() {
-  discarded_bytes_.store(0, std::memory_order_relaxed);
-}
-
-size_t StatsCollector::discarded_memory_size() const {
-  return discarded_bytes_.load(std::memory_order_relaxed);
+size_t StatsCollector::purged_memory_size() const {
+  return purged_bytes_.load(std::memory_order_relaxed);
 }
 
 size_t StatsCollector::resident_memory_size() const {
   const auto allocated = allocated_memory_size();
-  const auto discarded = discarded_memory_size();
-  DCHECK_IMPLIES(allocated == 0, discarded == 0);
-  DCHECK_IMPLIES(allocated > 0, allocated > discarded);
-  return allocated - discarded;
+  const auto purged = purged_memory_size();
+  DCHECK_IMPLIES(allocated == 0, purged == 0);
+  DCHECK_IMPLIES(allocated > 0, allocated > purged);
+  return allocated - purged;
 }
 
 void StatsCollector::RecordHistogramSample(ScopeId scope_id_,

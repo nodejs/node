@@ -418,7 +418,7 @@ bool TransitionsAccessor::PutPrototypeTransition(Isolate* isolate,
   DCHECK(IsMap(Cast<HeapObject>(*prototype)->map()));
 
   // Only the main thread should write to transition arrays.
-  DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
+  DCHECK_EQ(base::ThreadId::Current(), isolate->thread_id());
 
   // It's OK to read the transition array without holding the
   // full_transition_array_access lock in read mode, since this is only called

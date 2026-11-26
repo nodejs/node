@@ -240,8 +240,8 @@ BUILTIN(DatePrototypeSetDate) {
 
   int64_t const time_ms = static_cast<int64_t>(time_val);
   int64_t local_time_ms = isolate->date_cache()->ToLocal(time_ms);
-  int const days = isolate->date_cache()->DaysFromTime(local_time_ms);
-  int time_within_day = isolate->date_cache()->TimeInDay(local_time_ms, days);
+  int const days = DateCache::DaysFromTime(local_time_ms);
+  int time_within_day = DateCache::TimeInDay(local_time_ms, days);
   int year, month, day;
   isolate->date_cache()->YearMonthDayFromDays(days, &year, &month, &day);
   time_val = MakeDate(MakeDay(year, month, Object::NumberValue(*value)),
@@ -263,8 +263,8 @@ BUILTIN(DatePrototypeSetFullYear) {
   if (!std::isnan(date->value())) {
     int64_t const time_ms = static_cast<int64_t>(date->value());
     int64_t local_time_ms = isolate->date_cache()->ToLocal(time_ms);
-    int const days = isolate->date_cache()->DaysFromTime(local_time_ms);
-    time_within_day = isolate->date_cache()->TimeInDay(local_time_ms, days);
+    int const days = DateCache::DaysFromTime(local_time_ms);
+    time_within_day = DateCache::TimeInDay(local_time_ms, days);
     int year_int, month_int, day_int;
     isolate->date_cache()->YearMonthDayFromDays(days, &year_int, &month_int,
                                                 &day_int);
@@ -327,9 +327,8 @@ BUILTIN(DatePrototypeSetHours) {
 
   int64_t const time_ms = static_cast<int64_t>(time_val);
   int64_t const local_time_ms = isolate->date_cache()->ToLocal(time_ms);
-  int const day = isolate->date_cache()->DaysFromTime(local_time_ms);
-  int const time_within_day =
-      isolate->date_cache()->TimeInDay(local_time_ms, day);
+  int const day = DateCache::DaysFromTime(local_time_ms);
+  int const time_within_day = DateCache::TimeInDay(local_time_ms, day);
   time_val = MakeDate(
       day, MakeTime(h, m.value_or((time_within_day / (60 * 1000)) % 60),
                     s.value_or((time_within_day / 1000) % 60),
@@ -350,9 +349,8 @@ BUILTIN(DatePrototypeSetMilliseconds) {
   }
   int64_t const time_ms = static_cast<int64_t>(time_val);
   int64_t const local_time_ms = isolate->date_cache()->ToLocal(time_ms);
-  int const day = isolate->date_cache()->DaysFromTime(local_time_ms);
-  int const time_within_day =
-      isolate->date_cache()->TimeInDay(local_time_ms, day);
+  int const day = DateCache::DaysFromTime(local_time_ms);
+  int const time_within_day = DateCache::TimeInDay(local_time_ms, day);
   int const h = time_within_day / (60 * 60 * 1000);
   int const m = (time_within_day / (60 * 1000)) % 60;
   int const s = (time_within_day / 1000) % 60;
@@ -392,9 +390,8 @@ BUILTIN(DatePrototypeSetMinutes) {
 
   int64_t const time_ms = static_cast<int64_t>(time_val);
   int64_t const local_time_ms = isolate->date_cache()->ToLocal(time_ms);
-  int const day = isolate->date_cache()->DaysFromTime(local_time_ms);
-  int const time_within_day =
-      isolate->date_cache()->TimeInDay(local_time_ms, day);
+  int const day = DateCache::DaysFromTime(local_time_ms);
+  int const time_within_day = DateCache::TimeInDay(local_time_ms, day);
   int const h = time_within_day / (60 * 60 * 1000);
   double const m = Object::NumberValue(*min);
   time_val =
@@ -427,9 +424,8 @@ BUILTIN(DatePrototypeSetMonth) {
 
   int64_t const time_ms = static_cast<int64_t>(time_val);
   int64_t const local_time_ms = isolate->date_cache()->ToLocal(time_ms);
-  int const days = isolate->date_cache()->DaysFromTime(local_time_ms);
-  int const time_within_day =
-      isolate->date_cache()->TimeInDay(local_time_ms, days);
+  int const days = DateCache::DaysFromTime(local_time_ms);
+  int const time_within_day = DateCache::TimeInDay(local_time_ms, days);
   int year, unused, day;
   isolate->date_cache()->YearMonthDayFromDays(days, &year, &unused, &day);
   double const m = Object::NumberValue(*month);
@@ -462,9 +458,8 @@ BUILTIN(DatePrototypeSetSeconds) {
 
   int64_t const time_ms = static_cast<int64_t>(time_val);
   int64_t const local_time_ms = isolate->date_cache()->ToLocal(time_ms);
-  int const day = isolate->date_cache()->DaysFromTime(local_time_ms);
-  int const time_within_day =
-      isolate->date_cache()->TimeInDay(local_time_ms, day);
+  int const day = DateCache::DaysFromTime(local_time_ms);
+  int const time_within_day = DateCache::TimeInDay(local_time_ms, day);
   int const h = time_within_day / (60 * 60 * 1000);
   double const m = (time_within_day / (60 * 1000)) % 60;
   double const s = Object::NumberValue(*sec);
@@ -513,8 +508,8 @@ BUILTIN(DatePrototypeSetUTCDate) {
   }
 
   int64_t const time_ms = static_cast<int64_t>(time_val);
-  int const days = isolate->date_cache()->DaysFromTime(time_ms);
-  int const time_within_day = isolate->date_cache()->TimeInDay(time_ms, days);
+  int const days = DateCache::DaysFromTime(time_ms);
+  int const time_within_day = DateCache::TimeInDay(time_ms, days);
   int year, month, day;
   isolate->date_cache()->YearMonthDayFromDays(days, &year, &month, &day);
   time_val = MakeDate(MakeDay(year, month, Object::NumberValue(*value)),
@@ -535,8 +530,8 @@ BUILTIN(DatePrototypeSetUTCFullYear) {
   int time_within_day = 0;
   if (!std::isnan(date->value())) {
     int64_t const time_ms = static_cast<int64_t>(date->value());
-    int const days = isolate->date_cache()->DaysFromTime(time_ms);
-    time_within_day = isolate->date_cache()->TimeInDay(time_ms, days);
+    int const days = DateCache::DaysFromTime(time_ms);
+    time_within_day = DateCache::TimeInDay(time_ms, days);
     int year_int, month_int, day_int;
     isolate->date_cache()->YearMonthDayFromDays(days, &year_int, &month_int,
                                                 &day_int);
@@ -598,8 +593,8 @@ BUILTIN(DatePrototypeSetUTCHours) {
   }
 
   int64_t const time_ms = static_cast<int64_t>(time_val);
-  int const day = isolate->date_cache()->DaysFromTime(time_ms);
-  int const time_within_day = isolate->date_cache()->TimeInDay(time_ms, day);
+  int const day = DateCache::DaysFromTime(time_ms);
+  int const time_within_day = DateCache::TimeInDay(time_ms, day);
   time_val = MakeDate(
       day, MakeTime(h, m.value_or((time_within_day / (60 * 1000)) % 60),
                     s.value_or((time_within_day / 1000) % 60),
@@ -620,8 +615,8 @@ BUILTIN(DatePrototypeSetUTCMilliseconds) {
   }
 
   int64_t const time_ms = static_cast<int64_t>(time_val);
-  int const day = isolate->date_cache()->DaysFromTime(time_ms);
-  int const time_within_day = isolate->date_cache()->TimeInDay(time_ms, day);
+  int const day = DateCache::DaysFromTime(time_ms);
+  int const time_within_day = DateCache::TimeInDay(time_ms, day);
   int const h = time_within_day / (60 * 60 * 1000);
   int const m = (time_within_day / (60 * 1000)) % 60;
   int const s = (time_within_day / 1000) % 60;
@@ -660,8 +655,8 @@ BUILTIN(DatePrototypeSetUTCMinutes) {
   }
 
   int64_t const time_ms = static_cast<int64_t>(time_val);
-  int const day = isolate->date_cache()->DaysFromTime(time_ms);
-  int const time_within_day = isolate->date_cache()->TimeInDay(time_ms, day);
+  int const day = DateCache::DaysFromTime(time_ms);
+  int const time_within_day = DateCache::TimeInDay(time_ms, day);
   int const h = time_within_day / (60 * 60 * 1000);
   double const m = Object::NumberValue(*min);
   time_val =
@@ -692,8 +687,8 @@ BUILTIN(DatePrototypeSetUTCMonth) {
   }
 
   int64_t const time_ms = static_cast<int64_t>(time_val);
-  int const days = isolate->date_cache()->DaysFromTime(time_ms);
-  int const time_within_day = isolate->date_cache()->TimeInDay(time_ms, days);
+  int const days = DateCache::DaysFromTime(time_ms);
+  int const time_within_day = DateCache::TimeInDay(time_ms, days);
   int year, unused, day;
   isolate->date_cache()->YearMonthDayFromDays(days, &year, &unused, &day);
   double const m = Object::NumberValue(*month);
@@ -723,8 +718,8 @@ BUILTIN(DatePrototypeSetUTCSeconds) {
   }
 
   int64_t const time_ms = static_cast<int64_t>(time_val);
-  int const day = isolate->date_cache()->DaysFromTime(time_ms);
-  int const time_within_day = isolate->date_cache()->TimeInDay(time_ms, day);
+  int const day = DateCache::DaysFromTime(time_ms);
+  int const time_within_day = DateCache::TimeInDay(time_ms, day);
   int const h = time_within_day / (60 * 60 * 1000);
   double const m = (time_within_day / (60 * 1000)) % 60;
   double const s = Object::NumberValue(*sec);
@@ -858,7 +853,7 @@ BUILTIN(DatePrototypeGetYear) {
   if (std::isnan(time_val)) return ReadOnlyRoots(isolate).nan_value();
   int64_t time_ms = static_cast<int64_t>(time_val);
   int64_t local_time_ms = isolate->date_cache()->ToLocal(time_ms);
-  int days = isolate->date_cache()->DaysFromTime(local_time_ms);
+  int days = DateCache::DaysFromTime(local_time_ms);
   int year, month, day;
   isolate->date_cache()->YearMonthDayFromDays(days, &year, &month, &day);
   return Smi::FromInt(year - 1900);
@@ -883,8 +878,8 @@ BUILTIN(DatePrototypeSetYear) {
   if (!std::isnan(date->value())) {
     int64_t const time_ms = static_cast<int64_t>(date->value());
     int64_t local_time_ms = isolate->date_cache()->ToLocal(time_ms);
-    int const days = isolate->date_cache()->DaysFromTime(local_time_ms);
-    time_within_day = isolate->date_cache()->TimeInDay(local_time_ms, days);
+    int const days = DateCache::DaysFromTime(local_time_ms);
+    time_within_day = DateCache::TimeInDay(local_time_ms, days);
     int year_int, month_int, day_int;
     isolate->date_cache()->YearMonthDayFromDays(days, &year_int, &month_int,
                                                 &day_int);

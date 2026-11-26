@@ -1,0 +1,21 @@
+header: ifaddrs.h
+standards:
+  - bsd
+macros: []
+types:
+  - type_name: struct_ifaddrs
+enums: []
+objects: []
+functions:
+  - name: freeifaddrs
+    standards:
+      - bsd
+    return_type: void
+    arguments:
+      - type: struct ifaddrs *
+  - name: getifaddrs
+    standards:
+      - bsd
+    return_type: int
+    arguments:
+      - type: struct ifaddrs **

@@ -33,16 +33,19 @@ bool ExperimentalRegExp::CanBeHandled(Tree* tree,
 void ExperimentalRegExp::Initialize(Isolate* isolate, DirectHandle<JSRegExp> re,
                                     DirectHandle<String> original_source,
                                     DirectHandle<String> escaped_source,
-                                    Flags flags, int capture_count) {
+                                    Flags flags, int capture_count,
+                                    ZoneVector<Capture*>* named_captures) {
   DCHECK(v8_flags.enable_experimental_regexp_engine);
   if (v8_flags.trace_experimental_regexp_engine) {
     StdoutStream{} << "Initializing experimental regexp " << *original_source
                    << std::endl;
   }
 
+  DirectHandle<TrustedFixedArray> capture_name_map =
+      RegExp::CreateCaptureNameMap(isolate, named_captures);
   isolate->factory()->SetRegExpExperimentalData(
       re, original_source, escaped_source, JSRegExp::AsJSRegExpFlags(flags),
-      capture_count);
+      capture_count, capture_name_map);
 }
 
 bool ExperimentalRegExp::IsCompiled(DirectHandle<IrRegExpData> re_data,
@@ -73,13 +76,8 @@ DirectHandle<TrustedByteArray> VectorToByteArray(Isolate* isolate,
 
 namespace {
 
-struct CompilationResult {
-  DirectHandle<TrustedByteArray> bytecode;
-  DirectHandle<TrustedFixedArray> capture_name_map;
-};
-
 // Compiles source pattern, but doesn't change the regexp object.
-std::optional<CompilationResult> CompileImpl(
+MaybeDirectHandle<TrustedByteArray> CompileImpl(
     Isolate* isolate, DirectHandle<IrRegExpData> re_data) {
   Zone zone(isolate->allocator(), ZONE_NAME);
 
@@ -97,18 +95,14 @@ std::optional<CompilationResult> CompileImpl(
     // the only way parsing can fail now is because of stack overflow.
     DCHECK_EQ(parse_result.error, Error::kStackOverflow);
     RegExp::ThrowRegExpException(isolate, re_data, parse_result.error);
-    return std::nullopt;
+    return {};
   }
   SBXCHECK_EQ(parse_result.capture_count, re_data->capture_count());
 
   ZoneList<Instruction> bytecode = ExperimentalCompiler::Compile(
       parse_result.tree, JSRegExp::AsRegExpFlags(re_data->flags()), &zone);
 
-  CompilationResult result;
-  result.bytecode = VectorToByteArray(isolate, bytecode.ToVector());
-  result.capture_name_map =
-      RegExp::CreateCaptureNameMap(isolate, parse_result.named_captures);
-  return result;
+  return VectorToByteArray(isolate, bytecode.ToVector());
 }
 
 }  // namespace
@@ -127,15 +121,13 @@ bool ExperimentalRegExp::Compile(Isolate* isolate,
                    << std::endl;
   }
 
-  std::optional<CompilationResult> compilation_result =
-      CompileImpl(isolate, re_data);
-  if (!compilation_result.has_value()) {
+  DirectHandle<TrustedByteArray> bytecode;
+  if (!CompileImpl(isolate, re_data).ToHandle(&bytecode)) {
     DCHECK(isolate->has_exception());
     return false;
   }
 
-  re_data->SetBytecodeForExperimental(isolate, *compilation_result->bytecode);
-  re_data->set_capture_name_map(compilation_result->capture_name_map);
+  re_data->SetBytecodeForExperimental(isolate, *bytecode);
 
   return true;
 }
@@ -286,13 +278,13 @@ int32_t ExperimentalRegExp::OneshotExecRaw(
                    << regexp_data->original_source() << std::endl;
   }
 
-  std::optional<CompilationResult> compilation_result =
-      CompileImpl(isolate, regexp_data);
-  if (!compilation_result.has_value()) return RegExp::kInternalRegExpException;
+  DirectHandle<TrustedByteArray> bytecode;
+  if (!CompileImpl(isolate, regexp_data).ToHandle(&bytecode)) {
+    return RegExp::kInternalRegExpException;
+  }
 
   DisallowGarbageCollection no_gc;
-  return ExecRawImpl(isolate, RegExp::kFromRuntime,
-                     *compilation_result->bytecode, *subject,
+  return ExecRawImpl(isolate, RegExp::kFromRuntime, *bytecode, *subject,
                      regexp_data->capture_count(), output_registers,
                      output_register_count, subject_index);
 }

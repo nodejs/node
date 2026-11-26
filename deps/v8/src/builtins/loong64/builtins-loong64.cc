@@ -315,7 +315,10 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(
     Label* is_baseline, Label* is_unavailable) {
   ASM_CODE_COMMENT(masm);
   DCHECK(!AreAliased(bytecode, scratch1));
-  Label is_interpreter_data, is_bytecode_array, is_code;
+  Label is_interpreter_data, is_bytecode_array;
+#if !V8_JITLESS_BOOL
+  Label is_code;
+#endif
 
   Register data = bytecode;
   __ LoadTrustedUnknownPointerField(
@@ -424,6 +427,8 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
 
   // Copy the function arguments from the generator object's register file.
   {
+    UseScratchRegisterScope temps(masm);
+    Register scratch2 = temps.Acquire();
     Label done_loop, loop;
     __ Sub_d(a3, argc, Operand(kJSArgcReceiverSlots));
     __ LoadTaggedField(
@@ -432,18 +437,16 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     __ bind(&loop);
     __ Sub_d(a3, a3, Operand(1));
     __ Branch(&done_loop, lt, a3, Operand(zero_reg));
-    __ Alsl_d(kScratchReg, a3, t1, kTaggedSizeLog2);
+    __ Alsl_d(scratch2, a3, t1, kTaggedSizeLog2);
     __ LoadTaggedField(
-        kScratchReg,
-        FieldMemOperand(kScratchReg, OFFSET_OF_DATA_START(FixedArray)));
-    __ Push(kScratchReg);
+        scratch2, FieldMemOperand(scratch2, OFFSET_OF_DATA_START(FixedArray)));
+    __ Push(scratch2);
     __ Branch(&loop);
     __ bind(&done_loop);
     // Push receiver.
     __ LoadTaggedField(
-        kScratchReg,
-        FieldMemOperand(a1, offsetof(JSGeneratorObject, receiver_)));
-    __ Push(kScratchReg);
+        scratch2, FieldMemOperand(a1, offsetof(JSGeneratorObject, receiver_)));
+    __ Push(scratch2);
   }
 
   // Underlying function needs to have bytecode available.
@@ -1054,17 +1057,63 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
               Operand(interrupt_limit));
   }
 
+  // Reduce interrupt budget.
+  Label budget_interrupt;
+  {
+    ASM_CODE_COMMENT_STRING(masm, "Update Interrupt Budget");
+    UseScratchRegisterScope temps(masm);
+    Register interrupt_budget = temps.Acquire();
+    Register bytecode_length = temps.Acquire();
+    Register bytecode_array = descriptor.GetRegisterParameter(
+        BaselineOutOfLinePrologueDescriptor::kInterpreterBytecodeArray);
+    __ Ld_w(interrupt_budget,
+            FieldMemOperand(feedback_cell,
+                            offsetof(FeedbackCell, interrupt_budget_)));
+    __ SmiUntagField(bytecode_length,
+                     FieldMemOperand(bytecode_array,
+                                     offsetof(BytecodeArray, length_)));
+    __ Sub_w(interrupt_budget, interrupt_budget, bytecode_length);
+    __ St_w(interrupt_budget,
+            FieldMemOperand(feedback_cell,
+                            offsetof(FeedbackCell, interrupt_budget_)));
+    __ Branch(&budget_interrupt, lt, interrupt_budget, Operand(zero_reg));
+  }
+
   // Do "fast" return to the caller pc in ra.
-  // TODO(v8:11429): Document this frame setup better.
+  __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
   __ Ret();
 
+  __ bind(&budget_interrupt);
+  {
+    ASM_CODE_COMMENT_STRING(masm, "Budget interrupt call");
+    Register new_target = descriptor.GetRegisterParameter(
+        BaselineOutOfLinePrologueDescriptor::kJavaScriptCallNewTarget);
+    FrameScope frame_scope(masm, StackFrame::INTERNAL);
+    // Save incoming new target or generator
+    __ Push(new_target);
+#ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
+    __ PushDispatchHandle(kJavaScriptCallDispatchHandleRegister, feedback_cell,
+                          feedback_vector);
+#endif
+    __ Push(closure);
+    __ CallRuntime(Runtime::kBytecodeBudgetInterrupt_Sparkplug, 1);
+#ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
+    __ PopDispatchHandle(kJavaScriptCallDispatchHandleRegister, feedback_cell,
+                         feedback_vector);
+#endif
+    __ Pop(new_target);
+  }
+  __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
+  __ Ret();
 
   __ bind(&call_stack_guard);
   {
     ASM_CODE_COMMENT_STRING(masm, "Stack/interrupt call");
+    Register new_target = descriptor.GetRegisterParameter(
+        BaselineOutOfLinePrologueDescriptor::kJavaScriptCallNewTarget);
     FrameScope frame_scope(masm, StackFrame::INTERNAL);
     // Save incoming new target or generator
-    __ Push(kJavaScriptCallNewTargetRegister);
+    __ Push(new_target);
 #ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
     __ PushDispatchHandle(kJavaScriptCallDispatchHandleRegister, feedback_cell,
                           feedback_vector);
@@ -1076,8 +1125,9 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     __ PopDispatchHandle(kJavaScriptCallDispatchHandleRegister, feedback_cell,
                          feedback_vector);
 #endif
-    __ Pop(kJavaScriptCallNewTargetRegister);
+    __ Pop(new_target);
   }
+  __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
   __ Ret();
   temps.Exclude({s1, s2, s3});
 }
@@ -1133,9 +1183,13 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   // The bytecode array could have been flushed from the shared function info,
   // if so, call into CompileLazy.
   Label is_baseline, compile_lazy;
-  GetSharedFunctionInfoBytecodeOrBaseline(
-      masm, sfi, kInterpreterBytecodeArrayRegister, kScratchReg, &is_baseline,
-      &compile_lazy);
+  {
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.Acquire();
+    GetSharedFunctionInfoBytecodeOrBaseline(
+        masm, sfi, kInterpreterBytecodeArrayRegister, scratch, &is_baseline,
+        &compile_lazy);
+  }
 
 #ifdef V8_ENABLE_SANDBOX
   // Validate the parameter count. This protects against an attacker swapping
@@ -1274,9 +1328,13 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   __ Add_d(t5, kInterpreterBytecodeArrayRegister,
            kInterpreterBytecodeOffsetRegister);
   __ Ld_bu(a7, MemOperand(t5, 0));
-  __ Alsl_d(kScratchReg, a7, kInterpreterDispatchTableRegister,
-            kSystemPointerSizeLog2);
-  __ Ld_d(kJavaScriptCallCodeStartRegister, MemOperand(kScratchReg, 0));
+  {
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.Acquire();
+    __ Alsl_d(scratch, a7, kInterpreterDispatchTableRegister,
+              kSystemPointerSizeLog2);
+    __ Ld_d(kJavaScriptCallCodeStartRegister, MemOperand(scratch, 0));
+  }
   __ Call(kJavaScriptCallCodeStartRegister);
 
   __ RecordComment("--- InterpreterEntryReturnPC point ---");
@@ -1764,10 +1822,9 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
 
   if (v8_flags.debug_code) {
     // Check function data field is actually a BytecodeArray object.
-    __ SmiTst(kInterpreterBytecodeArrayRegister, kScratchReg);
-    __ Assert(ne,
-              AbortReason::kFunctionDataShouldBeBytecodeArrayOnInterpreterEntry,
-              kScratchReg, Operand(zero_reg));
+    __ AssertNotSmi(
+        kInterpreterBytecodeArrayRegister,
+        AbortReason::kFunctionDataShouldBeBytecodeArrayOnInterpreterEntry);
     __ GetObjectType(kInterpreterBytecodeArrayRegister, a1, a1);
     __ Assert(eq,
               AbortReason::kFunctionDataShouldBeBytecodeArrayOnInterpreterEntry,
@@ -2444,7 +2501,11 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
 
   // Check for stack overflow.
   Label stack_overflow;
-  __ StackOverflowCheck(len, kScratchReg, a5, &stack_overflow);
+  {
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.Acquire();
+    __ StackOverflowCheck(len, scratch, a5, &stack_overflow);
+  }
 
   // Skip argument setup if we don't need to push any varargs.
   Label done;
@@ -2570,11 +2631,13 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
       Label loop;
       __ bind(&loop);
       {
+        UseScratchRegisterScope temps(masm);
+        Register scratch = temps.Acquire();
         __ Sub_w(a7, a7, Operand(1));
         __ Alsl_d(t0, a7, a6, kSystemPointerSizeLog2);
-        __ Ld_d(kScratchReg, MemOperand(t0, 0));
+        __ Ld_d(scratch, MemOperand(t0, 0));
         __ Alsl_d(t0, a7, a2, kSystemPointerSizeLog2);
-        __ St_d(kScratchReg, MemOperand(t0, 0));
+        __ St_d(scratch, MemOperand(t0, 0));
         __ Branch(&loop, ne, a7, Operand(zero_reg));
       }
     }
@@ -2606,10 +2669,14 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   // We need to convert the receiver for non-native sloppy mode functions.
   Label done_convert;
   __ Ld_wu(a3, FieldMemOperand(a2, offsetof(SharedFunctionInfo, flags_)));
-  __ And(kScratchReg, a3,
-         Operand(SharedFunctionInfo::Flags::IsNativeBit::kMask |
-                 SharedFunctionInfo::Flags::IsStrictBit::kMask));
-  __ Branch(&done_convert, ne, kScratchReg, Operand(zero_reg));
+  {
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.Acquire();
+    __ And(scratch, a3,
+           Operand(SharedFunctionInfo::Flags::IsNativeBit::kMask |
+                   SharedFunctionInfo::Flags::IsStrictBit::kMask));
+    __ Branch(&done_convert, ne, scratch, Operand(zero_reg));
+  }
   {
     // ----------- S t a t e -------------
     //  -- a0 : the number of arguments
@@ -2705,8 +2772,12 @@ void Builtins::Generate_CallBoundFunctionImpl(MacroAssembler* masm) {
     __ Sub_d(t0, sp, Operand(a5));
     // Check the stack for overflow. We are not trying to catch interruptions
     // (i.e. debug break and preemption) here, so check the "real stack limit".
-    __ LoadStackLimit(kScratchReg, StackLimitKind::kRealStackLimit);
-    __ Branch(&done, hs, t0, Operand(kScratchReg));
+    {
+      UseScratchRegisterScope temps(masm);
+      Register scratch = temps.Acquire();
+      __ LoadStackLimit(scratch, StackLimitKind::kRealStackLimit);
+      __ Branch(&done, hs, t0, Operand(scratch));
+    }
     {
       FrameScope scope(masm, StackFrame::MANUAL);
       __ EnterFrame(StackFrame::INTERNAL);
@@ -2720,6 +2791,8 @@ void Builtins::Generate_CallBoundFunctionImpl(MacroAssembler* masm) {
 
   // Push [[BoundArguments]].
   {
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.Acquire();
     Label loop, done_loop;
     __ Ld_wu(a4, FieldMemOperand(a2, offsetof(FixedArray, length_)));
     __ Add_d(a0, a0, Operand(a4));
@@ -2729,8 +2802,8 @@ void Builtins::Generate_CallBoundFunctionImpl(MacroAssembler* masm) {
     __ Sub_d(a4, a4, Operand(1));
     __ Branch(&done_loop, lt, a4, Operand(zero_reg));
     __ Alsl_d(a5, a4, a2, kTaggedSizeLog2);
-    __ LoadTaggedField(kScratchReg, MemOperand(a5, 0));
-    __ Push(kScratchReg);
+    __ LoadTaggedField(scratch, MemOperand(a5, 0));
+    __ Push(scratch);
     __ Branch(&loop);
     __ bind(&done_loop);
   }
@@ -2813,8 +2886,12 @@ void Builtins::Generate_ConstructBoundFunction(MacroAssembler* masm) {
     __ Sub_d(t0, sp, Operand(a5));
     // Check the stack for overflow. We are not trying to catch interruptions
     // (i.e. debug break and preemption) here, so check the "real stack limit".
-    __ LoadStackLimit(kScratchReg, StackLimitKind::kRealStackLimit);
-    __ Branch(&done, hs, t0, Operand(kScratchReg));
+    {
+      UseScratchRegisterScope temps(masm);
+      Register scratch = temps.Acquire();
+      __ LoadStackLimit(scratch, StackLimitKind::kRealStackLimit);
+      __ Branch(&done, hs, t0, Operand(scratch));
+    }
     {
       FrameScope scope(masm, StackFrame::MANUAL);
       __ EnterFrame(StackFrame::INTERNAL);
@@ -2828,6 +2905,8 @@ void Builtins::Generate_ConstructBoundFunction(MacroAssembler* masm) {
 
   // Push [[BoundArguments]].
   {
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.Acquire();
     Label loop, done_loop;
     __ Ld_wu(a4, FieldMemOperand(a2, offsetof(FixedArray, length_)));
     __ Add_d(a0, a0, Operand(a4));
@@ -2837,8 +2916,8 @@ void Builtins::Generate_ConstructBoundFunction(MacroAssembler* masm) {
     __ Sub_d(a4, a4, Operand(1));
     __ Branch(&done_loop, lt, a4, Operand(zero_reg));
     __ Alsl_d(a5, a4, a2, kTaggedSizeLog2);
-    __ LoadTaggedField(kScratchReg, MemOperand(a5, 0));
-    __ Push(kScratchReg);
+    __ LoadTaggedField(scratch, MemOperand(a5, 0));
+    __ Push(scratch);
     __ Branch(&loop);
     __ bind(&done_loop);
   }
@@ -4544,7 +4623,11 @@ void Builtins::Generate_WasmHandleStackOverflow(MacroAssembler* masm) {
     FrameScope scope(masm, StackFrame::INTERNAL);
     __ Push(kCArgRegs[3]);
     __ li(kCArgRegs[0], ER::isolate_address());
-    __ PrepareCallCFunction(6, kScratchReg);
+    {
+      UseScratchRegisterScope temps(masm);
+      Register scratch = temps.Acquire();
+      __ PrepareCallCFunction(6, scratch);
+    }
     __ CallCFunction(ER::wasm_grow_stack(), 6);
     __ Pop(gap);
     DCHECK_NE(kReturnRegister0, gap);
@@ -5287,6 +5370,8 @@ void Builtins::Generate_DeoptimizationEntry_LazyAfterFastCall(
   __ MultiPop(kCalleeSaveRegisters);
   __ MultiPopFPU(kCalleeSaveFPRegisters);
   __ LeaveFrame(StackFrame::INTERNAL);
+  __ TailCallBuiltin(Builtin::kDeoptimizationEntry_Lazy);
+
   __ bind(&no_exception);
   // Deoptimization expects that the return value of the API call is in the
   // return register. As we only allow deoptimization if the return type is

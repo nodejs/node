@@ -94,13 +94,23 @@ base::SmallVector<compiler::MapRef, 8> EscapeAnalysisData::GetMaps(
 
 ValueNode* EscapeAnalysisData::ResolveBase(ValueNode* node,
                                            int predecessor_index) {
+  auto resolve_load = [&](ValueNode* load, ValueNode* base, int offset) {
+    auto it = loaded_values.find(load);
+    if (it != loaded_values.end()) return it->second;
+    return ResolveLoadBase(base, offset, load, predecessor_index);
+  };
   switch (node->opcode()) {
     case Opcode::kLoadTaggedField: {
       LoadTaggedField* load = node->Cast<LoadTaggedField>();
-      auto it = loaded_values.find(load);
-      if (it != loaded_values.end()) return it->second;
-      return ResolveLoadBase(load->ValueInput().node(), load->offset(), load,
-                             predecessor_index);
+      return resolve_load(load, load->ValueInput().node(), load->offset());
+    }
+    case Opcode::kLoadContextSlotNoCells: {
+      LoadContextSlotNoCells* load = node->Cast<LoadContextSlotNoCells>();
+      return resolve_load(load, load->ValueInput().node(), load->offset());
+    }
+    case Opcode::kLoadContextSlot: {
+      LoadContextSlot* load = node->Cast<LoadContextSlot>();
+      return resolve_load(load, load->ContextInput().node(), load->offset());
     }
 
     case Opcode::kIdentity:
@@ -226,20 +236,7 @@ bool EscapeAnalysisData::HasEscaped(InlinedAllocation* alloc) {
 
 namespace {
 
-void UpdateVirtualObjects(DeoptFrame* deopt_frame,
-                          VirtualObjectList& virtual_objects) {
-  if (deopt_frame->type() == DeoptFrame::FrameType::kInterpretedFrame) {
-    deopt_frame->as_interpreted().set_last_virtual_object(
-        virtual_objects.head());
-    return;
-  }
-  DCHECK_NOT_NULL(deopt_frame->parent());
-  return UpdateVirtualObjects(deopt_frame->parent(), virtual_objects);
-}
-
-void AddUsesToInputs(
-    VirtualObject* vobj,
-    const std::unordered_map<ValueNode*, VirtualObject*>& vobj_map) {
+void AddUsesToInputs(VirtualObject* vobj) {
   // Because VirtualObjects could be recursive (or mutually recursive), we use
   // {seen} to prevent infinite loop while visiting inputs of VirtualObjects.
 
@@ -248,24 +245,21 @@ void AddUsesToInputs(
   // AddUsesToInputs (eg, make this function a member of EscapeAnalysisData and
   // make {seen} and {worklist} members there as well).
   absl::flat_hash_set<VirtualObject*> seen;
-  std::vector<VirtualObject*> worklist;
+  base::SmallVector<VirtualObject*, 8> worklist;
   worklist.push_back(vobj);
 
   while (!worklist.empty()) {
     VirtualObject* curr = worklist.back();
     worklist.pop_back();
 
-    if (seen.contains(curr)) continue;
-    seen.insert(curr);
+    if (!seen.insert(curr).second) continue;
 
     for (int i = 0; i < curr->slot_count(); i++) {
       ValueNode* input = curr->get_by_index(i);
-      input->add_use();
-      if (InlinedAllocation* alloc = input->TryCast<InlinedAllocation>()) {
-        auto it = vobj_map.find(alloc);
-        if (it != vobj_map.end()) {
-          worklist.push_back(it->second);
-        }
+      if (VirtualObject* nested = input->TryCast<VirtualObject>()) {
+        worklist.push_back(nested);
+      } else {
+        input->add_use();
       }
     }
   }
@@ -275,7 +269,15 @@ ValueNode* GetUpdatedValueAndAddDeoptUse(
     ValueNode* value,
     const std::unordered_map<ValueNode*, VirtualObject*>& vobj_map,
     EscapeAnalysisData& data) {
-  ValueNode* resolved = data.ResolveBase(value);
+  ValueNode* resolved = data.ResolveBase(value)->UnwrapAliases();
+
+  // If {resolved} is an elided allocation, replace it directly with its
+  // snapshot VirtualObject and add uses to its inputs.
+  auto it = vobj_map.find(resolved);
+  if (it != vobj_map.end()) {
+    AddUsesToInputs(it->second);
+    return it->second;
+  }
 
   // We didn't increment use-count when cloning the DeoptFrame (because the
   // VirtualObjects weren't ready yet), so we need to do it now.
@@ -285,68 +287,9 @@ ValueNode* GetUpdatedValueAndAddDeoptUse(
   // after escape analysis.
   resolved->add_use();
 
-  // If {resolved} is a VirtualObject, we need to add uses to its inputs.
-  auto it = vobj_map.find(resolved);
-  if (it != vobj_map.end()) {
-    AddUsesToInputs(it->second, vobj_map);
-  }
-
   return resolved;
 }
 
-void UpdateInterpretedFrame(
-    InterpretedDeoptFrame& frame,
-    const std::unordered_map<ValueNode*, VirtualObject*>& vobj_map,
-    EscapeAnalysisData& data) {
-  frame.closure() =
-      GetUpdatedValueAndAddDeoptUse(frame.closure(), vobj_map, data);
-
-  frame.frame_state()->ForEachValue(
-      frame.unit(),
-      [&vobj_map, &data](ValueNode*& value, interpreter::Register owner) {
-        value = GetUpdatedValueAndAddDeoptUse(value, vobj_map, data);
-      });
-}
-
-void UpdateInlinedArgumentsFrame(
-    InlinedArgumentsDeoptFrame& frame,
-    const std::unordered_map<ValueNode*, VirtualObject*>& vobj_map,
-    EscapeAnalysisData& data) {
-  frame.closure() =
-      GetUpdatedValueAndAddDeoptUse(frame.closure(), vobj_map, data);
-
-  for (ValueNode*& value : frame.arguments()) {
-    value = GetUpdatedValueAndAddDeoptUse(value, vobj_map, data);
-  }
-}
-
-void UpdateConstructInvokeStubFrame(
-    ConstructInvokeStubDeoptFrame& frame,
-    const std::unordered_map<ValueNode*, VirtualObject*>& vobj_map,
-    EscapeAnalysisData& data) {
-  // Note that while the receiver cannot be elided, it could still be a
-  // LoadTaggedField from an elided base, in which case it still need to be
-  // updated to bypass the load.
-  frame.receiver() =
-      GetUpdatedValueAndAddDeoptUse(frame.receiver(), vobj_map, data);
-  frame.context() =
-      GetUpdatedValueAndAddDeoptUse(frame.context(), vobj_map, data);
-}
-
-void UpdateBuiltinContinuationFrame(
-    BuiltinContinuationDeoptFrame& frame,
-    const std::unordered_map<ValueNode*, VirtualObject*>& vobj_map,
-    EscapeAnalysisData& data) {
-  frame.context() =
-      GetUpdatedValueAndAddDeoptUse(frame.context(), vobj_map, data);
-
-  for (ValueNode*& value : frame.parameters()) {
-    value = GetUpdatedValueAndAddDeoptUse(value, vobj_map, data);
-  }
-}
-
-// TODO(dmercadier): UpdateFrameState could probably reuse
-// DeoptInfoVisitor::VisitSingleFrame.
 void UpdateFrameState(
     DeoptFrame* frame_state,
     const std::unordered_map<ValueNode*, VirtualObject*>& vobj_map,
@@ -354,24 +297,9 @@ void UpdateFrameState(
   if (frame_state->parent() != nullptr) {
     UpdateFrameState(frame_state->parent(), vobj_map, data);
   }
-
-  switch (frame_state->type()) {
-    case DeoptFrame::FrameType::kInterpretedFrame:
-      UpdateInterpretedFrame(frame_state->as_interpreted(), vobj_map, data);
-      return;
-    case DeoptFrame::FrameType::kInlinedArgumentsFrame:
-      UpdateInlinedArgumentsFrame(frame_state->as_inlined_arguments(), vobj_map,
-                                  data);
-      return;
-    case DeoptFrame::FrameType::kConstructInvokeStubFrame:
-      UpdateConstructInvokeStubFrame(frame_state->as_construct_stub(), vobj_map,
-                                     data);
-      return;
-    case DeoptFrame::FrameType::kBuiltinContinuationFrame:
-      UpdateBuiltinContinuationFrame(frame_state->as_builtin_continuation(),
-                                     vobj_map, data);
-      return;
-  }
+  frame_state->ForEachValue([&](ValueNode*& value) {
+    value = GetUpdatedValueAndAddDeoptUse(value, vobj_map, data);
+  });
 }
 
 CompactInterpreterFrameState* CloneCompactInterpreterFrameState(
@@ -396,8 +324,7 @@ InterpretedDeoptFrame* CloneInterpretedFrame(
 
   return zone->New<InterpretedDeoptFrame>(
       input_frame.unit(), frame_state, input_frame.closure(),
-      input_frame.last_virtual_object(), input_frame.bytecode_position(),
-      input_frame.source_position(), parent);
+      input_frame.bytecode_position(), input_frame.source_position(), parent);
 }
 
 InlinedArgumentsDeoptFrame* CloneInlinedArgumentsFrame(
@@ -507,10 +434,13 @@ class AnalyzerPrePass {
   V(StoreMap)                               \
   V(StoreTaggedFieldNoWriteBarrier)         \
   V(StoreTaggedFieldWithWriteBarrier)       \
+  V(StoreContextSlotWithWriteBarrier)       \
   V(StoreFixedArrayElementNoWriteBarrier)   \
   V(StoreFixedArrayElementWithWriteBarrier) \
   V(StoreFixedDoubleArrayElement)           \
+  V(InitializeFixedHoleyDoubleArrayElement) \
   V(StoreInt32)                             \
+  V(StoreUint32)                            \
   V(StoreFloat64)                           \
   V(AssertEscapeAnalysisElided)             \
   V(CheckMaps)                              \
@@ -518,6 +448,8 @@ class AnalyzerPrePass {
   V(CheckMapsWithMigrationAndDeopt)         \
   V(AssumeMap)                              \
   V(LoadTaggedField)                        \
+  V(LoadContextSlotNoCells)                 \
+  V(LoadContextSlot)                        \
   V(LoadFloat64)                            \
   V(LoadFixedDoubleArrayElement)            \
   V(LoadFixedArrayElement)                  \
@@ -551,13 +483,12 @@ class AnalyzerPrePass {
     return Process(static_cast<NodeBase*>(node), state);
   }
 
-  template <class NodeT>
-  ProcessResult Process(NodeT* node, const ProcessingState&) {
+  ProcessResult Process(NodeBase* node, const ProcessingState&) {
     // Any operation that isn't whitelisted in NOT_ESCAPING_OPS is assumed to
     // make its inputs escape.
     for (Input input : node->inputs()) {
       if (InlinedAllocation* alloc =
-              input.node()->template TryCast<InlinedAllocation>()) {
+              input.node()->TryCast<InlinedAllocation>()) {
         data_.candidates[alloc] = CandidateStatus::kCannotElide;
         if (!alloc->HasBeenAnalysed()) {
           alloc->SetEscaped();
@@ -683,7 +614,42 @@ class CandidateAnalyzer {
     return ProcessResult::kContinue;
   }
 
+  ProcessResult Process(StoreContextSlotWithWriteBarrier* node,
+                        const ProcessingState&) {
+    TRACE("Process " << PRINT_NODE(node));
+    // An elided InlinedAllocation Context is initialized with raw Undefined
+    // slots (never ContextCells), and no external code can allocate a
+    // ContextCell into a non-escaping Context. Thus DetachContextCell (and its
+    // lazy deopt) is unreachable if the Context is elided; if the Context
+    // later escapes, any lazy-frame closures/receivers must also escape.
+    ValueNode* context = node->ContextInput().node();
+    ProcessFieldStore(node, context, node->offset(),
+                      node->NewValueInput().node());
+    if (InlinedAllocation* ctx_alloc =
+            data_.TryGetCandidateInlinedAllocation(context)) {
+      ForEachLazyFrameEscapingValue(
+          node->lazy_deopt_info()->top_frame(), [&](ValueNode* target) {
+            if (InlinedAllocation* target_alloc =
+                    data_.TryGetCandidateInlinedAllocation(target);
+                target_alloc != nullptr && target_alloc != ctx_alloc) {
+              data_.RecordDependentAllocation(ctx_alloc, target_alloc);
+            }
+          });
+    } else {
+      MarkFrameStateReceiverAndFunctionAsEscaping(
+          node->lazy_deopt_info()->top_frame());
+    }
+    return ProcessResult::kContinue;
+  }
+
   ProcessResult Process(StoreInt32* node, const ProcessingState&) {
+    TRACE("Process " << PRINT_NODE(node));
+    ProcessFieldStore(node, node->ObjectInput().node(), node->offset(),
+                      node->ValueInput().node());
+    return ProcessResult::kContinue;
+  }
+
+  ProcessResult Process(StoreUint32* node, const ProcessingState&) {
     TRACE("Process " << PRINT_NODE(node));
     ProcessFieldStore(node, node->ObjectInput().node(), node->offset(),
                       node->ValueInput().node());
@@ -693,6 +659,17 @@ class CandidateAnalyzer {
   template <typename FixedArrayT, typename StoreT>
   ProcessResult ProcessFixedArrayStore(StoreT* node) {
     TRACE("Process " << PRINT_NODE(node));
+    if (data_.ResolveBase(node->ElementsInput().node())
+            ->template Is<ArgumentsElements>()) {
+      // Deoptimization reconstructs an elided rest/arguments object's
+      // ArgumentsElements from the unmutated stack frame. If its backing store
+      // is mutated, the owning allocation cannot be elided.
+      LoadTaggedField* elements_load = node->ElementsInput()
+                                           .node()
+                                           ->UnwrapAliases()
+                                           ->template Cast<LoadTaggedField>();
+      data_.MarkAsEscapedIfCandidate(elements_load->ValueInput().node());
+    }
     if (Int32Constant* index_node =
             node->IndexInput().node()->template TryCast<Int32Constant>()) {
       int index = index_node->value();
@@ -731,6 +708,14 @@ class CandidateAnalyzer {
   ProcessResult Process(StoreFixedDoubleArrayElement* node,
                         const ProcessingState&) {
     return ProcessFixedArrayStore<FixedDoubleArray>(node);
+  }
+
+  ProcessResult Process(InitializeFixedHoleyDoubleArrayElement* node,
+                        const ProcessingState&) {
+    TRACE("Process " << PRINT_NODE(node));
+    ProcessFieldStore(node, node->ObjectInput().node(), node->offset(),
+                      node->ValueInput().node());
+    return ProcessResult::kContinue;
   }
 
   ProcessResult Process(StoreFloat64* node, const ProcessingState&) {
@@ -824,12 +809,25 @@ class CandidateAnalyzer {
     return ProcessResult::kContinue;
   }
 
-  ProcessResult Process(LoadTaggedField* node, const ProcessingState&) {
+  ProcessResult ProcessTaggedLoad(ValueNode* node, Input base, int offset) {
     // Shouldn't make its input escape.
-    ValueNode* resolved =
-        data_.ResolveLoadBase(node->ValueInput(), node->offset(), node);
-    data_.loaded_values.insert_or_assign(node, resolved);
+    ValueNode* resolved = data_.ResolveLoadBase(base, offset, node);
+    data_.RecordLoadedValue(node, resolved);
     return ProcessResult::kContinue;
+  }
+
+  ProcessResult Process(LoadTaggedField* node, const ProcessingState&) {
+    return ProcessTaggedLoad(node, node->ValueInput(), node->offset());
+  }
+
+  ProcessResult Process(LoadContextSlotNoCells* node, const ProcessingState&) {
+    return ProcessTaggedLoad(node, node->ValueInput(), node->offset());
+  }
+
+  ProcessResult Process(LoadContextSlot* node, const ProcessingState&) {
+    // An elided InlinedAllocation Context never contains ContextCells, so its
+    // slot holds the raw tagged value directly.
+    return ProcessTaggedLoad(node, node->ContextInput(), node->offset());
   }
 
   ProcessResult Process(LoadFixedArrayElement* node,
@@ -888,9 +886,7 @@ class CandidateAnalyzer {
     return ProcessResult::kContinue;
   }
 
-  template <class NodeT>
-    requires std::is_base_of_v<NodeBase, NodeT>
-  ProcessResult Process(NodeT* node, const ProcessingState&) {
+  ProcessResult Process(NodeBase* node, const ProcessingState&) {
     // TODO(dmercadier): consider running proper DCE before escape analysis
     // to not block escape analysis on dead nodes.
 
@@ -899,7 +895,7 @@ class CandidateAnalyzer {
       data_.MarkAsEscapedIfCandidate(input_node);
     }
 
-    if constexpr (NodeT::kProperties.can_lazy_deopt()) {
+    if (node->properties().can_lazy_deopt()) {
       // Because lazy frame states can generate stack trace, we must prevent
       // eliding their "receiver" and "function" fields.
       MarkFrameStateReceiverAndFunctionAsEscaping(
@@ -910,15 +906,16 @@ class CandidateAnalyzer {
   }
 
   // TODO(dmercadier): could this use DeoptInfoVisitor::VisitSingleFrame?
-  void MarkFrameStateReceiverAndFunctionAsEscaping(const DeoptFrame& frame) {
+  template <typename Func>
+  void ForEachLazyFrameEscapingValue(const DeoptFrame& frame, Func&& fn) {
     if (frame.parent() != nullptr) {
-      MarkFrameStateReceiverAndFunctionAsEscaping(*frame.parent());
+      ForEachLazyFrameEscapingValue(*frame.parent(), fn);
     }
 
     switch (frame.type()) {
       case DeoptFrame::FrameType::kInterpretedFrame: {
         const InterpretedDeoptFrame& interpreted_frame = frame.as_interpreted();
-        data_.MarkAsEscapedIfCandidate(interpreted_frame.closure());
+        fn(interpreted_frame.closure());
         interpreted_frame.frame_state()->ForEachValue(
             interpreted_frame.unit(),
             [&](ValueNode* node, interpreter::Register reg) {
@@ -928,7 +925,7 @@ class CandidateAnalyzer {
               DCHECK_NE(reg, interpreter::Register::function_closure());
               if (reg == interpreter::Register::receiver() ||
                   reg == interpreter::Register::function_closure()) {
-                data_.MarkAsEscapedIfCandidate(node);
+                fn(node);
               }
             });
         break;
@@ -938,8 +935,7 @@ class CandidateAnalyzer {
         const BuiltinContinuationDeoptFrame& continuation_frame =
             frame.as_builtin_continuation();
         if (!continuation_frame.parameters().empty()) {
-          data_.MarkAsEscapedIfCandidate(
-              continuation_frame.parameters().front());
+          fn(continuation_frame.parameters().front());
         }
         break;
       }
@@ -948,6 +944,11 @@ class CandidateAnalyzer {
       case DeoptFrame::FrameType::kConstructInvokeStubFrame:
         break;
     }
+  }
+
+  void MarkFrameStateReceiverAndFunctionAsEscaping(const DeoptFrame& frame) {
+    ForEachLazyFrameEscapingValue(
+        frame, [&](ValueNode* node) { data_.MarkAsEscapedIfCandidate(node); });
   }
 
  private:
@@ -966,6 +967,24 @@ class CandidateAnalyzer {
   EscapeAnalysisData& data_;
   Tracer tracer_;
 };
+
+namespace {
+// HasSpecificProcess<T, NodeT>() is true iff T has a Process overload for
+// NodeT* that is more specific than the generic Process(NodeBase*) fallback.
+// The probe deletes the fallback, so calling Process(NodeT*) on it is only
+// well-formed when such an overload exists.
+template <typename T>
+struct SpecificProcessProbe : T {
+  using T::Process;
+  void Process(NodeBase*, const ProcessingState&) = delete;
+};
+
+template <typename T, typename NodeT>
+constexpr bool HasSpecificProcess() {
+  return requires(SpecificProcessProbe<T>& probe, NodeT* node,
+                  const ProcessingState& state) { probe.Process(node, state); };
+}
+}  // namespace
 
 class FieldValuesTracker : public CandidateAnalyzer {
  public:
@@ -1342,8 +1361,7 @@ class FieldValuesTracker : public CandidateAnalyzer {
     return CandidateAnalyzer::Process(node, state);
   }
 
-  template <class NodeT>
-  ProcessResult Process(NodeT* node, const ProcessingState& state) {
+  void MaybeRecordSnapshot(NodeBase* node) {
     // We're recording a new snapshot for every node so that the Elider can know
     // the current value of any elided field at any point.
     // TODO(dmercadier): this is recording more snapshots than we strictly need
@@ -1357,13 +1375,21 @@ class FieldValuesTracker : public CandidateAnalyzer {
     //
     // For all other nodes, we shouldn't need a snapshot.
     if (!field_values().IsSealed()) {
-      DCHECK(!field_values().IsSealed());
       Snapshot snapshot = field_values().Seal();
       snapshots().insert_or_assign(node, snapshot);
-
       field_values().StartNewSnapshot(snapshot);
     }
+  }
 
+  template <class NodeT>
+    requires(HasSpecificProcess<CandidateAnalyzer, NodeT>())
+  ProcessResult Process(NodeT* node, const ProcessingState& state) {
+    MaybeRecordSnapshot(node);
+    return CandidateAnalyzer::Process(node, state);
+  }
+
+  ProcessResult Process(NodeBase* node, const ProcessingState& state) {
+    MaybeRecordSnapshot(node);
     return CandidateAnalyzer::Process(node, state);
   }
 
@@ -1487,24 +1513,18 @@ class DeoptFrameUpdater {
   }
   void PostPhiProcessing() {}
 
-  template <class NodeT>
-  ProcessResult Process(NodeT* node, const ProcessingState& state) {
-    DCHECK_IMPLIES(node->properties().has_eager_deopt_info(),
-                   NodeT::kProperties.has_eager_deopt_info());
-    DCHECK_IMPLIES(node->properties().can_lazy_deopt(),
-                   NodeT::kProperties.can_lazy_deopt());
-
+  ProcessResult Process(NodeBase* node, const ProcessingState&) {
     // Updating deopt state.
     // TODO(dmercadier): we currently clone all DeoptInfo without even checking
     // if they have elided object inputs that would warrant cloning them. We
     // should instead first inspect the DeoptInfo to see if it has any input
     // that needs to be updated, and only then clone it.
-    if constexpr (NodeT::kProperties.has_eager_deopt_info()) {
+    if (node->properties().has_eager_deopt_info()) {
       TRACE("> Will UpdateEagerDeoptInfo");
       UpdateEagerDeoptInfo(node);
     }
 
-    if constexpr (NodeT::kProperties.can_lazy_deopt()) {
+    if (node->properties().can_lazy_deopt()) {
       TRACE("> Will UpdateLazyDeoptInfo");
       UpdateLazyDeoptInfo(node);
     }
@@ -1512,9 +1532,8 @@ class DeoptFrameUpdater {
     return ProcessResult::kContinue;
   }
 
-  template <class NodeT>
-  void UpdateEagerDeoptInfo(NodeT* node) {
-    static_assert(NodeT::kProperties.has_eager_deopt_info());
+  void UpdateEagerDeoptInfo(NodeBase* node) {
+    DCHECK(node->properties().has_eager_deopt_info());
     DeoptFrame* new_frame_state =
         DeepClone(node->eager_deopt_info()->top_frame(), zone());
     node->SetEagerDeoptInfo(zone(), new_frame_state,
@@ -1522,9 +1541,8 @@ class DeoptFrameUpdater {
     UpdateDeoptFrame(new_frame_state);
   }
 
-  template <class NodeT>
-  void UpdateLazyDeoptInfo(NodeT* node) {
-    static_assert(NodeT::kProperties.can_lazy_deopt());
+  void UpdateLazyDeoptInfo(NodeBase* node) {
+    DCHECK(node->properties().can_lazy_deopt());
     DeoptFrame* new_frame_state =
         DeepClone(node->lazy_deopt_info()->top_frame(), zone());
 
@@ -1547,7 +1565,6 @@ class DeoptFrameUpdater {
     // it has not changed since it was cloned.
     // This is non-trivial because it requires tracking a "version" or "epoch"
     // for virtual object states to detect if any updates occurred between uses.
-    VirtualObjectList virtual_objects;
     std::unordered_map<ValueNode*, VirtualObject*> vobj_map;
 
     // New VirtualObjects are created in 2 steps: the first one allocates the
@@ -1608,6 +1625,9 @@ class DeoptFrameUpdater {
           continue_outer = true;
           break;
         }
+        if (auto it = vobj_map.find(field_value); it != vobj_map.end()) {
+          field_value = it->second;
+        }
 
         TRACE(">>> vobj_id=" << NODE_ID(vobj) << " offset=" << offset
                              << " value=" << NODE_ID(field_value));
@@ -1617,12 +1637,8 @@ class DeoptFrameUpdater {
       if (continue_outer) continue;
 
       vobj->set_allocation(node);
-      // Now that we're sure that {vobj} is alive and we've initialized all of
-      // its field, so we can add it to {virtual_objects}.
-      virtual_objects.Add(vobj);
     }
 
-    UpdateVirtualObjects(frame, virtual_objects);
     UpdateFrameState(frame, vobj_map, data_);
   }
 
@@ -1705,6 +1721,11 @@ class Elider {
     return RemoveIfElidedBase(node->ObjectInput().node(), node);
   }
 
+  ProcessResult Process(StoreContextSlotWithWriteBarrier* node,
+                        const ProcessingState&) {
+    return RemoveIfElidedBase(node->ContextInput().node(), node);
+  }
+
   ProcessResult Process(StoreFixedArrayElementNoWriteBarrier* node,
                         const ProcessingState&) {
     return RemoveIfElidedBase(node->ElementsInput().node(), node);
@@ -1720,7 +1741,16 @@ class Elider {
     return RemoveIfElidedBase(node->ElementsInput().node(), node);
   }
 
+  ProcessResult Process(InitializeFixedHoleyDoubleArrayElement* node,
+                        const ProcessingState&) {
+    return RemoveIfElidedBase(node->ObjectInput().node(), node);
+  }
+
   ProcessResult Process(StoreInt32* node, const ProcessingState&) {
+    return RemoveIfElidedBase(node->ObjectInput().node(), node);
+  }
+
+  ProcessResult Process(StoreUint32* node, const ProcessingState&) {
     return RemoveIfElidedBase(node->ObjectInput().node(), node);
   }
 
@@ -1809,7 +1839,7 @@ class Elider {
             UNREACHABLE();
         }
         node->OverwriteWithIdentityTo(dummy_cst);
-        return ProcessResult::kContinue;
+        return ProcessResult::kRevisit;
       }
       DCHECK(keys_mappings().contains(addr));
       Key key = keys_mappings().at(addr);
@@ -1828,7 +1858,7 @@ class Elider {
         node->OverwriteWith(
             Opcode::kDeadValue,
             OpProperties::ForValueRepresentation(node->value_representation()));
-        return ProcessResult::kContinue;
+        return ProcessResult::kRevisit;
       }
 
       if (!IsStillInTheGraph(replacement)) {
@@ -1846,6 +1876,7 @@ class Elider {
       TRACE("> overwriting with Identity");
       node->template OverwriteWith<Identity>();
       node->change_input(0, replacement);
+      return ProcessResult::kRevisit;
     }
 
     return ProcessResult::kContinue;
@@ -1853,6 +1884,15 @@ class Elider {
 
   ProcessResult Process(LoadTaggedField* node, const ProcessingState& state) {
     return ProcessLoad(node, node->ValueInput().node(), node->offset());
+  }
+
+  ProcessResult Process(LoadContextSlotNoCells* node,
+                        const ProcessingState& state) {
+    return ProcessLoad(node, node->ValueInput().node(), node->offset());
+  }
+
+  ProcessResult Process(LoadContextSlot* node, const ProcessingState& state) {
+    return ProcessLoad(node, node->ContextInput().node(), node->offset());
   }
 
   ProcessResult Process(LoadFloat64* node, const ProcessingState& state) {
@@ -1895,31 +1935,25 @@ class Elider {
     InlinedAllocation* right_alloc =
         data_.TryGetCandidateInlinedAllocation(node->RightInput().node());
 
+    if (!left_alloc && !right_alloc) {
+      return ProcessResult::kContinue;
+    }
+
     // TODO(dmercadier): when folding this branch, we should also mark the
     // non-taken side as Unreachable (eg, by calling RemovePredecessorFollowing
     // and set_may_have_unreachable_blocks).
-    if (left_alloc) {
-      if (right_alloc) {
-        // Both left and right inputs were elided, checking if they are the same
-        // object or not.
-        BasicBlock* target =
-            left_alloc == right_alloc ? node->if_true() : node->if_false();
-        node->OverwriteWith<Jump>();
-        node->Cast<Jump>()->set_target(target);
-      } else {
-        // Left was elided but right wasn't ==> they can't be the same object.
-        BasicBlock* target = node->if_false();
-        node->OverwriteWith<Jump>();
-        node->Cast<Jump>()->set_target(target);
-      }
-    } else if (right_alloc) {
-      // Right was elided but left wasn't ==> they can't be the same object.
-      BasicBlock* target = node->if_false();
-      node->OverwriteWith<Jump>();
-      node->Cast<Jump>()->set_target(target);
+    BasicBlock* target;
+    if (left_alloc && right_alloc) {
+      // Both left and right inputs were elided, checking if they are the same
+      // object or not.
+      target = left_alloc == right_alloc ? node->if_true() : node->if_false();
+    } else {
+      // Only one input was elided ==> they can't be the same object.
+      target = node->if_false();
     }
-
-    return ProcessResult::kContinue;
+    node->OverwriteWith<Jump>();
+    node->Cast<Jump>()->set_target(target);
+    return ProcessResult::kRevisit;
   }
 
   ProcessResult Process(Phi* phi, const ProcessingState&) {
@@ -1927,8 +1961,7 @@ class Elider {
     return ProcessResult::kContinue;
   }
 
-  template <class NodeT>
-  ProcessResult Process(NodeT* node, const ProcessingState& state) {
+  ProcessResult Process(NodeBase* node, const ProcessingState&) {
     TRACE("Nothing to do for regular node " << PRINT_NODE(node));
 
     // TODO(dmercadier): it would be nice to clear unused nodes, but it's not
@@ -1974,8 +2007,7 @@ class FieldValuesRestorer {
   }
   void PostPhiProcessing() {}
 
-  template <class NodeT>
-  ProcessResult Process(NodeT* node, const ProcessingState& state) {
+  ProcessResult Process(NodeBase* node, const ProcessingState&) {
     if (snapshots().contains(node)) {
       if (!field_values().IsSealed()) field_values().Seal();
       DCHECK(snapshots().contains(node));
@@ -2041,15 +2073,6 @@ namespace {
 // This is where HasSpecificProcess comes in: it checks if the Elider or the
 // CandidateAnalyzer has a specific Process overload, then the other one as
 // well.
-
-template <typename T, typename NodeT>
-constexpr bool HasSpecificProcess() {
-  using Signature = ProcessResult (T::*)(NodeT*, const ProcessingState&);
-  // If T has a specific non-template Process(NodeT*, ...) overload,
-  // the static_cast selects it, resulting in a different address than
-  // the template instantiation.
-  return static_cast<Signature>(&T::Process) != &T::template Process<NodeT>;
-}
 
 // Static assertion check for a single node type.
 // Note that It's not required for correctness that the AnalyzerPrePass has the

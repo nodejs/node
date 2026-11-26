@@ -19,14 +19,17 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <functional>
 #include <memory>
 #include <new>
 #include <tuple>
 #include <type_traits>
 #include <utility>
 
+#include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/hash/hash.h"
+#include "absl/hash/internal/canonical_hash.h"
 #include "absl/memory/memory.h"
 #include "absl/meta/type_traits.h"
 #include "absl/utility/utility.h"
@@ -42,6 +45,40 @@
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace container_internal {
+
+// We only allow a maximum of 1 SOO element, which makes the implementation
+// much simpler. Complications with multiple SOO elements include:
+// - Satisfying the guarantee that erasing one element doesn't invalidate
+//   iterators to other elements means we would probably need actual SOO
+//   control bytes.
+// - In order to prevent user code from depending on iteration order for small
+//   tables, we would need to randomize the iteration order somehow.
+constexpr size_t HashtableSooCapacity() { return 1; }
+
+// HashtableTypeInfo bundles the numeric properties of a raw_hash_set<T, ...>
+// instantiation. It is defined here (rather than in raw_hash_set.h) so that
+// hashtablez sampling can receive a pointer to it instead of several separate
+// size arguments.
+struct HashtableTypeInfo {
+  // 8 bytes
+  uint32_t slot_size;
+  // `alignof(slot_type) - 1`. Storing the mask instead of the alignment lets
+  // `AlignUpToMask` compute `(offset + mask) & ~mask` without negation.
+  uint16_t slot_align_mask;
+  bool soo_enabled;
+  bool is_hashtablez_enabled : 1;
+  // True if `alignof(slot_type) > alignof(size_t)` or the allocator is not
+  // `std::allocator`. When true, the policy object is an instance of
+  // `CustomAllocPolicy`.
+  bool is_custom_alloc : 1;
+  // 8 bytes
+  uint32_t key_size;
+  uint32_t value_size;
+
+  constexpr uint8_t soo_capacity() const {
+    return static_cast<uint8_t>(soo_enabled ? HashtableSooCapacity() : 0);
+  }
+};
 
 template <size_t Alignment>
 struct alignas(Alignment) AlignedType {
@@ -281,6 +318,30 @@ DecomposeValue(F&& f, Arg&& arg) {
   return std::forward<F>(f)(key, std::forward<Arg>(arg));
 }
 
+// SFINAE probe checking that `PassedKey` can be hashed and compared against
+// `ContainerKey`.
+template <class ContainerKey, class Hash, class Eq>
+struct RequireUsableKey {
+  template <class PassedKey, class... Args>
+  std::pair<
+      decltype(std::declval<const Hash&>()(std::declval<const PassedKey&>())),
+      decltype(std::declval<const Eq&>()(std::declval<const ContainerKey&>(),
+                                         std::declval<const PassedKey&>()))>*
+  operator()(const PassedKey&, const Args&...) const;
+};
+
+// True if `Policy::apply` can extract a key from `Ts...` that satisfies
+// `RequireUsableKey<Policy::key_type, Hash, Eq>`.
+template <class E, class Policy, class Hash, class Eq, class... Ts>
+struct IsDecomposable : std::false_type {};
+
+template <class Policy, class Hash, class Eq, class... Ts>
+struct IsDecomposable<
+    std::void_t<decltype(Policy::apply(
+        RequireUsableKey<typename Policy::key_type, Hash, Eq>(),
+        std::declval<Ts>()...))>,
+    Policy, Hash, Eq, Ts...> : std::true_type {};
+
 // Helper functions for asan and msan.
 inline void SanitizerPoisonMemoryRegion(const void* m, size_t s) {
 #ifdef ABSL_HAVE_ADDRESS_SANITIZER
@@ -316,23 +377,24 @@ inline void SanitizerUnpoisonObject(const T* object) {
 
 namespace memory_internal {
 
-// If Pair is a standard-layout type, OffsetOf<Pair>::kFirst and
-// OffsetOf<Pair>::kSecond are equivalent to offsetof(Pair, first) and
-// offsetof(Pair, second) respectively. Otherwise they are -1.
-//
-// The purpose of OffsetOf is to avoid calling offsetof() on non-standard-layout
-// type, which is non-portable.
-template <class Pair, class = std::true_type>
-struct OffsetOf {
-  static constexpr size_t kFirst = static_cast<size_t>(-1);
-  static constexpr size_t kSecond = static_cast<size_t>(-1);
-};
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
+#endif
 
+// OffsetOf<Pair>::kFirst and OffsetOf<Pair>::kSecond are equivalent to
+// offsetof(Pair, first) and offsetof(Pair, second) respectively. `offsetof` on
+// a non-standard-layout type is conditionally-supported, but all the compilers
+// we care about support it for non-static data members.
 template <class Pair>
-struct OffsetOf<Pair, typename std::is_standard_layout<Pair>::type> {
+struct OffsetOf {
   static constexpr size_t kFirst = offsetof(Pair, first);
   static constexpr size_t kSecond = offsetof(Pair, second);
 };
+
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
 
 template <class K, class V>
 struct IsLayoutCompatible {
@@ -537,7 +599,9 @@ struct map_slot_policy {
 // Useful for usage with policy traits.
 template <class Hash, bool kIsAbsl, size_t kSeedShift>
 struct HashElement {
-  HashElement(const Hash& h, size_t s) : hash(h), seed(s >> kSeedShift) {}
+  HashElement(type_traits_internal::AddConstRefIfExpensiveToCopy<Hash> h,
+              size_t s)
+      : hash(h), seed(s >> kSeedShift) {}
 
   template <class K, class... Args>
   size_t operator()(const K& key, Args&&...) const {
@@ -550,25 +614,41 @@ struct HashElement {
     // NOLINTNEXTLINE(clang-diagnostic-sign-conversion)
     return hash(key) ^ seed;
   }
-  const Hash& hash;
+  ABSL_ATTRIBUTE_NO_UNIQUE_ADDRESS
+  type_traits_internal::AddConstRefIfExpensiveToCopy<Hash> hash;
   size_t seed;
 };
 
-// No arguments function hash function for a specific key.
-template <class Hash, class Key, bool kIsAbsl, size_t kSeedShift>
+using EncodedHashKey = absl::hash_internal::EncodedHashKey;
+using HashForKeyFn = absl::hash_internal::HashForKeyFn;
+
+// No arguments hash function for a specific key.
+// If `kUseCanonical` is true, `Hash` must hash `Key` identically to
+// `absl::Hash<Key>`, and `CanonicalHashKey` is used so that `get_hash_fn()` is
+// shared across key types with the same canonical hasher.
+template <class Hash, class Key, bool kIsAbsl, size_t kSeedShift,
+          bool kUseCanonical>
 struct HashKey {
-  HashKey(const Hash& h, const Key& k) : hash(h), key(k) {}
-
-  size_t operator()(size_t seed) const {
-    return HashElement<Hash, kIsAbsl, kSeedShift>{hash, seed}(key);
+  static size_t GetHash(EncodedHashKey data, size_t seed) {
+    const auto& self = *data.ToPtr<HashKey>();
+    return HashElement<Hash, kIsAbsl, kSeedShift>{self.hash, seed}(self.key);
   }
 
-  // Static version of the above to pass to type erased functions.
-  static size_t GetHash(void* data, size_t seed) {
-    return (*static_cast<const HashKey*>(data))(seed);
-  }
-  const Hash& hash;
-  const Key& key;
+  // `data()` and `get_hash_fn()` are passed to type erased functions.
+  EncodedHashKey data() const { return EncodedHashKey::FromPtr(this); }
+  static constexpr HashForKeyFn get_hash_fn() { return &GetHash; }
+
+  ABSL_ATTRIBUTE_NO_UNIQUE_ADDRESS
+  type_traits_internal::AddConstRefIfExpensiveToCopy<Hash> hash;
+  type_traits_internal::AddConstRefIfExpensiveToCopy<Key> key;
+};
+
+template <class Hash, class Key, bool kIsAbsl, size_t kSeedShift>
+struct HashKey<Hash, Key, kIsAbsl, kSeedShift, /*kUseCanonical=*/true>
+    : absl::hash_internal::CanonicalHashKey<Key> {
+  static_assert(kIsAbsl, "kUseCanonical requires kIsAbsl");
+  HashKey(const Hash&, const absl::remove_cvref_t<Key>& k)
+      : absl::hash_internal::CanonicalHashKey<Key>(k) {}
 };
 
 // Variadic arguments equality function that ignore the rest of the arguments.
@@ -579,8 +659,28 @@ struct EqualElement {
   bool operator()(const K2& lhs, Args&&...) const {
     ABSL_SWISSTABLE_IGNORE_UNINITIALIZED_RETURN(eq(lhs, rhs));
   }
-  const K1& rhs;
-  const KeyEqual& eq;
+  type_traits_internal::AddConstRefIfExpensiveToCopy<K1> rhs;
+  ABSL_ATTRIBUTE_NO_UNIQUE_ADDRESS
+  type_traits_internal::AddConstRefIfExpensiveToCopy<KeyEqual> eq;
+};
+
+// Type-erased slot equality functor with the key at offset 0 of `slot` (or
+// `*slot` if `kDerefSlot` is true).
+template <class SlotKey, bool kDerefSlot>
+struct SlotEqFn {
+  using SlotKeyType = const SlotKey;
+
+  template <class Eq, class SearchKey>
+  bool operator()(const Eq& eq, const void* slot, const SearchKey& key) const {
+    if constexpr (kDerefSlot) {
+      const void* node;
+      // Copy the pointer to avoid strict aliasing issues.
+      std::memcpy(&node, slot, sizeof(node));
+      slot = node;
+    }
+    return EqualElement<SearchKey, Eq>{key,
+                                       eq}(*static_cast<const SlotKey*>(slot));
+  }
 };
 
 // Type erased function for computing hash of the slot.
@@ -595,24 +695,65 @@ size_t TypeErasedApplyToSlotFn(const void* fn, void* slot, size_t seed) {
       *f, seed}(*static_cast<const T*>(slot));
 }
 
+// Type erased function to apply `CanonicalHasher` to data inside of the `slot`.
+template <class CanonicalHasher>
+size_t TypeErasedApplyAbslHashToSlotFn(const void*, void* slot, size_t seed) {
+  using T = typename CanonicalHasher::KeyType;
+  return absl::hash_internal::HashWithSeed().hash(
+      CanonicalHasher(), *static_cast<const T*>(slot), seed);
+}
+
+template <class Fn, class T, bool kIsAbsl, size_t kSeedShift>
+constexpr HashSlotFn GetTypeErasedApplyToSlotFn() {
+  using NonConstT = std::remove_const_t<T>;
+  // Use the canonical `absl::Hash<NonConstT>` implementation when `Fn` is
+  // `absl::Hash<NonConstT>` or a transparent hasher (such as `StringHash`)
+  // that hashes `NonConstT` identically.
+  if constexpr (kIsAbsl && std::is_invocable_v<Fn, const NonConstT&>) {
+    return &TypeErasedApplyAbslHashToSlotFn<
+        decltype(absl::hash_internal::CanonicalHasher<NonConstT>())>;
+  }
+  return &TypeErasedApplyToSlotFn<Fn, NonConstT, kIsAbsl, kSeedShift>;
+}
+
 // Type erased function to apply `Fn` to data inside of the `*slot_ptr`.
 // The data is expected to have type `T`.
 template <class Fn, class T, bool kIsAbsl, size_t kSeedShift>
 size_t TypeErasedDerefAndApplyToSlotFn(const void* fn, void* slot_ptr,
                                        size_t seed) {
   const auto* f = static_cast<const Fn*>(fn);
-  const T* slot = *static_cast<T**>(slot_ptr);
+  const T* slot;
+  // We use memcpy to avoid a strict-aliasing violation when this is called from
+  // NodeHashMapPolicy::get_hash_slot_fn(). In that case, slot_ptr has type
+  // `std::pair<const T, mapped_type>**`, which is not safe to dereference as
+  // `const T**`. Note that it is safe to dereference `slot` afterwards because
+  // `std::pair<const T, mapped_type>::first` is at offset 0.
+  std::memcpy(&slot, slot_ptr, sizeof(slot));
   return HashElement<Fn, kIsAbsl, kSeedShift>{*f, seed}(*slot);
 }
 
-// Type erased function to apply `Fn` to data inside of the `slot_ptr->first`.
-// The data is expected to have type `T`.
+// Type erased function to apply `CanonicalHasher` to data inside of the
+// `*slot_ptr`.
+template <class CanonicalHasher>
+size_t TypeErasedDerefAndApplyAbslHashToSlotFn(const void*, void* slot_ptr,
+                                               size_t seed) {
+  using T = typename CanonicalHasher::KeyType;
+  const T* slot;
+  // See comment in `TypeErasedDerefAndApplyToSlotFn`.
+  std::memcpy(&slot, slot_ptr, sizeof(slot));
+  return absl::hash_internal::HashWithSeed().hash(CanonicalHasher(), *slot,
+                                                  seed);
+}
+
 template <class Fn, class T, bool kIsAbsl, size_t kSeedShift>
-size_t TypeErasedDerefAndApplyToSlotFirstFn(const void* fn, void* slot_ptr,
-                                            size_t seed) {
-  const auto* f = static_cast<const Fn*>(fn);
-  const T* slot = *static_cast<T**>(slot_ptr);
-  return HashElement<Fn, kIsAbsl, kSeedShift>{*f, seed}(slot->first);
+constexpr HashSlotFn GetTypeErasedDerefAndApplyToSlotFn() {
+  using NonConstT = std::remove_const_t<T>;
+  // See comment in `GetTypeErasedApplyToSlotFn`.
+  if constexpr (kIsAbsl && std::is_invocable_v<Fn, const NonConstT&>) {
+    return &TypeErasedDerefAndApplyAbslHashToSlotFn<
+        decltype(absl::hash_internal::CanonicalHasher<NonConstT>())>;
+  }
+  return &TypeErasedDerefAndApplyToSlotFn<Fn, NonConstT, kIsAbsl, kSeedShift>;
 }
 
 }  // namespace container_internal

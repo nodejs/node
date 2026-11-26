@@ -1580,9 +1580,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (mode > RecordWriteMode::kValueIsPointer) {
         __ JumpIfSmi(value, ool->exit());
       }
-      __ CheckPageFlag(object, scratch0,
-                       MemoryChunk::kPointersFromHereAreInterestingMask, ne,
-                       ool->entry());
+      if (mode == RecordWriteMode::kValueIsMap) {
+        // Maps are never allocated in the young generation, so storing a map
+        // never requires the generational barrier. The barrier is thus only
+        // needed while marking. Checking the marking flag instead of the page
+        // flags of the host object avoids jumping to the out-of-line code for
+        // each map store into an old object.
+        __ JumpIfMarking(ool->entry());
+      } else {
+        __ CheckPageFlag(object, scratch0,
+                         MemoryChunk::kPointersFromHereAreInterestingMask, ne,
+                         ool->entry());
+      }
       __ bind(ool->exit());
       break;
     }
@@ -1602,10 +1611,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
 
       DCHECK(v8_flags.verify_write_barriers);
-      auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(
-          this, object, value, kScratchReg, &unwinding_info_writer_);
-      __ JumpIfNotSmi(value, ool->entry());
-      __ bind(ool->exit());
+      if (CheckSmiField::decode(instr->opcode())) {
+        Condition is_smi = __ CheckSmi(value);
+        __ Check(is_smi, AbortReason::kTaggedSignedNotSmi);
+      } else {
+        auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(
+            this, object, value, kScratchReg, &unwinding_info_writer_);
+        __ JumpIfNotSmi(value, ool->entry());
+        __ bind(ool->exit());
+      }
 
       __ StoreTaggedField(value, operand, r0);
       break;
@@ -2433,6 +2447,26 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kS390_StoreWord64:
       ASSEMBLE_STORE_INTEGER(StoreU64);
       break;
+    case kS390_AtomicStoreCompressTagged: {
+      AddressingMode addressing_mode = kMode_None;
+      size_t index = 0;
+      MemOperand operand = i.MemoryOperand(&addressing_mode, &index);
+      Register value = i.InputRegister(index);
+      Register old_value = i.TempRegister(0);
+      __ lay(r1, operand);
+      Label do_cs;
+      if constexpr (COMPRESS_POINTERS_BOOL) {
+        __ LoadU32(old_value, MemOperand(r1));
+        __ bind(&do_cs);
+        __ cs(old_value, value, MemOperand(r1));
+      } else {
+        __ lg(old_value, MemOperand(r1));
+        __ bind(&do_cs);
+        __ csg(old_value, value, MemOperand(r1));
+      }
+      __ bne(&do_cs, Label::kNear);
+      break;
+    }
     case kS390_StoreReverse16:
       ASSEMBLE_STORE_INTEGER(strvh);
       break;

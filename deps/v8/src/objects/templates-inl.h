@@ -342,65 +342,63 @@ Tagged<ObjectTemplateInfo> ObjectTemplateInfo::GetParent(Isolate* isolate) {
 }
 
 int ObjectTemplateInfo::embedder_field_count() const {
-  return EmbedderFieldCountBits::decode(data());
+  return data().embedder_field_count();
 }
 
 void ObjectTemplateInfo::set_embedder_field_count(int count) {
   DCHECK_LE(count, JSObject::kMaxEmbedderFields);
-  return set_data(EmbedderFieldCountBits::update(data(), count));
+  return set_data(data().with_embedder_field_count(count));
 }
 
 bool ObjectTemplateInfo::immutable_proto() const {
-  return IsImmutablePrototypeBit::decode(data());
+  return data().is_immutable_prototype();
 }
 
 void ObjectTemplateInfo::set_immutable_proto(bool immutable) {
-  return set_data(IsImmutablePrototypeBit::update(data(), immutable));
+  return set_data(data().with_is_immutable_prototype(immutable));
 }
 
-bool ObjectTemplateInfo::code_like() const {
-  return IsCodeKindBit::decode(data());
-}
+bool ObjectTemplateInfo::code_like() const { return data().is_code_kind(); }
 
 void ObjectTemplateInfo::set_code_like(bool is_code_like) {
-  return set_data(IsCodeKindBit::update(data(), is_code_like));
+  return set_data(data().with_is_code_kind(is_code_like));
 }
 
 bool FunctionTemplateInfo::IsTemplateFor(Tagged<JSObject> object) const {
   return IsTemplateFor(object->map());
 }
 
-uint32_t TemplateInfo::template_info_flags() const {
-  return template_info_flags_.load().value();
+TemplateInfo::Flags TemplateInfo::template_info_flags() const {
+  return template_info_flags_.load();
 }
-void TemplateInfo::set_template_info_flags(uint32_t value) {
-  template_info_flags_.store(this, Smi::From31BitPattern(value));
+void TemplateInfo::set_template_info_flags(Flags value) {
+  template_info_flags_.store(value);
 }
 
 bool TemplateInfo::is_cacheable() const {
-  return IsCacheableBit::decode(template_info_flags());
+  return template_info_flags().is_cacheable();
 }
 void TemplateInfo::set_is_cacheable(bool is_cacheable) {
   set_template_info_flags(
-      IsCacheableBit::update(template_info_flags(), is_cacheable));
+      template_info_flags().with_is_cacheable(is_cacheable));
 }
 
 bool TemplateInfo::should_promote_to_read_only() const {
-  return ShouldPromoteToReadOnlyBit::decode(template_info_flags());
+  return template_info_flags().should_promote_to_read_only();
 }
 void TemplateInfo::set_should_promote_to_read_only(
     bool should_promote_to_read_only) {
   DCHECK(should_promote_to_read_only);
-  set_template_info_flags(ShouldPromoteToReadOnlyBit::update(
-      template_info_flags(), should_promote_to_read_only));
+  set_template_info_flags(
+      template_info_flags().with_should_promote_to_read_only(
+          should_promote_to_read_only));
 }
 
 uint32_t TemplateInfo::serial_number() const {
-  return SerialNumberBits::decode(template_info_flags());
+  return template_info_flags().serial_number();
 }
 void TemplateInfo::set_serial_number(uint32_t value) {
-  set_template_info_flags(
-      SerialNumberBits::update(template_info_flags(), value));
+  set_template_info_flags(template_info_flags().with_serial_number(value));
 }
 
 uint32_t TemplateInfo::GetHash() const { return SmiHash32(serial_number()); }
@@ -512,10 +510,10 @@ void ObjectTemplateInfo::set_constructor(
   constructor_.store(this, value, mode);
 }
 
-int ObjectTemplateInfo::data() const { return data_.load().value(); }
-void ObjectTemplateInfo::set_data(int value) {
-  data_.store(this, Smi::FromInt(value));
+ObjectTemplateInfo::Flags ObjectTemplateInfo::data() const {
+  return data_.load();
 }
+void ObjectTemplateInfo::set_data(Flags value) { data_.store(value); }
 
 Tagged<FixedArray> DictionaryTemplateInfo::property_names() const {
   return property_names_.load();

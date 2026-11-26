@@ -109,6 +109,9 @@ class Protectors : public AllStatic {
   V8_EXPORT_PRIVATE static void Invalidate##name(Isolate* isolate);
   DECLARED_PROTECTORS_ON_ISOLATE(DECLARE_PROTECTOR_ON_ISOLATE)
 #undef DECLARE_PROTECTOR_ON_ISOLATE
+
+  // Fuzzing only: resets safe protectors between REPRL iterations.
+  V8_EXPORT_PRIVATE static void ResetForReprl(Isolate* isolate);
 };
 
 }  // namespace internal

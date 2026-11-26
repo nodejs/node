@@ -13,15 +13,15 @@ let array_func = builder.addArray(kWasmFuncRef, {final: true});
 let array_i8 = builder.addArray(kWasmI8, {final: true});
 let data_bytes = [
     2, // num_prototypes
+    127, // parent_idx = -1
     1, // has_constructor
     1, // name_length
     65, // 'A'
     0, // num_statics
     0, // num_methods
-    127, // parent_idx = -1
+    0, // parent_idx = 0
     0, // has_constructor
     0, // num_methods
-    0  // parent_idx = 0
 ];
 let data_segment = builder.addPassiveDataSegment(data_bytes);
 let configureAll = builder.addImport(

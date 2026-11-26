@@ -578,6 +578,25 @@ cc_test(
     ],
 )
 
+cc_test(
+    name = "spinlock_profiling_test",
+    size = "small",
+    srcs = ["spinlock_profiling_test.cc"],
+    copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    tags = [
+        "no_test_wasm",  # b/122473323
+    ],
+    deps = [
+        ":base",
+        ":base_internal",
+        ":config",
+        "//absl/synchronization",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
 cc_library(
     name = "spinlock_benchmark_common",
     testonly = True,

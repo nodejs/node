@@ -103,7 +103,7 @@ Dispatchable::Dispatchable(span<uint8_t> serialized,
     : serialized_(serialized),
       associated_data_(associated_data),
       fallthrough_callback_(std::move(fallthrough_callback)) {
-  Status s = cbor::CheckCBORMessage(serialized);
+  Status s = cbor::CheckCBORMessage(serialized).status();
   if (!s.ok()) {
     status_ = {Error::MESSAGE_MUST_BE_AN_OBJECT, s.pos};
     return;
@@ -448,10 +448,11 @@ void DomainDispatcher::Callback::dispose() {
 
 DomainDispatcher::Callback::Callback(
     std::unique_ptr<DomainDispatcher::WeakPtr> backend_impl,
-    Dispatchable& dispatchable)
+    Dispatchable& dispatchable,
+    span<uint8_t> method)
     : backend_impl_(std::move(backend_impl)),
       call_id_(dispatchable.CallId()),
-      method_(dispatchable.Method()),
+      method_(method),
       message_(dispatchable.Serialized().begin(),
                dispatchable.Serialized().end()),
       fallthrough_callback_(dispatchable.TakeFallthroughCallback()) {}

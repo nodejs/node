@@ -891,12 +891,33 @@ void CodeGenerator::AssembleDispatchHandleRegisterCheck() {
 
 void CodeGenerator::AssertNotDeoptimized() { __ AssertNotDeoptimized(); }
 
+namespace {
+
+bool IsFlagSettingCompare(ArchOpcode opcode) {
+  switch (opcode) {
+    case kArm64Cmp:
+    case kArm64Cmp32:
+    case kArm64Cmn:
+    case kArm64Cmn32:
+    case kArm64Tst:
+    case kArm64Tst32:
+      return true;
+    default:
+      return false;
+  }
+}
+
+}  // namespace
+
 // Assembles an instruction after register allocation, producing machine code.
 CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     Instruction* instr) {
   Arm64OperandConverter i(this, instr);
   InstructionCode opcode = instr->opcode();
   ArchOpcode arch_opcode = ArchOpcodeField::decode(opcode);
+  if (IsFlagSettingCompare(arch_opcode) && FlagsAlreadySet(instr)) {
+    return kSuccess;
+  }
   switch (arch_opcode) {
     case kArchCallCodeObject: {
       CodeEntrypointTag tag =
@@ -1291,8 +1312,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (mode > RecordWriteMode::kValueIsTrustedPointer) {
         __ JumpIfSmi(value, ool->exit());
       }
-      __ CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask,
-                       ne, ool->entry());
+      if (mode == RecordWriteMode::kValueIsMap) {
+        // Maps are never allocated in the young generation, so storing a map
+        // never requires the generational barrier. The barrier is thus only
+        // needed while marking. Checking the marking flag instead of the page
+        // flags of the host object avoids jumping to the out-of-line code for
+        // each map store into an old object.
+        __ JumpIfMarking(ool->entry());
+      } else {
+        __ CheckPageFlag(object,
+                         MemoryChunk::kPointersFromHereAreInterestingMask, ne,
+                         ool->entry());
+      }
       __ Bind(ool->exit());
       break;
     }
@@ -1317,12 +1348,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
 
       DCHECK(v8_flags.verify_write_barriers);
-      Register scratch = i.TempRegister(0);
-      auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(
-          this, object, value, scratch, &unwinding_info_writer_);
-      __ MaybeJumpIfReadOnlyOrSmallSmi(value, ool->exit());
-      __ JumpIfNotSmi(value, ool->entry());
-      __ bind(ool->exit());
+      if (CheckSmiField::decode(instr->opcode())) {
+        Condition is_smi = __ CheckSmi(value);
+        __ Check(is_smi, AbortReason::kTaggedSignedNotSmi);
+      } else {
+        Register scratch = i.TempRegister(0);
+        auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(
+            this, object, value, scratch, &unwinding_info_writer_);
+        __ MaybeJumpIfReadOnlyOrSmallSmi(value, ool->exit());
+        __ JumpIfNotSmi(value, ool->entry());
+        __ bind(ool->exit());
+      }
 
       RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ StoreTaggedField(value, MemOperand(object, offset));
@@ -1368,12 +1404,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Add(temp, object, offset);
 
       DCHECK(v8_flags.verify_write_barriers);
-      Register scratch = i.TempRegister(1);
-      auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(
-          this, object, value, scratch, &unwinding_info_writer_);
-      __ MaybeJumpIfReadOnlyOrSmallSmi(value, ool->exit());
-      __ JumpIfNotSmi(value, ool->entry());
-      __ bind(ool->exit());
+      if (CheckSmiField::decode(instr->opcode())) {
+        Condition is_smi = __ CheckSmi(value);
+        __ Check(is_smi, AbortReason::kTaggedSignedNotSmi);
+      } else {
+        Register scratch = i.TempRegister(1);
+        auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(
+            this, object, value, scratch, &unwinding_info_writer_);
+        __ MaybeJumpIfReadOnlyOrSmallSmi(value, ool->exit());
+        __ JumpIfNotSmi(value, ool->entry());
+        __ bind(ool->exit());
+      }
 
       RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       if (COMPRESS_POINTERS_BOOL) {
@@ -2048,6 +2089,37 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ Claim(count);
         frame_access_state()->IncreaseSPDelta(count);
       }
+      break;
+    }
+    case kArm64ClaimPoke: {
+      // Claim the stack space and store into its lowest slot.
+      int count = i.InputInt32(1);
+      DCHECK_EQ(count % 2, 0);
+      __ AssertSpAligned();
+      MemOperand operand(sp, -count * kSystemPointerSize, PreIndex);
+      if (instr->InputAt(0)->IsSimd128Register()) {
+        __ Str(i.InputSimd128Register(0), operand);
+      } else if (instr->InputAt(0)->IsFPRegister()) {
+        __ Str(i.InputFloat64Register(0), operand);
+      } else {
+        __ Str(i.InputOrZeroRegister64(0), operand);
+      }
+      frame_access_state()->IncreaseSPDelta(count);
+      break;
+    }
+    case kArm64ClaimPokePair: {
+      // Claim the stack space and store into its two lowest slots.
+      int count = i.InputInt32(2);
+      DCHECK_EQ(count % 2, 0);
+      __ AssertSpAligned();
+      MemOperand operand(sp, -count * kSystemPointerSize, PreIndex);
+      if (instr->InputAt(0)->IsFPRegister()) {
+        __ Stp(i.InputFloat64Register(1), i.InputFloat64Register(0), operand);
+      } else {
+        __ Stp(i.InputOrZeroRegister64(1), i.InputOrZeroRegister64(0),
+               operand);
+      }
+      frame_access_state()->IncreaseSPDelta(count);
       break;
     }
     case kArm64Poke: {
@@ -4768,11 +4840,11 @@ void CodeGenerator::SetPendingMove(MoveOperands* move) {
     // Offset doesn't fit into the immediate field so the assembler will emit
     // two instructions and use a second temp register.
     if ((src.IsImmediateOffset() &&
-         !masm()->IsImmLSScaled(src_offset, src_size_log2) &&
-         !masm()->IsImmLSUnscaled(src_offset)) ||
+         !internal::Assembler::IsImmLSScaled(src_offset, src_size_log2) &&
+         !internal::Assembler::IsImmLSUnscaled(src_offset)) ||
         (dst.IsImmediateOffset() &&
-         !masm()->IsImmLSScaled(dst_offset, dst_size_log2) &&
-         !masm()->IsImmLSUnscaled(dst_offset))) {
+         !internal::Assembler::IsImmLSScaled(dst_offset, dst_size_log2) &&
+         !internal::Assembler::IsImmLSUnscaled(dst_offset))) {
       Register temp = temps.AcquireX();
       move_cycle_.scratch_regs.set(temp);
     }

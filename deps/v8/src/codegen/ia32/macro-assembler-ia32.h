@@ -79,6 +79,8 @@ class V8_EXPORT_PRIVATE MacroAssembler
   void CheckPageFlag(Register object, Register scratch, int mask, Condition cc,
                      Label* condition_met,
                      Label::Distance condition_met_distance = Label::kFar);
+  void JumpIfMarking(Label* is_marking,
+                     Label::Distance condition_met_distance = Label::kFar);
 
   void PreCheckSkippedWriteBarrier(Register object, Register value,
                                    Register scratch, Label* ok);
@@ -214,11 +216,16 @@ class V8_EXPORT_PRIVATE MacroAssembler
                              DeoptimizeKind kind, Label* ret,
                              Label* jump_deoptimization_entry_label);
 
+  Condition CheckSmi(Register src) {
+    static_assert(kSmiTag == 0);
+    test(src, Immediate(kSmiTagMask));
+    return zero;
+  }
+
   // Jump the register contains a smi.
   inline void JumpIfSmi(Register value, Label* smi_label,
                         Label::Distance distance = Label::kFar) {
-    test(value, Immediate(kSmiTagMask));
-    j(zero, smi_label, distance);
+    j(CheckSmi(value), smi_label, distance);
   }
   // Jump if the operand is a smi.
   inline void JumpIfSmi(Operand value, Label* smi_label,

@@ -140,18 +140,17 @@ class DuplicationOptimizationReducer : public Next {
 
   OpIndex REDUCE(Store)(OpIndex base, OptionalOpIndex index, OpIndex value,
                         StoreOp::Kind kind, MemoryRepresentation stored_rep,
-                        WriteBarrierKind write_barrier,
-                        std::optional<AtomicMemoryOrder> memory_order,
-                        int32_t offset, uint8_t element_size_log2,
+                        WriteBarrierKind write_barrier, int32_t offset,
+                        uint8_t element_size_log2,
                         bool maybe_initializing_or_transitioning,
                         TrustedPointerTag maybe_trusted_pointer_tag) {
     if (offset == 0 && element_size_log2 == 0 && index.valid()) {
       index = MaybeDuplicateOutputGraphShift(index.value());
     }
-    return Next::ReduceStore(
-        base, index, value, kind, stored_rep, write_barrier, memory_order,
-        offset, element_size_log2, maybe_initializing_or_transitioning,
-        maybe_trusted_pointer_tag);
+    return Next::ReduceStore(base, index, value, kind, stored_rep,
+                             write_barrier, offset, element_size_log2,
+                             maybe_initializing_or_transitioning,
+                             maybe_trusted_pointer_tag);
   }
 #endif
 

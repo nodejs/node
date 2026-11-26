@@ -18,11 +18,6 @@ bitfield struct NameHash extends uint32 {
   // hash_field_type: kIntegerIndex
   array_index_value: uint32: 24 bit at 2;
   array_index_length: uint32: 6 bit;
-
-  // hash_field_type: kForwardingIndex
-  is_internalized_forwarding_index: bool: 1 bit at 2;
-  is_external_forwarding_index: bool: 1 bit;
-  forwarding_index_value: uint32: 28 bit;
 }
 
 // This is the same as Name, but with the information that there are no other

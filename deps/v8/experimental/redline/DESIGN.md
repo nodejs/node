@@ -59,12 +59,13 @@ It is C++ code in the V8 tree, so that the V8 team can own and change it. It bui
 | `main.cc`, `commands/` | The command-line tool, with one file per command. |
 | `base/` | Flags, logging, JSON, files, subprocesses, and the V8 parser in the Redline process. |
 | `exec/` | The REPRL client, the coverage map, the target options, and one plain d8 run for the amplify step. |
+| `d8/` | The code that d8 links for Redline (`v8_redline=true`): the REPRL file descriptors, the `redline()` builtin and the coverage runtime. It started as a copy of `src/fuzzilli`. |
 | `fast/` | FAST: the AST, the arena, the lexer, the parser, the printer and the scope analysis. |
 | `core/` | `Program`, `Builder`, `Environment`, `Component`, the random generator, the selection interface and the tunables. |
 | `generators/`, `mutators/` | The generators with their shared expression synthesis (`CodeGen`), and the mutators. |
 | `corpus/` | The shared corpus and the seed and partner strategies. |
 | `minimizer/` | The minimizer and its reducers. |
-| `engine/` | The configuration, the stages, the fuzzer and its workers, the shared coverage, the crash signatures, the amplify step, the importer and the prelude. |
+| `engine/` | The configuration, the stages, the fuzzer and its workers, the shared coverage, the crash signatures, the amplify step, the importer, exception salvage and the prelude. |
 | `presets/`, `testdata/` | The presets, and the golden traces of the offline selftest. |
 
 ### 4.2 The fuzzing loop
@@ -90,11 +91,12 @@ flowchart LR
 Init runs first (5.1). Then each worker runs this loop:
 
 1. The worker picks a corpus program, the seed. While the corpus is small, it sometimes starts from the empty program (5.1).
-2. It puts fresh value declarations at the top of the seed (the prefix, 5.3).
+2. It puts fresh value declarations at the top of the seed (the prefix, 5.3). The empty program also gets a prefix, unless `stages.prefix.from_scratch` is false.
 3. It applies a chain of up to N mutations (`stages.mutate.consecutive`) and runs each result in its target.
    A result that runs without an error becomes the parent of the next link. After a failure or a timeout, the next link uses the same parent.
 4. A result with new edges goes to Accept. If Accept admits it, Minimize makes a smaller copy, and Publish adds the copy to the corpus.
    The chain continues from the result as it ran, because minimization would remove material that the next mutations can use.
+   With a coalesced commit (5.6), the admitted result can wait, and a later result of the chain can include its edges.
 5. A result that crashes goes to crash triage, and the chain ends.
 6. After N links, the worker picks a new seed.
 
@@ -130,11 +132,14 @@ The `init` block selects one of two strategies:
 
 - `import` loads JavaScript files (`paths`). With `keep: new-coverage`, a file stays only if it runs without an error and reaches new edges.
   With `keep: all`, each file that runs without an error stays. Use `keep: all` to continue a session from its corpus directory.
+  With `keep: all`, the determinism check runs a file only `import_reruns` times again, not `min_reruns` times, because the files passed the check in an earlier session.
 - `generate` imports nothing. Its parameter `programs` sets `initial_programs`.
 
 While the corpus has fewer than `initial_programs` programs, a worker starts a chain from the empty program with a probability of one half.
 It always does so while the corpus is empty. This rule also applies after an import.
-A chain from the empty program uses only the `CodeGen` mutator until a result runs without an error.
+A chain from the empty program starts with a prefix, like a program of Fuzzilli's `GenerativeEngine`. Then the first generators have values to use.
+The chain uses only the `CodeGen` mutator until 3 of its results run without an error, so a new program gets several rounds of generated code.
+`stages.prefix.from_scratch` and `stages.mutate.scratch_codegen` change these two rules.
 
 The importer replaces top-level `load()` and `d8.file.execute()` calls with the statements of the loaded file, so that each program is self-contained.
 It removes the loads of `mjsunit.js`, because the prelude supplies their functions. It also removes the loads that it cannot resolve.
@@ -155,24 +160,37 @@ The seed strategy and the partner strategy share one registry. The corpus calls 
 | `uniform-partner` | a random program other than the seed. This is the default partner strategy. |
 | `rarity-partner` | the program with the highest energy among a few random programs |
 
-The `rarity` strategy prefers programs that reach rare edges, are small and had few picks (`corpus/corpus.cc`):
+The `rarity` strategy prefers programs that reach rare edges, run fast, are small and had few picks (`corpus/corpus.cc`):
 
 ```text
-energy(p) = rarity(p) / ((age(p) + 1)^age_exponent * (1 + ln(size(p))^size_exponent))
-rarity(p) = sum over the tracked edges e of p with count(e) < rare_edge_limit of 1 / count(e)^rarity_exponent
+energy(p) = rarity(p) / ((age(p) + 1)^age_exponent * (1 + ln(size(p))^size_exponent) * (1 + (exec_time_ms(p) / time_unit_ms)^time_exponent))
+rarity(p) = sum over the tracked edges e of p with count(e) < rare_edge_limit (or IsTarget(e)) of w(e) / count(e)^rarity_exponent
 ```
 
-- `count(e)` is the number of corpus programs that reach edge `e`. The age grows with each pick.
-- A new corpus program records its rarest edges from its full edge set (5.7), or from its new edges if the set is missing.
+- `count(e)` is the number of corpus programs that reach edge `e`. Target features stay active past `rare_edge_limit`. The age grows with each pick.
+- A new corpus program records its rarest features from its full edge set (5.7), or from its new edges if the set is missing. Target features come first so the per-program cap does not drop them.
 - The edges of a reproducible crash count as one more program. This lowers the energy of the programs that lead to a known crash.
+- An indexed max-heap tracks active seeds with positive energy, and reverse edge trackers update affected seeds when edge counts grow. Seeds whose energy reaches 0 leave the active heap while their corpus entries and lineage stay intact.
+- `PickPreferred` inspects candidates without changing heap order, `age`, or `picks`, and updates only the returned seed.
+- `rarity-partner` draws uniformly from active seeds in constant time and falls back to the full corpus only when no other active seed exists.
+- Each worker holds a `SeedLease` during a mutation chain so concurrent workers prefer unleased frontier seeds. When workers hold leases on all active seeds, the picker falls back to the best leased seed.
+- `OnOutcome` tracks parent fertility. Optional parameters `max_memory_trees`, `jit_seed_boost`, and `fertility_weight` ship off by default (`0`, `1`, and `0`).
 
 ### 5.3 Mutate
 
 A **generator** makes new statements for one insertion point. It declares what its code needs from the context, for example a loop for `continue`.
 Redline uses a generator only where the context allows it. Generated code uses only the variables that are visible and initialized at that point.
+Like Fuzzilli's `CodeGenMutator`, `CodeGen` also inserts into existing class bodies and object literals. At such a member slot, only the member generators `ClassMember` and `LiteralMember` run.
 
-A **mutator** changes a program. Mutators insert generated code (`CodeGen`, `JitStress`), change code in place (`Input`, `Operation`, `Expression`, `Call`),
-copy code from a partner (`Splice`, `Combine`), change the structure (`Remove`, `Wrap`, `Duplicate`, `Reorder`), or ask the target (`Explore`, `Probing`).
+**Facts about variables.** A variable has a coarse type guess (`JsType`). The `Builder` also keeps facts about variables (`BindingInfo`): the parameter types of a function or class constructor, and the property keys of a value.
+Generators record the facts for the variables that they declare. For variables of earlier mutations, the `Builder` derives them from the tree, for example from the arguments of the first call of a function.
+A new function gets parameter types that enough visible variables have, as in Fuzzilli. Calls then pass values of these types, so that the function gets stable feedback.
+`JitOptimize` and `LazyDeopt` reuse at most two argument lists for the warm-up calls and the optimized call. `HotLoop` calls a function 100 times with the same arguments.
+`JitOptimize`, `JitBaseline` and `HotLoop` can also compile a method, a getter, a setter or a class constructor of a visible variable.
+The calls then use the receiver (`o.m()`, `get.call(o)`, `new C()`). Thus `this` and the home object have their usual values in the compiled code.
+
+A **mutator** changes a program. Mutators insert generated code (`CodeGen`, `JitStress`) or change code in place (`Input`, `Operation`, `Expression`, `PropertyAccessor`, `Call`, `CallSiteStress`).
+Other mutators copy code from a partner (`Splice`, `Combine`), change the structure (`Remove`, `Wrap`, `Duplicate`, `Reorder`), or ask the target (`Explore`, `Probing`, `Fixup`).
 `redline mutate --list` shows the mutators and generators with their weights. A weight of 0 disables a mutator or a generator.
 
 One link of the chain works like this:
@@ -180,32 +198,68 @@ One link of the chain works like this:
 1. The mutator strategy picks a mutator. A mutator that needs a partner is eligible only when the corpus has at least two programs.
 2. `ApplyMutation` copies the tree of the parent. The mutator edits the copy through a `Builder` (9.3).
    It makes from one change up to its own maximum, or exactly `stages.mutate.rounds` changes if that value is above 0.
-3. If the mutator finds nothing to do, the link costs no execution. Otherwise, the worker prints the tree and runs the source.
+3. If the mutator finds nothing to do, the link costs no execution. Like Fuzzilli's `MutationEngine`, the worker then picks a mutator again for the same link, at most 3 times (`noop_retries`).
+   Otherwise, the worker prints the tree and runs the source.
+4. After a runtime exception, exception salvage (`engine/salvage.h`) can wrap the throwing statement in `try/catch` and run a copy once (`salvage.*`).
+   A salvaged pass or crash replaces the failed mutant.
+   If the failed run found no new edges and the throw is directly in the last top-level statement, no wrap can run more code. Then the worker does not run the copy (`salvage_skipped_tail`).
+
+**Focused chains.** With `stages.mutate.focus_chain` above 0, a worker focuses a chain on one function body with that probability.
+It prefers functions that contain a loop, run in a loop, or pass to optimization natives.
+If the function has no optimization call or calling loop yet, the first link adds one before the remaining links edit the body.
+When a mutator finds no candidate in the focused subtree, it falls back to the full tree.
 
 **Prefix.** The prefix gives the mutators new values to work with. It uses only generators whose code cannot throw,
 because an exception in the prefix would make each result of the chain fail. Minimize removes the values that a new corpus program does not use.
 The `Prefix` mutator makes the prefix. Its weight is 0, so that the mutator strategy does not pick it.
+It sets `GenContext::cannot_throw`. Then `CodeGen` makes only variables and literals as values, without operators, calls or constructors.
+The prefix values are primitives, arrays, objects, regexps, symbols, typed arrays, functions and templates.
+`generators/values_generators.cc` adds builtin instances, constructor functions, iterables and disposables.
+It also adds resizable buffers and special values such as `%GetHoleNaN()`.
 
 **Runtime-assisted mutators.** A type guess from the source does not tell which properties a value has. `Explore` and `Probing` ask the target instead.
-They insert probes, and the worker runs the instrumented program once with a helper script in front.
+They insert probes, and the worker runs the instrumented program once with a helper script in front, at 4 times the timeout (`explore.timeout_factor`).
 The helper writes its findings to the fuzzout channel. The mutator turns the findings into ordinary code and removes the probes.
 `Explore` examines a variable and does an action that fits its value. `Probing` installs properties that the program asks an object for but the object does not have.
+As in Fuzzilli, the probes of `Explore` and `Probing` go right after the definitions of some variables. A cap and a lower cap in loop bodies limit their number.
+There are no probes in a function that the program gives to `new Worker(...)`, because the helper does not exist in the worker.
+`Fixup` removes the `try/catch` guards of exception salvage whose handler does not run. A body that declares `let`, `const`, `class` or a function stays in a block.
 
 **Environment.** Generators use a hand-written model of the globals, methods and runtime functions of d8 (`core/environment.h`).
+The typed part of the model (`core/environment_typed.cc`, after Fuzzilli's JavaScriptEnvironment) gives a builtin its full parameter list.
+A parameter can be an index, a length, an integer range, an iterable or a callback.
+It can also be an enum string, an options bag or an instance of a builtin type.
+`CodeGen::ArgumentFor()` uses a visible variable of the kind, or it makes a value of the kind (`generators/codegen_typed.cc`).
 At the start of a session, one target runs an introspection script that lists its globals and their members.
 With this list, the `DiscoveredApi` generator and `Explore` also reach builtins that the model does not describe.
+Where the model knows the signature of a discovered callable, `DiscoveredApi` uses it instead of the arity that the target reports.
+The deny list of the script also removes members that end the process, for example `d8.terminateNow`.
+
+**Members.** Classes, object literals and property accesses draw member names from small shared pools (`generators/members.cc`).
+The Builder also knows the keys of a value: the keys of its object literal, the members of its class and the stores `x.p = v` (`core/known_keys.cc`).
+`Property()` and `MethodCall()` use these keys, so that many accesses find a real member.
+`PrivateAccess` and `SuperAccess` use the private names of the enclosing classes and the home object of the enclosing method.
 
 **Strategies.** `weighted` is the default: one weighted random draw among the eligible components.
 `adaptive` moves the weights toward the components with a higher recent yield (`core/adaptive_selector.h`).
 With `reward: edges`, the yield is new edges per target execution spent. These executions include the reruns, the minimizer tests and the crash triage of the results.
 The weight stays between `min_factor` and `max_factor` times the base weight, because the yield of a component changes as the corpus grows.
 
+**Swarm testing.** With `"selection": {"swarm": true}` or `--swarm`, each worker except worker 0 multiplies the mutator and generator weights by its own mask (`core/swarm.h`).
+The mask keeps a random part of the generators (`selection.swarm.keep_prob`) and gives each kept generator a factor between 1 and `selection.swarm.max_boost`.
+The mask always keeps the core generators (`SwarmCoreGenerators()`), so that each worker can make valid programs.
+The mask also gives each mutator a factor between 0.5 and 2. Sometimes it turns on one structural mutator with weight 0, for example `Wrap`.
+A worker draws a new mask from the session seed, its worker number and its epoch after each `selection.swarm.epoch_execs` fuzz executions.
+The mask multiplies the weights of the shared strategy, thus `adaptive` still learns from all workers. Worker 0 uses no mask and keeps all generators.
+
 ### 5.4 Execute
 
 The target is the fuzzing build of d8, which has sanitizer coverage and the REPRL interface. [TUTORIAL.md](TUTORIAL.md) shows how to build it.
+This build uses `v8_redline=true`. Then d8 links `d8/` instead of `src/fuzzilli`, and V8 uses the code paths of `v8_fuzzilli=true`.
+Redline also runs a d8 built with `v8_fuzzilli=true` and without `v8_redline`.
 Redline starts the target once and sends it many programs over the REPRL protocol (`exec/reprl.h`).
 The target gets two control pipes and two data channels.
-One data channel carries the script. The other carries the text that the script sends back through a builtin of the fuzzing build (fuzzout).
+One data channel carries the script. The other carries the text that the script sends back through the builtin `redline('REDLINE_PRINT', text)` or `fuzzilli('FUZZILLI_PRINT', text)` (fuzzout).
 For each execution, Redline writes the script, sends a command and waits for a status word, the death of the target or the timeout.
 
 | Outcome | Meaning |
@@ -216,17 +270,113 @@ For each execution, Redline writes the script, sends a command and waits for a s
 | `timed_out` | The script ran longer than the timeout. Redline kills the target. |
 
 - Redline replaces the target after a timeout, after a crash and after `max_execs_before_respawn` executions. This limits the state in one process.
-- After an infrastructure failure, Redline tries the execution again once with a fresh target. Ten such failures in a row stop the session.
+- With `randomize_d8_flags`, each new target process gets a random set of extra d8 flags, for example `--maglev-assert` or `--maglev-non-eager-inlining` (`engine/d8_flags.h`).
+  `d8_flag_profile` selects the flag list: `maglev` (the default), `turbolev`, `runtime`, `fuzzilli` or `fuzzilli-wasm`. The `turbolev` list has Turbolev, Turboshaft, Turbofan verifier and inlining-limit flags.
+  The `fuzzilli` list draws the non-Wasm flags of the V8 profile of Fuzzilli with the same probabilities, ranges and conditions. The `fuzzilli-wasm` list also draws the Wasm flags of that profile.
+  The `maglev` and `turbolev` lists also have tier-up, deoptimization, CPU feature and garbage collection flags from the V8 profile of Fuzzilli and the fuzz configurations of V8.
+  The `runtime` list has only the flags of these lists that do not act on a JIT tier. Examples are inline cache, lazy parsing, bytecode and garbage collection flags. It has no flag of the base d8 flags.
+  In `maglev`, `turbolev` and `runtime`, the probabilities and value ranges are tunables (`flags.*`). The `fuzzilli` lists keep the fixed numbers of Fuzzilli instead of tunables.
+  `tools/d8_flag_sync.py --profile=fuzzilli --fuzzilli=PATH --strict` compares the table of the `fuzzilli` lists with a Fuzzilli checkout. `--check-d8=D8` finds the flag names that a d8 binary does not have. The random flags come before the other d8 flags, so that a flag of the configuration wins.
+  Accept, Minimize and crash triage keep the flags of the process that ran the program, also in a new process.
+  These steps run most executions, so most respawns keep the flags. Thus the worker replaces a process at the end of such a step if its flags ran `max_execs_before_respawn` executions.
+  The crash report, the `crash` event and the `corpus_add` event record the random flags (`d8_random_args`).
+  With `d8_trials` (`--d8-trials=PATH`), each draw also adds the d8 trials of a `clusterfuzz_trials_config.json` file of V8, with their probabilities and their `contradicts` lists.
+  In normal mode, a draw can start from the `// Flags:` set of an imported test (`flags.imported_chance`).
+  It can also start from a random flag set that found more new edges than the mean (`flags.affinity_chance`).
+  The importer removes the `// Flags:` flags that the denylist of `tools/clusterfuzz/js_fuzzer/exceptions.js` rejects, and the flags that write logs or traces (`IsAllowedTestFlag`).
+  A mutant gets the flags of its parents (`Program::flags`, at most 6). A worker prefers a seed that shares a flag with its process (`flags.seed_affinity_tries`).
+  Redline saves `Program::flags` in the `// redline-flags:` comment of a corpus file (5.7). A program that Redline reads again from `DIR/corpus` gets these flags back.
+  If a process with new random flags stops before its handshake, Redline starts it again without them. `D8FlagBlacklist` then blocks the flag that stopped it for the rest of the session. A pinned process keeps its flags.
+- After an infrastructure failure, Redline tries the execution again once with a fresh target. A script larger than the REPRL channel limit fails at once without a retry. Ten such failures in a row stop the session.
+- At the start, `redline fuzz` makes the target fail a CHECK and a DCHECK on purpose (`Fuzzer::CheckTargetCrashes`), like the startup tests of Fuzzilli.
+  If the CHECK does not crash the target, the session does not start. If the DCHECK does not crash it, the session also does not start.
+  With `--allow-no-dcheck`, Redline only writes a warning for the DCHECK.
+  With `--hole-fuzzing`, `--sandbox-fuzzing`, `--sandbox-trap-fuzzing` or `--sandbox-testing` in the d8 flags of the target, a failed CHECK or DCHECK does not crash d8. Then Redline does not do these tests (`FiltersCrashProbes`).
 - A session uses a short timeout (`FuzzConfig::Load` in `engine/config.cc`), because a mutant that runs longer is almost always an endless loop.
 - By default, the target decides if a program is valid: an uncaught SyntaxError without a stack frame marks it invalid.
   With `syntax_check`, the V8 parser in the Redline process checks each mutant first.
 - The default prelude defines the mjsunit assertion functions so that they do not throw.
+- With the tunable `prelude.on_demand`, a program gets only the statements of the default prelude that it can use (`OnDemandPrelude` in `engine/prelude.h`).
+  Then the target compiles and runs less code in front of each program.
+  On demand works only with the default prelude (white space at the start and at the end does not count).
+  Each other prelude stays whole for each program, with a warning.
+  Redline splits the default prelude into its top-level statements.
+  A program gets the statements that declare a name of its text, the statements that extend that function, and the statements that they use.
+  It also gets the statements that declare no name, because they can change global state.
+  The declarations for `promiseTestChain` and `$262` call functions that change no state that a program reads without the name, so they go only with their names.
+  If you change the default prelude, run the whole-against-on-demand comparison on a corpus again.
+  The search reads the text of the program, so a name in a string also counts.
+  A program can also compute the name of a global when it runs.
+  Thus a program gets the whole prelude if its text has `eval`, `Function`, `globalThis`, `Realm`, or `this` as a value (not `this.name`).
+  The value 2 of the tunable turns off this rule.
+  The rule does not find each way to a global.
+  Known limits are `$262.global[name]`, `$262.evalScript(text)`, and `assertThrows(text)` or `assert.throws(error, text)` with a computed text.
+  More limits are `f.constructor(text)` for a function `f`, `this.valueOf()[name]`, and `Error.prepareStackTrace` with `getThis()`.
+  A program that gets a prelude name only in one of these ways does not get the statement of the name.
+  The same program always gets the same script, also in the crash steps.
+  `redline exec`, `redline minimize` and `redline mutate` use the tunable. For the same text, they make the same script as a session.
+  The runtime of a runtime-assisted mutator stands in front of its instrumented program. The fallback rules do not apply to the text of this runtime.
+  `redline minimize` runs the printed program. There the printed runtime is not this text, so the rules apply to it and the program can get the whole prelude.
+  `redline exec` runs the text of the file. The names in the comment lines at the start of a crash file count, so the file can get more statements than in the session.
+  `redline shell` and `redline amplify` do not use the tunable. They put the whole prelude.
+  The stats event has the counters `prelude_scripts`, `prelude_statements` and `prelude_whole_<rule>`.
 
-**Coverage.** Each target has its own coverage map: POSIX shared memory with the edge count and one bit per edge.
+**Coverage.** Each target has its own coverage map: POSIX shared memory with a header and one bit per edge (`d8/cov.h`).
+The header has the mode of the instrumentation, the number of edges, the regions and the build ID of d8.
+The regions are the code edges, the builtins blocks and the optimized code features of `--fuzzilli-enable-optimized-code-coverage`.
+All three modes of `sanitizer_coverage_flags` (`trace-pc-guard`, `inline-bool-flag` and `inline-8bit-counters`) use this header. With `inline-8bit-counters`, d8 writes one counter per edge instead of one bit.
+When a target starts again, Redline compares its header with the header of the first process, so a different binary stops the session.
 Redline clears the bitmap before each execution and reads it after the execution.
 Only successful executions count for coverage, so the corpus holds only programs that run to the end. Crashes have a separate set of crash bits.
 All workers share one map of the edges that the session found (`engine/shared_coverage.h`).
 A worker claims new edges with atomic operations, so two workers never claim the same edge. If no corpus program results, the worker gives the edges back.
+
+**Fuzzilli targets.** After the REPRL handshake, Redline detects the layout of the shared memory (`--target-kind=auto|redline|fuzzilli`, or `target_kind` in the configuration).
+A d8 built with `v8_fuzzilli=true` writes a 4-byte edge count at offset 0 and one bit per edge from offset 4 (`src/fuzzilli/cov.cc`).
+It writes no region table, no coverage counters and no build ID.
+Thus all its edges count as code edges, and `--targets` stops with an error.
+With `--fuzzilli-enable-optimized-code-coverage`, the target adds `kFuzzilliNumOptimizedCodeEdges` (32768) optimized code features after the code edges.
+A process can run with this flag if it is a fixed d8 flag, or with random d8 flags.
+Then `CoverageMap` keeps a `kOptimized` region for these features after the code edges.
+Each new process must report the same code edges, plus 32768 if it runs with the flag. Any other edge count stops the session (`exec/coverage.cc`).
+Thus processes with and without the flag share one map, and Redline uses the optimized code features as in a Redline d8.
+
+**Optimized code features.** The flag `--fuzzilli-enable-optimized-code-coverage` turns them on.
+Maglev and Turbolev then hash each chain of up to 3 graph nodes, a node and its inputs (`Graph::ExtractOptimizedCodeCoverage`).
+d8 sets the feature of each hash in the last region of the bitmap.
+Redline uses these features in the same way with one bit per edge and with counters.
+The `cov` percentage does not count them, and the status line shows them apart (`opt`).
+They weigh in the rarity strategy (`--optimized-weight`, `corpus/feature_weights.h`).
+They do not make a candidate unless `--focus-optimized` is true, and the minimizer does not keep them.
+With `coverage.opt_admit_workers_fraction` (`--opt-admit-workers-fraction`) above 0, that share of the workers (rounded up) also keeps a program for new optimized code features alone.
+The other workers only weigh these features. The default is 0, because a corpus that admits them on all workers grows fast.
+
+**Coverage counters.** A d8 built with `sanitizer_coverage_flags="inline-8bit-counters,pc-table"` writes one counter per edge instead of one bit (`d8/cov.cc`).
+After each execution, `CoverageMap::Refresh()` builds a derived bitmap.
+It has one bit for each edge that ran, plus eight bucket bits for each watched edge (AFL's hit count buckets).
+A bucket bit is a feature like an edge, so the rest of Redline (accept, reruns, minimizer, corpus) sees one bitmap.
+The watched edges are the targets of change-based fuzzing and the optimized code region.
+The `cov` percentage does not count the bucket features. The status line shows them apart (`buckets`).
+Crash deduplication uses the edges only.
+
+**Change-based fuzzing.** `tools/edge_map.py` maps each edge of a counters build to a source line (the PC table of d8 and `llvm-symbolizer`).
+`tools/change_targets.py` maps a git diff to target edges: the edges on changed lines (weight 1.0) and the other edges of the changed functions (weight 0.3).
+Only edges that can run without a failed check are targets.
+The script removes the edges of check reporting and library code (by their source frames).
+It also removes the edges of blocks that only lead to a fatal error (by the machine code, with `llvm-objdump`).
+`redline fuzz --targets=FILE` watches the targets and gives them a large weight in the rarity strategy (`corpus/feature_weights.h`):
+`w = region weight × (1 + target_boost × target weight) × bucket factor × focus factor`.
+
+The targets file also has a focus: the code of the directories of the changed files, for example `src/maglev/`.
+An edge is in the focus if one of its frames is in such a directory, or if its function has such an edge.
+With a focus, Redline keeps a new program only if it has a new feature in the focus.
+With `coverage.drop_unfocused: false`, Redline also keeps a program whose new features are all outside the focus. The focus then only lowers their weight.
+These features are the focus edges, the target edges and their buckets (plus the optimized code features when `--focus-optimized` is true).
+Without a focus, `--focus-optimized=false` (the default) still excludes non-target optimized code features from corpus admission.
+The other new features of the program stay claimed, but they do not make a candidate.
+Thus the corpus grows only with programs that do new things in the changed component, and the minimizer works only for them.
+The focus factor is 1 in the focus and `unfocused` (default 0.1) outside it.
+The status line shows `focus found/total` and `target found/total`.
 
 ### 5.5 Accept
 
@@ -237,9 +387,16 @@ Accept decides if a candidate enters the corpus. It has two parts:
 2. **Determinism check** (`stages.check`). The target is not deterministic, because concurrent compilation and garbage collection change the edges of a run.
    Thus Redline runs the candidate again:
    - It runs the candidate at least `min_reruns` times, and until the set of new edges stays the same for `min_stable_reruns` runs.
+   - If no new edge failed a check before (`SharedCoverage::AnyFlaky`) and no rerun loses an edge, `clean_min_reruns` runs are sufficient (`clean_checks`).
    - An edge that a rerun does not reach leaves the set. Redline gives the edge back, so that a later program can claim it.
    - An edge that fails the check `flaky_threshold` times stays claimed. It costs no more reruns, and it does not count as coverage.
    - If a rerun fails, or if the set does not settle within `max_reruns` runs, Redline drops the candidate.
+     Its remaining edges go back without a flaky count. Only an edge that a successful rerun does not reach is flaky.
+     A rerun that times out or crashes says nothing about the edges.
+   - A seed strategy such as `rarity` needs all edges that the program reaches in at least 2 runs (`hit_edges`).
+     Redline records the edges of the check runs, or of the last kept probe and of the verification run of a minimized program.
+     Thus Publish runs a program again only if Redline recorded fewer than 2 runs.
+     Publish removes the suppressed flaky edges from `hit_edges`.
 
 **The oracle.** When Accept admits a program, it also sets the property that Minimize must keep.
 For `new-edges`, the property is "the program runs without an error and reaches all its new edges that survived the check".
@@ -255,23 +412,130 @@ For a crash that reproduces alone, the oracle is "the program crashes with the s
 
 | Reducer | What it removes or replaces |
 |---|---|
-| `statements` | chunks of statements of halving size from the end of each statement list, down to single statements |
+| `statements` | balanced contiguous blocks on medium or large statement lists, then single statements from the end |
 | `unwrap` | a block, an `if`, a loop, a `try` or an immediately invoked function, replaced by its body |
 | `lists` | call arguments, array elements, object properties, class members, declarators and parameters |
 | `expressions` | an expression, replaced by one of its operands or by a constant |
 | `truncate` | all top-level statements after the shortest prefix that keeps the oracle true |
 | `dataflow` | the top-level statements that the rest of the program does not use, from a def-use graph of the scope analysis |
 
-The default order is `statements`, `unwrap`, `lists`, `expressions` (`Minimizer::DefaultOrder`). `stages.minimize.reducers` sets another list.
+The default order is `dataflow`, `statements`, `unwrap`, `lists`, `expressions` (`Minimizer::DefaultOrder`). `stages.minimize.reducers` sets another list.
+Each time that `expressions` starts on a corpus program, it uses at most `expressions_share` of the remaining tests.
+It also stops after `minimizer.expressions.max_consecutive_failures` rejected probes in a row.
+The crash minimizer sets `expressions_share` to 1, so it keeps `expressions` uncapped.
 The def-use graph only proposes a cut. The oracle decides, because globals, prototypes or getters can connect statements that share no binding.
 
 - The minimizer runs its reducers in rounds until a round changes nothing or the budget ends.
   A reducer edits the tree and asks the oracle. If the oracle says no, the reducer undoes the edit.
-- The budget limits the tests, the time and the rounds. It has fewer tests for slow programs (`target_time_ms`).
-  Crashes have a larger budget (`crash_minimizer`), because they are rare.
+- The budget limits the tests, the time and the rounds.
+  For corpus programs, the minimizer scales the test cap to `target_time_ms` divided by the measured probe run time, down to `min_tests`.
+  The crash minimizer sets `target_time_ms` to 0 so crashes stay uncapped.
+- On medium and large statement lists, `statements` tries balanced contiguous blocks from the end down to `minimizer.statements.min_chunk_size`.
+  It stops chunking early when `minimizer.statements.max_empty_levels` levels in a row keep no cut, then sweeps single statements.
 - Each test has a short timeout from the run time of the program (`probe_timeout_*`), because a reduction can make an endless loop.
+  After each kept reduction, the timeout follows the run time of the probe of that reduction (`probe_timeout_tighten_*`).
+  The timeout does not become longer than the first timeout.
   For the same reason, `expressions` replaces a loop condition only with `0`.
 - The result must pass the oracle again in one of `verify_attempts` runs. If it does not, Redline keeps the original program.
+- **Coalesced commit** (`stages.mutate.coalesce`). A chain keeps at most one admitted result pending. A later admitted result replaces it if each run of its check reached all pending edges.
+  Then one minimization keeps the edges of both, and the corpus gets one program. Each result gets credit for its own edges and a part of the minimization executions.
+  The check of the later result never marks or releases a pending edge. If the later result misses a pending edge, or a limit (`max_coalesce_*`) stops the merge, Redline publishes the pending result first.
+  The worker also publishes the pending result before `Combine` adds an other program.
+  It publishes it when the chain ends for any reason: the end of the chain, a crash, a stop request or an error.
+  While a result is pending, the random d8 flags of the target stay the same. A `Fuse` root is never pending.
+- The crash event and the crash report record the stop reason of a minimization (`min_stop`): `fixed_point`, `budget` or `rounds`.
+  `skipped` tells that the minimizer did not run, and `stopped` tells that the session stopped during the minimization.
+
+**Crashes.** For a crash that reproduces alone, the minimizer reduces one tree of the prelude and the program.
+Redline parses the prelude, a new line and the program into this tree.
+With `prelude.on_demand`, the tree has the part of the prelude that the program got.
+The tree prints to a script that is equivalent to the script of the target, but not always the same text.
+The tests run the printed script without the prelude in front.
+Thus the minimizer also removes the prelude statements that the crash does not need.
+A crash uses all reducers, `dataflow` first: `dataflow`, `statements`, `unwrap`, `lists`, `expressions`, `truncate` (`Minimizer::CrashOrder`).
+`crash_minimizer.reducers` sets another list, and an empty list gives this order. `stages.minimize.reducers` does not apply to crashes.
+With one test, `dataflow` can remove a group of prelude statements that the program does not use.
+
+- Before the minimization, the printed tree must crash with the same signature in one of `verify_attempts` runs.
+- The minimizer reduces the program alone, behind the exact prelude that each candidate gets, if one of these conditions is true:
+  - The prelude is empty.
+  - The prelude or the program does not parse.
+  - The prelude continues into the program, for example `var a = f` and `(1);`.
+  - The printed tree does not crash with the same signature.
+
+  Then Redline writes no `NAME.repro.js`. The `min_tree` value of the report and of the crash event gives the reason.
+- The minimized script goes to `NAME.repro.js`, after two comment lines: the signature and the d8 command. The d8 command has absolute paths. d8 runs this file without the prelude.
+- Then Redline removes the d8 flags that `NAME.repro.js` does not need. It removes chunks of halving size from the flags of the target, down to single flags.
+  A list of flags passes if the script crashes with the signature in each of `crash_flag_runs` fresh plain d8 processes.
+  `--allow-natives-syntax` stays if the script calls a runtime function with `%`. A flag that the script needs to parse stays, because the script cannot crash without it.
+  `--single-threaded` and `--random-seed` always stay, because they make a plain d8 run more deterministic. `--stress-runs` also always stays.
+  The search stops after `crash_flag_processes` processes or `crash_flag_budget_sec`, and 0 for one of them turns it off.
+  The report gives the result in `repro_flags`, and the d8 command of `NAME.repro.js` uses it.
+  The search does not run if a flag has its value in a separate word.
+- The rate check: the search accepts a list of flags after `crash_flag_runs` crashes, so the result can crash less often than the original crash.
+  Thus Redline then runs `NAME.repro.js` in 5 plain d8 processes without an early stop. If the search is on and `crash_flag_runs` is larger, it uses `crash_flag_runs` processes.
+  The flags of the search stay only if all processes crash with the signature.
+  Else `NAME.repro.js` gets all flags of the target, as without the search.
+  If this count is complete with a miss and the search removed flags, Redline also counts all flags of the target.
+  `NAME.repro.js` always stays. The report and the crash event give the last count in `repro_rate` and `repro_rate_note`.
+  The check runs at most two counts. Each process takes at most the timeout of the target plus 10 s. After a stop request, the check starts no new process.
+- `NAME.js` keeps its meaning: the program alone, without the prelude statements. Redline uses the minimized program for `NAME.js` only if it also crashes with the same signature behind its prelude (`min_program_verified`). With `prelude.on_demand`, this prelude is the part for the minimized program.
+- The node counts of `minimized:`, `min_nodes_before` and `min_nodes_after` are the counts of the program alone, as in `NAME.js`.
+  `min_script_nodes` and `min_prelude_statements` give the nodes of the whole tree and its top-level prelude statements.
+  If the last check rejects a result, the count after the minimization is equal to the count before.
+- A crash that has only `NAME.repro.js` keeps its minimize slot. Thus `signatures.txt` counts it as minimized, while its report says `minimized: no`.
+
+**Amplified crashes.** An amplified crash does not reproduce alone, but the amplify step found d8 flags that reproduce it in plain d8 processes (5.8).
+The minimizer reduces one tree of the prelude and the program. If the amplify step changed the program, the tree has the changed program.
+A test writes the printed tree to a file and runs it in fresh plain d8 processes with the amplified flags.
+These are the flags of the target without `--random-seed` and `--stress-runs`, then the flags of the amplify step with its `--stress-runs`.
+The test passes if one of k processes crashes with the same signature.
+k is the smallest number of processes that all miss the crash with a probability of 5% or less.
+Redline uses the crash rate (hits + 1) / (processes + 2) of the amplify step, and k is between 1 and 10.
+For example, k is 2 for a rate of 5/5 and 3 for a rate of 4/5.
+Each process has the time limit of the amplify step (`run_timeout_sec`), not the short timeout of the tests in the target.
+
+- `crash_amplified_budget_sec` is the time limit of the tests of the minimizer. 0 turns the minimization off.
+  The time limit starts after the start check. Thus a slow start check, for example on a loaded machine, does not use up the time of the minimizer.
+  The start check and the last check do not stop at this time limit. Thus a minimization that used up its time can still give a result.
+- Before the minimization, the printed tree must pass the test in one of `verify_attempts` tries. The result must pass it again.
+- The result goes to `NAME.repro.js`. `NAME.js` keeps the original program, and the report says `minimized: no`.
+- The flag search uses the same test. `crash_flag_runs` does not apply.
+- The rate check: a test that needs 1 hit of k processes can accept a script that crashes less often than the amplified program.
+  Thus, after the flag search, Redline runs `NAME.repro.js` in the number of plain d8 processes that the amplify step plans, without an early stop.
+  `NAME.repro.js` stays only after a complete count that reaches the bar of the amplify step (`min_hits` of `processes`).
+  If the count is below the bar and the flag search removed flags, Redline also counts all flags of the test. Flags that failed a complete count never stay.
+  If a count stops early, for example at a stop request, Redline writes no `NAME.repro.js`.
+  The report and the crash event give the result in `repro_rate` and `repro_rate_note`.
+  A good script can also miss the bar. For a script with a true crash rate of 0.8, 5 runs give less than 4 crashes with a probability of about 26%.
+- The report and the crash event give the test in `min_oracle`, for example `1 of 2 plain d8 runs with the amplified flags`.
+- `min_tree` is `prelude and program`, `program, without a prelude`, or `not minimized:` and the reason.
+- One amplified crash can take this time: the start check, `crash_amplified_budget_sec` and one more test, and the last check.
+  Then the flag search can take `crash_flag_budget_sec` and one more test, and two rate checks follow.
+  The start check and the last check each run at most `verify_attempts` times k processes. A rate check runs the processes of the amplify step. Each process takes at most `run_timeout_sec`.
+- After a stop request, a worker can wait for the plain d8 process that runs, up to its time limit.
+
+**Bundles.** A state-dependent crash has `NAME.bundle.js`: one part for each needed history program, then the crash part (5.8).
+If the bundle crashed in a plain d8 run and the crash has no `NAME.repro.js`, Redline minimizes the bundle.
+A test writes a candidate bundle to a file and runs it with `--bundle-reprl` in k fresh plain d8 processes.
+The test passes if one process crashes with the same signature. k comes from `bundle_rate`, as for an amplified crash.
+
+1. The minimizer removes the history parts that the crash does not need. The crash part stays last.
+2. It reduces the crash part with the crash reducers, and it removes history parts again.
+   A part has the prelude and the program, so `dataflow` also removes the prelude statements that the part does not need.
+   Each part runs in a new context of the same d8 process. Thus the tests decide if a part needs the state of an earlier part.
+   A reduced history part can crash itself. Then the bundle still crashes with the signature.
+3. It reduces each history part, and it removes history parts again.
+
+- Before the steps, the bundle must pass the test in one of `verify_attempts` tries.
+- `crash_bundle_min_budget_sec` is the time limit of the tests of the steps. 0 turns the minimization off.
+  The time limit starts after the start check. The start check, the last check and the rate check stop only at a stop request.
+- The result must be smaller, and it must pass the test again in one of `verify_attempts` tries.
+- The rate check runs the result in `bundle_runs` plain d8 processes, without an early stop. The result must crash in at least `bundle_hits` of them, as the original bundle did.
+- Then Redline writes the result to `NAME.bundle.min.js`. `NAME.bundle.js` stays the original bundle.
+- The report and the crash event give the file in `bundle_min`, its rate in `bundle_min_rate` and the result in `bundle_min_note`. A minimized bundle keeps the minimize slot, as `NAME.repro.js` does.
+- One bundle minimization can take this time: the start check, `crash_bundle_min_budget_sec` and one more test, the last check, and the rate check.
+  The start check and the last check each run at most `verify_attempts` times k processes. The rate check runs `bundle_runs` processes. Each process takes at most the timeout of the target for each part, plus 10 s.
 
 ### 5.7 Publish
 
@@ -279,6 +543,9 @@ Publish sets the new edges and the run time of the program.
 If a strategy asks for the full edge set, Publish runs the program two more times and keeps the edges that both runs reach.
 Then it adds the program to the shared corpus, which gives the program its id.
 It writes `OUT/corpus/NNNNNN.js` and a `corpus_add` event.
+The file starts with a `// redline corpus` comment with the lineage, and a `// redline-flags:` comment with `Program::flags` if the program has flags (`CorpusFileHeader`).
+Redline writes the line terminators of the lineage (`\n`, `\r`, U+2028, U+2029) as escape sequences, so that the file stays valid JavaScript.
+The importer reads `// redline-flags:` into `Program::flags` through `SanitizeTestFlags`. These flags are not `// Flags:` flags, so a new session does not use them as imported flags.
 
 ### 5.8 Crash triage
 
@@ -289,12 +556,18 @@ A crash can come from a result, from an imported file or from an instrumented pr
    For a stack overflow, the functions that repeat in the trace name the crash, because the first frames depend on where the stack ran out.
 2. **Budget.** Redline saves at most `max_crashes_per_signature` crashes of one signature, and minimizes at most `minimize_crashes_per_signature` of them.
 3. **Reproduction.** Redline runs the program again in a fresh target, up to `crash_reruns` times.
+   Each rerun has `crash_rerun_timeout_factor` times the target timeout (2 by default, as in Fuzzilli), so that a crash near the timeout is not lost.
+   The `crash` event and the statistics count the reruns that time out (`rerun_timeouts`, `crash_rerun_timeouts`).
 4. **History replay.** If the crash does not reproduce alone, Redline replays the earlier programs of the same target, and then the crash.
    If the crash then occurs, a binary search finds the smallest number of programs from the end of this history that cause it.
+   Then Redline writes `NAME.bundle.js`, a d8 bundle with one part for each of these programs and one part for the crash program.
+   `d8 --bundle-reprl` runs each part in the same way as the REPRL loop runs one program. Thus ClusterFuzz can run the bundle.
+   Redline runs the bundle in up to `crash_bundle_runs` plain d8 processes and writes how many crashed with the same signature (`bundle_rate`).
 5. **Amplify.** If the crash does not reproduce alone, the amplify step searches for d8 flags that make it reproduce.
    This also applies after a successful replay, because an earlier program can turn on a feature that a d8 flag can also turn on.
-6. **Minimize.** Redline minimizes a crash that reproduces alone, against its signature.
-7. **Save.** Redline writes the program, the report and, if they exist, the original program and the history to `OUT/crashes/`.
+6. **Minimize.** Redline minimizes a crash that reproduces alone, against its signature, together with the prelude (5.6).
+   It also minimizes an amplified crash, with the amplified flags in plain d8 processes, and the bundle of a state-dependent crash (5.6).
+7. **Save.** Redline writes the program, the report and, if they exist, the original program, the reproducer (`NAME.repro.js`), the history and the bundle to `OUT/crashes/`.
 
 History replay and the amplify step run only for crashes that Redline saves.
 
@@ -363,20 +636,23 @@ The loader ignores unknown top-level keys, and unknown keys in some blocks, for 
 
 **Presets.** `--preset=NAME` loads `presets/NAME.json`, and `--preset=FILE.json` loads any file.
 A preset can add d8 flags for its area (`d8_extra_args`) and change the weights of generators and mutators.
+It can also give each new target process random extra d8 flags (`randomize_d8_flags`, section 5.4).
 Each preset selects `rarity`, `rarity-partner` and `adaptive`. Without a preset, the defaults are `uniform`, `uniform-partner` and `weighted`.
 
 | Preset | d8 flags added | Higher weights |
 |---|---|---|
 | `default` | none | none |
-| `maglev` | `--maglev --no-turbofan --jit-fuzzing` | JIT, deoptimization, OSR, elements-kind and shape generators |
-| `turbolev` | `--turbolev --turbolev-future --jit-fuzzing` | the same generators as `maglev` |
-| `runtime` | `--no-turbofan --no-maglev --no-sparkplug` | property, prototype, proxy, freeze and shape generators. The JIT generators are off. |
+| `maglev` | `--maglev --no-turbofan --jit-fuzzing`, and random Maglev flags | JIT, deoptimization, OSR, elements-kind and shape generators |
+| `turbolev` | `--turbolev --turbolev-future --jit-fuzzing`, and random Turbolev flags | the same generators as `maglev` |
+| `fuzzilli` | random flags from the `fuzzilli` profile (including tier flags) | the same generators as `turbolev` |
+| `runtime` | `--no-turbofan --no-maglev --no-sparkplug`, and random flags from the `runtime` profile | property, prototype, proxy, freeze and shape generators. The JIT generators are off. |
 | `parser` | none | class, destructuring, arrow, template, label, `using`, `eval` and `with` generators, and `Splice` and `Combine` |
-| `builtins` | none | discovered-API, builtin-call, method-call, string, typed-array, collection and worker generators |
-| `wasm` | none | `WasmModule`, and JIT, OSR and typed-array generators |
+| `builtins` | random flags from the `runtime` profile | discovered-API, builtin-call, method-call, string, typed-array, collection and worker generators |
+| `wasm` | random flags from the `fuzzilli-wasm` profile | `WasmModule`, and JIT, OSR and typed-array generators |
 
 The `WasmModule` generator builds WebAssembly modules that are valid by construction.
 Its default weight is 0, so a session without the `wasm` preset generates no WebAssembly modules.
+The `maglev` and `turbolev` presets set `stages.mutate.focus_chain` to 0.3.
 A preset must not raise the weight of a generator that resembles one known bug (section 10 tells why).
 
 ## 9. FAST
@@ -453,7 +729,7 @@ A worker owns its target, its coverage map, its random generator, its isolate fo
 |---|---|
 | corpus, and the seed and partner strategies | a mutex. Programs do not change, so a worker uses a program without the lock. |
 | seen edges and crash edges | atomic operations on 64-bit words |
-| mutator and generator strategies | no state between calls, or a mutex of their own (`adaptive`) |
+| mutator and generator strategies | no state between calls, or a mutex of their own (`adaptive`). The swarm mask of a worker is a thread-local value. |
 | flaky-edge counts, crash bookkeeping, event log | a mutex each |
 | counters | atomic counters |
 
@@ -478,5 +754,7 @@ A worker owns its target, its coverage map, its random generator, its isolate fo
 | Group crashes by signature, with a budget per signature. | The work per bug stays bounded. |
 | Replay the history of a crash, and search for amplifying flags. | Some crashes depend on earlier programs or on timing. |
 | Put the prelude in front of each execution, and never store it. | Corpus files stay clean, and imported tests run without `mjsunit.js`. |
+| Minimize a crash together with the prelude. | The reproducer needs no prelude, and it keeps only the prelude statements that the crash needs. |
 | Run all workers in one process, with one corpus and one coverage map. | The workers need no protocol to exchange programs. |
 | Keep the pipeline fixed, and make the decisions pluggable. | The loop stays easy to read, and a decision can change without a change to the loop. |
+| Build the target with `v8_redline=true`, and also accept `v8_fuzzilli=true`. | Redline can change its coverage runtime and its builtin without changes to Fuzzilli. It can also run the same d8 binary as Fuzzilli and older V8 revisions. |

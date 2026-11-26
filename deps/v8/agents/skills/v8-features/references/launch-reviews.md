@@ -155,11 +155,10 @@ ______________________________________________________________________
     the final report.
 - **Unit, Spec & WPT Tests (Subagent 5):**
   - **V8 unit/integration tests:** Check
-    `test/{mjsunit,unittests,cctest,inspector,intl}/` and corresponding
-    `.status` files (`mjsunit.status`, `unittests.status`, `cctest.status`) to
-    verify tests are not skipped or failing. If an `out/` build exists (or when
-    verifying locally), run tests via
-    `tools/dev/gm.py quiet x64.optdebug <test_target>` (or
+    `test/{mjsunit,unittests,inspector,intl}/` and corresponding `.status` files
+    (`mjsunit.status`, `unittests.status`) to verify tests are not skipped or
+    failing. If an `out/` build exists (or when verifying locally), run tests
+    via `tools/dev/gm.py quiet x64.optdebug <test_target>` (or
     `tools/run-tests.py --outdir=out/x64.optdebug <test_target>`).
   - **Spec tests:**
     - *JavaScript:* Check `test/test262/` (`local-tests/`, staging tests) and

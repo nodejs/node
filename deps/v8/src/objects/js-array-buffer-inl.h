@@ -9,6 +9,7 @@
 // Include the non-inl header before the rest of the headers.
 
 #include "src/heap/heap-write-barrier-inl.h"
+#include "src/heap/heap.h"
 #include "src/heap/local-heap.h"
 #include "src/objects/heap-object-field-inl.h"
 #include "src/objects/heap-object-inl.h"
@@ -124,40 +125,26 @@ void JSArrayBuffer::init_extension() {
 
 ArrayBufferExtension* JSArrayBuffer::extension() const {
 #if V8_COMPRESS_POINTERS
-  Isolate* isolate = Isolate::Current();
-  ExternalPointerHandle handle =
-      base::AsAtomic32::Relaxed_Load(extension_handle_location());
   return reinterpret_cast<ArrayBufferExtension*>(
-      isolate->external_pointer_table().Get(handle, kArrayBufferExtensionTag));
+      ReadExternalPointerField<kArrayBufferExtensionTag>(
+          offsetof(JSArrayBuffer, extension_), Isolate::Current()));
 #else
   return base::AsAtomicPointer::Acquire_Load(extension_location());
 #endif  // V8_COMPRESS_POINTERS
 }
 
-void JSArrayBuffer::set_extension(ArrayBufferExtension* extension) {
+template <typename IsolateT>
+void JSArrayBuffer::set_extension(IsolateT* isolate,
+                                  ArrayBufferExtension* extension) {
+  DCHECK_NOT_NULL(extension);
 #if V8_COMPRESS_POINTERS
-  // TODO(saelo): if we ever use the external pointer table for all external
-  // pointer fields in the no-sandbox-ptr-compression config, replace this code
-  // here and above with the respective external pointer accessors.
-  IsolateForPointerCompression isolate = Isolate::Current();
-  constexpr ExternalPointerTag tag = kArrayBufferExtensionTag;
-  Address value = reinterpret_cast<Address>(extension);
-  ExternalPointerTable& table = isolate.GetExternalPointerTableFor(tag);
-  ExternalPointerHandle current_handle =
-      base::AsAtomic32::Relaxed_Load(extension_handle_location());
-  if (current_handle == kNullExternalPointerHandle) {
-    ExternalPointerHandle handle = table.AllocateAndInitializeEntry(
-        isolate.GetExternalPointerTableSpaceFor(tag, address()), value, tag);
-    base::AsAtomic32::Release_Store(extension_handle_location(), handle);
-    WriteBarrier::ForExternalPointer(this, ExternalPointerSlot(&extension_),
-                                     handle);
-  } else {
-    table.Set(current_handle, value, tag);
-  }
+  InitExternalPointerField<kArrayBufferExtensionTag>(
+      offsetof(JSArrayBuffer, extension_), isolate,
+      reinterpret_cast<Address>(extension));
 #else
   base::AsAtomicPointer::Release_Store(extension_location(), extension);
 #endif  // V8_COMPRESS_POINTERS
-  WriteBarrier::ForArrayBufferExtension(this, extension);
+  WriteBarrier::ForArrayBufferExtension(isolate, this, extension);
 }
 
 ArrayBufferExtension* JSArrayBuffer::extract_extension(
@@ -516,6 +503,18 @@ void JSTypedArray::SetOffHeapDataPtr(Isolate* isolate, void* base,
   DCHECK_EQ(address, reinterpret_cast<Address>(DataPtr()));
 }
 
+void JSTypedArray::SetOnHeapDataPtr(Isolate* isolate, Tagged<ByteArray> base,
+                                    Address offset) {
+  Address compensated_offset =
+      OFFSET_OF_DATA_START(ByteArray) - kHeapObjectTag + offset +
+      ExternalPointerCompensationForOnHeapArray(isolate);
+  set_external_pointer(isolate, compensated_offset);
+  set_base_pointer(base, kReleaseStore);
+  DCHECK_EQ(base.ptr() - kHeapObjectTag + OFFSET_OF_DATA_START(ByteArray) +
+                offset,
+            reinterpret_cast<Address>(DataPtr()));
+}
+
 bool JSTypedArray::is_on_heap() const {
   // Keep synced with `is_on_heap(AcquireLoadTag)`.
   DisallowGarbageCollection no_gc;
@@ -615,6 +614,45 @@ bool JSRabGsabDataView::IsOutOfBounds() const {
     return byte_offset() > buffer()->GetByteLength();
   }
   return byte_offset() + byte_length() > buffer()->GetByteLength();
+}
+
+void ArrayBufferExtension::Mark() {
+  const AccountingState state{
+      accounting_state_.load(std::memory_order_relaxed)};
+  if (state.is_marked()) return;
+  const AccountingState previous_state{accounting_state_.fetch_or(
+      MarkedField::kMask, std::memory_order_relaxed)};
+  if (!previous_state.is_marked()) {
+    heap_->AccountMarkedArrayBufferExtension(
+        previous_state.accounting_length());
+  }
+}
+
+void ArrayBufferExtension::YoungMark() {
+  SBXCHECK_EQ(ArrayBufferExtension::Age::kYoung, age());
+  GcState old_state = set_young_gc_state(GcState::Copied);
+  if (v8_flags.minor_ms) {
+    SBXCHECK_NE(old_state, GcState::Promoted);
+  } else {
+    SBXCHECK_EQ(old_state, GcState::Dead);
+  }
+  // Safe since minor and major GCs are not interleaved.
+  Mark();
+}
+
+void ArrayBufferExtension::YoungMarkPromoted() {
+  // When iterating promoted pages the extension object is already set as
+  // being promoted which happens before the page iteration. This may even run
+  // racefully between AB sweeping and page iteration.
+  GcState old_state = set_young_gc_state(GcState::Promoted);
+  if (v8_flags.minor_ms) {
+    SBXCHECK_NE(old_state, GcState::Promoted);
+  } else {
+    SBXCHECK_EQ(ArrayBufferExtension::Age::kYoung, age());
+    SBXCHECK_EQ(old_state, GcState::Dead);
+    // Safe since minor and major GCs are not interleaved.
+    Mark();
+  }
 }
 
 }  // namespace internal

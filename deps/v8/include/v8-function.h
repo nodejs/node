@@ -134,6 +134,13 @@ class V8_EXPORT Function : public Object {
   V8_WARN_UNUSED_RESULT bool Experimental_IsNopFunction() const;
 
   ScriptOrigin GetScriptOrigin() const;
+
+  /**
+   * Returns the script's resource name (without //# sourceURL overrides), or
+   * v8::Undefined if not available.
+   */
+  Local<Value> GetScriptName() const;
+
   V8_INLINE static Function* Cast(Value* value) {
 #ifdef V8_ENABLE_CHECKS
     CheckCast(value);

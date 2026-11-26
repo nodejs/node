@@ -291,6 +291,8 @@ Type::bitset BitsetType::Lub(MapRefLike map, JSHeapBroker* broker) {
     case JS_ITERATOR_CONCAT_HELPER_TYPE:
     case JS_ITERATOR_ZIP_HELPER_TYPE:
     case JS_ITERATOR_ZIP_KEYED_HELPER_TYPE:
+    case JS_ITERATOR_CHUNKS_HELPER_TYPE:
+    case JS_ITERATOR_WINDOWS_HELPER_TYPE:
     case JS_VALID_ITERATOR_WRAPPER_TYPE:
     case JS_FINALIZATION_REGISTRY_TYPE:
     case JS_WEAK_MAP_TYPE:
@@ -298,8 +300,6 @@ Type::bitset BitsetType::Lub(MapRefLike map, JSHeapBroker* broker) {
     case JS_WEAK_SET_TYPE:
     case JS_PROMISE_TYPE:
     case JS_SHADOW_REALM_TYPE:
-    case JS_SHARED_ARRAY_TYPE:
-    case JS_SHARED_STRUCT_TYPE:
 #ifdef V8_TEMPORAL_SUPPORT
     case JS_TEMPORAL_DURATION_TYPE:
     case JS_TEMPORAL_INSTANT_TYPE:
@@ -370,7 +370,6 @@ Type::bitset BitsetType::Lub(MapRefLike map, JSHeapBroker* broker) {
     case FUNCTION_TEMPLATE_INFO_TYPE:
     case FUNCTION_TEMPLATE_RARE_DATA_TYPE:
     case ACCESSOR_PAIR_TYPE:
-    case EMBEDDER_DATA_ARRAY_TYPE:
     case FIXED_ARRAY_TYPE:
     case CLASS_BOILERPLATE_TYPE:
     case PROPERTY_DESCRIPTOR_OBJECT_TYPE:

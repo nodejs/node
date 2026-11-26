@@ -1,0 +1,32 @@
+diff --git a/src/compiler/js-create-lowering.cc b/src/compiler/js-create-lowering.cc
+index 62eb7ae4e35..3cd75c967a7 100644
+--- a/src/compiler/js-create-lowering.cc
++++ b/src/compiler/js-create-lowering.cc
+@@ -1729,11 +1729,6 @@ std::optional<Node*> JSCreateLowering::TryAllocateFastLiteral(
+ 
+   if (max_depth == 0) return {};
+ 
+-  // Prevent concurrent migrations of boilerplate objects.
+-  JSHeapBroker::BoilerplateMigrationGuardIfNeeded boilerplate_access_guard(
+-      broker());
+-
+-  // Now that we hold the migration lock, get the current map.
+   MapRef boilerplate_map = boilerplate.map(broker());
+   // Protect against concurrent changes to the boilerplate object by checking
+   // for an identical value at the end of the compilation.
+diff --git a/src/maglev/maglev-graph-builder.cc b/src/maglev/maglev-graph-builder.cc
+index 1ef1e857a09..a8526ce9733 100644
+--- a/src/maglev/maglev-graph-builder.cc
++++ b/src/maglev/maglev-graph-builder.cc
+@@ -13934,11 +13934,6 @@ MaglevGraphBuilder::TryReadBoilerplateForFastLiteral(
+ 
+   if (max_depth == 0) return {};
+ 
+-  // Prevent concurrent migrations of boilerplate objects.
+-  compiler::JSHeapBroker::BoilerplateMigrationGuardIfNeeded
+-      boilerplate_access_guard(broker());
+-
+-  // Now that we hold the migration lock, get the current map.
+   compiler::MapRef boilerplate_map = boilerplate.map(broker());
+   // Protect against concurrent changes to the boilerplate object by checking
+   // for an identical value at the end of the compilation.

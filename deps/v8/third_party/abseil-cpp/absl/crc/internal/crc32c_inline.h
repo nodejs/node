@@ -19,6 +19,7 @@
 #include <cstdint>
 
 #include "absl/base/config.h"
+#include "absl/base/internal/cpu_detect.h"
 #include "absl/base/internal/endian.h"
 #include "absl/crc/internal/crc32_x86_arm_combined_simd.h"
 
@@ -32,6 +33,11 @@ namespace crc_internal {
 inline bool ExtendCrc32cInline(uint32_t* crc, const char* p, size_t n) {
 #if defined(ABSL_CRC_INTERNAL_HAVE_ARM_SIMD) || \
     defined(ABSL_CRC_INTERNAL_HAVE_X86_SIMD)
+#if defined(ABSL_CRC_INTERNAL_HAVE_ARM_SIMD) && !defined(__ARM_FEATURE_CRC32)
+  if (!absl::base_internal::SupportsArmCRC32PMULL()) {
+    return false;
+  }
+#endif
   constexpr uint32_t kCrc32Xor = 0xffffffffU;
   *crc ^= kCrc32Xor;
   if (n & 1) {

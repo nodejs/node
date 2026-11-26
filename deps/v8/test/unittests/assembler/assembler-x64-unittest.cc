@@ -3417,6 +3417,269 @@ TEST_F(AssemblerX64Test, AVX10Vsubph) {
   CHECK_EQ(0, memcmp(expected, desc.buffer, sizeof(expected)));
 }
 
+TEST_F(AssemblerX64Test, AVX10MinMaxPh) {
+  for (bool is_min : {true, false}) {
+    auto buffer = AllocateAssemblerBuffer();
+    Assembler masm(AssemblerOptions{}, buffer->CreateView());
+    CpuFeatureScope fscope(&masm, AVX10_1,
+                           CpuFeatureScope::kDontCheckSupported);
+    auto emit = [&](auto dst, auto src1, auto src2) {
+      if (is_min) {
+        __ vminph(dst, src1, src2);
+      } else {
+        __ vmaxph(dst, src1, src2);
+      }
+    };
+
+    emit(xmm3, xmm2, xmm1);
+    emit(ymm3, ymm2, ymm1);
+    emit(xmm19, xmm18, xmm17);
+    emit(ymm31, ymm30, ymm29);
+    emit(xmm3, xmm3, xmm1);
+    emit(xmm3, xmm2, xmm3);
+    emit(xmm3, xmm3, xmm3);
+    emit(ymm3, ymm3, ymm1);
+    emit(ymm3, ymm2, ymm3);
+    emit(ymm3, ymm3, ymm3);
+    emit(xmm3, xmm2, Operand(rbx, 2032));
+    emit(ymm3, ymm2, Operand(rbx, 4064));
+    emit(xmm3, xmm2, Operand(rbx, -2048));
+    emit(ymm3, ymm2, Operand(rbx, -4096));
+    emit(xmm3, xmm2, Operand(rbx, 20));
+    emit(ymm3, ymm2, Operand(rbx, 36));
+    emit(xmm3, xmm2, Operand(rbx, 2048));
+    emit(ymm3, ymm2, Operand(rbx, 4096));
+    emit(xmm19, xmm18, Operand(r12, r13, times_2, 64));
+    emit(ymm19, ymm18, Operand(r12, r13, times_2, 128));
+    Label xmm_label, ymm_label;
+    __ bind(&xmm_label);
+    emit(xmm3, xmm2, Operand(&xmm_label));
+    __ bind(&ymm_label);
+    emit(ymm3, ymm2, Operand(&ymm_label));
+
+    int instruction_length = masm.pc_offset();
+    CodeDesc desc;
+    masm.GetCode(i_isolate(), &desc);
+    const uint8_t opcode = is_min ? 0x5d : 0x5f;
+    const uint8_t expected[] = {
+        0x62, 0xf5,   0x6c,   0x08,   opcode, 0xd9,   0x62,   0xf5,   0x6c,
+        0x28, opcode, 0xd9,   0x62,   0xa5,   0x6c,   0x00,   opcode, 0xd9,
+        0x62, 0x05,   0x0c,   0x20,   opcode, 0xfd,   0x62,   0xf5,   0x64,
+        0x08, opcode, 0xd9,   0x62,   0xf5,   0x6c,   0x08,   opcode, 0xdb,
+        0x62, 0xf5,   0x64,   0x08,   opcode, 0xdb,   0x62,   0xf5,   0x64,
+        0x28, opcode, 0xd9,   0x62,   0xf5,   0x6c,   0x28,   opcode, 0xdb,
+        0x62, 0xf5,   0x64,   0x28,   opcode, 0xdb,   0x62,   0xf5,   0x6c,
+        0x08, opcode, 0x5b,   0x7f,   0x62,   0xf5,   0x6c,   0x28,   opcode,
+        0x5b, 0x7f,   0x62,   0xf5,   0x6c,   0x08,   opcode, 0x5b,   0x80,
+        0x62, 0xf5,   0x6c,   0x28,   opcode, 0x5b,   0x80,   0x62,   0xf5,
+        0x6c, 0x08,   opcode, 0x9b,   0x14,   0x00,   0x00,   0x00,   0x62,
+        0xf5, 0x6c,   0x28,   opcode, 0x9b,   0x24,   0x00,   0x00,   0x00,
+        0x62, 0xf5,   0x6c,   0x08,   opcode, 0x9b,   0x00,   0x08,   0x00,
+        0x00, 0x62,   0xf5,   0x6c,   0x28,   opcode, 0x9b,   0x00,   0x10,
+        0x00, 0x00,   0x62,   0x85,   0x6c,   0x00,   opcode, 0x5c,   0x6c,
+        0x04, 0x62,   0x85,   0x6c,   0x20,   opcode, 0x5c,   0x6c,   0x04,
+        0x62, 0xf5,   0x6c,   0x08,   opcode, 0x1d,   0xf6,   0xff,   0xff,
+        0xff, 0x62,   0xf5,   0x6c,   0x28,   opcode, 0x1d,   0xf6,   0xff,
+        0xff, 0xff};
+    CHECK_EQ(static_cast<int>(sizeof(expected)), instruction_length);
+    CHECK_EQ(0, memcmp(expected, desc.buffer, sizeof(expected)));
+  }
+}
+
+TEST_F(AssemblerX64Test, AVX10Vmulph) {
+  auto buffer = AllocateAssemblerBuffer();
+  Assembler masm(AssemblerOptions{}, buffer->CreateView());
+  CpuFeatureScope fscope(&masm, AVX10_1, CpuFeatureScope::kDontCheckSupported);
+
+  __ vmulph(xmm3, xmm2, xmm1);
+  __ vmulph(ymm3, ymm2, ymm1);
+  __ vmulph(xmm19, xmm18, xmm17);
+  __ vmulph(ymm31, ymm30, ymm29);
+  __ vmulph(xmm3, xmm3, xmm1);
+  __ vmulph(xmm3, xmm2, xmm3);
+  __ vmulph(xmm3, xmm3, xmm3);
+  __ vmulph(ymm3, ymm3, ymm1);
+  __ vmulph(ymm3, ymm2, ymm3);
+  __ vmulph(ymm3, ymm3, ymm3);
+  __ vmulph(xmm3, xmm2, Operand(rbx, 2032));
+  __ vmulph(ymm3, ymm2, Operand(rbx, 4064));
+  __ vmulph(xmm3, xmm2, Operand(rbx, -2048));
+  __ vmulph(ymm3, ymm2, Operand(rbx, -4096));
+  __ vmulph(xmm3, xmm2, Operand(rbx, 20));
+  __ vmulph(ymm3, ymm2, Operand(rbx, 36));
+  __ vmulph(xmm3, xmm2, Operand(rbx, 2048));
+  __ vmulph(ymm3, ymm2, Operand(rbx, 4096));
+  __ vmulph(xmm19, xmm18, Operand(r12, r13, times_2, 64));
+  __ vmulph(ymm19, ymm18, Operand(r12, r13, times_2, 128));
+  Label xmm_label, ymm_label;
+  __ bind(&xmm_label);
+  __ vmulph(xmm3, xmm2, Operand(&xmm_label));
+  __ bind(&ymm_label);
+  __ vmulph(ymm3, ymm2, Operand(&ymm_label));
+
+  int instruction_length = masm.pc_offset();
+  CodeDesc desc;
+  masm.GetCode(i_isolate(), &desc);
+  // clang-format off
+  const uint8_t expected[] = {
+      0x62, 0xf5, 0x6c, 0x08, 0x59, 0xd9,
+      0x62, 0xf5, 0x6c, 0x28, 0x59, 0xd9,
+      0x62, 0xa5, 0x6c, 0x00, 0x59, 0xd9,
+      0x62, 0x05, 0x0c, 0x20, 0x59, 0xfd,
+      0x62, 0xf5, 0x64, 0x08, 0x59, 0xd9,
+      0x62, 0xf5, 0x6c, 0x08, 0x59, 0xdb,
+      0x62, 0xf5, 0x64, 0x08, 0x59, 0xdb,
+      0x62, 0xf5, 0x64, 0x28, 0x59, 0xd9,
+      0x62, 0xf5, 0x6c, 0x28, 0x59, 0xdb,
+      0x62, 0xf5, 0x64, 0x28, 0x59, 0xdb,
+      0x62, 0xf5, 0x6c, 0x08, 0x59, 0x5b, 0x7f,
+      0x62, 0xf5, 0x6c, 0x28, 0x59, 0x5b, 0x7f,
+      0x62, 0xf5, 0x6c, 0x08, 0x59, 0x5b, 0x80,
+      0x62, 0xf5, 0x6c, 0x28, 0x59, 0x5b, 0x80,
+      0x62, 0xf5, 0x6c, 0x08, 0x59, 0x9b, 0x14, 0x00, 0x00, 0x00,
+      0x62, 0xf5, 0x6c, 0x28, 0x59, 0x9b, 0x24, 0x00, 0x00, 0x00,
+      0x62, 0xf5, 0x6c, 0x08, 0x59, 0x9b, 0x00, 0x08, 0x00, 0x00,
+      0x62, 0xf5, 0x6c, 0x28, 0x59, 0x9b, 0x00, 0x10, 0x00, 0x00,
+      0x62, 0x85, 0x6c, 0x00, 0x59, 0x5c, 0x6c, 0x04,
+      0x62, 0x85, 0x6c, 0x20, 0x59, 0x5c, 0x6c, 0x04,
+      0x62, 0xf5, 0x6c, 0x08, 0x59, 0x1d, 0xf6, 0xff, 0xff, 0xff,
+      0x62, 0xf5, 0x6c, 0x28, 0x59, 0x1d, 0xf6, 0xff, 0xff, 0xff};
+  // clang-format on
+  CHECK_EQ(static_cast<int>(sizeof(expected)), instruction_length);
+  CHECK_EQ(0, memcmp(expected, desc.buffer, sizeof(expected)));
+}
+
+TEST_F(AssemblerX64Test, AVX10Vdivph) {
+  auto buffer = AllocateAssemblerBuffer();
+  Assembler masm(AssemblerOptions{}, buffer->CreateView());
+  CpuFeatureScope fscope(&masm, AVX10_1, CpuFeatureScope::kDontCheckSupported);
+
+  __ vdivph(xmm3, xmm2, xmm1);
+  __ vdivph(ymm3, ymm2, ymm1);
+  __ vdivph(xmm19, xmm18, xmm17);
+  __ vdivph(ymm31, ymm30, ymm29);
+  __ vdivph(xmm3, xmm3, xmm1);
+  __ vdivph(xmm3, xmm2, xmm3);
+  __ vdivph(xmm3, xmm3, xmm3);
+  __ vdivph(ymm3, ymm3, ymm1);
+  __ vdivph(ymm3, ymm2, ymm3);
+  __ vdivph(ymm3, ymm3, ymm3);
+  __ vdivph(xmm3, xmm2, Operand(rbx, 2032));
+  __ vdivph(ymm3, ymm2, Operand(rbx, 4064));
+  __ vdivph(xmm3, xmm2, Operand(rbx, -2048));
+  __ vdivph(ymm3, ymm2, Operand(rbx, -4096));
+  __ vdivph(xmm3, xmm2, Operand(rbx, 20));
+  __ vdivph(ymm3, ymm2, Operand(rbx, 36));
+  __ vdivph(xmm3, xmm2, Operand(rbx, 2048));
+  __ vdivph(ymm3, ymm2, Operand(rbx, 4096));
+  __ vdivph(xmm19, xmm18, Operand(r12, r13, times_2, 64));
+  __ vdivph(ymm19, ymm18, Operand(r12, r13, times_2, 128));
+  Label xmm_label, ymm_label;
+  __ bind(&xmm_label);
+  __ vdivph(xmm3, xmm2, Operand(&xmm_label));
+  __ bind(&ymm_label);
+  __ vdivph(ymm3, ymm2, Operand(&ymm_label));
+
+  int instruction_length = masm.pc_offset();
+  CodeDesc desc;
+  masm.GetCode(i_isolate(), &desc);
+  const uint8_t expected[] = {
+      0x62, 0xf5, 0x6c, 0x08, 0x5e, 0xd9, 0x62, 0xf5, 0x6c, 0x28, 0x5e, 0xd9,
+      0x62, 0xa5, 0x6c, 0x00, 0x5e, 0xd9, 0x62, 0x05, 0x0c, 0x20, 0x5e, 0xfd,
+      0x62, 0xf5, 0x64, 0x08, 0x5e, 0xd9, 0x62, 0xf5, 0x6c, 0x08, 0x5e, 0xdb,
+      0x62, 0xf5, 0x64, 0x08, 0x5e, 0xdb, 0x62, 0xf5, 0x64, 0x28, 0x5e, 0xd9,
+      0x62, 0xf5, 0x6c, 0x28, 0x5e, 0xdb, 0x62, 0xf5, 0x64, 0x28, 0x5e, 0xdb,
+      0x62, 0xf5, 0x6c, 0x08, 0x5e, 0x5b, 0x7f, 0x62, 0xf5, 0x6c, 0x28, 0x5e,
+      0x5b, 0x7f, 0x62, 0xf5, 0x6c, 0x08, 0x5e, 0x5b, 0x80, 0x62, 0xf5, 0x6c,
+      0x28, 0x5e, 0x5b, 0x80, 0x62, 0xf5, 0x6c, 0x08, 0x5e, 0x9b, 0x14, 0x00,
+      0x00, 0x00, 0x62, 0xf5, 0x6c, 0x28, 0x5e, 0x9b, 0x24, 0x00, 0x00, 0x00,
+      0x62, 0xf5, 0x6c, 0x08, 0x5e, 0x9b, 0x00, 0x08, 0x00, 0x00, 0x62, 0xf5,
+      0x6c, 0x28, 0x5e, 0x9b, 0x00, 0x10, 0x00, 0x00, 0x62, 0x85, 0x6c, 0x00,
+      0x5e, 0x5c, 0x6c, 0x04, 0x62, 0x85, 0x6c, 0x20, 0x5e, 0x5c, 0x6c, 0x04,
+      0x62, 0xf5, 0x6c, 0x08, 0x5e, 0x1d, 0xf6, 0xff, 0xff, 0xff, 0x62, 0xf5,
+      0x6c, 0x28, 0x5e, 0x1d, 0xf6, 0xff, 0xff, 0xff};
+  CHECK_EQ(static_cast<int>(sizeof(expected)), instruction_length);
+  CHECK_EQ(0, memcmp(expected, desc.buffer, sizeof(expected)));
+}
+
+TEST_F(AssemblerX64Test, AVX10Vsqrtph) {
+  auto buffer = AllocateAssemblerBuffer();
+  Assembler masm(AssemblerOptions{}, buffer->CreateView());
+  CpuFeatureScope fscope(&masm, AVX10_1, CpuFeatureScope::kDontCheckSupported);
+
+  __ vsqrtph(xmm3, xmm1);
+  __ vsqrtph(ymm3, ymm1);
+  __ vsqrtph(xmm19, xmm17);
+  __ vsqrtph(ymm31, ymm29);
+  __ vsqrtph(xmm3, xmm3);
+  __ vsqrtph(ymm3, ymm3);
+  __ vsqrtph(xmm3, Operand(rbx, 2032));
+  __ vsqrtph(ymm3, Operand(rbx, 4064));
+  __ vsqrtph(xmm3, Operand(rbx, -2048));
+  __ vsqrtph(ymm3, Operand(rbx, -4096));
+  __ vsqrtph(xmm3, Operand(rbx, 20));
+  __ vsqrtph(ymm3, Operand(rbx, 36));
+  __ vsqrtph(xmm3, Operand(rbx, 2048));
+  __ vsqrtph(ymm3, Operand(rbx, 4096));
+  __ vsqrtph(xmm19, Operand(r12, r13, times_2, 64));
+  __ vsqrtph(ymm19, Operand(r12, r13, times_2, 128));
+  Label xmm_label, ymm_label;
+  __ bind(&xmm_label);
+  __ vsqrtph(xmm3, Operand(&xmm_label));
+  __ bind(&ymm_label);
+  __ vsqrtph(ymm3, Operand(&ymm_label));
+
+  int instruction_length = masm.pc_offset();
+  CodeDesc desc;
+  masm.GetCode(i_isolate(), &desc);
+  const uint8_t expected[] = {
+      0x62, 0xf5, 0x7c, 0x08, 0x51, 0xd9, 0x62, 0xf5, 0x7c, 0x28, 0x51, 0xd9,
+      0x62, 0xa5, 0x7c, 0x08, 0x51, 0xd9, 0x62, 0x05, 0x7c, 0x28, 0x51, 0xfd,
+      0x62, 0xf5, 0x7c, 0x08, 0x51, 0xdb, 0x62, 0xf5, 0x7c, 0x28, 0x51, 0xdb,
+      0x62, 0xf5, 0x7c, 0x08, 0x51, 0x5b, 0x7f, 0x62, 0xf5, 0x7c, 0x28, 0x51,
+      0x5b, 0x7f, 0x62, 0xf5, 0x7c, 0x08, 0x51, 0x5b, 0x80, 0x62, 0xf5, 0x7c,
+      0x28, 0x51, 0x5b, 0x80, 0x62, 0xf5, 0x7c, 0x08, 0x51, 0x9b, 0x14, 0x00,
+      0x00, 0x00, 0x62, 0xf5, 0x7c, 0x28, 0x51, 0x9b, 0x24, 0x00, 0x00, 0x00,
+      0x62, 0xf5, 0x7c, 0x08, 0x51, 0x9b, 0x00, 0x08, 0x00, 0x00, 0x62, 0xf5,
+      0x7c, 0x28, 0x51, 0x9b, 0x00, 0x10, 0x00, 0x00, 0x62, 0x85, 0x7c, 0x08,
+      0x51, 0x5c, 0x6c, 0x04, 0x62, 0x85, 0x7c, 0x28, 0x51, 0x5c, 0x6c, 0x04,
+      0x62, 0xf5, 0x7c, 0x08, 0x51, 0x1d, 0xf6, 0xff, 0xff, 0xff, 0x62, 0xf5,
+      0x7c, 0x28, 0x51, 0x1d, 0xf6, 0xff, 0xff, 0xff};
+  CHECK_EQ(static_cast<int>(sizeof(expected)), instruction_length);
+  CHECK_EQ(0, memcmp(expected, desc.buffer, sizeof(expected)));
+}
+
+TEST_F(AssemblerX64Test, AVX10Vrndscaleph) {
+  for (RoundingMode mode :
+       {kRoundToNearest, kRoundDown, kRoundUp, kRoundToZero}) {
+    auto buffer = AllocateAssemblerBuffer();
+    Assembler masm(AssemblerOptions{}, buffer->CreateView());
+    CpuFeatureScope fscope(&masm, AVX10_1,
+                           CpuFeatureScope::kDontCheckSupported);
+
+    __ vrndscaleph(xmm3, xmm1, mode);
+    __ vrndscaleph(ymm3, ymm1, mode);
+    __ vrndscaleph(xmm19, xmm17, mode);
+    __ vrndscaleph(ymm31, ymm29, mode);
+    __ vrndscaleph(xmm3, xmm3, mode);
+    __ vrndscaleph(ymm3, ymm3, mode);
+
+    int instruction_length = masm.pc_offset();
+    CodeDesc desc;
+    masm.GetCode(i_isolate(), &desc);
+    uint8_t expected[] = {0x62, 0xf3, 0x7c, 0x08, 0x08, 0xd9, 0x08, 0x62, 0xf3,
+                          0x7c, 0x28, 0x08, 0xd9, 0x08, 0x62, 0xa3, 0x7c, 0x08,
+                          0x08, 0xd9, 0x08, 0x62, 0x03, 0x7c, 0x28, 0x08, 0xfd,
+                          0x08, 0x62, 0xf3, 0x7c, 0x08, 0x08, 0xdb, 0x08, 0x62,
+                          0xf3, 0x7c, 0x28, 0x08, 0xdb, 0x08};
+    for (size_t offset = 6; offset < sizeof(expected); offset += 7) {
+      expected[offset] = static_cast<uint8_t>(mode) | 0x8;
+    }
+    CHECK_EQ(static_cast<int>(sizeof(expected)), instruction_length);
+    CHECK_EQ(0, memcmp(expected, desc.buffer, sizeof(expected)));
+  }
+}
+
 TEST_F(AssemblerX64Test, AVX10FmaPh) {
   for (bool negate : {false, true}) {
     auto buffer = AllocateAssemblerBuffer();
@@ -3670,6 +3933,12 @@ TEST_F(AssemblerX64Test, CpuFeatures_ProbeImpl) {
                 CpuFeatures::IsSupported(AVX));
   CHECK_IMPLIES(CpuFeatures::IsSupported(AVX_VNNI),
                 CpuFeatures::IsSupported(AVX));
+#ifdef V8_ENABLE_AVX10_1
+  CHECK_IMPLIES(CpuFeatures::IsSupported(AVX10_2),
+                CpuFeatures::IsSupported(AVX10_1));
+  CHECK_IMPLIES(CpuFeatures::IsSupported(AVX10_1),
+                CpuFeatures::IsSupported(AVX2));
+#endif  // V8_ENABLE_AVX10_1
   CHECK_IMPLIES(CpuFeatures::IsSupported(AVX2), CpuFeatures::IsSupported(AVX));
   CHECK_IMPLIES(CpuFeatures::IsSupported(AVX),
                 CpuFeatures::IsSupported(SSE4_2));
@@ -3679,25 +3948,6 @@ TEST_F(AssemblerX64Test, CpuFeatures_ProbeImpl) {
                 CpuFeatures::IsSupported(SSSE3));
   CHECK_IMPLIES(CpuFeatures::IsSupported(SSSE3),
                 CpuFeatures::IsSupported(SSE3));
-
-  // Check the reverse, if an older extension is not supported, a newer
-  // extension cannot be supported.
-  CHECK_IMPLIES(!CpuFeatures::IsSupported(SSE3),
-                !CpuFeatures::IsSupported(SSSE3));
-  CHECK_IMPLIES(!CpuFeatures::IsSupported(SSSE3),
-                !CpuFeatures::IsSupported(SSE4_1));
-  CHECK_IMPLIES(!CpuFeatures::IsSupported(SSE4_1),
-                !CpuFeatures::IsSupported(SSE4_2));
-  CHECK_IMPLIES(!CpuFeatures::IsSupported(SSE4_2),
-                !CpuFeatures::IsSupported(AVX));
-  CHECK_IMPLIES(!CpuFeatures::IsSupported(AVX),
-                !CpuFeatures::IsSupported(AVX2));
-  CHECK_IMPLIES(!CpuFeatures::IsSupported(AVX),
-                !CpuFeatures::IsSupported(AVX_VNNI));
-  CHECK_IMPLIES(!CpuFeatures::IsSupported(AVX),
-                !CpuFeatures::IsSupported(AVX_VNNI_INT8));
-  CHECK_IMPLIES(!CpuFeatures::IsSupported(AVX),
-                !CpuFeatures::IsSupported(FMA3));
 }
 
 #ifdef V8_ENABLE_APX_F

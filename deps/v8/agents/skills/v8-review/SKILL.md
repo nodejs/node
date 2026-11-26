@@ -1,22 +1,76 @@
 ---
 name: v8-review
-description: Runs a parallel multi-subagent V8 code review covering security, V8 Sandbox safety, GC invariants, compiler/codegen logic, concurrency, performance, tests, and style, then verifies and merges the findings. Use when reviewing a V8 CL, commit, or local diff. Do not use for triaging bug reports or writing fixes from scratch.
+description: Reviews a V8 CL, commit, or local diff using targeted parallel subagents. Use when reviewing code changes in V8. Do not use for triaging bugs or authoring fixes.
 ---
 
 # V8 Code Review Workflow
 
-## Step 1: Context Setup (Main Agent)
+## Step 1: Context Setup & Triage (Main Agent)
 
 1. Save the target commit (`git --no-pager show <commit>`), Gerrit CL
    (`gerrit_fetch`), or local diff (`git --no-pager diff HEAD`, plus any
    untracked files from `git status --short`) including the commit message (if
    any) to `v8-review-<id>.patch` in the conversation's `scratch/` directory.
    Never write temporary files into the V8 checkout.
+2. **Select relevant subagents**: Inspect the patch (modified paths, subsystems,
+   diff size, and whether the change is a bug fix, feature, or refactoring) and
+   choose **only the applicable subagents** from Step 2 rather than spawning all
+   8 unconditionally. If unsure whether a subagent applies (especially
+   `sandbox-security`, `correctness-gc`, or `compiler-codegen`), include it
+   rather than skipping it. If no subagents are needed (e.g., trivial comment,
+   build, or 1–2 line edits), skip Step 2 and review the diff directly in Step
+   3:
+   - `sandbox-security`: Select when touching in-sandbox/out-of-sandbox
+     boundaries, `HeapObject` layouts/fields, pointer tables (`*PointerTable`,
+     `TrustedObject`, `ProtectedPointerSlot`, `SbxCast`/`TrustedCast`),
+     `ArrayBuffer`/RAB/GSAB, Wasm instance/trusted data, JIT
+     codegen/builtins/ICs/runtime functions reachable from untrusted JS/Wasm, or
+     `SBXCHECK`s. Skip for pure internal compiler graph helpers with no sandbox
+     boundary, test-only, build, or comment-only changes.
+   - `correctness-gc`: Select when touching runtime/builtins, JS/Wasm semantics,
+     heap/GC/Oilpan (`src/heap/`, `Tagged<T>`, `DirectHandle`/`Handle`,
+     allocations, write barriers), Torque (`.tq`), object layouts
+     (`src/objects/`), parser/interpreter, or arithmetic on sizes/offsets/Smis.
+     Skip when the diff has no heap/GC, handle, exception, or integer-overflow
+     surface.
+   - `compiler-codegen`: Select **only** when touching JIT compilers
+     (`src/compiler/`, `src/maglev/`, `src/baseline/`, `src/wasm/baseline/`),
+     assemblers/codegen (`src/codegen/`, `src/execution/`, arch backends),
+     deoptimizer (`src/deoptimizer/`), CSA/Torque builtins (`src/builtins/`,
+     `.tq`), or ICs (`src/ic/`).
+   - `concurrency`: Select **only** when touching multi-threaded or concurrent
+     code: background compilation (`LocalIsolate`, `LocalHeap`, concurrent
+     Maglev/Turboshaft/Wasm jobs), concurrent GC/marking/sweeping/evacuation,
+     shared objects (`SharedStruct`, `SharedArray`, shared Wasm),
+     atomics/locks/mutexes, concurrent map/descriptor/transition/feedback reads,
+     or thread isolation/signal handlers. Skip for purely single-threaded
+     main-thread code.
+   - `architecture-api`: Select for all non-trivial code or `docs/` changes
+     (especially bug fixes, refactorings, new features, cross-tier/cross-arch
+     changes, API/header/`docs/` edits, or flag additions) to evaluate
+     maintainability, minimal fix design, variant completeness, documentation
+     sync, and architectural fit. Skip only for trivial comment, formatting, or
+     test-only edits.
+   - `performance-containers`: Select when touching hot paths (ICs,
+     interpreter/JIT fast paths, frequent compiler passes, GC, Wasm execution,
+     hot builtins) or adding/modifying data structures, containers, and loops.
+     Skip for cold error paths, small localized fixes with no container/loop
+     changes, or test-only diffs.
+   - `tests`: Select when `test/` files are added/modified **or** when reviewing
+     a bug fix (to verify the mandatory regression test is present and
+     effective). Skip for pure refactorings, comments, or build changes that
+     neither touch `test/` nor fix a bug.
+   - `style-comments`: Select when adding/modifying C++ (`.cc`, `.h`, `-inl.h`),
+     Torque (`.tq`), or Markdown documentation (`docs/*.md`) files. Skip for
+     test-only `.js`/`.mjs` diffs or tiny 1–2 line changes where the main agent
+     can check style directly in Step 3.
 
 ## Step 2: Parallel Subagents
 
-Call `invoke_subagent` ONCE with 8 entries (`TypeName: "self"`,
-`Model: "inherit"`):
+Call `invoke_subagent` for each selected subagent in parallel in a single turn
+(`TypeName: "self"`, `Model: "inherit"`), passing each subagent only its own
+**verbatim** checklist (do not paraphrase or narrow) and the shared subagent
+instructions below:
 
 1. `sandbox-security`:
 
@@ -49,6 +103,10 @@ Call `invoke_subagent` ONCE with 8 entries (`TypeName: "self"`,
      `ArrayBuffer`s (including RAB/GSAB), transition `Map`s, change
      `ElementsKind`, or mutate lengths mid-operation. Ensure hole sentinels
      (`TheHole`, etc.) or uninitialized memory never leak to JS.
+   - **Safe-by-construction APIs**: Keep validation (`SBXCHECK*`, bounds/type
+     checks) and coupled state updates inside `TrustedObject` and trust-boundary
+     helpers rather than relying on callers to pre-validate inputs or finish
+     multi-step initialization.
 
 2. `correctness-gc`:
 
@@ -112,19 +170,31 @@ Call `invoke_subagent` ONCE with 8 entries (`TypeName: "self"`,
 
 5. `architecture-api`:
 
+   - **Minimal design fix & maintainability**: Check whether the change is the
+     smallest, simplest design fix for the underlying root cause rather than
+     patching symptoms across multiple call sites. Question fixes that plumb new
+     state, parameters, flags, or special-case branches across layers, or
+     introduce unnecessary abstractions/helpers, when a smaller, more local fix
+     at a single choke point or an existing invariant/helper would be cleaner
+     and more maintainable long-term.
+   - **Encapsulation & invariant consistency**: Encapsulate coupled state
+     mutations and invariants on the owning class or helper. Flag changes that
+     simplify one surface at the cost of implicit caller preconditions or
+     follow-up steps, partial initialization, weaker encapsulation, or
+     inconsistencies across related operations.
    - **Cross-arch, cross-tier & variant completeness**: Parity across the 4
-     supported architectures (`x64`, `arm64`, `ia32`, `arm` — ignore community
+     supported architectures (`x64`, `arm64`, `ia32`, `arm`; ignore community
      ports like `riscv`, `loong64`, `ppc64`, `s390x`, `mips64` unless targeted
      by the CL), execution tiers (Ignition, Sparkplug, Maglev, Turboshaft,
      Liftoff), and all affected opcodes/builtins. For bug fixes, perform variant
      analysis to check if the same bug pattern exists in sibling opcodes,
      builtins, reducers, or tiers.
-   - **Optimization preservation & design**: Fix specific invariant flaws rather
-     than disabling fast paths wholesale; reuse existing helpers/passes and
-     encapsulate state mutations on the owning class; keep headers lean (`.cc`
-     definitions for non-hot methods, `namespace {}` in `.cc` for helpers not
-     using `this`); avoid `#if V8_TARGET_ARCH_...` in shared code; flag edits to
-     generated files (`out/`) or unrelated drive-by refactors.
+   - **Optimization preservation & code hygiene**: Fix specific invariant flaws
+     rather than disabling fast paths wholesale; reuse existing helpers/passes;
+     keep headers lean (`.cc` definitions for non-hot methods, `namespace {}` in
+     `.cc` for helpers not using `this`); avoid `#if V8_TARGET_ARCH_...` in
+     shared code; flag edits to generated files (`out/`) or unrelated drive-by
+     refactors.
    - **API surface, flags & presubmit**: Swallowed errors or defensive
      workarounds instead of `CHECK`/`DCHECK`/`UNREACHABLE()` (never suggest
      defensive fallbacks that mask unexpected states or invariant violations),
@@ -132,6 +202,15 @@ Call `invoke_subagent` ONCE with 8 entries (`TypeName: "self"`,
      code, missing flag implications (`DEFINE_IMPLICATION`) under `--fuzzing`,
      production `.cc` code calling `*ForTest*` helpers, new `V8_OBJECT`/`V8_IT_`
      headers missing from `src/objects/all-objects.h`.
+   - **Documentation sync (`docs/`)**: Search `docs/` (`git --no-pager grep` on
+     `docs/`) for classes, methods, enums, bitmasks, pipeline passes,
+     bytecodes/IR nodes, flags, or cross-tier invariants modified by the CL.
+     Flag a `design` (or `bug`) comment anchored on the relevant modified line
+     in `src/` if the CL invalidates or makes incomplete any design document in
+     `docs/` without updating it (excluding `docs/security/triaging.md`, which
+     is maintained manually). When the CL modifies `.md` files in `docs/`,
+     verify every C++ class/method/enum name, bitmask, register, flag, pipeline
+     step, and invariant against `src/` and flag any factual mismatch.
 
 6. `performance-containers`:
 
@@ -151,9 +230,9 @@ Call `invoke_subagent` ONCE with 8 entries (`TypeName: "self"`,
 7. `tests`:
 
    - **Mandatory reproducer & fidelity**: Flag a `bug` if a bug fix omits a
-     regression test. Verify tests (`test/mjsunit/`, `test/unittests/`,
-     `test/cctest/`) exercise the modified path and fail without the fix (watch
-     for early errors in helper closures before target code, or missing
+     regression test. Verify tests (`test/mjsunit/`, `test/unittests/`) exercise
+     the modified path and fail without the fix (watch for early errors in
+     helper closures before target code, or missing
      `%PrepareFunctionForOptimization` + warmup call before
      `%OptimizeFunctionOnNextCall`).
    - **Boundary coverage**: Edge cases (`0`, `-0`, `NaN`, `INT32_MIN`,
@@ -181,28 +260,31 @@ Call `invoke_subagent` ONCE with 8 entries (`TypeName: "self"`,
      `foo-inl.h` must `#include "foo.h"` first); `V8_NOEXCEPT` on copy/move
      constructors and assignment operators; `{}` braces on all multi-line `if`
      statements; copyright header on new files.
-   - **Comments & readability**: Documenting class invariants and non-obvious
-     rationale; updating stale adjacent comments contradicted by the diff;
-     identifying pure code moves.
+   - **Comments, `docs/` & readability**: Documenting class invariants and
+     non-obvious rationale; updating stale adjacent comments or `docs/*.md`
+     sections contradicted by the diff; checking modified `docs/*.md` files for
+     broken relative links or Unicode em-dashes (`U+2014`); identifying pure
+     code moves.
 
 Instructions for every subagent:
 
-- Read the patch file from Step 1, then inspect modified files, callers, and
-  callees using `view_file` and `repo_git_grep` (or `git --no-pager grep` via
-  `run_command`; avoid `code_search` as it searches stale/multiple google3 V8
-  snapshots).
+- Read the patch file from Step 1, then inspect modified files, callers,
+  callees, and relevant `docs/` files using `view_file` and `repo_git_grep` (or
+  `git --no-pager grep` via `run_command`; avoid `code_search` as it searches
+  stale/multiple google3 V8 snapshots).
 - NEVER modify any files, mutate git state, or run builds/tests (only read-only
   `git --no-pager grep`/`show`/`log` commands are allowed).
 - Comment ONLY on modified or directly impacted lines (never flag unrelated
   pre-existing issues in untouched code; if the change newly exposes, triggers,
-  or relies on a pre-existing bug, or misses a bug variant in adjacent code,
-  flag it anchored on the relevant modified line; if an issue exists in moved
-  code, note that it is pre-existing).
-- Treat each test case (`TEST`, `UNINITIALIZED_TEST`, `TEST_F`, `TEST_P`) in
-  `test/cctest/`, `test/unittests/`, and `test/mjsunit/` as running in its own
-  isolated OS process (`tools/run-tests.py` runs one test per process/fork);
-  only flag static, global, or `v8_flags` state issues in those suites if they
-  cause a bug within a single test execution.
+  or relies on a pre-existing bug, misses a bug variant in adjacent code, or
+  invalidates existing documentation in `docs/`, flag it anchored on the
+  relevant modified line; if an issue exists in moved code, note that it is
+  pre-existing).
+- Treat each test case (`TEST`, `TEST_F`, `TEST_P`) in `test/unittests/` and
+  `test/mjsunit/` as running in its own isolated OS process
+  (`tools/run-tests.py` runs one test per process/fork); only flag static,
+  global, or `v8_flags` state issues in those suites if they cause a bug within
+  a single test execution.
 - Send ONLY a JSON array (`[]` if clean):
   `[{"file": "src/...", "line": 123, "type": "security|bug|design|question|nit", "comment": "Issue, impact, and suggested fix.", "suggestion": "..."}]`
 
@@ -213,13 +295,13 @@ Instructions for every subagent:
    comments on unmodified lines (unless flagging a newly exposed bug or missed
    variant anchored to the diff).
 2. **Commit Message** (if reviewing a commit/CL): Verify factual accuracy
-   against the diff. Check `[subsystem] Imperative subject` (\<= 64 chars,
-   aiming for ~50, no period), concise body (\<= 10 lines, wrapped at \<= 72
-   chars, explaining *why* and high-level *what*), CL references as
-   `https://crrev.com/c/<number>` (not git hashes), and trailers (`Bug: <id>` or
+   against the diff. Check `[subsystem] Imperative subject` (\<= 72 chars,
+   aiming for < 50, no period), concise body (\<= 10 lines when needed, wrapped
+   at \<= 72 chars, explaining *why* and high-level *what*), CL references as
+   `https://crrev.com/c/<number>` (not git hashes), and footers (`Bug: <id>` or
    `Fixed: <id>` with plain numeric ID for Chromium or `b:<id>` for Buganizer,
-   never `BUG=`; plus `TAG=agy` and `R=<reviewer>@chromium.org` for
-   agent-authored CLs).
+   never `BUG=`; plus `TAG=agy` and `CONV=<id>` in a paragraph above the
+   `Bug:`/`Fixed:` and `Change-Id:` footer block for agent-authored CLs).
 3. **Deduplicate**: Merge overlapping comments on the same `file:line` (within 2
    lines) or the same root cause repeated across architectures/files. Keep \<=
    25 comments ordered by `security` > `bug` > `design` > `question` > `nit`.

@@ -12,6 +12,7 @@
 #include "src/base/platform/platform.h"
 #include "src/base/sanitizer/asan.h"
 #include "src/base/sanitizer/lsan-page-allocator.h"
+#include "src/base/synchronization-point-support.h"
 #include "src/heap/cppgc-internal/gc-info-table.h"
 #include "src/heap/cppgc-internal/globals.h"
 #include "src/heap/cppgc-internal/platform.h"
@@ -97,6 +98,7 @@ void InitializeProcess(PageAllocator* page_allocator,
   auto& allocator = internal::CreateAllocatorIfNeeded(page_allocator);
 
   CHECK(!internal::g_page_allocator);
+  v8::base::SynchronizationPointSupport::Initialize();
   internal::GlobalGCInfoTable::Initialize(allocator);
 #if defined(CPPGC_CAGED_HEAP)
   internal::CagedHeap::InitializeIfNeeded(allocator, desired_heap_size);

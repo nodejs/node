@@ -29,7 +29,7 @@ namespace v8::internal::wasm {
 class MemoryProtectionTest : public TestWithNativeContext {
  public:
   void SetUp() override {
-    v8_flags.wasm_lazy_compilation = false;
+    v8_flags.wasm_lazy_compilation.Set(false);
     // The key is initially write-protected.
     CHECK_IMPLIES(WasmCodeManager::HasMemoryProtectionKeySupport(),
                   !WasmCodeManager::MemoryProtectionKeyWritable());

@@ -352,6 +352,16 @@ absl_test("spinlock_test") {
   ]
 }
 
+absl_test("spinlock_profiling_test") {
+  sources = [ "spinlock_profiling_test.cc" ]
+  deps = [
+    ":base",
+    ":base_internal",
+    ":config",
+    "//third_party/abseil-cpp/absl/synchronization",
+  ]
+}
+
 absl_source_set("endian") {
   public = [
     "internal/endian.h",

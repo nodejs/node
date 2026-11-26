@@ -2,11 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// <filesystem> is generally banned in Chromium/V8, but we allow it for
+// unittests since they are not linked into the shipping binary.
+#include <filesystem>
 #include <fstream>
 #include <optional>
 #include <sstream>
 
+#include "src/base/platform/platform.h"
 #include "src/common/globals.h"
+#include "src/torque/ast.h"
 #include "src/torque/torque-compiler.h"
 #include "src/torque/utils.h"
 #include "test/unittests/test-utils.h"
@@ -1986,6 +1991,237 @@ TEST(TorqueLayoutLoader, ImporterAppliesNamedExtent) {
   ExpectSuccessfulLayoutCompilation(kTestLayoutNamedExtentClass,
                                     TestNamedExtentJson(),
                                     /*use_cpp_layouts=*/true);
+}
+
+TEST(Torque, IsDeferredForUnreachable) {
+  SourcePosition pos = SourcePosition::Invalid();
+  DebugStatement unreachable_stmt(pos, DebugStatement::Kind::kUnreachable);
+  DebugStatement debug_stmt(pos, DebugStatement::Kind::kDebug);
+  BlockStatement empty_block(pos, /*deferred=*/false, {});
+  BlockStatement explicit_deferred(pos, /*deferred=*/true, {});
+  BlockStatement single_debug(pos, /*deferred=*/false, {&debug_stmt});
+  BlockStatement single_unreachable(pos, /*deferred=*/false,
+                                    {&unreachable_stmt});
+  BlockStatement nested_unreachable(pos, /*deferred=*/false,
+                                    {&single_unreachable});
+  BlockStatement multi_stmt(pos, /*deferred=*/false,
+                            {&debug_stmt, &unreachable_stmt});
+
+  EXPECT_TRUE(IsDeferred(&unreachable_stmt));
+  EXPECT_FALSE(IsDeferred(&debug_stmt));
+  EXPECT_FALSE(IsDeferred(&empty_block));
+  EXPECT_TRUE(IsDeferred(&explicit_deferred));
+  EXPECT_FALSE(IsDeferred(&single_debug));
+  EXPECT_TRUE(IsDeferred(&single_unreachable));
+  EXPECT_TRUE(IsDeferred(&nested_unreachable));
+  EXPECT_FALSE(IsDeferred(&multi_stmt));
+}
+
+TEST(Torque, DeferredUnreachableInGeneratedCsa) {
+  std::filesystem::path output_dir =
+      std::filesystem::path(::testing::TempDir()) /
+      (std::string("torque-unittest-") +
+       ::testing::UnitTest::GetInstance()->current_test_info()->name() + "-" +
+       std::to_string(base::OS::GetCurrentProcessId()));
+  struct ScopedDirCleanup {
+    std::filesystem::path path;
+    ~ScopedDirCleanup() {
+      std::error_code ec;
+      std::filesystem::remove_all(path, ec);
+    }
+  } cleanup{output_dir};
+  std::error_code ec;
+  std::filesystem::remove_all(output_dir, ec);
+  ec.clear();
+  ASSERT_TRUE(std::filesystem::create_directories(output_dir, ec))
+      << ec.message();
+
+  TorqueCompilerOptions options;
+  options.output_directory = output_dir.string();
+  options.collect_language_server_data = false;
+  options.force_assert_statements = false;
+  options.v8_root = ".";
+
+  std::string source = std::string(kTestTorquePrelude) + R"(
+macro CheckOrBail(cond: bool): void labels Bail {
+  if (cond) {
+    return;
+  } else {
+    goto Bail;
+  }
+}
+
+@export macro TestOtherwiseUnreachable(cond: bool): void {
+  CheckOrBail(cond) otherwise unreachable;
+}
+
+@export macro TestOtherwiseDeferredReturn(cond: bool): void {
+  try {
+    CheckOrBail(cond) otherwise Out;
+  } label Out deferred {
+    return;
+  }
+}
+
+@export macro TestIfUnreachable(cond: bool): void {
+  if (cond) {
+    return;
+  } else {
+    unreachable;
+  }
+}
+
+@export macro TestIfMultiStmtUnreachable(cond: bool): void {
+  if (cond) {
+    return;
+  } else {
+    debug;
+    unreachable;
+  }
+}
+
+@export macro TestSharedUnreachable(cond1: bool, cond2: bool): void {
+  try {
+    CheckOrBail(cond1) otherwise Out;
+    CheckOrBail(cond2) otherwise Out;
+  } label Out {
+    unreachable;
+  }
+}
+
+@export macro TestSharedDeferredReturn(cond1: bool, cond2: bool): void {
+  try {
+    CheckOrBail(cond1) otherwise Out;
+    CheckOrBail(cond2) otherwise Out;
+  } label Out deferred {
+    return;
+  }
+}
+
+@export macro TestTwoHopDeferred(
+    cond1: bool, cond2: bool, cond3: bool): void {
+  try {
+    try {
+      CheckOrBail(cond1) otherwise Mid;
+      CheckOrBail(cond2) otherwise Mid;
+    } label Mid {
+      goto Out;
+    }
+    CheckOrBail(cond3) otherwise Out;
+  } label Out {
+    unreachable;
+  }
+}
+
+@export macro TestStartBlockUnreachable(): never {
+  unreachable;
+}
+)";
+
+  TorqueCompilerResult result = CompileTorque(source, options);
+  ASSERT_TRUE(result.messages.empty()) << result.messages[0].message;
+
+  std::ifstream in(output_dir / "dummy-filename-tq-csa.cc");
+  ASSERT_TRUE(in.good());
+  std::string csa_cc((std::istreambuf_iterator<char>(in)),
+                     std::istreambuf_iterator<char>());
+
+  auto extract_function = [&](const std::string& name) -> std::string {
+    size_t start = csa_cc.find("void " + name + "_0(");
+    EXPECT_NE(start, std::string::npos) << "Missing " << name;
+    if (start == std::string::npos) return "";
+    size_t end = csa_cc.find("\n}\n", start);
+    EXPECT_NE(end, std::string::npos);
+    return csa_cc.substr(start, end - start);
+  };
+
+  auto count_occurrences = [](const std::string& haystack,
+                              const std::string& needle) -> size_t {
+    size_t count = 0;
+    size_t pos = 0;
+    while ((pos = haystack.find(needle, pos)) != std::string::npos) {
+      ++count;
+      pos += needle.size();
+    }
+    return count;
+  };
+
+  constexpr char kDeferred[] = "compiler::CodeAssemblerLabel::kDeferred";
+  constexpr char kNonDeferred[] = "compiler::CodeAssemblerLabel::kNonDeferred";
+
+  // Single-predecessor `otherwise unreachable` merges into the helper's `else`
+  // block and preserves `kDeferred` while keeping `block0` and hot blocks
+  // non-deferred.
+  std::string fn1 = extract_function("TestOtherwiseUnreachable");
+  EXPECT_NE(
+      fn1.find("block0(&ca_, compiler::CodeAssemblerLabel::kNonDeferred)"),
+      std::string::npos);
+  EXPECT_EQ(count_occurrences(fn1, kDeferred), 1u);
+  EXPECT_EQ(count_occurrences(fn1, kNonDeferred), 3u);
+
+  // Single-predecessor `otherwise Out` with a non-unreachable deferred label
+  // still propagates `kDeferred` across CFG block merging.
+  std::string fn_deferred_ret = extract_function("TestOtherwiseDeferredReturn");
+  EXPECT_NE(fn_deferred_ret.find(
+                "block0(&ca_, compiler::CodeAssemblerLabel::kNonDeferred)"),
+            std::string::npos);
+  EXPECT_EQ(count_occurrences(fn_deferred_ret, kDeferred), 1u);
+  EXPECT_EQ(count_occurrences(fn_deferred_ret, kNonDeferred), 4u);
+
+  // Direct `unreachable;` inside a non-deferred `else` block becomes deferred.
+  std::string fn2 = extract_function("TestIfUnreachable");
+  EXPECT_NE(
+      fn2.find("block0(&ca_, compiler::CodeAssemblerLabel::kNonDeferred)"),
+      std::string::npos);
+  EXPECT_EQ(count_occurrences(fn2, kDeferred), 1u);
+  EXPECT_EQ(count_occurrences(fn2, kNonDeferred), 3u);
+
+  // Multi-statement block ending in `unreachable;` is marked deferred by
+  // `OptimizeCfg()` even though `IsDeferred()` returns false for it.
+  std::string fn_multi = extract_function("TestIfMultiStmtUnreachable");
+  EXPECT_NE(
+      fn_multi.find("block0(&ca_, compiler::CodeAssemblerLabel::kNonDeferred)"),
+      std::string::npos);
+  EXPECT_EQ(count_occurrences(fn_multi, kDeferred), 1u);
+  EXPECT_EQ(count_occurrences(fn_multi, kNonDeferred), 3u);
+
+  // Un-annotated shared `label Out { unreachable; }` is marked deferred and
+  // propagates `kDeferred` to both jumping `else` blocks (3 deferred blocks
+  // total: the shared label plus both Goto predecessors), without marking hot
+  // continuation blocks deferred.
+  std::string fn3 = extract_function("TestSharedUnreachable");
+  EXPECT_NE(
+      fn3.find("block0(&ca_, compiler::CodeAssemblerLabel::kNonDeferred)"),
+      std::string::npos);
+  EXPECT_EQ(count_occurrences(fn3, kDeferred), 3u);
+  EXPECT_EQ(count_occurrences(fn3, kNonDeferred), 4u);
+
+  // Backward propagation across unconditional `Goto`s works for non-aborting
+  // deferred labels as well.
+  std::string fn_shared_ret = extract_function("TestSharedDeferredReturn");
+  EXPECT_NE(fn_shared_ret.find(
+                "block0(&ca_, compiler::CodeAssemblerLabel::kNonDeferred)"),
+            std::string::npos);
+  EXPECT_EQ(count_occurrences(fn_shared_ret, kDeferred), 3u);
+  EXPECT_EQ(count_occurrences(fn_shared_ret, kNonDeferred), 5u);
+
+  // 2-hop `Goto` chain (`else1`/`else2` -> `Mid` -> `Out`, plus `else3` ->
+  // `Out`) propagates `kDeferred` across both hops (5 deferred blocks total).
+  std::string fn_two_hop = extract_function("TestTwoHopDeferred");
+  EXPECT_NE(fn_two_hop.find(
+                "block0(&ca_, compiler::CodeAssemblerLabel::kNonDeferred)"),
+            std::string::npos);
+  EXPECT_EQ(count_occurrences(fn_two_hop, kDeferred), 5u);
+  EXPECT_EQ(count_occurrences(fn_two_hop, kNonDeferred), 5u);
+
+  // Start block itself ending in `unreachable;` stays non-deferred due to the
+  // `block != cfg_.start()` guard.
+  std::string fn_start_unreach = extract_function("TestStartBlockUnreachable");
+  EXPECT_NE(fn_start_unreach.find(
+                "block0(&ca_, compiler::CodeAssemblerLabel::kNonDeferred)"),
+            std::string::npos);
+  EXPECT_EQ(count_occurrences(fn_start_unreach, kDeferred), 0u);
+  EXPECT_EQ(count_occurrences(fn_start_unreach, kNonDeferred), 1u);
 }
 
 }  // namespace torque

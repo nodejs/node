@@ -3,6 +3,8 @@
 // found in the LICENSE file.
 
 #include "src/compiler/backend/move-optimizer.h"
+
+#include "src/compiler/backend/register-allocator-verifier.h"
 #include "src/utils/ostreams.h"
 #include "test/unittests/compiler/backend/instruction-sequence-unittest.h"
 
@@ -85,9 +87,11 @@ class MoveOptimizerTest : public InstructionSequenceTest {
     switch (op.type_) {
       case kConstant:
         return ConstantOperand(op.value_);
-      case kFixedSlot:
-        return AllocatedOperand(LocationOperand::STACK_SLOT,
-                                MachineRepresentation::kWord32, op.value_);
+      case kFixedSlot: {
+        MachineRepresentation rep =
+            op.rep_ == kNoRep ? MachineRepresentation::kWord32 : op.rep_;
+        return AllocatedOperand(LocationOperand::STACK_SLOT, rep, op.value_);
+      }
       case kFixedRegister: {
         MachineRepresentation rep = GetCanonicalRep(op);
         CHECK(0 <= op.value_ && op.value_ < GetNumRegs(rep));
@@ -437,6 +441,159 @@ TEST_F(MoveOptimizerTest, ClobberedFPDestinationsAreEliminated) {
 
   ParallelMove* last_move = last_instr->parallel_moves()[0];
   CHECK_EQ(0, NonRedundantSize(last_move));
+}
+
+TEST_F(MoveOptimizerTest,
+       CompressesMultiSlotStackDestinationOverMultipleNarrowSlots) {
+  const int kSimd128Slots =
+      ElementSizeInPointers(MachineRepresentation::kSimd128);
+  if (kSimd128Slots <= 1) return;
+
+  StartBlock();
+  Instruction* first_instr = EmitNop();
+  Instruction* last_instr = EmitNop();
+
+  AddMove(first_instr, FPReg(kS128_1, kSimd128), FPReg(kS128_2, kSimd128));
+  for (int i = 0; i < kSimd128Slots; ++i) {
+    AddMove(first_instr, Reg(i % 2), Slot(i));
+  }
+  AddMove(last_instr, FPReg(kS128_2, kSimd128),
+          Slot(kSimd128Slots - 1, kSimd128));
+
+  EndBlock(Last());
+  Optimize();
+
+  ParallelMove* first_move = first_instr->parallel_moves()[0];
+  CHECK(first_move == nullptr || NonRedundantSize(first_move) == 0);
+
+  ParallelMove* last_move = last_instr->parallel_moves()[0];
+  CHECK_EQ(2, NonRedundantSize(last_move));
+  CHECK(
+      Contains(last_move, FPReg(kS128_1, kSimd128), FPReg(kS128_2, kSimd128)));
+  CHECK(Contains(last_move, FPReg(kS128_1, kSimd128),
+                 Slot(kSimd128Slots - 1, kSimd128)));
+}
+
+TEST_F(MoveOptimizerTest, ClobberedMultiSlotStackDestinationsAreEliminated) {
+  const int kSimd128Slots =
+      ElementSizeInPointers(MachineRepresentation::kSimd128);
+  StartBlock();
+  Instruction* first_instr = EmitNop();
+  for (int i = 0; i < kSimd128Slots; ++i) {
+    AddMove(first_instr, Reg(0), Slot(i));
+  }
+  EmitOI(Slot(kSimd128Slots - 1, kSimd128), 0, nullptr);
+  Instruction* last_instr = LastInstruction();
+  EndBlock();
+  Optimize();
+
+  ParallelMove* first_move = first_instr->parallel_moves()[0];
+  CHECK_EQ(0, NonRedundantSize(first_move));
+
+  ParallelMove* last_move = last_instr->parallel_moves()[0];
+  CHECK_EQ(0, NonRedundantSize(last_move));
+}
+
+TEST_F(MoveOptimizerTest, MultiSlotStackWriteBlocksOverlappingReadMigration) {
+  const int kSimd128Slots =
+      ElementSizeInPointers(MachineRepresentation::kSimd128);
+  if (kSimd128Slots <= 1) return;
+
+  StartBlock();
+  EmitOI(Slot(kSimd128Slots - 1, kSimd128), 0, nullptr);
+  Instruction* write_instr = LastInstruction();
+  AddMove(write_instr, Slot(0), Reg(0));
+  Instruction* after_instr = EmitNop();
+  EndBlock(Last());
+
+  Optimize();
+
+  // Reading Slot(0) must happen before write_instr overwrites
+  // Slot(0..kSimd128Slots-1), so the move cannot migrate down to after_instr.
+  ParallelMove* write_move = write_instr->parallel_moves()[0];
+  CHECK_EQ(1, NonRedundantSize(write_move));
+  CHECK(Contains(write_move, Slot(0), Reg(0)));
+
+  ParallelMove* after_move = after_instr->parallel_moves()[0];
+  CHECK(after_move == nullptr || NonRedundantSize(after_move) == 0);
+}
+
+TEST_F(MoveOptimizerTest, MergeConflictWithOverlappingMultiSlotStackMove) {
+  const int kSimd128Slots =
+      ElementSizeInPointers(MachineRepresentation::kSimd128);
+  if (kSimd128Slots <= 1) return;
+
+  StartBlock();
+  EndBlock(Branch(Imm(), 1, 2));
+
+  StartBlock();
+  EndBlock(Jump(2));
+  Instruction* b1_last = LastInstruction();
+  AddMove(b1_last, Slot(0), Reg(0));
+  AddMove(b1_last, FPReg(kS128_1, kSimd128), Slot(kSimd128Slots - 1, kSimd128));
+
+  StartBlock();
+  EndBlock(Jump(1));
+  Instruction* b2_last = LastInstruction();
+  AddMove(b2_last, Slot(0), Reg(0));
+
+  StartBlock();
+  EndBlock(Last());
+  Instruction* merge_last = LastInstruction();
+
+  Optimize();
+
+  // Slot(0) -> Reg(0) cannot be hoisted into the merge block because b1_last
+  // overwrites Slot(0..kSimd128Slots-1) in parallel with reading Slot(0).
+  ParallelMove* merge_move = merge_last->parallel_moves()[0];
+  CHECK(merge_move == nullptr || NonRedundantSize(merge_move) == 0);
+  CHECK(Contains(b1_last->parallel_moves()[0], Slot(0), Reg(0)));
+  CHECK(Contains(b2_last->parallel_moves()[0], Slot(0), Reg(0)));
+}
+
+TEST_F(MoveOptimizerTest, VerifierDropsOverlappingMultiSlotStackAssessments) {
+  const int kSimd128Slots =
+      ElementSizeInPointers(MachineRepresentation::kSimd128);
+  if (kSimd128Slots <= 1) return;
+
+  WireBlocks();
+  BlockAssessments assessments(zone(), 0, sequence());
+
+  InstructionOperand q0 =
+      AllocatedOperand(LocationOperand::REGISTER, kSimd128, kS128_1);
+  InstructionOperand r0 = AllocatedOperand(LocationOperand::REGISTER,
+                                           MachineRepresentation::kWord32, 0);
+  InstructionOperand slot0 = AllocatedOperand(
+      LocationOperand::STACK_SLOT, MachineRepresentation::kWord32, 0);
+  InstructionOperand wide_slot = AllocatedOperand(LocationOperand::STACK_SLOT,
+                                                  kSimd128, kSimd128Slots - 1);
+
+  assessments.AddDefinition(q0, 10);
+  assessments.AddDefinition(r0, 11);
+  for (int i = 0; i < kSimd128Slots; ++i) {
+    InstructionOperand narrow = AllocatedOperand(
+        LocationOperand::STACK_SLOT, MachineRepresentation::kWord32, i);
+    assessments.AddDefinition(narrow, 20 + i);
+  }
+
+  // Overwriting with a multi-slot move must drop all covered narrower slots.
+  ParallelMove* wide_pm = zone()->New<ParallelMove>(zone());
+  wide_pm->AddMove(q0, wide_slot);
+  assessments.PerformParallelMoves(wide_pm);
+  CHECK_EQ(assessments.map().end(), assessments.map().find(slot0));
+  auto wide_it = assessments.map().find(wide_slot);
+  CHECK_NE(assessments.map().end(), wide_it);
+  CHECK_EQ(10, FinalAssessment::cast(wide_it->second)->virtual_register());
+
+  // Subsequently writing a narrower overlapping slot (index 0) must drop the
+  // wider assessment anchored at index kSimd128Slots - 1.
+  ParallelMove* narrow_pm = zone()->New<ParallelMove>(zone());
+  narrow_pm->AddMove(r0, slot0);
+  assessments.PerformParallelMoves(narrow_pm);
+  CHECK_EQ(assessments.map().end(), assessments.map().find(wide_slot));
+  auto slot0_it = assessments.map().find(slot0);
+  CHECK_NE(assessments.map().end(), slot0_it);
+  CHECK_EQ(11, FinalAssessment::cast(slot0_it->second)->virtual_register());
 }
 
 }  // namespace compiler

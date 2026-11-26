@@ -41,6 +41,8 @@ constexpr bool SupportsRightTrim() {
     case kVisitFixedArray:
     case kVisitFixedDoubleArray:
     case kVisitWeakFixedArray:
+    case kVisitSeqOneByteString:
+    case kVisitSeqTwoByteString:
       return true;
     default:
       return false;

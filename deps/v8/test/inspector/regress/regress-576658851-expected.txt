@@ -1,0 +1,67 @@
+Tests that side-effect-free evaluation enforces side-effect checks while generating the preview for a thrown value.
+
+Running test: testThrownValuePreviewRunsMutatingBuiltinGetter
+throw arrayLike: exception
+length after preview: 2
+
+Running test: testThrownValuePreviewRunsUserHasInstance
+throw objectWithBody: exception
+sideEffects after preview: []
+
+Running test: testRejectedPromiseWithoutMessagePreviewSideEffect
+{
+    id : <messageId>
+    result : {
+        exceptionDetails : {
+            columnNumber : -1
+            exception : {
+                className : EvalError
+                description : EvalError: Possible side-effect in debug-evaluate
+                objectId : <objectId>
+                subtype : error
+                type : object
+            }
+            exceptionId : <exceptionId>
+            lineNumber : -1
+            scriptId : <scriptId>
+            text : Uncaught
+        }
+        result : {
+            className : EvalError
+            description : EvalError: Possible side-effect in debug-evaluate
+            objectId : <objectId>
+            subtype : error
+            type : object
+        }
+    }
+}
+length after preview: 2
+
+Running test: testRejectedPromiseWithMessagePreviewSideEffect
+{
+    id : <messageId>
+    result : {
+        exceptionDetails : {
+            columnNumber : -1
+            exception : {
+                className : EvalError
+                description : EvalError: Possible side-effect in debug-evaluate
+                objectId : <objectId>
+                subtype : error
+                type : object
+            }
+            exceptionId : <exceptionId>
+            lineNumber : -1
+            scriptId : <scriptId>
+            text : Uncaught
+        }
+        result : {
+            className : EvalError
+            description : EvalError: Possible side-effect in debug-evaluate
+            objectId : <objectId>
+            subtype : error
+            type : object
+        }
+    }
+}
+length after preview: 2

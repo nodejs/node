@@ -1,6 +1,8 @@
 header: sys/time.h
 standards:
   - posix
+merge_yaml_files:
+  - select-time.yaml
 macros:
   - macro_name: ITIMER_REAL
     macro_header: sys-time-macros.h
@@ -11,8 +13,9 @@ macros:
   - macro_name: timeradd
     macro_header: sys-time-macros.h
 types:
-  - type_name: struct_timeval
   - type_name: struct_itimerval
+  - type_name: suseconds_t
+  - type_name: time_t
 enums: []
 objects: []
 functions:

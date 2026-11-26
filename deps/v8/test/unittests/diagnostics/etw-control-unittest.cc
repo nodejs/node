@@ -51,10 +51,10 @@ class EtwIsolateOperationsMock : public EtwIsolateOperations {
 };
 
 TEST_F(EtwControlTest, Enable) {
-  v8_flags.enable_etw_stack_walking = true;
+  v8_flags.enable_etw_stack_walking.Set(true);
 
   // Set the flag below for helpful debug spew
-  // v8_flags.etw_trace_debug = true;
+  // v8_flags.etw_trace_debug.Set(true);
 
   testing::NiceMock<EtwIsolateOperationsMock> etw_isolate_operations_mock;
   EtwIsolateOperations::SetInstanceForTesting(&etw_isolate_operations_mock);
@@ -111,10 +111,10 @@ TEST_F(EtwControlTest, Enable) {
 }
 
 TEST_F(EtwControlTest, EnableWithFilterData) {
-  v8_flags.enable_etw_stack_walking = true;
+  v8_flags.enable_etw_stack_walking.Set(true);
 
   // Set the flag below for helpful debug spew
-  // v8_flags.etw_trace_debug = true;
+  // v8_flags.etw_trace_debug.Set(true);
 
   testing::NiceMock<EtwIsolateOperationsMock> etw_isolate_operations_mock;
   EtwIsolateOperations::SetInstanceForTesting(&etw_isolate_operations_mock);
@@ -213,10 +213,10 @@ TEST_F(EtwControlTest, EnableWithFilterData) {
 }
 
 TEST_F(EtwControlTest, EnableWithNonMatchingFilterData) {
-  v8_flags.enable_etw_stack_walking = true;
+  v8_flags.enable_etw_stack_walking.Set(true);
 
   // Set the flag below for helpful debug spew
-  // v8_flags.etw_trace_debug = true;
+  // v8_flags.etw_trace_debug.Set(true);
 
   testing::NiceMock<EtwIsolateOperationsMock> etw_isolate_operations_mock;
   EtwIsolateOperations::SetInstanceForTesting(&etw_isolate_operations_mock);
@@ -305,11 +305,11 @@ TEST_F(EtwControlTest, EnableWithNonMatchingFilterData) {
 }
 
 TEST_F(EtwControlTest, EnableWithCustomFilterOnly) {
-  v8_flags.enable_etw_stack_walking = false;
-  v8_flags.enable_etw_by_custom_filter_only = true;
+  v8_flags.enable_etw_stack_walking.Set(false);
+  v8_flags.enable_etw_by_custom_filter_only.Set(true);
 
   // Set the flag below for helpful debug spew
-  // v8_flags.etw_trace_debug = true;
+  // v8_flags.etw_trace_debug.Set(true);
 
   testing::NiceMock<EtwIsolateOperationsMock> etw_isolate_operations_mock;
   EtwIsolateOperations::SetInstanceForTesting(&etw_isolate_operations_mock);
@@ -408,11 +408,11 @@ TEST_F(EtwControlTest, EnableWithCustomFilterOnly) {
 }
 
 TEST_F(EtwControlTest, EnableWithNonMatchingCustomFilterOnly) {
-  v8_flags.enable_etw_stack_walking = false;
-  v8_flags.enable_etw_by_custom_filter_only = true;
+  v8_flags.enable_etw_stack_walking.Set(false);
+  v8_flags.enable_etw_by_custom_filter_only.Set(true);
 
   // Set the flag below for helpful debug spew
-  // v8_flags.etw_trace_debug = true;
+  // v8_flags.etw_trace_debug.Set(true);
 
   testing::NiceMock<EtwIsolateOperationsMock> etw_isolate_operations_mock;
   EtwIsolateOperations::SetInstanceForTesting(&etw_isolate_operations_mock);

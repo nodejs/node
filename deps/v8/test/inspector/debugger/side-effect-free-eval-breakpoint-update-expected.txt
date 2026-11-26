@@ -1,0 +1,30 @@
+Tests setting and removing breakpoints during a side-effect-free evaluation.
+
+Running test: setUp
+
+Running test: testUpdateBreakpointOnPreparedFunction
+spin error: Execution was terminated
+setReturnValue at pause: Could not update return value at non-return position
+G(false) pauses: ["G:10:2"]
+G(false) result: 42
+
+Running test: testSetBreakpointOnUnpreparedFunction
+H(10) pauses: ["H:16"]
+H(10) result: 11
+
+Running test: testRemoveBreakpointDuringSideEffectEval
+R(77) paused: false
+R(77) result: 77
+
+Running test: testConditionalBreakpointWithContextReceiver
+holder.M(false) paused: false
+holder.M(false) result: 7
+
+Running test: testRemoveBreakpointPreservesSideEffectChecks
+eval-mutate side-effect check threw: true
+globalHolder.value after side-effect eval: 0
+eval-mutate normal paused: false
+eval-mutate normal result: 1
+
+Running test: testDisableDebuggerDuringSideEffectEval
+R(88) after Debugger.disable result: 88

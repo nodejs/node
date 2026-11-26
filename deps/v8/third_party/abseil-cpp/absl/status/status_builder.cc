@@ -90,6 +90,11 @@ bool StatusBuilder::HasPayload() const {
 
 ABSL_ATTRIBUTE_WEAK StatusBuilder& StatusBuilder::SetCode(
     absl::StatusCode code) & {
+  if (code == absl::StatusCode::kOk) {
+    // Maintain the invariant that `rep_ == nullptr` iff the status is OK.
+    rep_ = nullptr;
+    return *this;
+  }
   if (rep_ == nullptr) {
     rep_ = std::make_unique<StatusBuilder::Rep>(
         absl::Status(code, absl::string_view(), absl::SourceLocation()));

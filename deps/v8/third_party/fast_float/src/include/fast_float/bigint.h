@@ -42,7 +42,10 @@ template <uint16_t size> struct stackvec {
   // we never need more than 150 limbs
   uint16_t length{0};
 
-  stackvec() = default;
+  // user-provided, so that value-initialization (stackvec()) does not zero
+  // data: only the first length limbs are ever read.
+  FASTFLOAT_CONSTEXPR20 stackvec() noexcept {}
+
   stackvec(stackvec const &) = delete;
   stackvec &operator=(stackvec const &) = delete;
   stackvec(stackvec &&) = delete;
@@ -339,7 +342,7 @@ large_add_from(stackvec<size> &x, limb_span y) noexcept {
 template <uint16_t size>
 FASTFLOAT_CONSTEXPR20 bool long_mul(stackvec<size> &x, limb_span y) noexcept {
   limb_span xs = limb_span(x.data, x.len());
-  stackvec<size> z(xs);
+  FASTFLOAT_INDETERMINATE stackvec<size> z(xs);
   limb_span zs = limb_span(z.data, z.len());
 
   if (y.len() != 0) {
@@ -347,7 +350,7 @@ FASTFLOAT_CONSTEXPR20 bool long_mul(stackvec<size> &x, limb_span y) noexcept {
     FASTFLOAT_TRY(small_mul(x, y0));
     for (size_t index = 1; index < y.len(); index++) {
       limb yi = y[index];
-      stackvec<size> zi;
+      FASTFLOAT_INDETERMINATE stackvec<size> zi;
       if (yi != 0) {
         // re-use the same buffer throughout
         zi.set_len(0);

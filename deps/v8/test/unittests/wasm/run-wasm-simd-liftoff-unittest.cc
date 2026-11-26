@@ -54,11 +54,10 @@ TEST_F(RunWasmSimdLiftoffTest, S128Param) {
   // to specify a SIMD value when initializing a WasmRunner, so we manually
   // add a new function with the right signature, and call it from main.
   WasmRunner<int32_t> r(TestExecutionTier::kLiftoff);
-  TestSignatures sigs;
   // We use a temp local to materialize a SIMD value, since at this point
   // Liftoff does not support any SIMD operations.
   uint8_t temp1 = r.AllocateLocal(kWasmS128);
-  WasmFunctionCompiler& simd_func = r.NewFunction(sigs.i_s());
+  WasmFunctionCompiler& simd_func = r.NewFunction(TestSignatures::i_s());
   simd_func.Build({WASM_ONE});
 
   r.Build(
@@ -70,8 +69,7 @@ TEST_F(RunWasmSimdLiftoffTest, S128Param) {
 TEST_F(RunWasmSimdLiftoffTest, S128Return) {
   // Test how functions returning SIMD values are processed.
   WasmRunner<int32_t> r(TestExecutionTier::kLiftoff);
-  TestSignatures sigs;
-  WasmFunctionCompiler& simd_func = r.NewFunction(sigs.s_i());
+  WasmFunctionCompiler& simd_func = r.NewFunction(TestSignatures::s_i());
   uint8_t temp1 = simd_func.AllocateLocal(kWasmS128);
   simd_func.Build({WASM_LOCAL_GET(temp1)});
 
@@ -89,8 +87,7 @@ TEST_F(RunWasmSimdLiftoffTest, REGRESS_1088273) {
   if (!CpuFeatures::SupportsSimd128()) return;
 
   WasmRunner<int32_t> r(TestExecutionTier::kLiftoff);
-  TestSignatures sigs;
-  WasmFunctionCompiler& simd_func = r.NewFunction(sigs.s_i());
+  WasmFunctionCompiler& simd_func = r.NewFunction(TestSignatures::s_i());
   uint8_t temp1 = simd_func.AllocateLocal(kWasmS128);
   simd_func.Build({WASM_LOCAL_GET(temp1)});
 

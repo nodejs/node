@@ -93,6 +93,7 @@ class WasmGCTypeAnalyzer {
   void ProcessArrayAtomicRMW(const ArrayAtomicRMWOp& array_atomic_rmw);
   void ProcessGlobalGet(const GlobalGetOp& global_get);
   void ProcessRefFunc(const WasmRefFuncOp& ref_func);
+  void ProcessRefI31(const WasmRefI31Op& ref_i31);
   void ProcessAllocateArray(const WasmAllocateArrayOp& allocate_array);
   void ProcessAllocateStruct(const WasmAllocateStructOp& allocate_struct);
   void ProcessPhi(const PhiOp& phi);
@@ -297,10 +298,9 @@ class WasmGCTypedOptimizationReducer : public Next {
         // A cast between unrelated types can only succeed if the argument is
         // null. Otherwise, it always fails.
         V<Word32> non_trapping_condition =
-            type.is_nullable() && to_nullable ? __ IsNull(__ MapToNewGraph(
-                                                              cast_op.object()),
-                                                          type)
-                                              : __ Word32Constant(0);
+            type.is_nullable() && to_nullable
+                ? __ IsNull(__ MapToNewGraph(cast_op.object()), type)
+                : __ Word32Constant(0);
         __ TrapIfNot(non_trapping_condition,
                      __ MapToNewGraph(cast_op.frame_state()),
                      TrapId::kTrapIllegalCast);
@@ -361,6 +361,10 @@ class WasmGCTypedOptimizationReducer : public Next {
           // The inferred type is guaranteed to be a subtype of the checked
           // type.
           return __ Word32Constant(1);
+        } else if (type.is_none_type()) {
+          // The value is known to be null, and {to_nullable} is false here, so
+          // the type check always fails.
+          return __ Word32Constant(0);
         } else {
           // The inferred type is guaranteed to be a subtype of the checked
           // type if it is not null.
@@ -606,9 +610,25 @@ class WasmGCTypedOptimizationReducer : public Next {
     goto no_change;
   }
 
+  V<Word32> REDUCE(WasmI31Get)(V<Smi> input, bool is_signed) {
+    LABEL_BLOCK(no_change) { return Next::ReduceWasmI31Get(input, is_signed); }
+    if (ShouldSkipOptimizationStep()) goto no_change;
+
+    // Fold i31.get_{s,u}(ref.i31(x)) to 31-bit sign-/zero-extension of x.
+    if (const WasmRefI31Op* ref_i31 =
+            __ output_graph().Get(input).template TryCast<WasmRefI31Op>()) {
+      if (is_signed) {
+        V<Word32> shifted = __ Word32ShiftLeft(ref_i31->input(), 1);
+        return __ Word32ShiftRightArithmeticShiftOutZeros(shifted, 1);
+      }
+      return __ Word32BitwiseAnd(ref_i31->input(), 0x7fffffff);
+    }
+    goto no_change;
+  }
+
  private:
   Graph& graph_ = __ modifiable_input_graph();
-  const wasm::WasmModule* module_ = __ data() -> wasm_module();
+  const wasm::WasmModule* module_ = __ data()->wasm_module();
   WasmGCTypeAnalyzer analyzer_{__ data(), graph_, __ phase_zone(),
                                __ data()->wasm_module_sig()};
   OptionalV<WasmTrustedInstanceData> instance_data_;

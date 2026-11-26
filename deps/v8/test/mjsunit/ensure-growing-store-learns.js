@@ -33,9 +33,9 @@
   foo(a, 50000);
   // TODO(v8:11457) We don't currently support inlining element stores if there
   // is a dictionary mode prototypes on the prototype chain. Therefore, if
-  // v8_dict_property_const_tracking is enabled, the optimized code only
-  // contains a call to the IC handler and doesn't get deopted.
-  if (%IsDictPropertyConstTrackingEnabled()) {
+  // v8_dict_prototypes is enabled, the optimized code only contains a call to
+  // the IC handler and doesn't get deopted.
+  if (%IsDictPrototypesEnabled()) {
     assertOptimized(foo);
   } else {
     assertUnoptimized(foo);

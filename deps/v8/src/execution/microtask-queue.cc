@@ -18,6 +18,9 @@
 #include "src/handles/handles-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/objects/microtask-inl.h"
+#include "src/objects/promise-inl.h"
+#include "src/objects/script-inl.h"
+#include "src/objects/shared-function-info-inl.h"
 #include "src/objects/visitors.h"
 #include "src/roots/roots-inl.h"
 #include "src/tracing/trace-event.h"
@@ -182,6 +185,50 @@ class SetIsRunningMicrotasks {
   bool* flag_;
 };
 
+struct MicrotaskAttribution {
+  int script_id = -1;
+  int start_pos = -1;
+  int end_pos = -1;
+  std::unique_ptr<char[]> func_name;
+};
+
+MicrotaskAttribution ExtractMicrotaskAttribution(Tagged<Microtask> task) {
+  DisallowGarbageCollection no_gc;
+  MicrotaskAttribution attr;
+  Tagged<SharedFunctionInfo> sfi;
+  if (IsAsyncResumeTask(task)) {
+    sfi = Cast<AsyncResumeTask>(task)->generator()->function()->shared();
+  } else {
+    Tagged<Object> target;
+    if (IsCallableTask(task)) {
+      target = Cast<CallableTask>(task)->callable();
+    } else if (IsPromiseReactionJobTask(task)) {
+      target = Cast<PromiseReactionJobTask>(task)->handler();
+      if (IsJSGeneratorObject(target)) {
+        sfi = Cast<JSGeneratorObject>(target)->function()->shared();
+      }
+    } else {
+      return attr;
+    }
+    if (sfi.is_null()) {
+      while (IsJSBoundFunction(target)) {
+        target = Cast<JSBoundFunction>(target)->bound_target_function();
+      }
+      if (!IsJSFunction(target)) {
+        return attr;
+      }
+      sfi = Cast<JSFunction>(target)->shared();
+    }
+  }
+  attr.func_name = sfi->DebugNameCStr();
+  attr.start_pos = sfi->StartPosition();
+  attr.end_pos = sfi->EndPosition();
+  if (IsScript(sfi->script())) {
+    attr.script_id = Cast<Script>(sfi->script())->id();
+  }
+  return attr;
+}
+
 }  // namespace
 
 int MicrotaskQueue::RunMicrotasks(Isolate* isolate) {
@@ -217,6 +264,23 @@ int MicrotaskQueue::RunMicrotasks(Isolate* isolate) {
     TRACE_EVENT_BEGIN("v8.execute", "RunMicrotasks");
     {
       TRACE_EVENT_CALL_STATS_SCOPED(isolate, "v8", "V8.RunMicrotasks");
+      bool trace_microtasks = false;
+      TRACE_EVENT_CATEGORY_GROUP_ENABLED(
+          TRACE_DISABLED_BY_DEFAULT("devtools.v8-source-rundown"),
+          &trace_microtasks);
+      if (trace_microtasks) {
+        for (intptr_t i = 0; i < size_; ++i) {
+          Address raw_task = ring_buffer_[(start_ + i) % capacity_];
+          [[maybe_unused]] auto [script_id, start_pos, end_pos, func_name] =
+              ExtractMicrotaskAttribution(
+                  Cast<Microtask>(Tagged<Object>(raw_task)));
+          TRACE_EVENT_INSTANT(
+              TRACE_DISABLED_BY_DEFAULT("devtools.v8-source-rundown"),
+              "v8.runMicrotask", "scriptId", script_id, "functionName",
+              func_name ? func_name.get() : "", "startPosition", start_pos,
+              "endPosition", end_pos);
+        }
+      }
       maybe_result = Execution::TryRunMicrotasks(isolate, this);
       processed_microtask_count =
           static_cast<int>(finished_microtask_count_ - base_count);

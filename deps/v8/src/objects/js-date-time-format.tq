@@ -4,14 +4,15 @@
 
 #include 'src/objects/js-date-time-format.h'
 
-type DateTimeStyle extends int32
+type JSDateTimeFormatDateTimeStyle extends int32
     constexpr 'JSDateTimeFormat::DateTimeStyle';
-type HourCycle extends int32 constexpr 'JSDateTimeFormat::HourCycle';
-@cppScope('JSDateTimeFormat')
+type JSDateTimeFormatHourCycle extends int32
+    constexpr 'JSDateTimeFormat::HourCycle';
+@cppScope('JSDateTimeFormat::Flags')
 bitfield struct JSDateTimeFormatFlags extends uint31 {
-  hour_cycle: HourCycle: 3 bit;
-  date_style: DateTimeStyle: 3 bit;
-  time_style: DateTimeStyle: 3 bit;
+  hour_cycle: JSDateTimeFormatHourCycle: 3 bit;
+  date_style: JSDateTimeFormatDateTimeStyle: 3 bit;
+  time_style: JSDateTimeFormatDateTimeStyle: 3 bit;
   has_to_locale_string_time_zone: bool: 1 bit;
 
   explicit_components_in_options: int32: 11 bit;

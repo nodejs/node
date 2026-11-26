@@ -1,0 +1,8 @@
+Tests stepping into RegExp subclass Symbol.split method.
+debugger;                  // Break 0.
+var result = "".split(o);  // Break 1.
+return "x"               // Break 2.
+;                        // Break 3.
+return result;             // Break 4.
+result: x
+total breaks: 5

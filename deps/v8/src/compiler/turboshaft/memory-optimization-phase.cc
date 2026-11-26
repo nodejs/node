@@ -11,7 +11,6 @@
 #include "src/compiler/turboshaft/machine-optimization-reducer.h"
 #include "src/compiler/turboshaft/memory-optimization-reducer.h"
 #include "src/compiler/turboshaft/phase.h"
-#include "src/compiler/turboshaft/pretenuring-propagation-reducer.h"
 #include "src/compiler/turboshaft/required-optimization-reducer.h"
 #include "src/compiler/turboshaft/value-numbering-reducer.h"
 #include "src/compiler/turboshaft/variable-reducer.h"
@@ -25,7 +24,6 @@ void MemoryOptimizationPhase::Run(PipelineData* data, Zone* temp_zone) {
                               v8_flags.turboshaft_trace_reduction);
   turboshaft::CopyingPhase<turboshaft::IfElseCascadeToSwitchReducer,
                            turboshaft::LateEscapeAnalysisReducer,
-                           turboshaft::PretenuringPropagationReducer,
                            turboshaft::MemoryOptimizationReducer,
                            turboshaft::MachineOptimizationReducer,
                            turboshaft::ValueNumberingReducer>::Run(data,

@@ -39,17 +39,15 @@ void ScriptOrModule::set_host_defined_options(Tagged<FixedArray> value,
   host_defined_options_.store(this, value, mode);
 }
 
-BOOL_ACCESSORS(SourceTextModule, flags, has_toplevel_await,
-               HasToplevelAwaitBit::kShift)
+BIT_FIELD_ACCESSORS(SourceTextModule, flags, has_toplevel_await,
+                    SourceTextModule::Flags::HasToplevelAwaitBit)
 BIT_FIELD_ACCESSORS(SourceTextModule, flags, async_evaluation_ordinal,
-                    SourceTextModule::AsyncEvaluationOrdinalBits)
+                    SourceTextModule::Flags::AsyncEvaluationOrdinalBits)
 
-inline unsigned ModuleRequest::position() const {
-  return PositionBits::decode(flags());
-}
+inline unsigned ModuleRequest::position() const { return flags().position(); }
 
 inline ModuleImportPhase ModuleRequest::phase() const {
-  ModuleImportPhase value = PhaseBits::decode(flags());
+  ModuleImportPhase value = flags().phase();
   DCHECK(value == ModuleImportPhase::kDefer ||
          value == ModuleImportPhase::kEvaluation ||
          value == ModuleImportPhase::kSource);
@@ -328,22 +326,59 @@ void Module::set_hash(int value) { hash_.store(this, Smi::FromInt(value)); }
 Module::Status Module::status() const {
   return static_cast<Status>(status_.load().value());
 }
-void Module::set_status(int value) { status_.store(this, Smi::FromInt(value)); }
+Module::Status Module::status(RelaxedLoadTag) const {
+  return static_cast<Status>(status_.Relaxed_Load().value());
+}
+void Module::set_status(int value) {
+  status_.Relaxed_Store(this, Smi::FromInt(value));
+}
 
 Tagged<UnionOf<Cell, Undefined>> Module::module_namespace() const {
   return module_namespace_.load();
+}
+Tagged<UnionOf<Cell, Undefined>> Module::module_namespace(
+    AcquireLoadTag) const {
+  return module_namespace_.Acquire_Load();
 }
 void Module::set_module_namespace(Tagged<UnionOf<Cell, Undefined>> value,
                                   WriteBarrierMode mode) {
   module_namespace_.store(this, value, mode);
 }
+void Module::set_module_namespace(Tagged<UnionOf<Cell, Undefined>> value,
+                                  ReleaseStoreTag, WriteBarrierMode mode) {
+  module_namespace_.Release_Store(this, value, mode);
+}
 
 Tagged<UnionOf<Cell, Undefined>> Module::deferred_module_namespace() const {
   return deferred_module_namespace_.load();
 }
+Tagged<UnionOf<Cell, Undefined>> Module::deferred_module_namespace(
+    AcquireLoadTag) const {
+  return deferred_module_namespace_.Acquire_Load();
+}
 void Module::set_deferred_module_namespace(
     Tagged<UnionOf<Cell, Undefined>> value, WriteBarrierMode mode) {
   deferred_module_namespace_.store(this, value, mode);
+}
+void Module::set_deferred_module_namespace(
+    Tagged<UnionOf<Cell, Undefined>> value, ReleaseStoreTag,
+    WriteBarrierMode mode) {
+  deferred_module_namespace_.Release_Store(this, value, mode);
+}
+
+bool Module::ExportsFinalized(AcquireLoadTag) const {
+  // A namespace cell is created (empty) when the namespace is first needed,
+  // which can be during linking, and is filled with the namespace object only
+  // after the star exports have been fetched. The cell holds either undefined
+  // or the namespace, so checking for undefined avoids reading the
+  // namespace's map, which the main thread may be changing.
+  auto holds_namespace = [](Tagged<UnionOf<Cell, Undefined>> maybe_cell) {
+    Tagged<Cell> cell;
+    if (!TryCast(maybe_cell, &cell)) return false;
+    return !IsUndefined(cell->value(kAcquireLoad));
+  };
+  return holds_namespace(module_namespace(kAcquireLoad)) ||
+         holds_namespace(deferred_module_namespace(kAcquireLoad));
 }
 
 bool Module::ExportsFinalized() const {

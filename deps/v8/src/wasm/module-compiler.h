@@ -11,6 +11,7 @@
 
 #include <atomic>
 #include <memory>
+#include <string_view>
 
 #include "include/v8-metrics.h"
 #include "src/base/platform/time.h"
@@ -66,7 +67,7 @@ V8_EXPORT_PRIVATE WasmError ValidateAndSetBuiltinImports(
 V8_EXPORT_PRIVATE
 std::shared_ptr<wasm::WasmWrapperHandle> CompileImportWrapperForTest(
     Isolate* isolate, ImportCallKind kind, const CanonicalSig* sig,
-    int expected_arity, Suspend suspend);
+    uint16_t expected_arity, Suspend suspend);
 
 // Triggered by the WasmCompileLazy builtin.
 void CompileLazy(Isolate*, NativeModule*, int func_index);
@@ -195,22 +196,14 @@ class AsyncCompileJob {
   void FinishCompile(std::shared_ptr<NativeModule> final_native_module,
                      DirectHandle<WasmModuleObject> deserialized_module_object,
                      bool cache_hit) &&;
-  void Failed() &&;
+  void Failed(std::string_view failure_reason) &&;
 
   void StartForegroundTask();
   void StartBackgroundTask();
 
-  enum UseExistingForegroundTask : bool {
-    kUseExistingForegroundTask = true,
-    kAssertNoExistingForegroundTask = false
-  };
   // Switches to the compilation step {Step} and starts a foreground task to
-  // execute it. Most of the time we know that there cannot be a running
-  // foreground task. If there might be one, then pass
-  // kUseExistingForegroundTask to avoid spawning a second one.
-  template <typename Step,
-            UseExistingForegroundTask = kAssertNoExistingForegroundTask,
-            typename... Args>
+  // execute it.
+  template <typename Step, typename... Args>
   void DoSync(Args&&... args);
 
   // Switches to the compilation step {Step} and executes it immediately if

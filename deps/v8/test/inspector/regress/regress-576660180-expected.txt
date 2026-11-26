@@ -1,0 +1,3 @@
+Tests that termination while mirroring an internal property stops the private property mirroring in Runtime.getProperties.
+getProperties after terminateExecution: Execution was terminated
+ran after termination was requested: ["err1"]

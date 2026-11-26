@@ -2,6 +2,67 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/utils/sha-256.h"
+
+#include <new>
+#include <type_traits>
+
+#include "src/common/globals.h"
+
+#if V8_USE_OPENSSL
+
+// OpenSSL 3.0+ deprecates the low-level SHA256_Init/Update/Final API, which
+// remains the standard streaming SHA-256 interface in BoringSSL. Suppress the
+// deprecation warning when building against OpenSSL (e.g. in Node.js).
+#define OPENSSL_SUPPRESS_DEPRECATED
+#include <openssl/sha.h>
+
+static_assert(kSizeOfSha256Digest == SHA256_DIGEST_LENGTH);
+
+namespace v8 {
+namespace internal {
+
+struct Sha256Stream::Impl {
+  ::SHA256_CTX ctx;
+};
+
+Sha256Stream::Sha256Stream() {
+  static_assert(sizeof(Impl) <= sizeof(storage_));
+  static_assert(alignof(Impl) <= kStorageAlignment);
+  static_assert(std::is_trivially_destructible_v<Impl>);
+  Impl* p = new (storage_) Impl();
+  ::SHA256_Init(&p->ctx);
+}
+
+void Sha256Stream::Update(const void* data, size_t len) {
+  DCHECK(!finalized_);
+  DCHECK_IMPLIES(len > 0, data != nullptr);
+  if (len == 0) return;
+  ::SHA256_Update(&impl()->ctx, data, len);
+}
+
+void Sha256Stream::Final(uint8_t digest[kSizeOfSha256Digest]) {
+  DCHECK(!finalized_);
+  DCHECK_NOT_NULL(digest);
+#ifdef DEBUG
+  finalized_ = true;
+#endif
+  ::SHA256_Final(digest, &impl()->ctx);
+}
+
+const uint8_t* Sha256Hash(const void* data, size_t len, uint8_t* digest) {
+  DCHECK_IMPLIES(len > 0, data != nullptr);
+  DCHECK_NOT_NULL(digest);
+  static constexpr uint8_t kEmpty = 0;
+  return ::SHA256(len > 0 ? static_cast<const uint8_t*>(data) : &kEmpty, len,
+                  digest);
+}
+
+}  // namespace internal
+}  // namespace v8
+
+#else  // !V8_USE_OPENSSL
+
 // Copyright 2013 Google Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,19 +80,54 @@
 //
 // Optimized for minimal code size.
 //
-// This code originates from the Omaha installer for Windows but is
-// reduced in complexity. Changes made are outlined in the header file.
-
-#include "src/utils/sha-256.h"
+// This code originates from the Omaha installer for Windows:
+//   https://github.com/google/omaha
+// The following changes were made:
+//  - Combined the hash-internal.h, sha256.h, and sha256.c definitions into this
+//    implementation file.
+//  - Eliminated conditional definitions related to LITE_EMULATED_64BIT_OPS
+//  - Eliminated `extern "C"` definitions as these aren't exported
+//  - Eliminated `SHA512_SUPPORT` as we only support SHA256
+//  - Eliminated generic `HASH_` definitions as unnecessary
+//  - Moved the hashing functions into `namespace v8::internal`
+//
+// This is intended simply to provide a minimal-impact SHA256 hash utility
+// to support the stack trace source hash functionality (and as a fallback when
+// OpenSSL/BoringSSL is not available or disabled).
 
 #include <stdint.h>
 #include <string.h>
 
+#define LITE_LShiftU64(a, b) ((a) << (b))
+#define LITE_RShiftU64(a, b) ((a) >> (b))
 #define ror(value, bits) (((value) >> (bits)) | ((value) << (32 - (bits))))
 #define shr(value, bits) ((value) >> (bits))
 
 namespace v8 {
 namespace internal {
+
+namespace {
+
+typedef struct HASH_VTAB {
+  void (*const init)(struct HASH_CTX*);
+  void (*const update)(struct HASH_CTX*, const void*, size_t);
+  void (*const final)(uint8_t*, struct HASH_CTX*);
+  const uint8_t* (*const hash)(const void*, size_t, uint8_t*);
+  unsigned int size;
+} HASH_VTAB;
+
+typedef struct HASH_CTX {
+  const HASH_VTAB* f;
+  uint64_t count;
+  uint8_t buf[64];
+  uint32_t state[8];  // up to SHA2-256
+} HASH_CTX;
+
+typedef HASH_CTX SHA256_CTX;
+
+void SHA256_Init(SHA256_CTX* ctx);
+void SHA256_Update(SHA256_CTX* ctx, const void* data, size_t len);
+void SHA256_Final(uint8_t* digest, SHA256_CTX* ctx);
 
 static const uint32_t K[64] = {
     0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1,
@@ -46,7 +142,7 @@ static const uint32_t K[64] = {
     0x5b9cca4f, 0x682e6ff3, 0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208,
     0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2};
 
-static void SHA256_Transform(LITE_SHA256_CTX* ctx) {
+void SHA256_Transform(SHA256_CTX* ctx) {
   uint32_t W[64];
   uint32_t A, B, C, D, E, F, G, H;
   uint8_t* p = ctx->buf;
@@ -104,10 +200,10 @@ static void SHA256_Transform(LITE_SHA256_CTX* ctx) {
 }
 
 static const HASH_VTAB SHA256_VTAB = {
-    SHA256_init, SHA256_update, SHA256_final, SHA256_hash, kSizeOfSha256Digest,
+    SHA256_Init, SHA256_Update, SHA256_Final, Sha256Hash, kSizeOfSha256Digest,
 };
 
-void SHA256_init(LITE_SHA256_CTX* ctx) {
+void SHA256_Init(SHA256_CTX* ctx) {
   ctx->f = &SHA256_VTAB;
   ctx->state[0] = 0x6a09e667;
   ctx->state[1] = 0xbb67ae85;
@@ -120,7 +216,7 @@ void SHA256_init(LITE_SHA256_CTX* ctx) {
   ctx->count = 0;
 }
 
-void SHA256_update(LITE_SHA256_CTX* ctx, const void* data, size_t len) {
+void SHA256_Update(SHA256_CTX* ctx, const void* data, size_t len) {
   int i = static_cast<int>(ctx->count & 63);
   const uint8_t* p = (const uint8_t*)data;
 
@@ -135,21 +231,21 @@ void SHA256_update(LITE_SHA256_CTX* ctx, const void* data, size_t len) {
   }
 }
 
-const uint8_t* SHA256_final(LITE_SHA256_CTX* ctx) {
-  uint8_t* p = ctx->buf;
+void SHA256_Final(uint8_t* digest, SHA256_CTX* ctx) {
+  uint8_t* p = digest;
   uint64_t cnt = LITE_LShiftU64(ctx->count, 3);
   int i;
 
-  const uint8_t completion[] { 0x80, 0 };
+  const uint8_t completion[]{0x80, 0};
 
-  SHA256_update(ctx, &completion[0], 1);
+  SHA256_Update(ctx, &completion[0], 1);
   while ((ctx->count & 63) != 56) {
-    SHA256_update(ctx, &completion[1], 1);
+    SHA256_Update(ctx, &completion[1], 1);
   }
   for (i = 0; i < 8; ++i) {
     uint8_t tmp = (uint8_t)LITE_RShiftU64(cnt, 56);
     cnt = LITE_LShiftU64(cnt, 8);
-    SHA256_update(ctx, &tmp, 1);
+    SHA256_Update(ctx, &tmp, 1);
   }
 
   for (i = 0; i < 8; i++) {
@@ -159,18 +255,52 @@ const uint8_t* SHA256_final(LITE_SHA256_CTX* ctx) {
     *p++ = (uint8_t)(tmp >> 8);
     *p++ = (uint8_t)(tmp >> 0);
   }
+}
 
-  return ctx->buf;
+}  // namespace
+
+struct Sha256Stream::Impl {
+  SHA256_CTX ctx;
+};
+
+Sha256Stream::Sha256Stream() {
+  static_assert(sizeof(Impl) <= sizeof(storage_));
+  static_assert(alignof(Impl) <= kStorageAlignment);
+  static_assert(std::is_trivially_destructible_v<Impl>);
+  Impl* p = new (storage_) Impl();
+  SHA256_Init(&p->ctx);
+}
+
+void Sha256Stream::Update(const void* data, size_t len) {
+  DCHECK(!finalized_);
+  DCHECK_IMPLIES(len > 0, data != nullptr);
+  if (len == 0) return;
+  SHA256_Update(&impl()->ctx, data, len);
+}
+
+void Sha256Stream::Final(uint8_t digest[kSizeOfSha256Digest]) {
+  DCHECK(!finalized_);
+  DCHECK_NOT_NULL(digest);
+#ifdef DEBUG
+  finalized_ = true;
+#endif
+  SHA256_Final(digest, &impl()->ctx);
 }
 
 /* Convenience function */
-const uint8_t* SHA256_hash(const void* data, size_t len, uint8_t* digest) {
-  LITE_SHA256_CTX ctx;
-  SHA256_init(&ctx);
-  SHA256_update(&ctx, data, len);
-  memcpy(digest, SHA256_final(&ctx), kSizeOfSha256Digest);
+const uint8_t* Sha256Hash(const void* data, size_t len, uint8_t* digest) {
+  DCHECK_IMPLIES(len > 0, data != nullptr);
+  DCHECK_NOT_NULL(digest);
+  SHA256_CTX ctx;
+  SHA256_Init(&ctx);
+  if (len > 0) {
+    SHA256_Update(&ctx, data, len);
+  }
+  SHA256_Final(digest, &ctx);
   return digest;
 }
 
 }  // namespace internal
 }  // namespace v8
+
+#endif  // V8_USE_OPENSSL

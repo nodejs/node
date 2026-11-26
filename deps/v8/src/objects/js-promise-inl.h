@@ -33,10 +33,11 @@ JSPromise::Flags JSPromise::flags() const { return flags_.load(); }
 
 void JSPromise::set_flags(Flags value) { flags_.store(value); }
 
-BOOL_ACCESSORS(JSPromise, flags, is_native_resolver_invoked,
-               Flags::IsNativeResolverInvokedBit::kShift)
-BOOL_ACCESSORS(JSPromise, flags, has_handler, Flags::HasHandlerBit::kShift)
-BOOL_ACCESSORS(JSPromise, flags, is_silent, Flags::IsSilentBit::kShift)
+BIT_FIELD_ACCESSORS(JSPromise, flags, is_native_resolver_invoked,
+                    JSPromise::Flags::IsNativeResolverInvokedBit)
+BIT_FIELD_ACCESSORS(JSPromise, flags, has_handler,
+                    JSPromise::Flags::HasHandlerBit)
+BIT_FIELD_ACCESSORS(JSPromise, flags, is_silent, JSPromise::Flags::IsSilentBit)
 
 // static
 uint32_t JSPromise::GetNextAsyncTaskId(uint32_t async_task_id) {

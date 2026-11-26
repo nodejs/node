@@ -142,9 +142,8 @@ inline void Store(LiftoffAssembler* assm, Register base, int32_t offset,
 inline void push(LiftoffAssembler* assm, LiftoffRegister reg, ValueKind kind) {
   switch (kind) {
     case kI32:
-      assm->daddiu(sp, sp, -kSystemPointerSize);
-      assm->sw(reg.gp(), MemOperand(sp, 0));
-      break;
+      // Store the entire (sign-extended) register, clearing any old data in the
+      // upper half, rather than storing only the lower 4 bytes.
     case kI64:
     case kRefNull:
     case kRef:
@@ -297,7 +296,7 @@ int LiftoffAssembler::PrepareStackFrame() {
   return offset;
 }
 
-void LiftoffAssembler::CallFrameSetupStub(int declared_function_index) {
+void LiftoffAssembler::CallFrameSetupStub(int defined_function_index) {
 // The standard library used by gcc tryjobs does not consider `std::find` to be
 // `constexpr`, so wrap it in a `#ifdef __clang__` block.
 #ifdef __clang__
@@ -312,7 +311,7 @@ void LiftoffAssembler::CallFrameSetupStub(int declared_function_index) {
   // up the frame here.
   EnterFrame(StackFrame::WASM);
   LoadConstant(LiftoffRegister(kLiftoffFrameSetupFunctionReg),
-               WasmValue(declared_function_index));
+               WasmValue(defined_function_index));
   CallBuiltin(Builtin::kWasmLiftoffFrameSetup);
 }
 
@@ -449,7 +448,7 @@ bool LiftoffAssembler::NeedsAlignment(ValueKind kind) {
   return kind == kS128 || is_reference(kind);
 }
 
-void LiftoffAssembler::CheckTierUp(int declared_func_index, int budget_used,
+void LiftoffAssembler::CheckTierUp(int defined_func_index, int budget_used,
                                    Label* ool_label,
                                    const FreezeCacheState& frozen) {
   Register budget_array = kScratchReg;
@@ -464,7 +463,7 @@ void LiftoffAssembler::CheckTierUp(int declared_func_index, int budget_used,
      FieldMemOperand(instance_data,
                      WasmTrustedInstanceData::kTieringBudgetArrayOffset));
 
-  int budget_arr_offset = kInt32Size * declared_func_index;
+  int budget_arr_offset = kInt32Size * defined_func_index;
 
   Register budget = kScratchReg2;
   MemOperand budget_addr(budget_array, budget_arr_offset);
@@ -1235,6 +1234,12 @@ void LiftoffAssembler::StoreCallerFrameSlot(LiftoffRegister src,
                                             uint32_t caller_slot_idx,
                                             ValueKind kind) {
   int32_t offset = kSystemPointerSize * (caller_slot_idx + 1);
+  if (kind == kI32) {
+    // Store the full (sign-extended) register, matching liftoff::push, so
+    // that the caller-frame slot is fully initialized.
+    Sd(src.gp(), MemOperand(fp, offset));
+    return;
+  }
   liftoff::Store(this, fp, offset, src, kind);
 }
 
@@ -1791,8 +1796,7 @@ void LiftoffAssembler::emit_i64_rol(LiftoffRegister dst, LiftoffRegister src,
 
 void LiftoffAssembler::emit_i64_roli(LiftoffRegister dst, LiftoffRegister src,
                                      int32_t amount) {
-  int amount_ror = 64 - amount;
-  amount_ror &= 63;
+  int amount_ror = (64 - (amount & 63)) & 63;
   if (amount_ror < 32) {
     drotr(dst.gp(), src.gp(), amount_ror);
   } else {
@@ -4407,7 +4411,14 @@ void LiftoffStackSlots::Construct(int param_slots) {
       case LiftoffAssembler::VarState::kStack:
         if (src.kind() != kS128) {
           asm_->AllocateStackSpace(stack_decrement - kSystemPointerSize);
-          asm_->Ld(kScratchReg, liftoff::GetStackSlot(slot.src_offset_));
+          if (src.kind() == kI32) {
+            // Spill() only writes the low 4 bytes of an i32 spill slot, so the
+            // upper 4 bytes are stale. Load with sign extension so that the
+            // pushed 8-byte argument slot holds a canonical i32.
+            asm_->Lw(kScratchReg, liftoff::GetStackSlot(slot.src_offset_));
+          } else {
+            asm_->Ld(kScratchReg, liftoff::GetStackSlot(slot.src_offset_));
+          }
           asm_->push(kScratchReg);
         } else {
           asm_->AllocateStackSpace(stack_decrement - kSimd128Size);

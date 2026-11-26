@@ -50,4 +50,8 @@
 #define LOG_INFO 6
 #define LOG_DEBUG 7
 
+// Priority masks for setlogmask
+#define LOG_MASK(pri) (1 << (pri))
+#define LOG_UPTO(pri) ((1 << ((pri) + 1)) - 1)
+
 #endif // LLVM_LIBC_MACROS_SYSLOG_MACROS_H

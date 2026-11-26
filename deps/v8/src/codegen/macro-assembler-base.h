@@ -89,29 +89,31 @@ class V8_EXPORT_PRIVATE MacroAssemblerBase : public Assembler {
 
   // Loads the given constant or external reference without embedding its direct
   // pointer. The produced code is isolate-independent.
-  void IndirectLoadConstant(Register destination, Handle<HeapObject> object);
-  void IndirectLoadExternalReference(Register destination,
+  void IndirectLoadConstant(V8_REG_OUT Register destination,
+                            Handle<HeapObject> object);
+  void IndirectLoadExternalReference(V8_REG_OUT Register destination,
                                      ExternalReference reference);
 
   Address BuiltinEntry(Builtin builtin);
 
-  virtual void LoadFromConstantsTable(Register destination,
+  virtual void LoadFromConstantsTable(V8_REG_OUT Register destination,
                                       int constant_index) = 0;
 
   // Corresponds to: destination = kRootRegister + offset.
-  virtual void LoadRootRegisterOffset(Register destination,
+  virtual void LoadRootRegisterOffset(V8_REG_OUT Register destination,
                                       intptr_t offset) = 0;
 
   // Corresponds to: destination = [kRootRegister + offset].
-  virtual void LoadRootRelative(Register destination, int32_t offset) = 0;
-  virtual void StoreRootRelative(int32_t offset, Register value) = 0;
+  virtual void LoadRootRelative(V8_REG_OUT Register destination,
+                                int32_t offset) = 0;
+  virtual void StoreRootRelative(int32_t offset, V8_REG_IN Register value) = 0;
 
   static constexpr bool CanBeImmediate(RootIndex index) {
     return V8_STATIC_ROOTS_BOOL && RootsTable::IsReadOnly(index);
   }
   Tagged_t ReadOnlyRootPtr(RootIndex index);
   static Tagged_t ReadOnlyRootPtr(RootIndex index, Isolate* isolate);
-  virtual void LoadRoot(Register destination, RootIndex index) = 0;
+  virtual void LoadRoot(V8_REG_OUT Register destination, RootIndex index) = 0;
 
   static int32_t RootRegisterOffsetForRootIndex(RootIndex root_index);
   static int32_t RootRegisterOffsetForBuiltin(Builtin builtin);

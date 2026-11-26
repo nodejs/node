@@ -13,7 +13,6 @@
 
 #include "include/v8config.h"
 #include "src/base/numbers/dtoa.h"
-#include "src/base/numbers/strtod.h"
 #include "src/base/unique-array.h"
 #include "src/bigint/bigint-inl.h"
 #include "src/common/assert-scope.h"
@@ -747,28 +746,28 @@ class NumberParseIntHelper : public StringToIntHelper {
 
   template <class Char>
   void HandleBaseTenCase(const Char* current, const Char* end) {
-    // Parsing with strtod.
-    // Doubles are less than 1.8e308.
-    constexpr size_t kMaxSignificantDigits = 309;
-    // The buffer may contain up to kMaxSignificantDigits + 1 digits and a zero
-    // end.
-    constexpr size_t kBufferSize = kMaxSignificantDigits + 2;
-    char buffer[kBufferSize];
-    size_t buffer_pos = 0;
-    while (*current >= '0' && *current <= '9') {
-      if (buffer_pos <= kMaxSignificantDigits) {
-        // If the number has more than kMaxSignificantDigits it will be parsed
-        // as infinity.
-        static_assert(kMaxSignificantDigits < kBufferSize);
-        buffer[buffer_pos++] = static_cast<char>(*current);
-      }
-      ++current;
-      if (current == end) break;
-    }
-
-    SLOW_DCHECK(buffer_pos < kBufferSize);
-    buffer[buffer_pos] = '\0';
-    result_ = base::Strtod({buffer, buffer_pos}, 0);
+    DCHECK_LT(current, end);
+    DCHECK(isDigit(*current, 10));
+    // fast_float takes a char/char16_t instead of a uint8_t/uint16_t. Cast the
+    // pointers to match.
+    using UC =
+        std::conditional_t<std::is_same_v<Char, uint8_t>, char, char16_t>;
+    static_assert(sizeof(UC) == sizeof(Char));
+    const UC* current_uc = reinterpret_cast<const UC*>(current);
+    const UC* end_uc = reinterpret_cast<const UC*>(end);
+    // Use '0' as the decimal point so that after scanning the integer digits,
+    // fast_float never matches a fractional part (since the integer loop stops
+    // at a non-digit, which cannot be '0'), while chars_format::fixed disables
+    // exponent parsing.
+    static constexpr fast_float::parse_options_t<UC> kOptions{
+        static_cast<fast_float::chars_format>(
+            fast_float::chars_format::fixed |
+            fast_float::chars_format::no_infnan),
+        /*decimal_point=*/UC('0')};
+    auto ret =
+        fast_float::from_chars_advanced(current_uc, end_uc, result_, kOptions);
+    DCHECK_GT(ret.ptr, current_uc);
+    USE(ret);
     set_state(State::kDone);
   }
 
@@ -889,12 +888,13 @@ double InternalStringToDouble(const Char* current, const Char* end,
   static_assert(sizeof(UC) == sizeof(Char));
   const UC* current_uc = reinterpret_cast<const UC*>(current);
   const UC* end_uc = reinterpret_cast<const UC*>(end);
+  static constexpr fast_float::parse_options_t<UC> kOptions{
+      static_cast<fast_float::chars_format>(
+          fast_float::chars_format::general |
+          fast_float::chars_format::no_infnan |
+          fast_float::chars_format::allow_leading_plus)};
   auto ret =
-      fast_float::from_chars(current_uc, end_uc, value,
-                             static_cast<fast_float::chars_format>(
-                                 fast_float::chars_format::general |
-                                 fast_float::chars_format::no_infnan |
-                                 fast_float::chars_format::allow_leading_plus));
+      fast_float::from_chars_advanced(current_uc, end_uc, value, kOptions);
   if (ret.ptr == end_uc) return value;
   if (ret.ptr > current_uc) {
     current = reinterpret_cast<const Char*>(ret.ptr);
@@ -1076,12 +1076,16 @@ class StringToBigIntHelper : public StringToIntHelper {
       sandbox_storage.reset(processor->platform()->Allocate(num_digits));
       digit_storage = sandbox_storage.get();
     }
+    bigint::Processor::IgnoreInterruptsScope ignore_interrupts(processor);
     bigint::RWDigits digits(digit_storage, num_digits);
-    processor->FromString(digits, &accumulator_);
+    bigint::Status status = processor->FromString(digits, &accumulator_);
+    DCHECK_EQ(status, bigint::Status::kOk);
     uint32_t num_chars = bigint::ToStringResultLength(digits, 10, false);
     SandboxChars out(SandboxAllocArray<uint8_t>(num_chars));
     char* chars = reinterpret_cast<char*>(out.get());
-    processor->ToString(chars, &num_chars, digits, 10, false);
+    status = processor->ToString(chars, &num_chars, digits, 10, false);
+    DCHECK_EQ(status, bigint::Status::kOk);
+    USE(status);
     return {std::move(out), num_chars};
   }
   IsolateT* isolate() { return isolate_; }
@@ -1105,7 +1109,7 @@ class StringToBigIntHelper : public StringToIntHelper {
   }
 
   AllocationType allocation_type() {
-    // For literals, we pretenure the allocated BigInt, since it's about
+    // For literals, we allocate the BigInt in old space, since it's about
     // to be stored in the interpreter's constants array.
     return behavior_ == Behavior::kLiteral ? AllocationType::kOld
                                            : AllocationType::kYoung;
@@ -1125,6 +1129,8 @@ MaybeHandle<BigInt> StringToBigInt(Isolate* isolate,
 
 template <typename IsolateT>
 MaybeHandle<BigInt> BigIntLiteral(IsolateT* isolate, const char* string) {
+  bigint::Processor::IgnoreInterruptsScope ignore_interrupts(
+      isolate->bigint_processor());
   StringToBigIntHelper<IsolateT> helper(
       isolate, reinterpret_cast<const uint8_t*>(string), strlen(string));
   return helper.GetResult();

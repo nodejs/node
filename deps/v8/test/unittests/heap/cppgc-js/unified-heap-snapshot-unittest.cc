@@ -1141,7 +1141,7 @@ TEST_F(UnifiedHeapSnapshotTest, WrappedContext) {
       *snapshot,
       {kExpectedGCRootsName, kExpectedCppRootsName,
        wrapped->GetHumanReadableName(), "system / NativeContext",
-       "system / EmbedderDataArray", wrapped->GetHumanReadableName()},
+       wrapped->GetHumanReadableName()},
       true));
 
   wrapped->set_detachedness(v8::EmbedderGraph::Node::Detachedness::kDetached);
@@ -1152,7 +1152,7 @@ TEST_F(UnifiedHeapSnapshotTest, WrappedContext) {
       *snapshot,
       {kExpectedGCRootsName, kExpectedCppRootsName,
        wrapped->GetHumanReadableName(), "system / NativeContext",
-       "system / EmbedderDataArray", wrapped->GetHumanReadableName()},
+       wrapped->GetHumanReadableName()},
       true));
   ForEachEntryWithName(
       snapshot, wrapped->GetHumanReadableName(), [](const HeapEntry& entry) {
@@ -1447,6 +1447,64 @@ TEST_F(UnifiedHeapSnapshotTest, WeakMember) {
   ASSERT_NE(nullptr, edge);
   EXPECT_EQ(HeapGraphEdge::kWeak, edge->type());
   EXPECT_EQ(target_entry, edge->to());
+}
+
+namespace {
+
+class InConstructionNameProvider final
+    : public cppgc::GarbageCollected<InConstructionNameProvider>,
+      public cppgc::NameProvider {
+ public:
+  static constexpr const char kExpectedName[] = "InConstructionNameProvider";
+
+  template <typename Callback>
+  explicit InConstructionNameProvider(Callback callback) {
+    callback(this);
+    constructed_ = true;
+  }
+
+  void Trace(cppgc::Visitor*) const {}
+  const char* GetHumanReadableName() const final {
+    EXPECT_TRUE(constructed_);
+    return kExpectedName;
+  }
+
+ private:
+  bool constructed_ = false;
+};
+
+}  // namespace
+
+TEST_F(UnifiedHeapSnapshotTest, InConstructionNameProviderOnStack) {
+  static constexpr const char kExpectedInConstructionName[] =
+      "InConstructionObject";
+  auto* volatile object =
+      cppgc::MakeGarbageCollected<InConstructionNameProvider>(
+          allocation_handle(), [this](InConstructionNameProvider* self) {
+            cppgc::Persistent<InConstructionNameProvider> persistent(self);
+            const v8::HeapSnapshot* snapshot = TakeHeapSnapshot(
+                cppgc::EmbedderStackState::kMayContainHeapPointers);
+            EXPECT_TRUE(IsValidSnapshot(snapshot));
+            // While `self` is still in construction, `GetName()` must not call
+            // `GetHumanReadableName()` and instead reports the placeholder
+            // in-construction name (since `TakeHeapSnapshot` uses class names
+            // for unnamed objects). Verify this for both conservative stack
+            // roots and persistent roots.
+            EXPECT_TRUE(ContainsRetainingPath(
+                *snapshot, {kExpectedGCRootsName, kExpectedCppStackRootsName,
+                            kExpectedInConstructionName}));
+            EXPECT_TRUE(ContainsRetainingPath(
+                *snapshot, {kExpectedGCRootsName, kExpectedCppRootsName,
+                            kExpectedInConstructionName}));
+          });
+  const v8::HeapSnapshot* snapshot_after =
+      TakeHeapSnapshot(cppgc::EmbedderStackState::kMayContainHeapPointers);
+  EXPECT_TRUE(IsValidSnapshot(snapshot_after));
+  EXPECT_TRUE(ContainsRetainingPath(
+      *snapshot_after, {kExpectedGCRootsName, kExpectedCppStackRootsName,
+                        InConstructionNameProvider::kExpectedName}));
+  EXPECT_STREQ(object->GetHumanReadableName(),
+               InConstructionNameProvider::kExpectedName);
 }
 
 }  // namespace internal

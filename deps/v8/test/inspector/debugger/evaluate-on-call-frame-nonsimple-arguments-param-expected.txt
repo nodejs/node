@@ -1,0 +1,13 @@
+Tests Debugger.evaluateOnCallFrame with non-simple arguments param
+
+Running test: testOptimizedAndUnoptimized
+Testing unoptimized f:
+Paused in unoptimized frame
+{
+    description : 7
+    type : number
+    value : 7
+}
+Testing optimized f:
+Paused in optimized frame
+Exception: ReferenceError: Cannot access 'arguments' from debugger

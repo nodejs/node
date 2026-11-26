@@ -203,16 +203,17 @@ constexpr const char* const ff2_data[] = {
 // temporary directory location. This way we can test inclusion of one flagfile
 // from another flagfile.
 const char* GetFlagfileFlag(const std::vector<FlagfileData>& ffd,
-                            std::string& flagfile_flag) {
+                            std::string& flagfile_flag,
+                            absl::string_view line_ending = "\n") {
   flagfile_flag = "--flagfile=";
   absl::string_view separator;
   for (const auto& flagfile_data : ffd) {
     std::string flagfile_name =
         absl::StrCat(GetTestTempDir(), flagfile_data.file_name);
 
-    std::ofstream flagfile_out(flagfile_name);
+    std::ofstream flagfile_out(flagfile_name, std::ios::binary);
     for (auto line : flagfile_data.file_lines) {
-      flagfile_out << absl::Substitute(line, GetTestTempDir()) << "\n";
+      flagfile_out << absl::Substitute(line, GetTestTempDir()) << line_ending;
     }
 
     absl::StrAppend(&flagfile_flag, separator, flagfile_name);
@@ -769,6 +770,57 @@ TEST_F(ParseTest, TestFlagfileInFlagfile) {
 
 // --------------------------------------------------------------------
 
+TEST_F(ParseTest, TestFlagfileWithCrLf) {
+  std::string flagfile_flag;
+
+  constexpr const char* const crlf_basic_data[] = {
+      "# comment",
+      "",
+      "   ",
+      "--int_flag=42",
+      "--string_flag=plain",
+      "--bool_flag",
+      "--udt_flag=AAA",
+  };
+  const char* in_args1[] = {
+      "testbin",
+      GetFlagfileFlag(
+          {{"parse_test.crlf_basic", absl::MakeConstSpan(crlf_basic_data)}},
+          flagfile_flag, "\r\n"),
+  };
+  TestParse(in_args1, 42, 1.1, "plain", true);
+  EXPECT_EQ(absl::GetFlag(FLAGS_udt_flag).value, 10);
+
+  GetFlagfileFlag({{"parse_test.crlf_ff2", absl::MakeConstSpan(ff2_data)},
+                   {"parse_test.crlf_ff1", absl::MakeConstSpan(ff1_data)}},
+                  flagfile_flag, "\r\n");
+
+  constexpr const char* const crlf_include_data[] = {
+      "--flagfile=$0/parse_test.crlf_ff1",
+      "--flagfile=$0/parse_test.crlf_ff2",
+  };
+  const char* in_args2[] = {
+      "testbin",
+      GetFlagfileFlag(
+          {{"parse_test.crlf_include", absl::MakeConstSpan(crlf_include_data)}},
+          flagfile_flag, "\r\n"),
+  };
+  TestParse(in_args2, 100, 0.1, "q2w2  ", false);
+
+  constexpr const char* const crlf_empty_str_data[] = {
+      "--string_flag=",
+  };
+  const char* in_args3[] = {
+      "testbin",
+      GetFlagfileFlag({{"parse_test.crlf_empty_str",
+                        absl::MakeConstSpan(crlf_empty_str_data)}},
+                      flagfile_flag, "\r\n"),
+  };
+  TestParse(in_args3, 100, 0.1, "", false);
+}
+
+// --------------------------------------------------------------------
+
 TEST_F(ParseDeathTest, TestInvalidFlagfiles) {
   std::string flagfile_flag;
 
@@ -806,6 +858,15 @@ TEST_F(ParseDeathTest, TestInvalidFlagfiles) {
                       flagfile_flag),
   };
   EXPECT_DEATH_IF_SUPPORTED(InvokeParse(in_args3),
+               "Flagfile can't contain position arguments or --");
+
+  const char* in_args3_crlf[] = {
+      "testbin",
+      GetFlagfileFlag(
+          {{"parse_test.crlf_ff6", absl::MakeConstSpan(ff6_data)}},
+          flagfile_flag, "\r\n"),
+  };
+  EXPECT_DEATH_IF_SUPPORTED(InvokeParse(in_args3_crlf),
                "Flagfile can't contain position arguments or --");
 
   const char* in_args4[] = {

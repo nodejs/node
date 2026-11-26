@@ -8,6 +8,7 @@
 #include "src/debug/debug-coverage.h"
 #include "src/debug/debug-scopes.h"
 #include "src/debug/debug.h"
+#include "src/execution/arguments-inl.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
 #include "src/interpreter/bytecodes.h"
@@ -82,7 +83,7 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_DebugBreakOnBytecode) {
 
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
-  DirectHandle<Object> value = args.at(0);
+  Handle<Object> value = args.at(0);
   HandleScope scope(isolate);
 
   // Return value can be changed by debugger. Last set value will be used as
@@ -138,10 +139,11 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_DebugBreakOnBytecode) {
     // entry trampoline sees the return/suspend bytecode rather than the
     // DebugBreak.
     interpreted_frame->PatchBytecodeArray(bytecode_array);
+    return MakePair(isolate->debug()->return_value(),
+                    Smi::FromInt(static_cast<uint8_t>(bytecode)));
   }
 
-  return MakePair(isolate->debug()->return_value(),
-                  Smi::FromInt(static_cast<uint8_t>(bytecode)));
+  return MakePair(*value, Smi::FromInt(static_cast<uint8_t>(bytecode)));
 }
 
 RUNTIME_FUNCTION(Runtime_DebugBreakAtEntry) {
@@ -557,18 +559,6 @@ RUNTIME_FUNCTION(Runtime_GetBreakLocations) {
       Cast<FixedArray>(break_locations));
 }
 
-// Returns the state of break on exceptions
-// args[0]: boolean indicating uncaught exceptions
-RUNTIME_FUNCTION(Runtime_IsBreakOnException) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  uint32_t type_arg = NumberToUint32(args[0]);
-
-  ExceptionBreakType type = static_cast<ExceptionBreakType>(type_arg);
-  bool result = isolate->debug()->IsBreakOnException(type);
-  return Smi::FromInt(result);
-}
-
 // Clear all stepping set by PrepareStep.
 RUNTIME_FUNCTION(Runtime_ClearStepping) {
   HandleScope scope(isolate);
@@ -619,148 +609,6 @@ RUNTIME_FUNCTION(Runtime_CollectGarbage) {
   isolate->heap()->PreciseCollectAllGarbage(GCFlag::kNoFlags,
                                             GarbageCollectionReason::kRuntime);
   return ReadOnlyRoots(isolate).undefined_value();
-}
-
-namespace {
-
-int ScriptLinePosition(Isolate* isolate, DirectHandle<Script> script,
-                       int int_line) {
-  if (int_line < 0) return -1;
-  uint32_t line = static_cast<uint32_t>(int_line);
-
-#if V8_ENABLE_WEBASSEMBLY
-  if (script->type() == Script::Type::kWasm) {
-    // Wasm positions are relative to the start of the module.
-    return 0;
-  }
-#endif  // V8_ENABLE_WEBASSEMBLY
-
-  Script::InitLineEnds(isolate, script);
-
-  Tagged<FixedArray> line_ends_array = Cast<FixedArray>(script->line_ends());
-  const uint32_t line_count = line_ends_array->ulength().value();
-
-  if (line == 0) return 0;
-  // If line == line_count, we return the first position beyond the last line.
-  if (line > line_count) return -1;
-  return Smi::ToInt(line_ends_array->get(line - 1)) + 1;
-}
-
-int ScriptLinePositionWithOffset(Isolate* isolate, DirectHandle<Script> script,
-                                 int line, int offset) {
-  if (line < 0 || offset < 0) return -1;
-
-  if (line == 0 || offset == 0) {
-    return ScriptLinePosition(isolate, script, line) + offset;
-  }
-
-  Script::PositionInfo info;
-  if (!Script::GetPositionInfo(script, offset, &info,
-                               Script::OffsetFlag::kNoOffset)) {
-    return -1;
-  }
-
-  const int total_line = info.line + line;
-  return ScriptLinePosition(isolate, script, total_line);
-}
-
-DirectHandle<Object> GetJSPositionInfo(DirectHandle<Script> script,
-                                       int position,
-                                       Script::OffsetFlag offset_flag,
-                                       Isolate* isolate) {
-  Script::PositionInfo info;
-  if (!Script::GetPositionInfo(script, position, &info, offset_flag)) {
-    return isolate->factory()->null_value();
-  }
-
-#if V8_ENABLE_WEBASSEMBLY
-  const bool is_wasm_script = script->type() == Script::Type::kWasm;
-#else
-  const bool is_wasm_script = false;
-#endif  // V8_ENABLE_WEBASSEMBLY
-  DirectHandle<String> sourceText =
-      is_wasm_script ? isolate->factory()->empty_string()
-                     : isolate->factory()->NewSubString(
-                           handle(Cast<String>(script->source()), isolate),
-                           info.line_start, info.line_end);
-
-  DirectHandle<JSObject> jsinfo =
-      isolate->factory()->NewJSObject(isolate->object_function());
-
-  JSObject::AddProperty(isolate, jsinfo, isolate->factory()->script_string(),
-                        script, NONE);
-  JSObject::AddProperty(isolate, jsinfo, isolate->factory()->position_string(),
-                        direct_handle(Smi::FromInt(position), isolate), NONE);
-  JSObject::AddProperty(isolate, jsinfo, isolate->factory()->line_string(),
-                        direct_handle(Smi::FromInt(info.line), isolate), NONE);
-  JSObject::AddProperty(isolate, jsinfo, isolate->factory()->column_string(),
-                        direct_handle(Smi::FromInt(info.column), isolate),
-                        NONE);
-  JSObject::AddProperty(isolate, jsinfo,
-                        isolate->factory()->sourceText_string(), sourceText,
-                        NONE);
-
-  return jsinfo;
-}
-
-DirectHandle<Object> ScriptLocationFromLine(Isolate* isolate,
-                                            DirectHandle<Script> script,
-                                            DirectHandle<Object> opt_line,
-                                            DirectHandle<Object> opt_column,
-                                            int32_t offset) {
-  // Line and column are possibly undefined and we need to handle these cases,
-  // additionally subtracting corresponding offsets.
-
-  int32_t line = 0;
-  if (!IsNullOrUndefined(*opt_line)) {
-    CHECK(IsNumber(*opt_line));
-    line = NumberToInt32(*opt_line) - script->line_offset();
-  }
-
-  int32_t column = 0;
-  if (!IsNullOrUndefined(*opt_column)) {
-    CHECK(IsNumber(*opt_column));
-    column = NumberToInt32(*opt_column);
-    if (line == 0) column -= script->column_offset();
-  }
-
-  int line_position =
-      ScriptLinePositionWithOffset(isolate, script, line, offset);
-  if (line_position < 0 || column < 0) return isolate->factory()->null_value();
-
-  return GetJSPositionInfo(script, line_position + column,
-                           Script::OffsetFlag::kNoOffset, isolate);
-}
-
-// Slow traversal over all scripts on the heap.
-bool GetScriptById(Isolate* isolate, int needle, DirectHandle<Script>* result) {
-  Script::Iterator iterator(isolate);
-  for (Tagged<Script> script = iterator.Next(); !script.is_null();
-       script = iterator.Next()) {
-    if (script->id() == needle) {
-      *result = direct_handle(script, isolate);
-      return true;
-    }
-  }
-
-  return false;
-}
-
-}  // namespace
-
-// TODO(5530): Rename once conflicting function has been deleted.
-RUNTIME_FUNCTION(Runtime_ScriptLocationFromLine2) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(4, args.length());
-  int32_t scriptid = NumberToInt32(args[0]);
-  DirectHandle<Object> opt_line = args.at(1);
-  DirectHandle<Object> opt_column = args.at(2);
-  int32_t offset = NumberToInt32(args[3]);
-
-  DirectHandle<Script> script;
-  CHECK(GetScriptById(isolate, scriptid, &script));
-
-  return *ScriptLocationFromLine(isolate, script, opt_line, opt_column, offset);
 }
 
 // On function call, depending on circumstances, prepare for stepping in,

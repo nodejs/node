@@ -440,14 +440,9 @@ CRC* CRC::Crc32c() {
 }
 
 #ifndef NDEBUG
-ABSL_ATTRIBUTE_WEAK
+ABSL_ATTRIBUTE_WEAK void DebugReportNonTemporalStore() {}
+ABSL_ATTRIBUTE_WEAK void DebugReportStoreFence() {}
 #endif
-void DebugReportNonTemporalStore() {}
-
-#ifndef NDEBUG
-ABSL_ATTRIBUTE_WEAK
-#endif
-void DebugReportStoreFence() {}
 
 }  // namespace crc_internal
 ABSL_NAMESPACE_END

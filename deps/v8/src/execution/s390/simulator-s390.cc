@@ -194,9 +194,6 @@ void S390Debugger::Debug() {
   // Unset breakpoint while running in the debugger shell, making it invisible
   // to all commands.
   UndoBreakpoint();
-  // Disable tracing while simulating
-  bool trace = v8_flags.trace_sim;
-  v8_flags.trace_sim = false;
 
   while (!done && !sim_->has_bad_pc()) {
     if (last_pc != sim_->get_pc()) {
@@ -529,7 +526,7 @@ void S390Debugger::Debug() {
           if (strcmp(arg1, "info") == 0) {
             if (strcmp(arg2, "all") == 0) {
               PrintF("Stop information:\n");
-              for (uint32_t i = 0; i < sim_->kNumOfWatchedStops; i++) {
+              for (uint32_t i = 0; i < Simulator::kNumOfWatchedStops; i++) {
                 sim_->PrintStopInfo(i);
               }
             } else if (GetValue(arg2, &value)) {
@@ -540,7 +537,7 @@ void S390Debugger::Debug() {
           } else if (strcmp(arg1, "enable") == 0) {
             // Enable all/the specified breakpoint(s).
             if (strcmp(arg2, "all") == 0) {
-              for (uint32_t i = 0; i < sim_->kNumOfWatchedStops; i++) {
+              for (uint32_t i = 0; i < Simulator::kNumOfWatchedStops; i++) {
                 sim_->EnableStop(i);
               }
             } else if (GetValue(arg2, &value)) {
@@ -551,7 +548,7 @@ void S390Debugger::Debug() {
           } else if (strcmp(arg1, "disable") == 0) {
             // Disable all/the specified breakpoint(s).
             if (strcmp(arg2, "all") == 0) {
-              for (uint32_t i = 0; i < sim_->kNumOfWatchedStops; i++) {
+              for (uint32_t i = 0; i < Simulator::kNumOfWatchedStops; i++) {
                 sim_->DisableStop(i);
               }
             } else if (GetValue(arg2, &value)) {
@@ -640,8 +637,6 @@ void S390Debugger::Debug() {
   // Reinstall breakpoint to stop execution and enter the debugger shell when
   // hit.
   RedoBreakpoint();
-  // Restore tracing
-  v8_flags.trace_sim = trace;
 
 #undef COMMAND_SIZE
 #undef ARG_SIZE
@@ -1109,6 +1104,7 @@ void Simulator::EvalTableInit() {
   EvalTable[LTEBR] = &Simulator::Evaluate_LTEBR;
   EvalTable[LCEBR] = &Simulator::Evaluate_LCEBR;
   EvalTable[LDEBR] = &Simulator::Evaluate_LDEBR;
+  EvalTable[LDER] = &Simulator::Evaluate_LDER;
   EvalTable[LXDBR] = &Simulator::Evaluate_LXDBR;
   EvalTable[LXEBR] = &Simulator::Evaluate_LXEBR;
   EvalTable[MXDBR] = &Simulator::Evaluate_MXDBR;
@@ -1539,6 +1535,7 @@ void Simulator::EvalTableInit() {
   EvalTable[CGRB] = &Simulator::Evaluate_CGRB;
   EvalTable[CGIB] = &Simulator::Evaluate_CGIB;
   EvalTable[CIB] = &Simulator::Evaluate_CIB;
+  EvalTable[LDE] = &Simulator::Evaluate_LDE;
   EvalTable[LDEB] = &Simulator::Evaluate_LDEB;
   EvalTable[LXDB] = &Simulator::Evaluate_LXDB;
   EvalTable[LXEB] = &Simulator::Evaluate_LXEB;
@@ -7188,6 +7185,15 @@ EVALUATE(LDEBR) {
   return length;
 }
 
+EVALUATE(LDER) {
+  DCHECK_OPCODE(LDER);
+  DECODE_RRE_INSTRUCTION(r1, r2);
+  float fval = get_fpr<float>(r2);
+  set_fpr<uint64_t>(r1, 0);
+  set_fpr<float>(r1, fval);
+  return length;
+}
+
 EVALUATE(LXDBR) {
   UNIMPLEMENTED();
   USE(instr);
@@ -11036,6 +11042,18 @@ EVALUATE(CIB) {
   UNIMPLEMENTED();
   USE(instr);
   return 0;
+}
+
+EVALUATE(LDE) {
+  DCHECK_OPCODE(LDE);
+  DECODE_RXE_INSTRUCTION(r1, b2, x2, d2);
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
+  intptr_t addr = b2_val + x2_val + d2;
+  float fval = ReadFloat(addr);
+  set_fpr<uint64_t>(r1, 0);
+  set_fpr<float>(r1, fval);
+  return length;
 }
 
 EVALUATE(LDEB) {

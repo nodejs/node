@@ -282,10 +282,16 @@ class JSSpeculativeBinopBuilder final {
     DCHECK_EQ(2, op->ValueInputCount());
     DCHECK_EQ(1, op->EffectInputCount());
     DCHECK_EQ(1, op->ControlInputCount());
-    DCHECK_EQ(false, OperatorProperties::HasFrameStateInput(op));
     DCHECK_EQ(false, OperatorProperties::HasContextInput(op));
     DCHECK_EQ(1, op->EffectOutputCount());
     DCHECK_EQ(0, op->ControlOutputCount());
+    if (OperatorProperties::HasFrameStateInput(op)) {
+      // Terminating BigInt ops (*, /, %) need a lazy FrameState, which
+      // BytecodeGraphBuilder attaches after lowering.
+      Node* placeholder_frame_state = jsgraph()->Dead();
+      return graph()->NewNode(op, left_, right_, placeholder_frame_state,
+                              effect_, control_);
+    }
     return graph()->NewNode(op, left_, right_, effect_, control_);
   }
 

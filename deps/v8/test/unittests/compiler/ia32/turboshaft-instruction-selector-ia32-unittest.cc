@@ -977,9 +977,10 @@ TEST_F(TurboshaftInstructionSelectorTest, AtomicStoreWithWriteBarrier) {
   StreamBuilder m(this, MachineType::Int32(), MachineType::Pointer(),
                   MachineType::Pointer(), MachineType::AnyTagged());
   m.Store(m.Parameter(0), m.Parameter(1), m.Parameter(2),
-          StoreOp::Kind::Aligned(BaseTaggedness::kTaggedBase).Atomic(),
+          StoreOp::Kind::Aligned(BaseTaggedness::kTaggedBase)
+              .Atomic(AtomicMemoryOrder::kSeqCst),
           MemoryRepresentation::TaggedPointer(),
-          WriteBarrierKind::kFullWriteBarrier, AtomicMemoryOrder::kSeqCst);
+          WriteBarrierKind::kFullWriteBarrier);
   m.Return(m.Int32Constant(0));
   Stream s = m.Build(kAllExceptNopInstructions);
   ASSERT_EQ(2U, s.size());

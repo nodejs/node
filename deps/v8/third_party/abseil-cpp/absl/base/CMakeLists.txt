@@ -536,6 +536,21 @@ absl_cc_test(
     4
 )
 
+absl_cc_test(
+  NAME
+    spinlock_profiling_test
+  SRCS
+    "spinlock_profiling_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::base
+    absl::base_internal
+    absl::config
+    absl::synchronization
+    GTest::gtest_main
+)
+
 # Internal-only target, do not depend on directly.
 absl_cc_library(
   NAME

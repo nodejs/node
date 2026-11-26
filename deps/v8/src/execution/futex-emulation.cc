@@ -7,6 +7,7 @@
 #include <limits>
 
 #include "src/api/api-inl.h"
+#include "src/base/bounds.h"
 #include "src/base/lazy-instance.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
@@ -19,6 +20,7 @@
 #include "src/objects/js-promise-inl.h"
 #include "src/objects/managed.h"
 #include "src/objects/objects-inl.h"
+#include "src/sandbox/check.h"
 #include "src/tasks/cancelable-task.h"
 
 namespace v8::internal {
@@ -43,8 +45,12 @@ class FutexWaitList {
     return static_cast<uint8_t*>(array_buffer->backing_store()) + addr;
   }
 
+  template <typename T>
   static void* ToWaitLocation(BackingStore* backing_store, size_t addr) {
-    DCHECK_LT(addr, backing_store->byte_length());
+    SBXCHECK(IsAligned(addr, sizeof(T)));
+    SBXCHECK(base::IsInBounds<size_t>(
+        addr, sizeof(T),
+        backing_store->byte_length(std::memory_order_acquire)));
     return static_cast<uint8_t*>(backing_store->buffer_start()) + addr;
   }
 
@@ -310,7 +316,8 @@ Tagged<Object> FutexEmulation::WaitWasm32(Isolate* isolate,
                                           BackingStore* backing_store,
                                           size_t addr, int32_t value,
                                           int64_t rel_timeout_ns) {
-  void* wait_location = FutexWaitList::ToWaitLocation(backing_store, addr);
+  void* wait_location =
+      FutexWaitList::ToWaitLocation<int32_t>(backing_store, addr);
   return WaitSync<int32_t>(isolate, wait_location, value, rel_timeout_ns >= 0,
                            rel_timeout_ns, CallType::kIsWasm);
 }
@@ -319,7 +326,8 @@ Tagged<Object> FutexEmulation::WaitWasm64(Isolate* isolate,
                                           BackingStore* backing_store,
                                           size_t addr, int64_t value,
                                           int64_t rel_timeout_ns) {
-  void* wait_location = FutexWaitList::ToWaitLocation(backing_store, addr);
+  void* wait_location =
+      FutexWaitList::ToWaitLocation<int64_t>(backing_store, addr);
   return WaitSync<int64_t>(isolate, wait_location, value, rel_timeout_ns >= 0,
                            rel_timeout_ns, CallType::kIsWasm);
 }
@@ -893,7 +901,8 @@ void FutexEmulation::ResolveAsyncWaiterPromise(FutexWaitListNode* node) {
     return;
   }
 
-  if (!node->async_state_->promise.IsEmpty()) {
+  if (!node->async_state_->promise.IsEmpty() &&
+      !isolate->is_execution_terminating()) {
     DCHECK(!node->async_state_->native_context.IsEmpty());
     Local<v8::Context> native_context =
         node->async_state_->native_context.Get(v8_isolate);
@@ -912,7 +921,8 @@ void FutexEmulation::ResolveAsyncWaiterPromise(FutexWaitListNode* node) {
     }
     MaybeDirectHandle<Object> resolve_result =
         JSPromise::Resolve(promise, result_string);
-    DCHECK(!resolve_result.is_null());
+    DCHECK_IMPLIES(resolve_result.is_null(),
+                   isolate->is_execution_terminating());
     USE(resolve_result);
   }
 }

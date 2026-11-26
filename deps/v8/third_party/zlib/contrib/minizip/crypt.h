@@ -77,11 +77,10 @@ static void init_keys(const char* passwd, unsigned long* pkeys, const z_crc_t* p
 #ifdef INCLUDECRYPTINGCODE_IFCRYPTALLOWED
 
 #define RAND_HEAD_LEN  12
-   /* "last resort" source for second part of crypt seed pattern */
-#  ifndef ZCR_SEED2
-#    define ZCR_SEED2 3141592654UL      /* use PI as default pattern */
-#  endif
 
+/* The random header bytes come from the PCG32 generator in skipset.h, which
+   must be included before this file when INCLUDECRYPTINGCODE_IFCRYPTALLOWED is
+   defined. */
 static unsigned crypthead(const char* passwd,       /* password string */
                           unsigned char* buf,       /* where to write header */
                           int bufSize,
@@ -92,23 +91,25 @@ static unsigned crypthead(const char* passwd,       /* password string */
     int t;                       /* temporary */
     int c;                       /* random byte */
     unsigned char header[RAND_HEAD_LEN-2]; /* random header */
-    static unsigned calls = 0;   /* ensure different random header each time */
+    static int seeded = 0;       /* true once gen has been seeded */
+    static set_rand_t gen;       /* random header generator, persists so that
+                                    each header is different */
 
     if (bufSize<RAND_HEAD_LEN)
       return 0;
 
-    /* First generate RAND_HEAD_LEN-2 random bytes. We encrypt the
-     * output of rand() to get less predictability, since rand() is
-     * often poorly implemented.
+    /* First generate RAND_HEAD_LEN-2 random bytes. We encrypt the random
+     * bytes to get less predictability.
      */
-    if (++calls == 1)
+    if (!seeded)
     {
-        srand((unsigned)time(NULL) ^ ZCR_SEED2);
+        set_uniq(&gen, &gen);
+        seeded = 1;
     }
     init_keys(passwd, pkeys, pcrc_32_tab);
     for (n = 0; n < RAND_HEAD_LEN-2; n++)
     {
-        c = (rand() >> 7) & 0xff;
+        c = (int)(set_rand(&gen) >> 24);
         header[n] = (unsigned char)zencode(pkeys, pcrc_32_tab, c, t);
     }
     /* Encrypt random header (last two bytes is high word of crc) */

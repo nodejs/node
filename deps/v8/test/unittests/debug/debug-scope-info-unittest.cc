@@ -170,6 +170,11 @@ void VerifyScopeTreeParity(Scope* ast_scope, DebugScriptScope debug_scope) {
     // Keep in sync with Variable::IsReceiver() in src/ast/variables.h.
     bool expected_receiver = ast_var->IsParameter() && ast_var->IsReceiver();
     EXPECT_EQ(expected_receiver, debug_var.is_receiver);
+    bool expected_hole_init_elided =
+        ast_var->initialization_flag() == kNeedsInitialization &&
+        !ast_var->binding_needs_init();
+    EXPECT_EQ(expected_hole_init_elided,
+              debug_var.is_hole_initialization_elided);
     if (raw != nullptr) {
       ASSERT_FALSE(debug_var.name.is_null());
       EXPECT_TRUE(debug_var.name->Equals(*ast_var->name()));

@@ -15,8 +15,8 @@
 #define LLVM_LIBC_SRC___SUPPORT_REGEX_REGEX_MATCHER_H
 
 #include "src/__support/CPP/string_view.h"
-#include "src/__support/common.h"
 #include "src/__support/error_or.h"
+#include "src/__support/macros/attributes.h"
 #include "src/__support/macros/config.h"
 #include "src/__support/regex/regex_ast.h"
 #include "src/__support/regex/regex_expr_pool.h"
@@ -33,8 +33,11 @@ enum class MatchResult {
 };
 
 /// Evaluates whether id can match the empty string at a fencepost with the
-/// given active AnchorKind bitmask.
-bool nullable(ExprId id, uint8_t anchor_ctx, const ExprPool &pool);
+/// given active AnchorKind bitmask in O(1) via the precomputed 4-bit mask.
+LIBC_INLINE bool nullable(ExprId id, uint8_t anchor_ctx, const ExprPool &pool) {
+  return ((pool.get(id).nullable_mask >> (anchor_ctx & ALL_ANCHORS_MASK)) &
+          1u) != 0;
+}
 
 /// Computes the Brzozowski derivative D_c(id) with respect to character c
 /// when stepping across c from a fencepost with active anchor mask ctx_before.

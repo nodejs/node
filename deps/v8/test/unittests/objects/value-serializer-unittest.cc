@@ -23,6 +23,7 @@
 #include "src/objects/backing-store.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-buffer.h"
+#include "src/objects/js-array-inl.h"
 #include "src/objects/objects-inl.h"
 #include "test/common/flag-utils.h"
 #include "test/unittests/heap/heap-utils.h"
@@ -114,6 +115,26 @@ class ValueSerializerTest : public TestWithIsolate {
   // value.
   Local<Value> RoundTripTest(const char* source) {
     return RoundTripTest(EvaluateScriptForInput(source));
+  }
+
+  static constexpr uint8_t kBeginDenseJSArray = 'A';
+  static constexpr uint8_t kBeginSparseJSArray = 'a';
+
+  // Checks the input array's ElementsKind and the serialized array tag (after
+  // the 2-byte version header), then round-trips the value.
+  Local<Value> CheckArrayEncodingAndRoundTrip(const char* source,
+                                              i::ElementsKind expected_kind,
+                                              uint8_t expected_tag) {
+    Local<Value> input = EvaluateScriptForInput(source);
+    CHECK(input->IsArray());
+    EXPECT_EQ(expected_kind,
+              i::Cast<i::JSArray>(*Utils::OpenDirectHandle(*input))
+                  ->GetElementsKind())
+        << "for source: " << source;
+    std::vector<uint8_t> encoded = EncodeTest(input);
+    CHECK_GT(encoded.size(), 2u);
+    EXPECT_EQ(expected_tag, encoded[2]) << "for source: " << source;
+    return DecodeTest(encoded);
   }
 
   // Variant which uses JSON.parse/stringify to check the result.
@@ -1322,6 +1343,452 @@ TEST_F(ValueSerializerTest, RoundTripArrayWithTrickyGetters) {
   ASSERT_TRUE(value->IsArray());
   ASSERT_EQ(1000u, Array::Cast(*value)->Length());
   ExpectScriptTrue("!(1 in result)");
+
+  // Holey array taking the dense path: a getter filling an original hole must
+  // not cause that hole to be serialized (single-hole span == 1 path).
+  value = CheckArrayEncodingAndRoundTrip(
+      "var x = [{ get a() { x[1] = 42; } }, , 2, 3]; x;", i::HOLEY_ELEMENTS,
+      kBeginDenseJSArray);
+  ASSERT_TRUE(value->IsArray());
+  ASSERT_EQ(4u, Array::Cast(*value)->Length());
+  ExpectScriptTrue("!(1 in result)");
+  ExpectScriptTrue("result[2] === 2");
+  ExpectScriptTrue("result[3] === 3");
+
+  // Same with multiple holes within a single 64-bit inline word (2 <= span <=
+  // 64), including the exact span == 64 boundary (bit 63).
+  value = CheckArrayEncodingAndRoundTrip(
+      "var x = new Array(70);"
+      "for (var i = 0; i < 70; i++) x[i] = i;"
+      "delete x[1]; delete x[3]; delete x[64];"
+      "x[0] = { get a() { x[1] = 11; x[3] = 22; x[64] = 33; } };"
+      "x;",
+      i::HOLEY_ELEMENTS, kBeginDenseJSArray);
+  ASSERT_TRUE(value->IsArray());
+  ASSERT_EQ(70u, Array::Cast(*value)->Length());
+  ExpectScriptTrue("!(1 in result)");
+  ExpectScriptTrue("result[2] === 2");
+  ExpectScriptTrue("!(3 in result)");
+  ExpectScriptTrue("result[63] === 63");
+  ExpectScriptTrue("!(64 in result)");
+  ExpectScriptTrue("result[65] === 65");
+
+  // Same when holes span multiple 64-bit words of the hole bitset (including
+  // upper-32-bit shifts, the 63/64 word boundary, and the final element).
+  value = CheckArrayEncodingAndRoundTrip(
+      "var x = new Array(150);"
+      "for (var i = 0; i < 150; i++) x[i] = i;"
+      "delete x[1]; delete x[64]; delete x[65]; delete x[135]; delete x[149];"
+      "x[0] = { get a() {"
+      "  x[1] = 11; x[64] = 22; x[65] = 33; x[135] = 44; x[149] = 55;"
+      "} };"
+      "x;",
+      i::HOLEY_ELEMENTS, kBeginDenseJSArray);
+  ASSERT_TRUE(value->IsArray());
+  ASSERT_EQ(150u, Array::Cast(*value)->Length());
+  ExpectScriptTrue("!(1 in result)");
+  ExpectScriptTrue("!(64 in result)");
+  ExpectScriptTrue("!(65 in result)");
+  ExpectScriptTrue("!(135 in result)");
+  ExpectScriptTrue("!(149 in result)");
+  ExpectScriptTrue("result[2] === 2");
+  ExpectScriptTrue("result[63] === 63");
+  ExpectScriptTrue("result[66] === 66");
+  ExpectScriptTrue("result[148] === 148");
+
+  // Holey dense array where a getter defines an accessor on an original hole
+  // (transitioning to dictionary elements): the original hole must stay a hole
+  // and the newly installed getter must not be invoked.
+  value = CheckArrayEncodingAndRoundTrip(
+      "var x = [{ get a() {"
+      "  Object.defineProperty(x, '1', {"
+      "    get() { throw new Error('should not run'); }, enumerable: true"
+      "  });"
+      "} }, , 2, 3]; x;",
+      i::HOLEY_ELEMENTS, kBeginDenseJSArray);
+  ASSERT_TRUE(value->IsArray());
+  ASSERT_EQ(4u, Array::Cast(*value)->Length());
+  ExpectScriptTrue("!(1 in result)");
+  ExpectScriptTrue("result[2] === 2");
+  ExpectScriptTrue("result[3] === 3");
+
+  // Same, with a present element before the hole so the fast loop bails out to
+  // the slow fallback loop before reaching the original hole.
+  value = CheckArrayEncodingAndRoundTrip(
+      "var x = [{ get a() {"
+      "  Object.defineProperty(x, '2', {"
+      "    get() { throw new Error('should not run'); }, enumerable: true"
+      "  });"
+      "} }, 1, , 3, 4]; x;",
+      i::HOLEY_ELEMENTS, kBeginDenseJSArray);
+  ASSERT_TRUE(value->IsArray());
+  ASSERT_EQ(5u, Array::Cast(*value)->Length());
+  ExpectScriptTrue("result[1] === 1");
+  ExpectScriptTrue("!(2 in result)");
+  ExpectScriptTrue("result[3] === 3");
+  ExpectScriptTrue("result[4] === 4");
+
+  // Holey dense array where a getter deletes a later present element.
+  value = CheckArrayEncodingAndRoundTrip(
+      "var x = [{ get a() { delete x[2]; } }, , 2, 3]; x;", i::HOLEY_ELEMENTS,
+      kBeginDenseJSArray);
+  ASSERT_TRUE(value->IsArray());
+  ASSERT_EQ(4u, Array::Cast(*value)->Length());
+  ExpectScriptTrue("!(1 in result)");
+  ExpectScriptTrue("!(2 in result)");
+  ExpectScriptTrue("result[3] === 3");
+
+  // Holey dense array where a getter resets length to 0 and restores it.
+  value = CheckArrayEncodingAndRoundTrip(
+      "var x = [{ get a() { x.length = 0; x.length = 4; } }, , 2, 3]; x;",
+      i::HOLEY_ELEMENTS, kBeginDenseJSArray);
+  ASSERT_TRUE(value->IsArray());
+  ASSERT_EQ(4u, Array::Cast(*value)->Length());
+  ExpectScriptTrue("!(1 in result)");
+  ExpectScriptTrue("!(2 in result)");
+  ExpectScriptTrue("!(3 in result)");
+
+  // Holey dense array where a getter resets length to 0 and fills an original
+  // hole (with a present element in between so bailout happens before the
+  // hole).
+  value = CheckArrayEncodingAndRoundTrip(
+      "var x = [{ get a() { x.length = 0; x[2] = 99; } }, 1, , 3, 4]; x;",
+      i::HOLEY_ELEMENTS, kBeginDenseJSArray);
+  ASSERT_TRUE(value->IsArray());
+  ASSERT_EQ(5u, Array::Cast(*value)->Length());
+  ExpectScriptTrue("!(1 in result)");
+  ExpectScriptTrue("!(2 in result)");
+  ExpectScriptTrue("!(3 in result)");
+  ExpectScriptTrue("!(4 in result)");
+
+  // Holey dense array where a getter makes a later present element
+  // non-enumerable (it must still be serialized) while leaving holes as holes.
+  value = CheckArrayEncodingAndRoundTrip(
+      "var x = [{ get a() {"
+      "  Object.defineProperty(x, '2', { value: 99, enumerable: false });"
+      "} }, , 2, 3]; x;",
+      i::HOLEY_ELEMENTS, kBeginDenseJSArray);
+  ASSERT_TRUE(value->IsArray());
+  ASSERT_EQ(4u, Array::Cast(*value)->Length());
+  ExpectScriptTrue("!(1 in result)");
+  ExpectScriptTrue("result[2] === 99");
+  ExpectScriptTrue("result[3] === 3");
+
+  // Holey dense array where an element getter adds a named property (must not
+  // be serialized since own keys are snapshotted before getters run), makes an
+  // existing named property non-enumerable (must still be serialized), or
+  // deletes an existing named property (must not be serialized).
+  value = CheckArrayEncodingAndRoundTrip(
+      "var x = [{ get a() {"
+      "  x.added = 1;"
+      "  Object.defineProperty(x, 'kept', { value: 2, enumerable: false });"
+      "  delete x.removed;"
+      "} }, , 2, 3];"
+      "x.kept = 0; x.removed = 3; x;",
+      i::HOLEY_ELEMENTS, kBeginDenseJSArray);
+  ASSERT_TRUE(value->IsArray());
+  ASSERT_EQ(4u, Array::Cast(*value)->Length());
+  ExpectScriptTrue("!(1 in result)");
+  ExpectScriptTrue("!result.hasOwnProperty('added')");
+  ExpectScriptTrue("result.kept === 2");
+  ExpectScriptTrue("!result.hasOwnProperty('removed')");
+
+  // Holey dense array with both leading holes (before the first object) and
+  // trailing holes (after the first object).
+  value = CheckArrayEncodingAndRoundTrip(
+      "var x = [, { get a() { x[0] = 10; x[2] = 20; } }, , 3, 4, 5]; x;",
+      i::HOLEY_ELEMENTS, kBeginDenseJSArray);
+  ASSERT_TRUE(value->IsArray());
+  ASSERT_EQ(6u, Array::Cast(*value)->Length());
+  ExpectScriptTrue("!(0 in result)");
+  ExpectScriptTrue("!(2 in result)");
+  ExpectScriptTrue("result[3] === 3");
+  ExpectScriptTrue("result[5] === 5");
+
+  // Holey dense array with no initial extra properties (takes the
+  // NumberOfOwnDescriptors() <= 1 skip path) where an element getter adds a
+  // named property: it must not be serialized.
+  value = CheckArrayEncodingAndRoundTrip(
+      "var x = [{ get a() { x.added = 1; } }, , 2, 3]; x;", i::HOLEY_ELEMENTS,
+      kBeginDenseJSArray);
+  ASSERT_TRUE(value->IsArray());
+  ASSERT_EQ(4u, Array::Cast(*value)->Length());
+  ExpectScriptTrue("!(1 in result)");
+  ExpectScriptTrue("!result.hasOwnProperty('added')");
+
+  // Non-extensible arrays with getters that delete elements, shrink length, or
+  // attempt to fill holes.
+  value = CheckArrayEncodingAndRoundTrip(
+      "var x = Object.preventExtensions([{ get a() { delete x[1]; } }, 42, "
+      "43]); x;",
+      i::PACKED_NONEXTENSIBLE_ELEMENTS, kBeginDenseJSArray);
+  ASSERT_TRUE(value->IsArray());
+  ASSERT_EQ(3u, Array::Cast(*value)->Length());
+  ExpectScriptTrue("!(1 in result) && result[2] === 43");
+
+  value = CheckArrayEncodingAndRoundTrip(
+      "var x = Object.preventExtensions([{ get a() { delete x[2]; x[1] = 99; } "
+      "}, , 2, 3]); x;",
+      i::HOLEY_NONEXTENSIBLE_ELEMENTS, kBeginDenseJSArray);
+  ASSERT_TRUE(value->IsArray());
+  ASSERT_EQ(4u, Array::Cast(*value)->Length());
+  ExpectScriptTrue("!(1 in result) && !(2 in result) && result[3] === 3");
+
+  value = CheckArrayEncodingAndRoundTrip(
+      "var x = Object.preventExtensions([{ get a() { x.length = 1; } }, , 2, "
+      "3]); x;",
+      i::HOLEY_NONEXTENSIBLE_ELEMENTS, kBeginDenseJSArray);
+  ASSERT_TRUE(value->IsArray());
+  ASSERT_EQ(4u, Array::Cast(*value)->Length());
+  ExpectScriptTrue("!(1 in result) && !(2 in result) && !(3 in result)");
+
+  // Holey dense array must not read holes from the prototype chain.
+  value = CheckArrayEncodingAndRoundTrip(
+      "var x = [1, , 3, 4];"
+      "x.__proto__ = Object.create(Array.prototype, { 1: { value: 6 } });"
+      "x;",
+      i::HOLEY_SMI_ELEMENTS, kBeginDenseJSArray);
+  ASSERT_TRUE(value->IsArray());
+  ASSERT_EQ(4u, Array::Cast(*value)->Length());
+  ExpectScriptTrue("result[0] === 1");
+  ExpectScriptTrue("!(1 in result)");
+  ExpectScriptTrue("result[2] === 3");
+  ExpectScriptTrue("result[3] === 4");
+}
+
+TEST_F(ValueSerializerTest, RoundTripHoleyArrays) {
+  // HOLEY_SMI_ELEMENTS: dense when mostly present, sparse when mostly holes.
+  Local<Value> value = CheckArrayEncodingAndRoundTrip(
+      "var a = new Array(10); for (var i = 0; i < 10; i++) a[i] = i; a;",
+      i::HOLEY_SMI_ELEMENTS, kBeginDenseJSArray);
+  ASSERT_TRUE(value->IsArray());
+  ASSERT_EQ(10u, Array::Cast(*value)->Length());
+  ExpectScriptTrue("result.toString() === '0,1,2,3,4,5,6,7,8,9'");
+
+  value = CheckArrayEncodingAndRoundTrip("[1, , 3, 4]", i::HOLEY_SMI_ELEMENTS,
+                                         kBeginDenseJSArray);
+  ASSERT_TRUE(value->IsArray());
+  ASSERT_EQ(4u, Array::Cast(*value)->Length());
+  ExpectScriptTrue(
+      "result[0] === 1 && !(1 in result) && result[2] === 3 && "
+      "result[3] === 4");
+
+  value = CheckArrayEncodingAndRoundTrip(
+      "[1, , , , , 6]", i::HOLEY_SMI_ELEMENTS, kBeginSparseJSArray);
+  ASSERT_TRUE(value->IsArray());
+  ASSERT_EQ(6u, Array::Cast(*value)->Length());
+  ExpectScriptTrue(
+      "result[0] === 1 && !(1 in result) && !(4 in result) && "
+      "result[5] === 6");
+
+  value = CheckArrayEncodingAndRoundTrip("[,]", i::HOLEY_SMI_ELEMENTS,
+                                         kBeginSparseJSArray);
+  ASSERT_TRUE(value->IsArray());
+  ASSERT_EQ(1u, Array::Cast(*value)->Length());
+  ExpectScriptTrue("!(0 in result)");
+
+  value =
+      CheckArrayEncodingAndRoundTrip("var a = [1, , 3]; a.length = 0; a;",
+                                     i::HOLEY_SMI_ELEMENTS, kBeginDenseJSArray);
+  ASSERT_TRUE(value->IsArray());
+  ASSERT_EQ(0u, Array::Cast(*value)->Length());
+
+  // HOLEY_DOUBLE_ELEMENTS: pure doubles with holes, NaN, and -0.0 (always
+  // stays HOLEY_DOUBLE_ELEMENTS regardless of V8_ENABLE_UNDEFINED_DOUBLE).
+  value = CheckArrayEncodingAndRoundTrip("[1.5, , 3.5, 4.5, -0.0, NaN]",
+                                         i::HOLEY_DOUBLE_ELEMENTS,
+                                         kBeginDenseJSArray);
+  ASSERT_TRUE(value->IsArray());
+  ASSERT_EQ(6u, Array::Cast(*value)->Length());
+  ExpectScriptTrue("result[0] === 1.5");
+  ExpectScriptTrue("!(1 in result)");
+  ExpectScriptTrue("result[2] === 3.5");
+  ExpectScriptTrue("result[3] === 4.5");
+  ExpectScriptTrue("Object.is(result[4], -0.0)");
+  ExpectScriptTrue("Number.isNaN(result[5])");
+
+  // HOLEY_DOUBLE_ELEMENTS with undefined (V8_ENABLE_UNDEFINED_DOUBLE) or
+  // HOLEY_ELEMENTS when V8_ENABLE_UNDEFINED_DOUBLE is disabled.
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
+  constexpr i::ElementsKind kDoubleWithUndefinedKind = i::HOLEY_DOUBLE_ELEMENTS;
+#else
+  constexpr i::ElementsKind kDoubleWithUndefinedKind = i::HOLEY_ELEMENTS;
+#endif
+  value = CheckArrayEncodingAndRoundTrip("[1.5, , undefined, 4.5, -0.0, NaN]",
+                                         kDoubleWithUndefinedKind,
+                                         kBeginDenseJSArray);
+  ASSERT_TRUE(value->IsArray());
+  ASSERT_EQ(6u, Array::Cast(*value)->Length());
+  ExpectScriptTrue("result[0] === 1.5");
+  ExpectScriptTrue("!(1 in result)");
+  ExpectScriptTrue("result.hasOwnProperty(2) && result[2] === undefined");
+  ExpectScriptTrue("result[3] === 4.5");
+  ExpectScriptTrue("Object.is(result[4], -0.0)");
+  ExpectScriptTrue("Number.isNaN(result[5])");
+
+  value = CheckArrayEncodingAndRoundTrip(
+      "[1.5, , , , , 6.5]", i::HOLEY_DOUBLE_ELEMENTS, kBeginSparseJSArray);
+  ASSERT_TRUE(value->IsArray());
+  ASSERT_EQ(6u, Array::Cast(*value)->Length());
+  ExpectScriptTrue(
+      "result[0] === 1.5 && !(1 in result) && !(4 in result) && "
+      "result[5] === 6.5");
+
+  value = CheckArrayEncodingAndRoundTrip(
+      "var a = [1.5, , 3.5]; a.length = 0; a;", i::HOLEY_DOUBLE_ELEMENTS,
+      kBeginDenseJSArray);
+  ASSERT_TRUE(value->IsArray());
+  ASSERT_EQ(0u, Array::Cast(*value)->Length());
+
+  // HOLEY_ELEMENTS: primitives with holes (including undefined vs hole).
+  value = CheckArrayEncodingAndRoundTrip("['a', , undefined, 'd']",
+                                         i::HOLEY_ELEMENTS, kBeginDenseJSArray);
+  ASSERT_TRUE(value->IsArray());
+  ASSERT_EQ(4u, Array::Cast(*value)->Length());
+  ExpectScriptTrue("result[0] === 'a'");
+  ExpectScriptTrue("!(1 in result)");
+  ExpectScriptTrue("result.hasOwnProperty(2) && result[2] === undefined");
+  ExpectScriptTrue("result[3] === 'd'");
+
+  // HOLEY_ELEMENTS: objects with holes, additional properties, and self-ref.
+  value = CheckArrayEncodingAndRoundTrip(
+      "var a = [{x: 1}, , {x: 2}, {x: 3}]; a.foo = 'bar'; a;",
+      i::HOLEY_ELEMENTS, kBeginDenseJSArray);
+  ASSERT_TRUE(value->IsArray());
+  ASSERT_EQ(4u, Array::Cast(*value)->Length());
+  ExpectScriptTrue(
+      "result[0].x === 1 && !(1 in result) && "
+      "result[2].x === 2 && result[3].x === 3");
+  ExpectScriptTrue("result.foo === 'bar'");
+
+  value = CheckArrayEncodingAndRoundTrip("var a = [1, , 3, 4]; a[0] = a; a;",
+                                         i::HOLEY_ELEMENTS, kBeginDenseJSArray);
+  ASSERT_TRUE(value->IsArray());
+  ASSERT_EQ(4u, Array::Cast(*value)->Length());
+  ExpectScriptTrue(
+      "result[0] === result && !(1 in result) && "
+      "result[2] === 3 && result[3] === 4");
+
+  value =
+      CheckArrayEncodingAndRoundTrip("var a = [{x: 1}, , , , , {x: 2}]; a;",
+                                     i::HOLEY_ELEMENTS, kBeginSparseJSArray);
+  ASSERT_TRUE(value->IsArray());
+  ASSERT_EQ(6u, Array::Cast(*value)->Length());
+  ExpectScriptTrue(
+      "result[0].x === 1 && !(1 in result) && "
+      "!(4 in result) && result[5].x === 2");
+
+  // All-holes fast array stays sparse.
+  value = CheckArrayEncodingAndRoundTrip("new Array(10)", i::HOLEY_SMI_ELEMENTS,
+                                         kBeginSparseJSArray);
+  ASSERT_TRUE(value->IsArray());
+  ASSERT_EQ(10u, Array::Cast(*value)->Length());
+  ExpectScriptTrue("!(0 in result) && !(9 in result)");
+
+  // Non-extensible, sealed, and frozen arrays (packed, dense holey, sparse
+  // holey, and empty holey).
+  value = CheckArrayEncodingAndRoundTrip("Object.preventExtensions([1, 2, 3])",
+                                         i::PACKED_NONEXTENSIBLE_ELEMENTS,
+                                         kBeginDenseJSArray);
+  ASSERT_TRUE(value->IsArray());
+  ASSERT_EQ(3u, Array::Cast(*value)->Length());
+  ExpectScriptTrue("result.toString() === '1,2,3'");
+
+  value = CheckArrayEncodingAndRoundTrip(
+      "Object.preventExtensions([1, , 3, 4])", i::HOLEY_NONEXTENSIBLE_ELEMENTS,
+      kBeginDenseJSArray);
+  ASSERT_TRUE(value->IsArray());
+  ASSERT_EQ(4u, Array::Cast(*value)->Length());
+  ExpectScriptTrue(
+      "result[0] === 1 && !(1 in result) && result[2] === 3 && "
+      "result[3] === 4");
+
+  value = CheckArrayEncodingAndRoundTrip(
+      "Object.preventExtensions([1, , , , , 6])",
+      i::HOLEY_NONEXTENSIBLE_ELEMENTS, kBeginSparseJSArray);
+  ASSERT_TRUE(value->IsArray());
+  ASSERT_EQ(6u, Array::Cast(*value)->Length());
+  ExpectScriptTrue(
+      "result[0] === 1 && !(1 in result) && !(4 in result) && "
+      "result[5] === 6");
+
+  value = CheckArrayEncodingAndRoundTrip(
+      "var a = [1, , 3]; a.length = 0; Object.preventExtensions(a);",
+      i::HOLEY_NONEXTENSIBLE_ELEMENTS, kBeginDenseJSArray);
+  ASSERT_TRUE(value->IsArray());
+  ASSERT_EQ(0u, Array::Cast(*value)->Length());
+
+  value = CheckArrayEncodingAndRoundTrip(
+      "Object.seal([1, 2, 3])", i::PACKED_SEALED_ELEMENTS, kBeginDenseJSArray);
+  ASSERT_TRUE(value->IsArray());
+  ASSERT_EQ(3u, Array::Cast(*value)->Length());
+  ExpectScriptTrue("result.toString() === '1,2,3'");
+
+  value = CheckArrayEncodingAndRoundTrip(
+      "var a = [1, , 3, 4]; a.foo = 'bar'; Object.seal(a);",
+      i::HOLEY_SEALED_ELEMENTS, kBeginDenseJSArray);
+  ASSERT_TRUE(value->IsArray());
+  ASSERT_EQ(4u, Array::Cast(*value)->Length());
+  ExpectScriptTrue(
+      "result[0] === 1 && !(1 in result) && result[2] === 3 && "
+      "result[3] === 4 && result.foo === 'bar'");
+
+  value = CheckArrayEncodingAndRoundTrip("Object.seal([1, , , , , 6])",
+                                         i::HOLEY_SEALED_ELEMENTS,
+                                         kBeginSparseJSArray);
+  ASSERT_TRUE(value->IsArray());
+  ASSERT_EQ(6u, Array::Cast(*value)->Length());
+  ExpectScriptTrue(
+      "result[0] === 1 && !(1 in result) && !(4 in result) && "
+      "result[5] === 6");
+
+  value = CheckArrayEncodingAndRoundTrip("Object.freeze([1.5, 2.5, 'x'])",
+                                         i::PACKED_FROZEN_ELEMENTS,
+                                         kBeginDenseJSArray);
+  ASSERT_TRUE(value->IsArray());
+  ASSERT_EQ(3u, Array::Cast(*value)->Length());
+  ExpectScriptTrue(
+      "result[0] === 1.5 && result[1] === 2.5 && result[2] === 'x'");
+
+  value = CheckArrayEncodingAndRoundTrip("Object.freeze([1, , undefined, 4])",
+                                         i::HOLEY_FROZEN_ELEMENTS,
+                                         kBeginDenseJSArray);
+  ASSERT_TRUE(value->IsArray());
+  ASSERT_EQ(4u, Array::Cast(*value)->Length());
+  ExpectScriptTrue(
+      "result[0] === 1 && !(1 in result) && "
+      "result.hasOwnProperty(2) && result[2] === undefined && result[3] === 4");
+
+  value = CheckArrayEncodingAndRoundTrip("Object.freeze([1, , , , , 6])",
+                                         i::HOLEY_FROZEN_ELEMENTS,
+                                         kBeginSparseJSArray);
+  ASSERT_TRUE(value->IsArray());
+  ASSERT_EQ(6u, Array::Cast(*value)->Length());
+  ExpectScriptTrue(
+      "result[0] === 1 && !(1 in result) && !(4 in result) && "
+      "result[5] === 6");
+
+  // Dense holey array with dictionary (slow) properties exercises the
+  // !array->HasFastProperties() path for extra property collection.
+  {
+    Local<Value> input = EvaluateScriptForInput(
+        "var a = [1, , 3, 4]; a.foo = 1; a.bar = 2; delete a.foo; a;");
+    ASSERT_TRUE(input->IsArray());
+    EXPECT_EQ(i::HOLEY_SMI_ELEMENTS,
+              i::Cast<i::JSArray>(*Utils::OpenDirectHandle(*input))
+                  ->GetElementsKind());
+    EXPECT_FALSE(i::Cast<i::JSArray>(*Utils::OpenDirectHandle(*input))
+                     ->HasFastProperties());
+    std::vector<uint8_t> encoded = EncodeTest(input);
+    ASSERT_GT(encoded.size(), 2u);
+    EXPECT_EQ(kBeginDenseJSArray, encoded[2]);
+    value = DecodeTest(encoded);
+    ASSERT_TRUE(value->IsArray());
+    ASSERT_EQ(4u, Array::Cast(*value)->Length());
+    ExpectScriptTrue(
+        "result[0] === 1 && !(1 in result) && result[2] === 3 && "
+        "result[3] === 4 && !result.hasOwnProperty('foo') && result.bar === 2");
+  }
 }
 
 TEST_F(ValueSerializerTest, DecodeSparseArrayVersion0) {
@@ -1697,7 +2164,7 @@ TEST_F(ValueSerializerTest, DecodeLinearRegExp) {
   std::vector<uint8_t> regexp_encoding = {0xFF, 0x09, 0x3F, 0x00, 0x52,
                                           0x03, 0x66, 0x6F, 0x6F, 0x6D};
 
-  i::v8_flags.enable_experimental_regexp_engine = true;
+  i::v8_flags.enable_experimental_regexp_engine.Set(true);
   // DecodeTestUpToVersion will overwrite the version number in the data but
   // it's fine.
   DecodeTestUpToVersion(
@@ -1707,10 +2174,10 @@ TEST_F(ValueSerializerTest, DecodeLinearRegExp) {
         ExpectScriptTrue("result.toString() === '/foo/glmsy'");
       });
 
-  i::v8_flags.enable_experimental_regexp_engine = false;
+  i::v8_flags.enable_experimental_regexp_engine.Set(false);
   InvalidDecodeTest(regexp_encoding);
 
-  i::v8_flags.enable_experimental_regexp_engine = flag_was_enabled;
+  i::v8_flags.enable_experimental_regexp_engine.Set(flag_was_enabled);
 }
 
 TEST_F(ValueSerializerTest, DecodeHasIndicesRegExp) {

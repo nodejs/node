@@ -1,0 +1,3 @@
+Tests capturing and modifying local variable from evaluateOnCallFrame inside catch block.
+evaluated i: 5
+results: [0,5,null,null]

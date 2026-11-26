@@ -24,6 +24,7 @@
 #include "src/parsing/scanner.h"
 #include "src/tasks/cancelable-task.h"
 #include "src/tasks/task-utils.h"
+#include "src/tracing/trace-event.h"
 #include "src/zone/zone-list-inl.h"  // crbug.com/v8/8816
 
 namespace v8 {

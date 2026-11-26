@@ -277,7 +277,7 @@ Address* HandleScope::CreateHandle(Isolate* isolate, Address value) {
   if (!AllowHandleUsageOnAllThreads::IsAllowed()) {
     DCHECK(isolate->main_thread_local_heap()->IsRunning());
     DCHECK_WITH_MSG(
-        isolate->thread_id() == ThreadId::Current(),
+        isolate->thread_id() == base::ThreadId::Current(),
         "main-thread handle can only be created on the main thread.");
   }
   // We should only allocate handles for objects that can be referenced from the

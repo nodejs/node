@@ -31,6 +31,7 @@
 #include "src/heap/base-page.h"
 #include "src/heap/base/basic-slot-set.h"
 #include "src/heap/concurrent-marking.h"
+#include "src/heap/cppgc-js/cpp-heap.h"
 #include "src/heap/ephemeron-remembered-set.h"
 #include "src/heap/evacuation-allocator-inl.h"
 #include "src/heap/evacuation-verifier.h"
@@ -71,7 +72,6 @@
 #include "src/heap/zapping.h"
 #include "src/init/v8.h"
 #include "src/logging/tracing-flags.h"
-#include "src/objects/embedder-data-array-inl.h"
 #include "src/objects/foreign.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/heap-object-field-inl.h"
@@ -80,12 +80,10 @@
 #include "src/objects/instance-type.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-objects-inl.h"
-#include "src/objects/js-struct.h"
 #include "src/objects/maybe-object.h"
 #include "src/objects/objects.h"
 #include "src/objects/slots-inl.h"
 #include "src/objects/smi.h"
-#include "src/objects/string-forwarding-table-inl.h"
 #include "src/objects/transitions-inl.h"
 #include "src/objects/visitors.h"
 #include "src/sandbox/trusted-pointer-table.h"
@@ -126,7 +124,13 @@ class FullMarkingVerifier : public MarkingVerifierBase {
     VerifyMarking(heap_->code_lo_space());
     if (heap_->shared_lo_space()) VerifyMarking(heap_->shared_lo_space());
     VerifyMarking(heap_->trusted_space());
+    if (heap_->shared_trusted_space()) {
+      VerifyMarking(heap_->shared_trusted_space());
+    }
     VerifyMarking(heap_->trusted_lo_space());
+    if (heap_->shared_trusted_lo_space()) {
+      VerifyMarking(heap_->shared_trusted_lo_space());
+    }
   }
 
  protected:
@@ -847,6 +851,9 @@ void MarkCompactCollector::VerifyMarking() {
     heap_->code_space()->VerifyLiveBytes();
     if (heap_->shared_space()) heap_->shared_space()->VerifyLiveBytes();
     heap_->trusted_space()->VerifyLiveBytes();
+    if (heap_->shared_trusted_space()) {
+      heap_->shared_trusted_space()->VerifyLiveBytes();
+    }
     if (v8_flags.minor_ms && heap_->paged_new_space()) {
       heap_->paged_new_space()->paged_space()->VerifyLiveBytes();
     }
@@ -861,9 +868,9 @@ void ShrinkPagesToObjectSizes(Heap* heap, OldLargeObjectSpace* space) {
   for (auto it = space->begin(); it != space->end();) {
     LargePage* current = *(it++);
     Tagged<HeapObject> object = current->GetObject();
-    const size_t object_size = static_cast<size_t>(object->Size());
+    const SafeHeapObjectSize object_size = object->SafeSize();
     space->ShrinkPageToObjectSize(current, object, object_size);
-    surviving_object_size += object_size;
+    surviving_object_size += object_size.value();
   }
   space->set_objects_size(surviving_object_size);
 }
@@ -974,7 +981,7 @@ void MarkCompactCollector::SweepArrayBufferExtensions() {
 // they should keep alive its embedded pointers (which would otherwise be
 // dropped).
 // - Prefix of the string table.
-// - If V8_ENABLE_SANDBOX, client Isolates' waiter queue node
+// - If V8_COMPRESS_POINTERS, client Isolates' waiter queue node
 // ExternalPointer_t in shared Isolates.
 class MarkCompactCollector::CustomRootBodyMarkingVisitor final
     : public ObjectVisitorWithCageBases {
@@ -1180,7 +1187,7 @@ class InternalizedStringTableCleaner final : public RootVisitor {
   int pointers_removed_ = 0;
 };
 
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
 class MarkExternalPointerFromExternalStringTable : public RootVisitor {
  public:
   explicit MarkExternalPointerFromExternalStringTable(
@@ -1246,7 +1253,7 @@ class MarkExternalPointerFromExternalStringTable : public RootVisitor {
 
   MarkExternalPointerTableVisitor visitor;
 };
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
 
 // Implementation of WeakObjectRetainer for mark compact GCs. All marked objects
 // are retained.
@@ -1344,7 +1351,10 @@ class RecordMigratedSlotVisitor
   inline void VisitEphemeron(Tagged<HeapObject> host, int index, ObjectSlot key,
                              ObjectSlot value) override {
     DCHECK(IsEphemeronHashTable(host));
-    DCHECK(!HeapLayout::InYoungGeneration(host));
+    DCHECK_IMPLIES(HeapLayout::InYoungGeneration(host),
+                   MemoryChunk::FromHeapObject(host)
+                       ->Metadata()
+                       ->evacuation_was_aborted());
 
     // Simply record ephemeron keys in OLD_TO_NEW if it points into the young
     // generation instead of recording it in ephemeron_remembered_set here for
@@ -1555,12 +1565,10 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
   }
 
 #if DEBUG
-  void DisableAbortEvacuationAtAddress(MutablePage* page) {
-    abort_evacuation_at_address_ = page->area_end();
-  }
-
   void SetUpAbortEvacuationAtAddress(MutablePage* page) {
-    if (v8_flags.stress_compaction || v8_flags.stress_compaction_random) {
+    if ((v8_flags.stress_compaction || v8_flags.stress_compaction_random) &&
+        (!page->Chunk()->InYoungGeneration() ||
+         v8_flags.page_promotion_on_evacuation_failure)) {
       // Stress aborting of evacuation by aborting ~5% of evacuation candidates
       // when stress testing.
       const double kFraction = 0.05;
@@ -1754,8 +1762,11 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
     Tagged<HeapObject> target_object;
 
     if (!TryEvacuateObject(OLD_SPACE, object, size, &target_object)) {
-      heap_->FatalProcessOutOfMemory(
-          "MarkCompactCollector: young object promotion failed");
+      if (!v8_flags.page_promotion_on_evacuation_failure) {
+        heap_->FatalProcessOutOfMemory(
+            "MarkCompactCollector: young object promotion failed");
+      }
+      return false;
     }
 
     promoted_size_ += size.value();
@@ -1782,41 +1793,6 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
     // TODO(mlippautz): Handle ConsString.
 
     return false;
-  }
-
-  inline AllocationSpace AllocateTargetObject(
-      Tagged<HeapObject> old_object, int size,
-      Tagged<HeapObject>* target_object) {
-    // GCMole suppression: AllocateTargetObject runs inside GC compaction and
-    // cannot trigger re-entrant GC.
-    DisableGCMole no_gcmole;
-    AllocationSpace space_allocated_in = NEW_SPACE;
-    AllocationAlignment alignment =
-        HeapObject::RequiredAlignment(space_allocated_in, old_object->map());
-    AllocationResult allocation = local_allocator_->Allocate(
-        NEW_SPACE, SafeHeapObjectSize(static_cast<uint32_t>(size)), alignment);
-    if (allocation.IsFailure()) {
-      space_allocated_in = OLD_SPACE;
-      alignment =
-          HeapObject::RequiredAlignment(space_allocated_in, old_object->map());
-      allocation = AllocateInOldSpace(size, alignment);
-    }
-    bool ok = allocation.To(target_object);
-    DCHECK(ok);
-    USE(ok);
-    return space_allocated_in;
-  }
-
-  inline AllocationResult AllocateInOldSpace(int size_in_bytes,
-                                             AllocationAlignment alignment) {
-    AllocationResult allocation = local_allocator_->Allocate(
-        OLD_SPACE, SafeHeapObjectSize(static_cast<uint32_t>(size_in_bytes)),
-        alignment);
-    if (allocation.IsFailure()) {
-      heap_->FatalProcessOutOfMemory(
-          "MarkCompactCollector: semi-space copy, fallback in old gen");
-    }
-    return allocation;
   }
 
   intptr_t promoted_size_;
@@ -2124,8 +2100,7 @@ void MarkCompactCollector::MarkObjectsFromClientHeap(Isolate* client) {
     }
   }
 
-#ifdef V8_ENABLE_SANDBOX
-  DCHECK(IsSharedExternalPointerType(kExternalStringResourceTag));
+#ifdef V8_COMPRESS_POINTERS
   DCHECK(IsSharedExternalPointerType(kExternalStringResourceDataTag));
   // All ExternalString resources are stored in the shared external pointer
   // table. Mark entries from client heaps.
@@ -2135,7 +2110,7 @@ void MarkCompactCollector::MarkObjectsFromClientHeap(Isolate* client) {
   MarkExternalPointerFromExternalStringTable external_string_visitor(
       &shared_table, shared_space);
   client_heap->external_string_table_.Iterate(&external_string_visitor);
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
 }
 
 bool MarkCompactCollector::MarkTransitiveClosureFixpoint() {
@@ -2370,6 +2345,10 @@ std::pair<size_t, size_t> MarkCompactCollector::ProcessMarkingWorklist(
   }
   return std::make_pair(bytes_processed, objects_processed);
 }
+
+template std::pair<size_t, size_t> MarkCompactCollector::ProcessMarkingWorklist<
+    MarkCompactCollector::MarkingWorklistProcessingMode::kDefault>(
+    v8::base::TimeDelta max_duration, size_t max_bytes_to_process);
 
 bool MarkCompactCollector::ProcessEphemeron(Tagged<HeapObject> key,
                                             Tagged<HeapObject> value) {
@@ -2817,283 +2796,12 @@ ParallelItemBuilder MakeParallelItem(const char* name,
 
 }  // namespace
 
-class FullStringForwardingTableCleaner final
-    : public StringForwardingTableCleanerBase {
- public:
-  explicit FullStringForwardingTableCleaner(Heap* heap)
-      : StringForwardingTableCleanerBase(heap), heap_(heap) {
-    USE(heap_);
-  }
-
-  // Transition all strings in the forwarding table to
-  // ThinStrings/ExternalStrings and clear the table afterwards.
-  void TransitionStrings() {
-    DCHECK(!heap_->IsGCWithStack() ||
-           v8_flags.transition_strings_during_gc_with_stack);
-    StringForwardingTable* forwarding_table =
-        isolate_->string_forwarding_table();
-#ifdef V8_COMPRESS_POINTERS
-    // Black allocate EPT entries for external strings, since marking is already
-    // finished when we transition strings. We only transition strings that are
-    // alive.
-    isolate_->shared_external_pointer_space()->set_allocate_black(true);
-#endif  // V8_COMPRESS_POINTERS
-    forwarding_table->IterateElements(
-        [&](StringForwardingTable::Record* record) {
-          TransitionStrings(record);
-        });
-    forwarding_table->Reset();
-#ifdef V8_COMPRESS_POINTERS
-    isolate_->shared_external_pointer_space()->set_allocate_black(false);
-#endif  // V8_COMPRESS_POINTERS
-  }
-
-  // When performing GC with a stack, we conservatively assume that
-  // the GC could have been triggered by optimized code. Optimized code
-  // assumes that flat strings don't transition during GCs, so we are not
-  // allowed to transition strings to ThinString/ExternalString in that
-  // case.
-  // Instead we mark forward objects to keep them alive and update entries
-  // of evacuated objects later.
-  void ProcessFullWithStack() {
-    DCHECK(heap_->IsGCWithStack() &&
-           !v8_flags.transition_strings_during_gc_with_stack);
-    StringForwardingTable* forwarding_table =
-        isolate_->string_forwarding_table();
-    forwarding_table->IterateElements(
-        [&](StringForwardingTable::Record* record) {
-          MarkForwardObject(record);
-        });
-  }
-
- private:
-  void MarkForwardObject(StringForwardingTable::Record* record) {
-    Tagged<Object> original = record->OriginalStringObject(isolate_);
-    if (!IsHeapObject(original)) {
-      DCHECK_EQ(original, StringForwardingTable::deleted_element());
-      return;
-    }
-    Tagged<String> original_string = Cast<String>(original);
-    if (MarkingHelper::IsMarkedOrAlwaysLive(heap_, marking_state_,
-                                            original_string)) {
-      Tagged<Object> forward = record->ForwardStringObjectOrHash(isolate_);
-      if (!IsHeapObject(forward) ||
-          (MarkingHelper::GetLivenessMode(heap_, Cast<HeapObject>(forward)) ==
-           MarkingHelper::LivenessMode::kAlwaysLive)) {
-        return;
-      }
-      if (marking_state_->TryMarkAndAccountLiveBytes(
-              Cast<HeapObject>(forward))) {
-        // Visit the forward string. This is necessary as
-        // TryMarkAndAccountLiveBytes only marks the forward string itself, but
-        // doesn't visit any of its fields. For i.e. ExternalStrings we need
-        // to mark the EPT entries for the external resources as well.
-        marking_visitor_->Visit(Cast<HeapObject>(forward));
-        // If we just marked the forwarded string, it wasn't kept alive by
-        // anything but this entry in the forwarding table.
-        // This could mean that previous entries in the table with
-        // `original_string` equal to the current `forward_string` might have
-        // been considered dead. This is in general not a problem, but we need
-        // to reset the hash to not be a forwarding index anymore.
-        // I.e. An internalized string gets externalized (creating an entry A in
-        // the forwarding table with the external resource), followed by
-        // internalization of a shared string with the same content (creating an
-        // entry B in the forwarding table with the internalized string of A
-        // being the forwarded string of B).
-        // If the string in A is only live due to B, we dispose the external
-        // resource in A. When we later iterate entry B, we mark the forwarded
-        // string (the string in entry A) as alive, which now still has the
-        // forwarding index as it's hash (as it was considered dead previously).
-        Cast<String>(forward)->set_raw_hash_field(record->raw_hash(isolate_));
-      }
-    } else {
-      DisposeExternalResource(record);
-      record->set_original_string(StringForwardingTable::deleted_element());
-    }
-  }
-
-  void TransitionStrings(StringForwardingTable::Record* record) {
-    Tagged<Object> original = record->OriginalStringObject(isolate_);
-    if (!IsHeapObject(original)) {
-      DCHECK_EQ(original, StringForwardingTable::deleted_element());
-      return;
-    }
-    if (MarkingHelper::IsMarkedOrAlwaysLive(heap_, marking_state_,
-                                            Cast<HeapObject>(original))) {
-      Tagged<String> original_string = Cast<String>(original);
-      if (IsThinString(original_string)) {
-        original_string = Cast<ThinString>(original_string)->actual();
-      }
-      TryExternalize(original_string, record);
-      TryInternalize(original_string, record);
-      if (!HeapLayout::InReadOnlySpace(original_string)) {
-        original_string->set_raw_hash_field(record->raw_hash(isolate_));
-      }
-    } else {
-      DisposeExternalResource(record);
-    }
-  }
-
-  void TryExternalize(Tagged<String> original_string,
-                      StringForwardingTable::Record* record) {
-    // If the string is already external, dispose the resource.
-    if (IsExternalString(original_string)) {
-      record->DisposeUnusedExternalResource(isolate_, original_string);
-      return;
-    }
-
-    bool is_one_byte;
-    v8::String::ExternalStringResourceBase* external_resource =
-        record->external_resource(&is_one_byte);
-    if (external_resource == nullptr) return;
-
-    if (is_one_byte) {
-      // The string could have been internalized in the meantime and converted
-      // to a ThinString, with the actual string pointing to a
-      // non-externalizable string (e.g. in RO space).
-      if (V8_UNLIKELY(!original_string->SupportsExternalization(
-              v8::String::Encoding::ONE_BYTE_ENCODING))) {
-        DisposeExternalResource(record);
-        return;
-      }
-      original_string->MakeExternalDuringGC(
-          isolate_,
-          reinterpret_cast<v8::String::ExternalOneByteStringResource*>(
-              external_resource));
-    } else {
-      // The string could have been internalized in the meantime and converted
-      // to a ThinString, with the actual string pointing to a
-      // non-externalizable string (e.g. in RO space).
-      if (V8_UNLIKELY(!original_string->SupportsExternalization(
-              v8::String::Encoding::TWO_BYTE_ENCODING))) {
-        DisposeExternalResource(record);
-        return;
-      }
-      original_string->MakeExternalDuringGC(
-          isolate_, reinterpret_cast<v8::String::ExternalStringResource*>(
-                        external_resource));
-    }
-  }
-
-  void TryInternalize(Tagged<String> original_string,
-                      StringForwardingTable::Record* record) {
-    if (IsInternalizedString(original_string)) return;
-    Tagged<Object> forward = record->ForwardStringObjectOrHash(isolate_);
-    if (!IsHeapObject(forward)) {
-      return;
-    }
-    Tagged<InternalizedString> forward_string =
-        Cast<InternalizedString>(forward);
-
-    // Mark the forwarded string to keep it alive.
-    if (MarkingHelper::GetLivenessMode(heap_, forward_string) !=
-        MarkingHelper::LivenessMode::kAlwaysLive) {
-      if (marking_state_->TryMarkAndAccountLiveBytes(forward_string)) {
-        // Visit the forward string. This is necessary as
-        // TryMarkAndAccountLiveBytes only marks the forward string itself, but
-        // doesn't visit any of its fields. For i.e. ExternalStrings we need
-        // to mark the EPT entries for the external resources as well.
-        marking_visitor_->Visit(Cast<HeapObject>(forward));
-        // If we just marked the forwarded string, it wasn't kept alive by
-        // anything but this entry in the forwarding table.
-        // This could mean that previous entries in the table with
-        // `original_string` equal to the current `forward_string` might have
-        // been considered dead. This is in general not a problem, but we need
-        // to reset the hash to not be a forwarding index anymore.
-        // I.e. An internalized string gets externalized (creating an entry A in
-        // the forwarding table with the external resource), followed by
-        // internalization of a shared string with the same content (creating an
-        // entry B in the forwarding table with the internalized string of A
-        // being the forwarded string of B).
-        // If the string in A is only live due to B, we dispose the external
-        // resource in A. When we later iterate entry B, we mark the forwarded
-        // string (the string in entry A) as alive, which now still has the
-        // forwarding index as it's hash (as it was considered dead previously).
-        forward_string->set_raw_hash_field(record->raw_hash(isolate_));
-      }
-    }
-    // Transition the original string to a ThinString and override the
-    // forwarding index with the correct hash.
-    original_string->MakeThin(isolate_, forward_string);
-    // Record the slot in the old-to-old remembered set. This is
-    // required as the internalized string could be relocated during
-    // compaction.
-    ObjectSlot slot(&Cast<ThinString>(original_string)->actual_);
-    MarkCompactCollector::RecordSlot(original_string, slot, forward_string);
-  }
-
-  Heap* const heap_;
-};
-
-namespace {
-
-class SharedStructTypeRegistryCleaner final : public RootVisitor {
- public:
-  explicit SharedStructTypeRegistryCleaner(Heap* heap) : heap_(heap) {}
-
-  void VisitRootPointers(Root root, const char* description,
-                         FullObjectSlot start, FullObjectSlot end) override {
-    UNREACHABLE();
-  }
-
-  void VisitCompressedRootPointers(Root root, const char* description,
-                                   OffHeapObjectSlot start,
-                                   OffHeapObjectSlot end) override {
-    DCHECK_EQ(root, Root::kSharedStructTypeRegistry);
-    // The SharedStructTypeRegistry holds the canonical SharedStructType
-    // instance maps weakly. Visit all Map pointers in [start, end), deleting
-    // it if unmarked.
-    auto* marking_state = heap_->marking_state();
-    Isolate* const isolate = heap_->isolate();
-    for (OffHeapObjectSlot p = start; p < end; p++) {
-      Tagged<Object> o = p.load(isolate);
-      DCHECK(!IsString(o));
-      if (IsMap(o)) {
-        Tagged<HeapObject> map = Cast<Map>(o);
-        DCHECK(HeapLayout::InAnySharedSpace(map));
-        if (MarkingHelper::IsMarkedOrAlwaysLive(heap_, marking_state, map)) {
-          continue;
-        }
-        elements_removed_++;
-        p.store(SharedStructTypeRegistry::deleted_element());
-      }
-    }
-  }
-
-  int ElementsRemoved() const { return elements_removed_; }
-
- private:
-  Heap* heap_;
-  int elements_removed_ = 0;
-};
-
-}  // namespace
-
 void MarkCompactCollector::ClearNonLiveReferences() {
   TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_CLEAR);
 
   auto parallel_clearing_job = std::make_unique<ParallelClearingJob>(this);
   Isolate* const isolate = heap_->isolate();
   std::atomic<int> string_table_removed_count{0};
-
-  if (isolate->is_shared_space_isolate() ||
-      V8_UNLIKELY(v8_flags.always_use_string_forwarding_table)) {
-    TRACE_GC(heap_->tracer(),
-             GCTracer::Scope::MC_CLEAR_STRING_FORWARDING_TABLE);
-    // Clear string forwarding table. Live strings are transitioned to
-    // ThinStrings/ExternalStrings in the cleanup process, if this is a GC
-    // without stack.
-    // Clearing the string forwarding table must happen before clearing
-    // the string table, as entries in the forwarding table can keep
-    // internalized strings alive.
-    FullStringForwardingTableCleaner forwarding_table_cleaner(heap_);
-    if (!heap_->IsGCWithStack() ||
-        v8_flags.transition_strings_during_gc_with_stack) {
-      forwarding_table_cleaner.TransitionStrings();
-    } else {
-      forwarding_table_cleaner.ProcessFullWithStack();
-    }
-  }
 
   {
     // Clear Isolate::topmost_script_having_context slot if it's not alive.
@@ -3162,27 +2870,6 @@ void MarkCompactCollector::ClearNonLiveReferences() {
       TRACE_GC_NOTE_WITH_FLOW("ClearStringTableJob started",
                               perfetto::Flow::ProcessScoped(item->trace_id()));
     }
-  }
-
-  if (isolate->is_shared_space_isolate() &&
-      isolate->shared_struct_type_registry()) {
-    [[maybe_unused]] auto item =
-        MakeParallelItem(
-            "ClearSharedStructTypeRegistry",
-            [this, isolate](ParallelItem* item, JobDelegate* delegate) {
-              TRACE_GC1_WITH_FLOW(
-                  heap()->tracer(),
-                  GCTracer::Scope::MC_CLEAR_SHARED_STRUCT_TYPE_REGISTRY,
-                  delegate,
-                  perfetto::TerminatingFlow::ProcessScoped(item->trace_id()));
-              auto* registry = isolate->shared_struct_type_registry();
-              SharedStructTypeRegistryCleaner cleaner(heap());
-              registry->IterateElements(isolate, &cleaner);
-              registry->NotifyElementsRemoved(cleaner.ElementsRemoved());
-            })
-            .Enqueue(parallel_clearing_job);
-    TRACE_GC_NOTE_WITH_FLOW("ClearSharedStructTypeRegistryJob started",
-                            perfetto::Flow::ProcessScoped(item->trace_id()));
   }
 
   auto clear_external_string_table =
@@ -4120,6 +3807,21 @@ void MarkCompactCollector::TrimDescriptorArray(
   DCHECK_IMPLIES(to_trim == 0, descriptors->number_of_all_descriptors() ==
                                    number_of_own_descriptors);
   if (to_trim > 0) {
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+    const int old_nof_descriptors = descriptors->number_of_descriptors();
+    // TODO(572302954): add heuristics for trimming the lookup table too.
+    if (number_of_own_descriptors <=
+        DescriptorArray::kMaxElementsForLinearSearch) {
+      descriptors->set_lookup_table(ReadOnlyRoots(heap_).undefined_value(),
+                                    SKIP_WRITE_BARRIER);
+    } else if (old_nof_descriptors - number_of_own_descriptors <=
+               number_of_own_descriptors) {
+      descriptors->RemoveFromLookupTable(old_nof_descriptors,
+                                         number_of_own_descriptors);
+    } else {
+      descriptors->RebuildLookupTable(number_of_own_descriptors);
+    }
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
     descriptors->set_number_of_descriptors(number_of_own_descriptors);
     if (can_trim) {
       RightTrimDescriptorArray(heap_, descriptors, to_trim);
@@ -4129,7 +3831,11 @@ void MarkCompactCollector::TrimDescriptorArray(
                    to_trim * DescriptorArray::kEntrySize);
     }
     TrimEnumCache(heap_, map, descriptors);
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+    DCHECK(descriptors->VerifyLookupTable());
+#else
     descriptors->Sort();
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
   }
   DCHECK_IMPLIES(can_trim, descriptors->number_of_all_descriptors() ==
                                number_of_own_descriptors);
@@ -4666,6 +4372,52 @@ void MarkCompactCollector::EvacuateEpilogue() {
     DCHECK_EQ(0, heap_->new_space()->Size());
   }
 
+  for (NormalPage* p : new_space_evacuation_pages_) {
+    if (p->evacuation_was_aborted()) {
+      // Page evacuation was aborted. Promote the page in-place to old space and
+      // sweep it.
+      DCHECK(v8_flags.page_promotion_on_evacuation_failure);
+      DCHECK(!p->will_be_promoted());
+      DCHECK_EQ(NEW_SPACE, p->owner_identity());
+      EvacuateNewToOldSpacePageVisitor::Move(p);
+      // Move() sets will_be_promoted(), so we will enter the branch below to
+      // clear the flag and add the page to the sweeper.
+      DCHECK(p->will_be_promoted());
+      heap_->old_space()->DecreaseAllocatedBytes(p->allocated_bytes(), p);
+      heap_->IncrementPromotedObjectsSize(p->live_bytes());
+      heap_->IncrementYoungSurvivorsCounter(p->live_bytes());
+    }
+    if (p->will_be_promoted()) {
+      p->set_will_be_promoted(false);
+      DCHECK_EQ(OLD_SPACE, p->owner_identity());
+      sweeper_->AddPage(OLD_SPACE, p);
+    } else if (v8_flags.minor_ms) {
+      // Sweep non-promoted pages to add them back to the free list.
+      DCHECK_EQ(NEW_SPACE, p->owner_identity());
+      DCHECK_EQ(0, p->live_bytes());
+      DCHECK(p->SweepingDone());
+      PagedNewSpace* space = heap_->paged_new_space();
+      if (space->ShouldReleaseEmptyPage()) {
+        ReleasePage(space->paged_space(), p);
+      } else {
+        sweeper_->SweepEmptyNewSpacePage(p);
+      }
+    }
+  }
+  new_space_evacuation_pages_.clear();
+
+  for (LargePage* p : promoted_large_pages_) {
+    DCHECK(p->will_be_promoted());
+    p->set_will_be_promoted(false);
+    Tagged<HeapObject> object = p->GetObject();
+    if (!v8_flags.sticky_mark_bits) {
+      MarkBit::From(heap_->isolate(), object).Clear();
+      p->SetLiveBytes(0);
+    }
+    p->marking_progress_tracker().ResetIfEnabled();
+  }
+  promoted_large_pages_.clear();
+
   // Release evacuation candidates that were successfully processed and re-add
   // aborted pages to the sweeper.
   for (NormalPage* page : old_space_evacuation_pages_) {
@@ -4832,7 +4584,8 @@ bool LiveObjectVisitor::VisitMarkedObjects(NormalPage* page, Visitor* visitor,
                                            Tagged<HeapObject>* failed_object) {
   TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
               "LiveObjectVisitor::VisitMarkedObjects");
-  for (auto [object, size] : LiveObjectRange(page)) {
+  for (auto [object, size] :
+       LiveObjectRange<ConcurrencyMode::kSynchronous>(page)) {
     if (!visitor->Visit(object, size)) {
       *failed_object = object;
       return false;
@@ -4846,7 +4599,8 @@ void LiveObjectVisitor::VisitMarkedObjectsNoFail(NormalPage* page,
                                                  Visitor* visitor) {
   TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
               "LiveObjectVisitor::VisitMarkedObjectsNoFail");
-  for (auto [object, size] : LiveObjectRange(page)) {
+  for (auto [object, size] :
+       LiveObjectRange<ConcurrencyMode::kSynchronous>(page)) {
     const bool success = visitor->Visit(object, size);
     USE(success);
     DCHECK(success);
@@ -4860,14 +4614,24 @@ bool Evacuator::RawEvacuatePage(MutablePage* page) {
               EvacuationModeName(evacuation_mode), "live_bytes",
               page->live_bytes());
   switch (evacuation_mode) {
-    case kObjectsNewToOld:
+    case kObjectsNewToOld: {
 #if DEBUG
-      new_space_visitor_.DisableAbortEvacuationAtAddress(page);
+      new_space_visitor_.SetUpAbortEvacuationAtAddress(page);
 #endif  // DEBUG
-      LiveObjectVisitor::VisitMarkedObjectsNoFail(SbxCast<NormalPage>(page),
-                                                  &new_space_visitor_);
-      page->ClearLiveness();
+      Tagged<HeapObject> failed_object;
+      if (LiveObjectVisitor::VisitMarkedObjects(
+              SbxCast<NormalPage>(page), &new_space_visitor_, &failed_object)) {
+        page->ClearLiveness();
+      } else {
+        // Aborted compaction page. Actual processing happens on the main
+        // thread for simplicity reasons.
+        heap_->mark_compact_collector()
+            ->ReportAbortedEvacuationCandidateDueToOOM(
+                failed_object.address(), SbxCast<NormalPage>(page));
+        return false;
+      }
       break;
+    }
     case kPageNewToOld:
       if (page->is_large()) {
         auto object = SbxCast<LargePage>(page)->GetObject();
@@ -5159,14 +4923,11 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
 
   PinPreciseRootsIfNeeded();
 
-  // Evacuation of new space pages cannot be aborted, so it needs to run
-  // before old space evacuation.
   bool force_page_promotion =
       heap_->IsGCWithStack() && !v8_flags.compact_with_stack;
   for (NormalPage* page : new_space_evacuation_pages_) {
     intptr_t live_bytes_on_page = page->live_bytes();
     DCHECK_LT(0, live_bytes_on_page);
-    live_bytes += live_bytes_on_page;
     MemoryReductionMode memory_reduction_mode =
         heap_->ShouldReduceMemory() ? MemoryReductionMode::kShouldReduceMemory
                                     : MemoryReductionMode::kNone;
@@ -5178,7 +4939,6 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
       // going to sweep the page and add page->live_byte_count.
       heap_->old_space()->DecreaseAllocatedBytes(page->allocated_bytes(), page);
     }
-    evacuation_items.emplace_back(ParallelWorkItem{}, page);
   }
 
   for (NormalPage* page : aborted_evacuation_candidates_due_to_running_code_) {
@@ -5194,13 +4954,32 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
   if (v8_flags.stress_compaction || v8_flags.stress_compaction_random) {
     // Stress aborting of evacuation by aborting ~5% of evacuation candidates
     // when stress testing.
-    const double kFraction = 0.05;
-
-    for (NormalPage* page : old_space_evacuation_pages_) {
+    auto maybe_abort_page = [this](NormalPage* page) {
+      const double kFraction = 0.05;
       if (heap_->isolate()->fuzzer_rng()->NextDouble() < kFraction) {
         ReportAbortedEvacuationCandidateDueToFlags(page);
       }
+    };
+
+    for (NormalPage* page : old_space_evacuation_pages_) {
+      maybe_abort_page(page);
     }
+    if (v8_flags.page_promotion_on_evacuation_failure) {
+      for (NormalPage* page : new_space_evacuation_pages_) {
+        if (!page->will_be_promoted()) {
+          maybe_abort_page(page);
+        }
+      }
+    }
+  }
+
+  for (NormalPage* page : new_space_evacuation_pages_) {
+    if (page->evacuation_was_aborted()) {
+      continue;
+    }
+
+    live_bytes += page->live_bytes();
+    evacuation_items.emplace_back(ParallelWorkItem{}, page);
   }
 
   for (NormalPage* page : old_space_evacuation_pages_) {
@@ -5287,44 +5066,6 @@ void MarkCompactCollector::Evacuate() {
   }
 
   UpdatePointersAfterEvacuation();
-
-  {
-    TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_EVACUATE_CLEAN_UP);
-
-    for (NormalPage* p : new_space_evacuation_pages_) {
-      AllocationSpace owner_identity = p->owner_identity();
-      USE(owner_identity);
-      if (p->will_be_promoted()) {
-        p->set_will_be_promoted(false);
-        DCHECK_EQ(OLD_SPACE, owner_identity);
-        sweeper_->AddPage(OLD_SPACE, p);
-      } else if (v8_flags.minor_ms) {
-        // Sweep non-promoted pages to add them back to the free list.
-        DCHECK_EQ(NEW_SPACE, owner_identity);
-        DCHECK_EQ(0, p->live_bytes());
-        DCHECK(p->SweepingDone());
-        PagedNewSpace* space = heap_->paged_new_space();
-        if (space->ShouldReleaseEmptyPage()) {
-          ReleasePage(space->paged_space(), p);
-        } else {
-          sweeper_->SweepEmptyNewSpacePage(p);
-        }
-      }
-    }
-    new_space_evacuation_pages_.clear();
-
-    for (LargePage* p : promoted_large_pages_) {
-      DCHECK(p->will_be_promoted());
-      p->set_will_be_promoted(false);
-      Tagged<HeapObject> object = p->GetObject();
-      if (!v8_flags.sticky_mark_bits) {
-        MarkBit::From(heap_->isolate(), object).Clear();
-        p->SetLiveBytes(0);
-      }
-      p->marking_progress_tracker().ResetIfEnabled();
-    }
-    promoted_large_pages_.clear();
-  }
 
   {
     TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_EVACUATE_EPILOGUE);
@@ -5495,9 +5236,13 @@ class RememberedSetUpdatingItem : public UpdatingItem {
     }
 
     // OLD_TO_NEW slots are recorded in dead memory, so they might point to
-    // dead objects.
+    // dead objects. They can also point to live objects on new space pages
+    // where evacuation was aborted.
     DCHECK_IMPLIES(!heap_object->map_word(kRelaxedLoad).IsForwardingAddress(),
-                   !marking_state_->IsMarked(heap_object));
+                   !marking_state_->IsMarked(heap_object) ||
+                       MemoryChunk::FromHeapObject(heap_object)
+                           ->Metadata()
+                           ->evacuation_was_aborted());
     UpdateSlot(cage_base, slot);
   }
 
@@ -5820,6 +5565,12 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
       CollectRememberedSetUpdatingItems(&updating_items,
                                         heap_->shared_trusted_lo_space());
     }
+    for (NormalPage* page : new_space_evacuation_pages_) {
+      if (page->evacuation_was_aborted() && page->ContainsAnySlots()) {
+        updating_items.emplace_back(
+            std::make_unique<RememberedSetUpdatingItem>(heap_, page));
+      }
+    }
 
     // Iterating to space may require a valid body descriptor for e.g.
     // WasmStruct which races with updating a slot in Map. Since to space is
@@ -5843,18 +5594,6 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
     // Update pointers from external string table.
     heap_->external_string_table_.UpdateReferences(
         &UpdateReferenceInExternalStringTableEntry);
-
-    // Update pointers in string forwarding table.
-    // When GC was performed without a stack, the table was cleared and this
-    // does nothing. In the case this was a GC with stack, we need to update
-    // the entries for evacuated objects.
-    // All entries are objects in shared space (unless
-    // --always-use-forwarding-table), so we only need to update pointers during
-    // a shared GC.
-    if (heap_->isolate()->is_shared_space_isolate() ||
-        V8_UNLIKELY(v8_flags.always_use_string_forwarding_table)) {
-      heap_->isolate()->string_forwarding_table()->UpdateAfterFullEvacuation();
-    }
 
     EvacuationWeakObjectRetainer evacuation_object_retainer;
     heap_->ProcessWeakListRoots(&evacuation_object_retainer);
@@ -6097,6 +5836,11 @@ size_t MarkCompactCollector::PostProcessAbortedEvacuationCandidates() {
       DCHECK(page->SweepingDone());
     }
   }
+  for (NormalPage* page : new_space_evacuation_pages_) {
+    if (page->evacuation_was_aborted()) {
+      aborted_pages_verified++;
+    }
+  }
   CHECK_EQ(aborted_pages_verified, aborted_pages);
   return aborted_pages;
 }
@@ -6258,7 +6002,7 @@ void MarkCompactCollector::SweepLargeSpace(LargeObjectSpace* space) {
       current->SetLiveBytes(0);
     }
     current->marking_progress_tracker().ResetIfEnabled();
-    surviving_object_size += static_cast<size_t>(object->Size());
+    surviving_object_size += object->SafeSize().value();
   }
   space->set_objects_size(surviving_object_size);
 }
@@ -6322,6 +6066,12 @@ void MarkCompactCollector::Sweep() {
                                 GCTracer::Scope::MC_SWEEP_TRUSTED_LO,
                                 ThreadKind::kMain);
     SweepLargeSpace(heap_->trusted_lo_space());
+  }
+  if (heap_->shared_trusted_lo_space()) {
+    GCTracer::Scope sweep_scope(heap_->tracer(),
+                                GCTracer::Scope::MC_SWEEP_SHARED_LO,
+                                ThreadKind::kMain);
+    SweepLargeSpace(heap_->shared_trusted_lo_space());
   }
   if (v8_flags.minor_ms && heap_->new_space()) {
     GCTracer::Scope sweep_scope(heap_->tracer(), GCTracer::Scope::MC_SWEEP_NEW,

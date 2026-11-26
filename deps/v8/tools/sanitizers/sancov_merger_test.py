@@ -10,64 +10,51 @@ import sancov_merger
 # Files on disk after test runner completes. The files are mapped by
 # executable name -> file list.
 FILE_MAP = {
-  'd8': [
-    'd8.test.1.1.sancov',
-    'd8.test.2.1.sancov',
-    'd8.test.3.1.sancov',
-    'd8.test.4.1.sancov',
-    'd8.test.5.1.sancov',
-    'd8.test.5.2.sancov',
-    'd8.test.6.1.sancov',
-  ],
-  'cctest': [
-    'cctest.test.1.1.sancov',
-    'cctest.test.2.1.sancov',
-    'cctest.test.3.1.sancov',
-    'cctest.test.4.1.sancov',
-  ],
+    'd8': [
+        'd8.test.1.1.sancov',
+        'd8.test.2.1.sancov',
+        'd8.test.3.1.sancov',
+        'd8.test.4.1.sancov',
+        'd8.test.5.1.sancov',
+        'd8.test.5.2.sancov',
+        'd8.test.6.1.sancov',
+    ],
+    'bigint_shell': [
+        'bigint_shell.test.1.1.sancov',
+        'bigint_shell.test.2.1.sancov',
+        'bigint_shell.test.3.1.sancov',
+        'bigint_shell.test.4.1.sancov',
+    ],
 }
 
 
 # Inputs for merge process with 2 cpus. The tuples contain:
 # (flag, path, executable name, intermediate result index, file list).
 EXPECTED_INPUTS_2 = [
-  (False, '/some/path', 'cctest', 0, [
-    'cctest.test.1.1.sancov',
-    'cctest.test.2.1.sancov']),
-  (False, '/some/path', 'cctest', 1, [
-    'cctest.test.3.1.sancov',
-    'cctest.test.4.1.sancov']),
-  (False, '/some/path', 'd8', 0, [
-    'd8.test.1.1.sancov',
-    'd8.test.2.1.sancov',
-    'd8.test.3.1.sancov',
-    'd8.test.4.1.sancov']),
-  (False, '/some/path', 'd8', 1, [
-    'd8.test.5.1.sancov',
-    'd8.test.5.2.sancov',
-    'd8.test.6.1.sancov']),
+    (False, '/some/path', 'bigint_shell', 0,
+     ['bigint_shell.test.1.1.sancov', 'bigint_shell.test.2.1.sancov']),
+    (False, '/some/path', 'bigint_shell', 1,
+     ['bigint_shell.test.3.1.sancov', 'bigint_shell.test.4.1.sancov']),
+    (False, '/some/path', 'd8', 0, [
+        'd8.test.1.1.sancov', 'd8.test.2.1.sancov', 'd8.test.3.1.sancov',
+        'd8.test.4.1.sancov'
+    ]),
+    (False, '/some/path', 'd8', 1,
+     ['d8.test.5.1.sancov', 'd8.test.5.2.sancov', 'd8.test.6.1.sancov']),
 ]
 
 
 # The same for 4 cpus.
 EXPECTED_INPUTS_4 = [
-  (True, '/some/path', 'cctest', 0, [
-    'cctest.test.1.1.sancov',
-    'cctest.test.2.1.sancov']),
-  (True, '/some/path', 'cctest', 1, [
-    'cctest.test.3.1.sancov',
-    'cctest.test.4.1.sancov']),
-  (True, '/some/path', 'd8', 0, [
-    'd8.test.1.1.sancov',
-    'd8.test.2.1.sancov']),
-  (True, '/some/path', 'd8', 1, [
-    'd8.test.3.1.sancov',
-    'd8.test.4.1.sancov']),
-  (True, '/some/path', 'd8', 2, [
-    'd8.test.5.1.sancov',
-    'd8.test.5.2.sancov']),
-  (True, '/some/path', 'd8', 3, [
-    'd8.test.6.1.sancov'])]
+    (True, '/some/path', 'bigint_shell', 0,
+     ['bigint_shell.test.1.1.sancov', 'bigint_shell.test.2.1.sancov']),
+    (True, '/some/path', 'bigint_shell', 1,
+     ['bigint_shell.test.3.1.sancov', 'bigint_shell.test.4.1.sancov']),
+    (True, '/some/path', 'd8', 0, ['d8.test.1.1.sancov', 'd8.test.2.1.sancov']),
+    (True, '/some/path', 'd8', 1, ['d8.test.3.1.sancov', 'd8.test.4.1.sancov']),
+    (True, '/some/path', 'd8', 2, ['d8.test.5.1.sancov', 'd8.test.5.2.sancov']),
+    (True, '/some/path', 'd8', 3, ['d8.test.6.1.sancov'])
+]
 
 
 class MergerTests(unittest.TestCase):

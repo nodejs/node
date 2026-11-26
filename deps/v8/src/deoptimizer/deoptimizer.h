@@ -25,6 +25,7 @@ namespace v8 {
 namespace internal {
 
 namespace wasm {
+class NativeModule;
 class WasmCode;
 }
 
@@ -39,7 +40,9 @@ class Deoptimizer : public Malloced {
     kUnknown,
     kInvalidated,
     kInvalidatedOsr,
-    kUnaffected
+    kUnaffected,
+    // OSR code that deopted outside of its loop and remains cached.
+    kUnaffectedOsr
   };
 
   struct DeoptInfo {
@@ -56,6 +59,7 @@ class Deoptimizer : public Malloced {
   static DeoptInfo ComputeDeoptInfo(Tagged<Code> code, Address pc);
   DeoptInfo GetDeoptInfo() {
     if (deopt_info_.deopt_id == DeoptInfo::kUninitilizedDeoptId) {
+      DCHECK(!compiled_code_.is_null());
       deopt_info_ = ComputeDeoptInfo(compiled_code_, from_);
     }
     return deopt_info_;
@@ -111,6 +115,11 @@ class Deoptimizer : public Malloced {
                                  LazyDeoptimizeReason reason,
                                  Tagged<Code> code);
 
+  // If the topmost JavaScript frame on the stack is optimized, deoptimize it.
+  // The topmost optimized JS frame (if any) must be at a lazy-deopt safepoint
+  // (e.g. a stack check or JS/runtime call).
+  V8_EXPORT_PRIVATE static void DeoptimizeTopmostFrame(Isolate* isolate);
+
   // Deoptimize all code in the given isolate.
   V8_EXPORT_PRIVATE static void DeoptimizeAll(Isolate* isolate);
 
@@ -123,6 +132,14 @@ class Deoptimizer : public Malloced {
   // directly or inlined).
   static void DeoptimizeAllOptimizedCodeWithFunction(
       Isolate* isolate, DirectHandle<SharedFunctionInfo> function);
+
+#if V8_ENABLE_WEBASSEMBLY
+  // Deoptimizes all optimized code that inlines {func_index} (or any function
+  // if {func_index == -1}) from {native_module}.
+  static void DeoptimizeAllOptimizedCodeWithWasmFunction(
+      Isolate* isolate, const wasm::NativeModule* native_module,
+      int func_index = -1);
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   // Check the given address against a list of allowed addresses, to prevent a
   // potential attacker from using the frame creation process in the
@@ -282,6 +299,9 @@ class Deoptimizer : public Malloced {
   Isolate* isolate_;
   Tagged<JSFunction> function_;
   Tagged<Code> compiled_code_;
+  // compiled_code_ is not visited by the GC. Once GC is allowed again (see
+  // MaterializeHeapObjects), it is cleared and replaced by this handle.
+  IndirectHandle<Code> compiled_code_handle_;
 #if V8_ENABLE_WEBASSEMBLY
   wasm::WasmCode* compiled_optimized_wasm_code_ = nullptr;
 #endif

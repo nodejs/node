@@ -87,10 +87,16 @@ _debug_helper_sources = [
   "heap-constants.h",
 ]
 
+_debug_helper_public_deps = [
+  "../..:run_torque",
+]
+if (v8_use_metagen) {
+  _debug_helper_public_deps += [ "../..:run_metagen" ]
+}
+
 _debug_helper_deps = [
   ":gen_heap_constants",
   "../..:generate_bytecode_builtins_list",
-  "../..:run_torque",
   "../..:v8_abseil",
   "../..:v8_headers",
   "../..:v8_internal_headers",
@@ -100,7 +106,6 @@ _debug_helper_deps = [
 ]
 if (v8_use_metagen) {
   _debug_helper_sources += [ "$target_gen_dir/../../metagen/instance-types.h" ]
-  _debug_helper_deps += [ "../..:run_metagen" ]
 }
 if (v8_enable_temporal_support) {
   _debug_helper_deps += [ "//third_party/rust/temporal_capi" ]
@@ -118,6 +123,7 @@ v8_component("v8_debug_helper_internal") {
 
   public = [ "debug-helper.h" ]
   sources = _debug_helper_sources
+  public_deps = _debug_helper_public_deps
   deps = _debug_helper_deps
 
   configs = [ ":internal_config" ] + _debug_helper_extra_configs
@@ -149,6 +155,7 @@ v8_shared_library("v8_debug_helper_shared") {
 
   output_name = "v8_debug_helper"
   sources = _debug_helper_sources
+  public_deps = _debug_helper_public_deps
   deps = _debug_helper_deps
 
   configs = [ ":shared_config" ] + _debug_helper_extra_configs

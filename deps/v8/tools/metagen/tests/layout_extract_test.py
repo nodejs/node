@@ -147,7 +147,8 @@ _V8_ROOT = "/nonexistent-v8-root"
 def parse(body: str,
           extra_headers=None,
           *,
-          prelude=_PRELUDE) -> cpp_hier.ParsedTU:
+          prelude=_PRELUDE,
+          extra_args=()) -> cpp_hier.ParsedTU:
   """Parse a snippet. `extra_headers` maps a v8-root-relative path to
   its contents and prepends an #include of it, for the checks that read
   which header a declaration came from."""
@@ -162,7 +163,7 @@ def parse(body: str,
                     contents + "\n} }\n"))
   tu = _INDEX.parse(
       "metagen_layout_test.cc",
-      args=["-x", "c++", "-std=c++20", "-fsyntax-only"],
+      args=["-x", "c++", "-std=c++20", "-fsyntax-only", *extra_args],
       unsaved_files=unsaved,
       options=_PARSE_OPTIONS)
   errors = [d for d in tu.diagnostics if d.severity >= cindex.Diagnostic.Error]
@@ -172,8 +173,8 @@ def parse(body: str,
   return cpp_hier._harvest_classes(tu, _V8_ROOT).parsed
 
 
-def extract_layouts(body: str, extra_headers=None):
-  h = parse(body, extra_headers)
+def extract_layouts(body: str, extra_headers=None, *, extra_args=()):
+  h = parse(body, extra_headers, extra_args=extra_args)
   return {
       r.cpp_name.rsplit("::", 1)[-1]: r
       for r in layout_extract.extract_layouts(h, _V8_ROOT)
@@ -648,6 +649,90 @@ class BaseChainTest(unittest.TestCase):
     self.assertEqual(table.base_cpp_name, "v8::internal::FakeArrayBase")
     self.assertEqual([(f.cpp_name, f.offset) for f in table.fields],
                      [("capacity_", 8), ("elements_", 12)])
+
+  def test_tail_padded_base_on_msvc_abi(self):
+    layouts = extract_layouts(
+        """
+      using uint64_t = unsigned long long;
+      template <typename T>
+      class UnalignedValueMember {
+        alignas(8) char storage_[sizeof(T)];
+      };
+      #pragma pack(push, 4)
+      class SyncPrimitive : public HeapObject {
+       public:
+        uint32_t padding_;
+        UnalignedValueMember<uint64_t> waiter_queue_head_;
+        std::atomic<uint32_t> state_;
+      };
+      class Mutex : public SyncPrimitive {
+       public:
+        std::atomic<int32_t> owner_thread_id_;
+      };
+      #pragma pack(pop)
+    """,
+        extra_args=("--target=x86_64-pc-windows-msvc",))
+    sync = layouts["SyncPrimitive"]
+    self.assertEqual(sync.base_size, 4)
+    self.assertEqual(sync.size, 20)
+    self.assertEqual(sync.alignment, 8)
+    mutex = layouts["Mutex"]
+    self.assertEqual(mutex.base_size, 20)
+    self.assertEqual(mutex.size, 24)
+    self.assertEqual([(f.cpp_name, f.offset) for f in mutex.fields],
+                     [("owner_thread_id_", 20)])
+
+  def test_pack1_base_with_aligned_member_on_msvc_abi(self):
+    layouts = extract_layouts(
+        """
+      class AlignedBase : public HeapObject {
+       public:
+        alignas(4) uint32_t bit_field_;
+      };
+      #pragma pack(push, 1)
+      class ExtendedBase : public AlignedBase {
+       public:
+        uint8_t bit_field_ex_;
+      };
+      #pragma pack(pop)
+      #pragma pack(push, 4)
+      class Derived : public ExtendedBase {
+       public:
+        uint8_t flags_;
+        uint8_t padding_[2];
+      };
+      #pragma pack(pop)
+    """,
+        extra_args=("--target=x86_64-pc-windows-msvc",))
+    ext = layouts["ExtendedBase"]
+    self.assertEqual(ext.base_size, 8)
+    self.assertEqual(ext.size, 9)
+    self.assertEqual(ext.alignment, 4)
+    derived = layouts["Derived"]
+    self.assertEqual(derived.base_size, 9)
+    self.assertEqual(derived.size, 12)
+    self.assertEqual([(f.cpp_name, f.offset) for f in derived.fields],
+                     [("flags_", 9), ("padding_", 10)])
+
+  def test_tail_on_tail_padded_class_is_rejected(self):
+    with self.assertRaises(LayoutError) as ctx:
+      extract_layouts(
+          """
+        #pragma pack(push, 4)
+        class TailedWithTailPadding : public HeapObject {
+         public:
+          uint32_t padding_;
+          alignas(8) uint32_t length_;
+          V8_TQ_TAIL_LENGTH(length);
+          V8_TQ_NAME(items)
+          uint32_t items_[0];
+        };
+        #pragma pack(pop)
+      """,
+          extra_args=("--target=x86_64-pc-windows-msvc",))
+    self.assertIn(
+        "treated as a char[0] padding field instead of a flexible tail",
+        str(ctx.exception))
 
 
 class TailTest(unittest.TestCase):

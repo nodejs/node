@@ -9,6 +9,7 @@
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
 
+#include <algorithm>
 #include <array>
 #include <cinttypes>
 #include <cstdarg>
@@ -193,26 +194,38 @@ class Decoder {
   // Returns the read opcode and the number of bytes that make up this opcode,
   // *including* the prefix byte. For most opcodes, it will be 2.
   template <typename ValidationTag>
-  std::pair<WasmOpcode, uint32_t> read_prefixed_opcode(
-      const uint8_t* pc, Name<ValidationTag> name = "prefixed opcode") {
-    // Prefixed opcodes all use LEB128 encoding.
-    auto [index, index_length] =
-        read_u32v<ValidationTag>(pc + 1, "prefixed opcode index");
-    uint32_t length = index_length + 1;  // 1 for prefix byte.
-    // Only support opcodes that go up to 0xFFF (when decoded). Anything
-    // bigger will need more than 2 bytes, and the '<< 12' below will be wrong.
-    if (ValidationTag::validate && V8_UNLIKELY(index > 0xfff)) {
-      errorf(pc, "Invalid prefixed opcode %d", index);
-      // On validation failure we return "unreachable" (opcode 0).
-      static_assert(kExprUnreachable == 0);
-      return {kExprUnreachable, 0};
+  V8_INLINE std::pair<WasmOpcode, uint32_t> read_prefixed_opcode(
+      const uint8_t* pc) {
+    DCHECK_LE(start_, pc);
+    DCHECK_LT(pc, end_);
+    DCHECK(WasmOpcodes::IsPrefixOpcode(static_cast<WasmOpcode>(*pc)));
+    static_assert(kGCPrefix == 0xfb && kNumericPrefix == 0xfc &&
+                  kSimdPrefix == 0xfd && kAtomicPrefix == 0xfe);
+    // Helps callers prove the fast-path result is non-zero (>= 0xfb00).
+    V8_ASSUME(*pc >= kGCPrefix);
+    // Inline fast paths for 1-byte (0..0x7f) and 2-byte (0..0xfff) opcode
+    // indices, keeping multi-byte LEB / validation-error handling out of line.
+    // Valid Wasm function bodies and constant expressions always end with
+    // kExprEnd, so at least 3 bytes (prefix, b1, and kExprEnd or b2) remain at
+    // any valid prefixed opcode.
+    if (V8_LIKELY(!ValidationTag::validate || end_ - pc >= 3)) {
+      DCHECK_LE(2, end_ - pc);
+      uint32_t b1 = pc[1];
+      if (V8_LIKELY(b1 < 0x80)) {
+        return {static_cast<WasmOpcode>((static_cast<uint32_t>(*pc) << 8) | b1),
+                2};
+      }
+      DCHECK_LE(3, end_ - pc);
+      uint32_t b2 = pc[2];
+      if (V8_LIKELY(b2 <= 0x1f)) {
+        uint32_t index = (b1 & 0x7f) | (b2 << 7);
+        int shift = b2 >= 2 ? 12 : 8;
+        return {static_cast<WasmOpcode>((static_cast<uint32_t>(*pc) << shift) |
+                                        index),
+                3};
+      }
     }
-
-    if (index > 0xff) {
-      return {static_cast<WasmOpcode>((*pc) << 12 | index), length};
-    }
-
-    return {static_cast<WasmOpcode>((*pc) << 8 | index), length};
+    return read_prefixed_opcode_slowpath<ValidationTag>(pc);
   }
 
   // Reads a 8-bit unsigned integer (byte) and advances {pc_}.
@@ -490,90 +503,210 @@ class Decoder {
       }
       return {result, 1};
     }
-    auto [result, length] =
-        read_leb_slowpath<IntType, ValidationTag, trace, size_in_bits>(pc,
-                                                                       name);
-    V8_ASSUME(length >= 0 && length <= (size_in_bits + 6) / 7);
-    V8_ASSUME(ValidationTag::validate || length >= 1);
-    return {result, length};
+    std::pair<IntType, uint32_t> decoded;
+    if (trace && V8_UNLIKELY(v8_flags.trace_wasm_decoder)) {
+      decoded =
+          read_leb_byte_by_byte<IntType, ValidationTag, trace, size_in_bits>(
+              pc, name);
+    } else {
+      decoded =
+          read_leb_fastpath<IntType, ValidationTag, size_in_bits>(pc, name);
+    }
+    // Single-byte LEBs already returned above, so multi-byte lengths are >= 2
+    // on success or 0 on validation failure.
+    V8_ASSUME(decoded.second <= (size_in_bits + 6) / 7);
+    V8_ASSUME(ValidationTag::validate ? decoded.second != 1
+                                      : decoded.second >= 2);
+    return decoded;
   }
 
-  template <typename IntType, typename ValidationTag, TraceFlag trace,
+  template <size_t size_in_bits, bool is_signed>
+  static constexpr V8_INLINE bool is_valid_leb_last_byte(uint8_t byte) {
+    // The final (kMaxLength-th) byte of an N-bit LEB128 encodes only the
+    // remaining {kUsedBits} bits; e.g. for a 32-bit LEB128 (kMaxLength == 5):
+    //   kUsedBits = 4  (== 32 - (5 - 1) * 7)
+    // - For unsigned values, bit 7 (continuation bit) and bits [kUsedBits .. 6]
+    //   must all be 0, i.e. {byte < (1U << kUsedBits)}.
+    // - For signed values, bit 7 must be 0 and the unused bits [kUsedBits .. 6]
+    //   must sign-extend the highest used payload bit (bit kUsedBits - 1).
+    //   In {u ^ (u << 1)}:
+    //   * bit 8 equals bit 7 of {byte} (since bit 8 of {u} is 0), so masking
+    //     with 0x100U checks that the continuation bit is 0;
+    //   * each bit i in [kUsedBits .. 6] is 0 iff bit i of {byte} equals bit
+    //     (i - 1), so masking with (0x7fU & (0xffU << kUsedBits)) checks that
+    //     all unused payload bits equal bit (kUsedBits - 1).
+    constexpr int kMaxLength = (size_in_bits + 6) / 7;
+    constexpr int kUsedBits = size_in_bits - ((kMaxLength - 1) * 7);
+    if constexpr (!is_signed) {
+      return byte < (1U << kUsedBits);
+    } else {
+      constexpr uint32_t kInvalidMask = 0x100U | (0x7fU & (0xffU << kUsedBits));
+      uint32_t u = byte;
+      return ((u ^ (u << 1)) & kInvalidMask) == 0;
+    }
+  }
+
+  // Multi-byte LEB decoding uses two out-of-line {V8_PRESERVE_MOST} functions:
+  // 1. {read_leb_fastpath} decodes valid 2..5-byte LEBs when at least 5 bytes
+  //    remain, and tail-calls {read_leb_byte_by_byte} otherwise.
+  // 2. {read_leb_byte_by_byte} handles < 5 remaining bytes, 6..10-byte 64-bit
+  //    LEBs, --trace-wasm-decoder, and errors. {errorf} and {error} stay here
+  //    so their call arguments do not force register saves in
+  //    {read_leb_fastpath}.
+  template <typename IntType, typename ValidationTag,
             size_t size_in_bits = 8 * sizeof(IntType)>
-  V8_NOINLINE V8_PRESERVE_MOST std::pair<IntType, uint32_t> read_leb_slowpath(
+  V8_NOINLINE V8_PRESERVE_MOST std::pair<IntType, uint32_t> read_leb_fastpath(
       const uint8_t* pc, Name<ValidationTag> name) {
-    // Create an unrolled LEB decoding function per integer type.
-    return read_leb_tail<IntType, ValidationTag, trace, size_in_bits, 0>(
-        pc, name, 0);
-  }
-
-  template <typename IntType, typename ValidationTag, TraceFlag trace,
-            size_t size_in_bits, int byte_index>
-  V8_INLINE std::pair<IntType, uint32_t> read_leb_tail(
-      const uint8_t* pc, Name<ValidationTag> name,
-      IntType intermediate_result) {
     constexpr bool is_signed = std::is_signed_v<IntType>;
     constexpr int kMaxLength = (size_in_bits + 6) / 7;
-    static_assert(byte_index < kMaxLength, "invalid template instantiation");
-    constexpr int shift = byte_index * 7;
-    constexpr bool is_last_byte = byte_index == kMaxLength - 1;
-    const bool at_end = ValidationTag::validate && pc >= end_;
-    uint8_t b = 0;
-    if (V8_LIKELY(!at_end)) {
-      DCHECK_LT(pc, end_);
-      b = *pc;
-      TRACE_IF(trace, "%02x ", b);
-      using Unsigned = std::make_unsigned_t<IntType>;
-      intermediate_result |=
-          (static_cast<Unsigned>(static_cast<IntType>(b) & 0x7f) << shift);
+    // The steps below read up to 5 bytes.
+    static_assert(kMaxLength >= 5);
+
+    // Check once that 5 bytes are in bounds so the byte reads below need no
+    // individual bounds checks. Validated input needs no check: the reads
+    // below stop at the last byte of the LEB.
+    if (!ValidationTag::validate || V8_LIKELY(end_ - pc >= 5)) {
+      // When a byte's continuation bit (0x80) is set, its int8_t value is
+      // {payload - 0x80}, and the next step's "+ 1" cancels that -0x80. Thus
+      // {result} stays negative while the continuation bit is set. Once that
+      // bit is 0, {result} holds the concatenated 7-bit payloads.
+      int64_t result = static_cast<int8_t>(pc[0]);
+      DCHECK_GT(0, result);
+      // Adds byte {i}. Returns whether it is the last byte of the LEB.
+      auto add_byte = [&](int i) {
+        DCHECK_LT(pc + i, end_);
+        result += int64_t{static_cast<int8_t>(pc[i]) + 1} << (7 * i);
+        return result >= 0;
+      };
+      // Sign-extends {result} from its low {7 * length} bits if needed.
+      auto finish = [&result](int length) -> std::pair<IntType, uint32_t> {
+        if constexpr (is_signed) {
+          const int shift = std::max(0, int{8 * sizeof(IntType)} - 7 * length);
+          return {static_cast<IntType>(result << shift) >> shift,
+                  static_cast<uint32_t>(length)};
+        } else {
+          return {static_cast<IntType>(result), static_cast<uint32_t>(length)};
+        }
+      };
+      // Omit {V8_LIKELY} on these branches. Lengths 2 to 4 are all common, and
+      // hints on several branches make Clang save two extra registers on x64.
+      if (add_byte(1)) return finish(2);
+      if (add_byte(2)) return finish(3);
+      if (add_byte(3)) return finish(4);
+      bool is_last = add_byte(4);
+      if constexpr (kMaxLength == 5) {
+        // The 35 decoded bits must fit into {size_in_bits}. Upper bits must be
+        // 0 for unsigned types or match the sign bit for signed types;
+        // otherwise {read_leb_byte_by_byte} reports the error.
+        if constexpr (is_signed) {
+          // Shift bit 34 to the sign bit (64 - 35 = 29), then arithmetic-shift
+          // bits {size_in_bits - 1}..34 of {result} to bit 0.
+          const int64_t sign_bits = (result << 29) >> (28 + size_in_bits);
+          is_last = is_last && (sign_bits == 0 || sign_bits == -1);
+        } else {
+          is_last = is_last && (result >> size_in_bits) == 0;
+        }
+        if constexpr (!ValidationTag::validate) {
+          // Validated input always passes the checks above.
+          DCHECK(is_last);
+          return finish(5);
+        }
+      }
+      if (is_last) return finish(5);
     }
-    if (!is_last_byte && (b & 0x80)) {
-      // Make sure that we only instantiate the template for valid byte indexes.
-      // Compilers are not smart enough to figure out statically that the
-      // following call is unreachable if is_last_byte is false.
-      constexpr int next_byte_index = byte_index + (is_last_byte ? 0 : 1);
-      return read_leb_tail<IntType, ValidationTag, trace, size_in_bits,
-                           next_byte_index>(pc + 1, name, intermediate_result);
-    }
-    if (ValidationTag::validate && V8_UNLIKELY(at_end || (b & 0x80))) {
-      TRACE_IF(trace, at_end ? "<end> " : "<length overflow> ");
-      errorf(pc, "%s while decoding %s",
-             at_end ? "reached end" : "length overflow", name);
-      return {0, 0};
-    }
-    if constexpr (is_last_byte) {
-      // A signed-LEB128 must sign-extend the final byte, excluding its
-      // most-significant bit; e.g. for a 32-bit LEB128:
-      //   kExtraBits = 4  (== 32 - (5-1) * 7)
-      // For unsigned values, the extra bits must be all zero.
-      // For signed values, the extra bits *plus* the most significant bit must
-      // either be 0, or all ones.
-      constexpr int kExtraBits = size_in_bits - ((kMaxLength - 1) * 7);
-      constexpr int kSignExtBits = kExtraBits - (is_signed ? 1 : 0);
-      const uint8_t checked_bits = b & (0xFF << kSignExtBits);
-      constexpr uint8_t kSignExtendedExtraBits = 0x7f & (0xFF << kSignExtBits);
-      const bool valid_extra_bits =
-          checked_bits == 0 ||
-          (is_signed && checked_bits == kSignExtendedExtraBits);
-      if (!ValidationTag::validate) {
-        DCHECK(valid_extra_bits);
-      } else if (V8_UNLIKELY(!valid_extra_bits)) {
-        error(pc, "extra bits in varint");
-        return {0, 0};
+    V8_MUSTTAIL return read_leb_byte_by_byte<IntType, ValidationTag, kNoTrace,
+                                             size_in_bits>(pc, name);
+  }
+
+  // Cold fallback for LEBs near {end_} (< 5 bytes left in buffer), 6..10-byte
+  // 64-bit LEBs, --trace-wasm-decoder, and malformed LEBs (reporting the exact
+  // error offset and message).
+  template <typename IntType, typename ValidationTag, TraceFlag trace,
+            size_t size_in_bits = 8 * sizeof(IntType)>
+  V8_NOINLINE V8_PRESERVE_MOST std::pair<IntType, uint32_t>
+  read_leb_byte_by_byte(const uint8_t* pc, Name<ValidationTag> name) {
+    constexpr bool is_signed = std::is_signed_v<IntType>;
+    constexpr int kMaxLength = (size_in_bits + 6) / 7;
+    using Unsigned = std::make_unsigned_t<IntType>;
+    Unsigned result = 0;
+    for (int byte_index = 0; byte_index < kMaxLength; ++byte_index) {
+      const int shift = byte_index * 7;
+      const bool is_last_byte = byte_index == kMaxLength - 1;
+      const bool at_end = ValidationTag::validate && pc >= end_;
+      uint8_t b = 0;
+      if (V8_LIKELY(!at_end)) {
+        DCHECK_LT(pc, end_);
+        b = *pc;
+        TRACE_IF(trace, "%02x ", b);
+        result |= static_cast<Unsigned>(b & 0x7f) << shift;
+      }
+      if (!is_last_byte && (b & 0x80)) {
+        ++pc;
+        continue;
+      }
+      if constexpr (ValidationTag::validate) {
+        if (V8_UNLIKELY(at_end || (b & 0x80))) {
+          TRACE_IF(trace, at_end ? "<end> " : "<length overflow> ");
+          errorf(pc, "%s while decoding %s",
+                 at_end ? "reached end" : "length overflow", name);
+          return {0, 0};
+        }
+      }
+      if (is_last_byte) {
+        const bool valid_extra_bits =
+            is_valid_leb_last_byte<size_in_bits, is_signed>(b);
+        if constexpr (!ValidationTag::validate) {
+          DCHECK(valid_extra_bits);
+        } else if (V8_UNLIKELY(!valid_extra_bits)) {
+          error(pc, "extra bits in varint");
+          return {0, 0};
+        }
+      }
+      if constexpr (is_signed) {
+        // Clamps to 0 when the final byte already reaches the MSB of IntType
+        // (e.g. 5th byte of int32_t or 10th byte of int64_t).
+        const int sign_ext_shift =
+            std::max(0, int{8 * sizeof(IntType)} - shift - 7);
+        const IntType signed_result =
+            static_cast<IntType>(result << sign_ext_shift) >> sign_ext_shift;
+        TRACE_IF(trace, "= %" PRIi64 "\n", static_cast<int64_t>(signed_result));
+        return {signed_result, static_cast<uint32_t>(byte_index + 1)};
+      } else {
+        TRACE_IF(trace, "= %" PRIu64 "\n", static_cast<uint64_t>(result));
+        return {static_cast<IntType>(result),
+                static_cast<uint32_t>(byte_index + 1)};
       }
     }
-    constexpr int sign_ext_shift =
-        is_signed ? std::max(0, int{8 * sizeof(IntType)} - shift - 7) : 0;
-    // Perform sign extension.
-    intermediate_result =
-        (intermediate_result << sign_ext_shift) >> sign_ext_shift;
-    if (trace && is_signed) {
-      TRACE("= %" PRIi64 "\n", static_cast<int64_t>(intermediate_result));
-    } else if (trace) {
-      TRACE("= %" PRIu64 "\n", static_cast<uint64_t>(intermediate_result));
+    UNREACHABLE();
+  }
+
+  template <typename ValidationTag>
+  V8_NOINLINE V8_PRESERVE_MOST std::pair<WasmOpcode, uint32_t>
+  read_prefixed_opcode_slowpath(const uint8_t* pc) {
+    // Prefixed opcodes all use LEB128 encoding.
+    uint32_t index;
+    uint32_t index_length;
+    std::tie(index, index_length) =
+        read_u32v<ValidationTag>(pc + 1, "prefixed opcode index");
+    // Only support opcodes that go up to 0xFFF (when decoded). Anything
+    // bigger will need more than 2 bytes, and the '<< 12' below will be wrong.
+    if constexpr (ValidationTag::validate) {
+      if (V8_UNLIKELY(index_length == 0 || index > 0xfff)) {
+        if (index_length != 0) {
+          errorf(pc, "Invalid prefixed opcode %u", index);
+        }
+        // On validation failure we return "unreachable" (opcode 0).
+        static_assert(kExprUnreachable == 0);
+        return {kExprUnreachable, 0};
+      }
+    } else {
+      DCHECK_GT(index_length, 0);
+      DCHECK_LE(index, 0xfff);
     }
-    const uint32_t length = byte_index + 1;
-    return {intermediate_result, length};
+    int shift = index > 0xff ? 12 : 8;
+    return {
+        static_cast<WasmOpcode>((static_cast<uint32_t>(*pc) << shift) | index),
+        index_length + 1};
   }
 };
 

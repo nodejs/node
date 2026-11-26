@@ -10,7 +10,6 @@
 #include "src/base/macros.h"
 #include "src/base/platform/time.h"
 #include "src/heap/cppgc-internal/heap-config.h"
-#include "src/heap/cppgc-internal/memory.h"
 #include "src/heap/cppgc-internal/stats-collector.h"
 
 namespace cppgc::internal {
@@ -32,18 +31,6 @@ class V8_EXPORT_PRIVATE Sweeper final {
    private:
     Sweeper& sweeper_;
   };
-
-  static constexpr bool CanDiscardMemory() {
-#if defined(V8_OS_WIN)
-    // Discarding memory on Windows does not decommit the memory and does not
-    // contribute to reduce the memory footprint. On the other hand, these
-    // calls become expensive the more memory is allocated in the system and
-    // can result in hangs. Thus, it is better to not discard on Windows.
-    return false;
-#else
-    return CheckMemoryIsInaccessibleIsNoop();
-#endif
-  }
 
   explicit Sweeper(HeapBase&);
   ~Sweeper();

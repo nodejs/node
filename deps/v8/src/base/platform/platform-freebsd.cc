@@ -104,7 +104,7 @@ std::optional<OS::MemoryRange> OS::GetFirstFreeMemoryRangeWithin(
 }
 
 // static
-Stack::StackSlot Stack::ObtainCurrentThreadStackStart() {
+Stack::StackBounds Stack::ObtainCurrentThreadStackBounds() {
   pthread_attr_t attr;
   int error;
   pthread_attr_init(&attr);
@@ -115,10 +115,10 @@ Stack::StackSlot Stack::ObtainCurrentThreadStackStart() {
     error = pthread_attr_getstack(&attr, &base, &size);
     CHECK(!error);
     pthread_attr_destroy(&attr);
-    return reinterpret_cast<uint8_t*>(base) + size;
+    return {reinterpret_cast<uint8_t*>(base) + size, base};
   }
   pthread_attr_destroy(&attr);
-  return nullptr;
+  return {nullptr, nullptr};
 }
 
 }  // namespace base

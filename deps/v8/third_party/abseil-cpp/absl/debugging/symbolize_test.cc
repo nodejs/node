@@ -97,17 +97,17 @@ ABSL_SYMBOLIZE_TEST_NOINLINE void Foo::func(int) {
 
 // Create functions that will remain in different text sections in the
 // final binary when linker option "-z,keep-text-section-prefix" is used.
-int ABSL_ATTRIBUTE_SECTION_VARIABLE(.text.unlikely) unlikely_func() {
+ABSL_ATTRIBUTE_SECTION_VARIABLE(.text.unlikely) int unlikely_func() {
   return 0;
 }
 
-int ABSL_ATTRIBUTE_SECTION_VARIABLE(.text.hot) hot_func() { return 0; }
+ABSL_ATTRIBUTE_SECTION_VARIABLE(.text.hot) int hot_func() { return 0; }
 
-int ABSL_ATTRIBUTE_SECTION_VARIABLE(.text.startup) startup_func() { return 0; }
+ABSL_ATTRIBUTE_SECTION_VARIABLE(.text.startup) int startup_func() { return 0; }
 
-int ABSL_ATTRIBUTE_SECTION_VARIABLE(.text.exit) exit_func() { return 0; }
+ABSL_ATTRIBUTE_SECTION_VARIABLE(.text.exit) int exit_func() { return 0; }
 
-int /*ABSL_ATTRIBUTE_SECTION_VARIABLE(.text)*/ regular_func() { return 0; }
+/*ABSL_ATTRIBUTE_SECTION_VARIABLE(.text)*/ int regular_func() { return 0; }
 
 // Thread-local data may confuse the symbolizer, ensure that it does not.
 // Variable sizes and order are important.
@@ -125,8 +125,8 @@ static volatile bool volatile_bool = false;
 
 // Force the binary to be large enough that a THP .text remap will succeed.
 static constexpr size_t kHpageSize = 1 << 21;
-const char kHpageTextPadding[kHpageSize * 4] ABSL_ATTRIBUTE_SECTION_VARIABLE(
-        .text) = "";
+ABSL_ATTRIBUTE_SECTION_VARIABLE(.text)
+const char kHpageTextPadding[kHpageSize * 4] = "";
 
 #endif  // !defined(__EMSCRIPTEN__)
 
@@ -297,8 +297,8 @@ TEST(Symbolize, SymbolizeWithDemanglingStackConsumption) {
 const size_t kPageSize = 64 << 10;
 // We place a read-only symbols into the .text section and verify that we can
 // symbolize them and other symbols after remapping them.
-const char kPadding0[kPageSize * 4] ABSL_ATTRIBUTE_SECTION_VARIABLE(.text) = "";
-const char kPadding1[kPageSize * 4] ABSL_ATTRIBUTE_SECTION_VARIABLE(.text) = "";
+ABSL_ATTRIBUTE_SECTION_VARIABLE(.text) const char kPadding0[kPageSize * 4] = "";
+ABSL_ATTRIBUTE_SECTION_VARIABLE(.text) const char kPadding1[kPageSize * 4] = "";
 
 static int FilterElfHeader(struct dl_phdr_info *info, size_t size, void *data) {
   for (int i = 0; i < info->dlpi_phnum; i++) {

@@ -23,11 +23,29 @@ bool TypesUnrelated(wasm::ValueType type1, wasm::ValueType type2,
          !wasm::IsSubtypeOf(type2, type1, module);
 }
 
-bool TypesUnrelated(Node* lhs, Node* rhs) {
-  wasm::TypeInModule type1 = NodeProperties::GetType(lhs).AsWasm();
-  wasm::TypeInModule type2 = NodeProperties::GetType(rhs).AsWasm();
+// Compares heap types (ignoring nullability) rather than ValueType subtyping:
+// e.g. (ref null $Sub) and (ref $Super) are not subtypes of each other, yet
+// they can alias the same non-null struct.
+bool HeapTypesUnrelated(Node* lhs, Node* rhs) {
+  // Resolved alias roots or unreduced loop inputs may be untyped or carry a
+  // non-Wasm type (e.g. Type::None() from DeadCodeElimination, or a JS node
+  // peeled from a TypeGuard during Wasm-into-JS inlining).
+  if (!NodeProperties::IsTyped(lhs) || !NodeProperties::IsTyped(rhs)) {
+    return false;
+  }
+  Type lhs_type = NodeProperties::GetType(lhs);
+  Type rhs_type = NodeProperties::GetType(rhs);
+  if (!lhs_type.IsWasm() || !rhs_type.IsWasm()) {
+    return false;
+  }
+  wasm::TypeInModule type1 = lhs_type.AsWasm();
+  wasm::TypeInModule type2 = rhs_type.AsWasm();
   DCHECK_EQ(type1.module, type2.module);
-  return TypesUnrelated(type1.type, type2.type, type1.module);
+  if (!type1.type.is_ref() || !type2.type.is_ref()) {
+    return false;
+  }
+  return wasm::HeapTypesUnrelated(type1.type.heap_type(),
+                                  type2.type.heap_type(), type1.module);
 }
 
 bool IsFresh(Node* node) {
@@ -42,7 +60,7 @@ bool IsConstant(Node* node) {
 
 bool MayAlias(Node* lhs, Node* rhs) {
   if (lhs == rhs) return true;
-  if (TypesUnrelated(lhs, rhs) || (IsFresh(lhs) && IsFresh(rhs)) ||
+  if (HeapTypesUnrelated(lhs, rhs) || (IsFresh(lhs) && IsFresh(rhs)) ||
       (IsFresh(lhs) && IsConstant(rhs)) || (IsConstant(lhs) && IsFresh(rhs))) {
     return false;
   }
@@ -57,6 +75,11 @@ Node* ResolveAliases(Node* node) {
     node = NodeProperties::GetValueInput(node, 0);
   }
   return node;
+}
+
+bool IsDeadOrDeadValue(Node* node) {
+  return node->opcode() == IrOpcode::kDead ||
+         node->opcode() == IrOpcode::kDeadValue;
 }
 
 // We model array length and string canonicalization as fields at negative
@@ -84,8 +107,7 @@ Reduction WasmLoadElimination::UpdateState(Node* node,
 std::tuple<Node*, Node*> WasmLoadElimination::TruncateAndExtendOrType(
     Node* value, Node* effect, Node* control, wasm::ValueType field_type,
     bool is_signed) {
-  if (value->opcode() == IrOpcode::kDead ||
-      value->opcode() == IrOpcode::kDeadValue) {
+  if (IsDeadOrDeadValue(value)) {
     return {dead(), dead()};
   }
 
@@ -107,7 +129,7 @@ std::tuple<Node*, Node*> WasmLoadElimination::TruncateAndExtendOrType(
   }
 
   wasm::ValueType unpacked_field_type = field_type.Unpacked();
-  if (node_type.type.is_uninhabited() ||
+  if (node_type.type.is_uninhabited() || unpacked_field_type.is_uninhabited() ||
       TypesUnrelated(node_type.type, unpacked_field_type, node_type.module)) {
     // Uninhabited or unrelated types can occur as a result of unreachable code.
     // Example: Storing a value x of type A in a struct, then casting the struct
@@ -185,7 +207,7 @@ Reduction WasmLoadElimination::ReduceWasmStructGet(Node* node) {
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
-  if (object->opcode() == IrOpcode::kDead) return NoChange();
+  if (IsDeadOrDeadValue(object)) return NoChange();
   AbstractState const* state = node_states_.Get(effect);
   if (state == nullptr) return NoChange();
 
@@ -234,9 +256,20 @@ Reduction WasmLoadElimination::ReduceWasmStructGet(Node* node) {
       half_state->LookupField(field_info.field_index, object);
 
   if (!lookup_result.IsEmpty() && !lookup_result.value->IsDead()) {
+    wasm::ValueType field_type = field_info.type->field(field_info.field_index);
+    if (field_type.is_ref()) {
+      // Use the refined Wasm type of {node} rather than the static field type
+      // from {field_info}: WasmTyper may have refined {node} using a subtype
+      // of {field_info.type} with a more specific covariant field type, and
+      // replacing {node} must not widen its type or substitute an unrelated
+      // sibling field type.
+      field_type = NodeProperties::GetType(node).AsWasm().type;
+    } else {
+      DCHECK_EQ(NodeProperties::GetType(node).AsWasm().type,
+                field_type.Unpacked());
+    }
     std::tuple<Node*, Node*> replacement = TruncateAndExtendOrType(
-        lookup_result.value, effect, control,
-        field_info.type->field(field_info.field_index), field_info.is_signed);
+        lookup_result.value, effect, control, field_type, field_info.is_signed);
     if (std::get<0>(replacement) == dead()) {
       // If the value is dead (unreachable), this whole code path is unreachable
       // and we can mark this control flow path as dead.
@@ -272,20 +305,14 @@ Reduction WasmLoadElimination::ReduceWasmStructSet(Node* node) {
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
-  if (object->opcode() == IrOpcode::kDead) return NoChange();
+  if (IsDeadOrDeadValue(object)) return NoChange();
   AbstractState const* state = node_states_.Get(effect);
   if (state == nullptr) return NoChange();
 
   if (!NodeProperties::IsTyped(input_struct) ||
       !NodeProperties::GetType(input_struct).IsWasm()) {
-    // Also see the same pattern in ReduceWasmStructGet. Note that this is
-    // reached for cases where the StructSet has a value input that is
-    // DeadValue(). Above we check for `object->opcode() == IrOpcode::kDead.
-    // As an alternative that check could be extended to also check for
-    // ... || object->opcode() == IrOpcode::kDeadValue.
-    // It seems that the DeadValue may be caused by
-    // DeadCodeElimination::ReducePureNode. If that finds any input that is a
-    // Dead() node, it will replace that input with a DeadValue().
+    // Also see the same pattern in ReduceWasmStructGet. This can be reached
+    // when input_struct is untyped or has a non-Wasm type (e.g. Type::None()).
     return NoChange();
   }
 
@@ -346,7 +373,7 @@ Reduction WasmLoadElimination::ReduceLoadLikeFromImmutable(Node* node,
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
-  if (object->opcode() == IrOpcode::kDead) return NoChange();
+  if (IsDeadOrDeadValue(object)) return NoChange();
   AbstractState const* state = node_states_.Get(effect);
   if (state == nullptr) return NoChange();
 
@@ -380,7 +407,7 @@ Reduction WasmLoadElimination::ReduceWasmArrayInitializeLength(Node* node) {
   Node* value = NodeProperties::GetValueInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
 
-  if (object->opcode() == IrOpcode::kDead) return NoChange();
+  if (IsDeadOrDeadValue(object)) return NoChange();
   AbstractState const* state = node_states_.Get(effect);
   if (state == nullptr) return NoChange();
 
@@ -400,7 +427,7 @@ Reduction WasmLoadElimination::ReduceStringPrepareForGetCodeunit(Node* node) {
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
-  if (object->opcode() == IrOpcode::kDead) return NoChange();
+  if (IsDeadOrDeadValue(object)) return NoChange();
   AbstractState const* state = node_states_.Get(effect);
   if (state == nullptr) return NoChange();
 
@@ -524,7 +551,7 @@ WasmLoadElimination::HalfState const* WasmLoadElimination::HalfState::KillField(
   const InnerMap& same_index_map = fields_.Get(field_index);
   InnerMap new_map(same_index_map);
   for (std::pair<Node*, FieldOrElementValue> pair : same_index_map) {
-    if (MayAlias(pair.first, object)) {
+    if (pair.first->IsDead() || MayAlias(pair.first, object)) {
       new_map.Set(pair.first, FieldOrElementValue());
     }
   }
@@ -550,8 +577,7 @@ WasmLoadElimination::AbstractState const* WasmLoadElimination::ComputeLoopState(
     if (visited.insert(current).second) {
       if (current->opcode() == IrOpcode::kWasmStructSet) {
         Node* object = NodeProperties::GetValueInput(current, 0);
-        if (object->opcode() == IrOpcode::kDead ||
-            object->opcode() == IrOpcode::kDeadValue) {
+        if (IsDeadOrDeadValue(ResolveAliases(object))) {
           // We are in dead code. Bail out with no mutable state.
           return zone()->New<AbstractState>(HalfState(zone()),
                                             state->immutable_state);

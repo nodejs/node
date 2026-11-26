@@ -97,8 +97,9 @@ BUILTIN(AsyncDisposeFromSyncDispose) {
   if (!result.is_null()) {
     //        e. Perform ? Call(promiseCapability.[[Resolve]], undefined, «
     //        undefined »).
-    JSPromise::Resolve(promise, isolate->factory()->undefined_value())
-        .ToHandleChecked();
+    RETURN_FAILURE_ON_EXCEPTION(
+        isolate,
+        JSPromise::Resolve(promise, isolate->factory()->undefined_value()));
   } else {
     Tagged<Object> exception = isolate->exception();
     if (!isolate->is_catchable_by_javascript(exception)) {
@@ -107,10 +108,8 @@ BUILTIN(AsyncDisposeFromSyncDispose) {
     //        d. IfAbruptRejectPromise(result, promiseCapability).
     isolate->clear_internal_exception();
     isolate->clear_pending_message();
-    JSPromise::Reject(promise, direct_handle(exception, isolate));
-    if (isolate->debug()->IsRestartFrameScheduled()) {
-      return isolate->TerminateExecution();
-    }
+    RETURN_FAILURE_ON_EXCEPTION(
+        isolate, JSPromise::Reject(promise, direct_handle(exception, isolate)));
   }
 
   //        f. Return promiseCapability.[[Promise]].
@@ -211,12 +210,11 @@ BUILTIN(AsyncDisposableStackPrototypeDisposeAsync) {
   if (!IsJSAsyncDisposableStack(*receiver)) {
     //    a. Perform ! Call(promiseCapability.[[Reject]], undefined, « a newly
     //    created TypeError object »).
-    JSPromise::Reject(promise,
-                      isolate->factory()->NewTypeError(
-                          MessageTemplate::kNotAnAsyncDisposableStack));
-    if (isolate->debug()->IsRestartFrameScheduled()) {
-      return isolate->TerminateExecution();
-    }
+    RETURN_FAILURE_ON_EXCEPTION(
+        isolate,
+        JSPromise::Reject(promise,
+                          isolate->factory()->NewTypeError(
+                              MessageTemplate::kNotAnAsyncDisposableStack)));
     //   b. Return promiseCapability.[[Promise]].
     return *promise;
   }
@@ -228,10 +226,11 @@ BUILTIN(AsyncDisposableStackPrototypeDisposeAsync) {
   if (async_disposable_stack->state() == DisposableStackState::kDisposed) {
     //    a. Perform ! Call(promiseCapability.[[Resolve]], undefined, «
     //    undefined »).
-    JSPromise::Resolve(
-        promise,
-        direct_handle(ReadOnlyRoots(isolate).undefined_value(), isolate))
-        .ToHandleChecked();
+    RETURN_FAILURE_ON_EXCEPTION(
+        isolate,
+        JSPromise::Resolve(
+            promise,
+            direct_handle(ReadOnlyRoots(isolate).undefined_value(), isolate)));
     //    b. Return promiseCapability.[[Promise]].
     return *promise;
   }

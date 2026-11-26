@@ -48,10 +48,11 @@ int64_t charactersToInteger(const uint16_t* characters, size_t length,
 }
 }  // namespace
 
-String16::String16(const UChar* characters, size_t size)
-    : m_impl(characters, size) {}
+String16::String16(const UChar* characters, size_t size) {
+  if (size) m_impl.assign(characters, size);
+}
 String16::String16(const uint16_t* characters, size_t size)
-    : m_impl(reinterpret_cast<const UChar*>(characters), size) {}
+    : String16(reinterpret_cast<const UChar*>(characters), size) {}
 
 String16::String16(const UChar* characters) : m_impl(characters) {}
 
@@ -228,27 +229,6 @@ void String16Builder::reserveCapacity(size_t capacity) {
 
 String16 String16::fromUTF8(const char* stringStart, size_t length) {
   return String16(UTF8ToUTF16(stringStart, length));
-}
-
-String16 String16::fromUTF16LE(const UChar* stringStart, size_t length) {
-#ifdef V8_TARGET_BIG_ENDIAN
-  // Need to flip the byte order on big endian machines.
-  String16Builder builder;
-  builder.reserveCapacity(length);
-  for (size_t i = 0; i < length; i++) {
-    const UChar utf16be_char =
-        stringStart[i] << 8 | (stringStart[i] >> 8 & 0x00FF);
-    builder.append(utf16be_char);
-  }
-  return builder.toString();
-#else
-  // No need to do anything on little endian machines.
-  return String16(stringStart, length);
-#endif  // V8_TARGET_BIG_ENDIAN
-}
-
-String16 String16::fromUTF16LE(const uint16_t* stringStart, size_t length) {
-  return fromUTF16LE(reinterpret_cast<const UChar*>(stringStart), length);
 }
 
 std::string String16::utf8() const {

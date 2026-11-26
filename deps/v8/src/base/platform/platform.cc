@@ -9,32 +9,48 @@ namespace base {
 
 namespace {
 
-// A pointer to current thread's stack beginning, as reported by the OS.
-thread_local void* os_thread_stack_start = nullptr;
+struct ThreadStackData {
+  void* os_stack_start = nullptr;
+  void* reserved_stack_limit = nullptr;
+  bool initialized = false;
+};
+
+// Current thread's stack bounds, as reported by the OS.
+thread_local ThreadStackData thread_stack_data;
 
 // A pointer to current thread's stack start, as overridden by V8 or by the
 // embedder.
 thread_local void* custom_thread_stack_start = nullptr;
 
-// A pointer to current thread's reserved stack limit.
-thread_local void* thread_reserved_stack_limit = nullptr;
-
 }  // namespace
 
 // static
-Stack::StackSlot Stack::GetReservedStackLimit() {
-  if (!thread_reserved_stack_limit) {
-    thread_reserved_stack_limit = ObtainCurrentThreadStackReservedLimit();
+void Stack::EnsureThreadStackDataInitialized() {
+  if (!thread_stack_data.initialized) [[unlikely]] {
+    StackBounds bounds = ObtainCurrentThreadStackBounds();
+    thread_stack_data.os_stack_start = bounds.start;
+    thread_stack_data.reserved_stack_limit = bounds.reserved_limit;
+    thread_stack_data.initialized = true;
   }
-  return thread_reserved_stack_limit;
+}
+
+// static
+Stack::StackSlot Stack::GetReservedStackLimit() {
+  EnsureThreadStackDataInitialized();
+  return thread_stack_data.reserved_stack_limit;
 }
 
 // static
 Stack::StackSlot Stack::GetStackStart() {
-  if (!os_thread_stack_start) {
-    os_thread_stack_start = ObtainCurrentThreadStackStart();
-  }
-  return os_thread_stack_start;
+  EnsureThreadStackDataInitialized();
+  return thread_stack_data.os_stack_start;
+}
+
+// static
+Stack::StackBounds Stack::GetStackBounds() {
+  EnsureThreadStackDataInitialized();
+  return {thread_stack_data.os_stack_start,
+          thread_stack_data.reserved_stack_limit};
 }
 
 // static
@@ -81,7 +97,7 @@ void Stack::ValidateStackSegment(const void* start, const void* top,
     // If this check fails, it probably means that an embedder using V8
     // should have used v8::StackStartScope to appropriately set the stack
     // start for the current thread.
-    const void* tls = &os_thread_stack_start;
+    const void* tls = &thread_stack_data;
     CHECK(!(top <= tls && tls < start));
   }
 }

@@ -203,7 +203,6 @@ TF_BUILTIN(ElementsTransitionAndStore_NoTransitionHandleCOW,
   V(PACKED_ELEMENTS)                 \
   V(PACKED_NONEXTENSIBLE_ELEMENTS)   \
   V(PACKED_SEALED_ELEMENTS)          \
-  V(SHARED_ARRAY_ELEMENTS)           \
   V(HOLEY_ELEMENTS)                  \
   V(HOLEY_NONEXTENSIBLE_ELEMENTS)    \
   V(HOLEY_SEALED_ELEMENTS)           \
@@ -352,6 +351,11 @@ TF_BUILTIN(StoreFastElementIC_NoTransitionIgnoreTypedArrayOOB,
 
 TF_BUILTIN(StoreFastElementIC_NoTransitionHandleCOW, HandlerBuiltinsAssembler) {
   Generate_StoreFastElementIC(KeyedAccessStoreMode::kHandleCOW);
+}
+
+TF_BUILTIN(LoadIC_FunctionName, CodeStubAssembler) {
+  auto receiver = Parameter<JSFunction>(Descriptor::kReceiver);
+  Return(LoadJSFunctionName(receiver));
 }
 
 TF_BUILTIN(LoadIC_FunctionPrototype, CodeStubAssembler) {

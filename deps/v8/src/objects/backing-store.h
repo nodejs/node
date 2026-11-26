@@ -44,6 +44,9 @@ using CustomDeleter = base::StrongAlias<struct CustomDeleterTag, bool>;
 // Whether the backing store has an empty deleter.
 using EmptyDeleter = base::StrongAlias<struct EmptyDeleterTag, bool>;
 
+// Whether a grow operation specifies a delta or a target size.
+enum class GrowMode : uint8_t { kGrowBy, kGrowTo };
+
 // Internal information for shared wasm memories. E.g. contains
 // a list of all memory objects (across all isolates) that share this
 // backing store.
@@ -174,9 +177,9 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
   void MakeWasmMemoryResizableByJS(ResizableFlag resizable);
 
   // Attempt to grow this backing store in place.
-  std::optional<size_t> GrowWasmMemoryInPlace(Isolate* isolate,
-                                              size_t delta_pages,
-                                              size_t max_pages);
+  std::optional<size_t> GrowWasmMemoryInPlace(
+      Isolate* isolate, size_t delta_pages, size_t max_pages,
+      GrowMode mode = GrowMode::kGrowBy);
 
   // Allocate a new, larger, backing store for this Wasm memory and copy the
   // contents of this backing store into it.
@@ -289,6 +292,7 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
     page_allocator_ = std::move(page_allocator);
   }
 #endif
+  std::shared_ptr<v8::PageAllocator> get_page_allocator() const;
 
   void* buffer_start_ = nullptr;
   std::atomic<size_t> byte_length_;

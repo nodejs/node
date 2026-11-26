@@ -375,7 +375,7 @@ inline FASTFLOAT_CONSTEXPR20 adjusted_mantissa negative_digit_comp(
   T b;
   to_float(false, am_b, b);
   adjusted_mantissa theor = to_extended_halfway(b);
-  bigint theor_digits(theor.mantissa);
+  FASTFLOAT_INDETERMINATE bigint theor_digits(theor.mantissa);
   int32_t theor_exp = theor.power2;
 
   // scale real digits and theor digits to be same power.
@@ -434,7 +434,7 @@ digit_comp(parsed_number_string_t<UC> &num, adjusted_mantissa am) noexcept {
       scientific_exponent(num.mantissa, static_cast<int32_t>(num.exponent));
   size_t max_digits = binary_format<T>::max_digits();
   size_t digits = 0;
-  bigint bigmant;
+  FASTFLOAT_INDETERMINATE bigint bigmant;
   parse_mantissa(bigmant, num, max_digits, digits);
   // can't underflow, since digits is at most max_digits.
   int32_t exponent = sci_exp + 1 - int32_t(digits);

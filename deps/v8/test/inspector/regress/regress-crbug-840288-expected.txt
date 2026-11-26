@@ -1,0 +1,5 @@
+Regression test for crbug.com/840288.
+{
+    bytecode : AGFzbQEAAAABBAFgAAADAgEABwgBBG1haW4AAAoEAQIACwAOBG5hbWUBBwEABG1haW4=
+    scriptSource : 
+}

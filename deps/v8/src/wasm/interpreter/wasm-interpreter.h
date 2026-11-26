@@ -310,6 +310,7 @@ struct FrameState {
         current_sp_(nullptr),
         thread_(nullptr),
         ref_array_current_sp_(0),
+        ref_array_frame_size_(0),
         handle_scope_(nullptr)
 #ifdef V8_ENABLE_DRUMBRAKE_TRACING
         ,
@@ -327,6 +328,7 @@ struct FrameState {
   uint8_t* current_sp_;
   WasmInterpreterThread* thread_;
   uint32_t ref_array_current_sp_;
+  uint32_t ref_array_frame_size_;
   HandleScope* handle_scope_;
 
   // Maintains a reference to the exceptions caught by each catch handler.
@@ -1439,15 +1441,14 @@ struct WasmInstruction {
     struct SimdLaneLoad {
       using LaneField = base::BitField<uint8_t, 0, 4, uint32_t>;
       using MemoryIndexField = LaneField::Next<uint32_t, 28>;
-      using OffsetField = base::BitField64<uint64_t, 0, 48>;
 
-      SimdLaneLoad() : lane_and_memory_index_(0), offset_field_(0) {}
+      SimdLaneLoad() : lane_and_memory_index_(0), offset_(0) {}
 
       uint8_t lane() const { return LaneField::decode(lane_and_memory_index_); }
       uint32_t memory_index() const {
         return MemoryIndexField::decode(lane_and_memory_index_);
       }
-      uint64_t offset() const { return OffsetField::decode(offset_field_); }
+      uint64_t offset() const { return offset_; }
       void set_lane(uint8_t v) {
         lane_and_memory_index_ = LaneField::update(lane_and_memory_index_, v);
       }
@@ -1455,10 +1456,10 @@ struct WasmInstruction {
         lane_and_memory_index_ =
             MemoryIndexField::update(lane_and_memory_index_, v);
       }
-      void set_offset(uint64_t v) { offset_field_ = OffsetField::encode(v); }
+      void set_offset(uint64_t v) { offset_ = v; }
 
       uint32_t lane_and_memory_index_;
-      uint64_t offset_field_;
+      uint64_t offset_;
     } simd_loadstore_lane;
     struct MemoryInit {
       uint32_t memory_index;
@@ -1700,6 +1701,13 @@ class WasmBytecodeGenerator {
   void DecodeNumericOp(WasmOpcode opcode, WasmInstruction::Optional* optional,
                        Decoder* decoder, InterpreterCode* code, pc_t pc,
                        int* const len);
+  // A statically out-of-bounds access can never succeed, even after
+  // memory.grow, so it is replaced by an unconditional trap, as the function
+  // body decoder does for the JIT tiers.
+  bool IsStaticallyOutOfBounds(
+      const WasmInstruction::Optional::MemoryAccess& memory_access,
+      uint64_t access_size) const;
+
   void DecodeAtomicOp(WasmOpcode opcode, WasmInstruction::Optional* optional,
                       Decoder* decoder, InterpreterCode* code, pc_t pc,
                       int* const len);
@@ -1884,8 +1892,12 @@ class WasmBytecodeGenerator {
                              size_t* params_slots_count);
   void StoreBlockParamsIntoSlots(uint32_t target_block_index,
                                  bool update_stack);
+  // kBranch transfers loop parameters or non-loop results.
+  // kResultsOnly copies results without normalizing the generator stack
+  // (Return/Else/Catch/CatchAll); kBlockEnd also normalizes it (End/Delegate).
+  enum class BlockTransferKind { kBranch, kResultsOnly, kBlockEnd };
   void StoreBlockParamsAndResultsIntoSlots(uint32_t target_block_index,
-                                           WasmOpcode opcode);
+                                           BlockTransferKind transfer_kind);
 
   inline bool HasVoidSignature(
       const WasmBytecodeGenerator::BlockData& block_data) const;

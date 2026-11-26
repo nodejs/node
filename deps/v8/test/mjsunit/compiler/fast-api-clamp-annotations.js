@@ -46,6 +46,7 @@ is_in_range_i32(false, 2 ** 32, max_int32);
 is_in_range_i32(false, 2 ** 32 + 3.15, max_int32);
 is_in_range_i32(false, Number.MIN_SAFE_INTEGER, min_int32);
 is_in_range_i32(false, Number.MAX_SAFE_INTEGER, max_int32);
+is_in_range_i32(false, NaN, 0);
 
 // ----------- u32 -----------
 function is_in_range_u32(in_range, arg, expected) {
@@ -68,6 +69,7 @@ is_in_range_u32(false, -1, min_uint32);
 is_in_range_u32(false, -1.5, min_uint32);
 is_in_range_u32(false, Number.MIN_SAFE_INTEGER, min_uint32);
 is_in_range_u32(false, Number.MAX_SAFE_INTEGER, max_uint32);
+is_in_range_u32(false, NaN, 0);
 
 // ----------- i64 -----------
 function is_in_range_i64(in_range, arg, expected) {
@@ -84,6 +86,7 @@ is_in_range_i64(true, 0.5, 0);
 is_in_range_i64(true, 1.5, 2);
 is_in_range_i64(true, Number.MIN_SAFE_INTEGER, Number.MIN_SAFE_INTEGER);
 is_in_range_i64(true, Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER);
+is_in_range_i64(false, NaN, 0);
 
 // Slow path doesn't perform correct clamping outside of double range.
 if (isOptimized(is_in_range_i64) && fast_c_api.fast_call_count() > 0) {
@@ -118,6 +121,7 @@ is_in_range_u64(false, -1, 0);
 is_in_range_u64(false, -1.5, 0);
 is_in_range_u64(false, 2 ** 64, Number.MAX_SAFE_INTEGER);
 is_in_range_u64(false, 2 ** 64 + 3.15, Number.MAX_SAFE_INTEGER);
+is_in_range_u64(false, NaN, 0);
 
 // ---------- invalid arguments for clamp_compare ---------
 fast_c_api.clamp_compare_i32(true);

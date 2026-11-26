@@ -15,6 +15,7 @@
 #define LLVM_LIBC_TYPES_EFI_TIME_H
 
 #include "../llvm-libc-macros/stdint-macros.h"
+#include <stdbool.h>
 
 typedef struct {
   uint16_t Year;  // 1900 - 9999

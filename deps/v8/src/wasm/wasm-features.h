@@ -96,7 +96,6 @@ class WasmEnabledFeatures : public base::EnumSet<WasmEnabledFeature> {
 #undef LIST_FEATURE
   }
   static inline constexpr WasmEnabledFeatures None() { return {}; }
-  static inline constexpr WasmEnabledFeatures ForAsmjs() { return {}; }
   // Retuns optional features that are enabled by flags, plus features that are
   // not enabled by a flag and are always on.
   static V8_EXPORT_PRIVATE WasmEnabledFeatures FromFlags();

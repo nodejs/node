@@ -15,6 +15,7 @@
 #define LLVM_LIBC_SRC___SUPPORT_FILE_DIR_H
 
 #include "src/__support/CPP/span.h"
+#include "src/__support/File/dir_scan_result.h"
 #include "src/__support/error_or.h"
 #include "src/__support/macros/config.h"
 #include "src/__support/threads/mutex.h"
@@ -79,10 +80,9 @@ public:
   static ErrorOr<Dir *> open(const char *path);
   static ErrorOr<Dir *> fdopen(int fd);
   ErrorOr<struct dirent *> read();
-  static ErrorOr<int> scan(const char *name, struct dirent ***namelist,
-                           int (*filter)(const struct dirent *),
-                           int (*compare)(const struct dirent **,
-                                          const struct dirent **));
+  static ErrorOr<DirScanResult> scan(
+      const char *name, int (*filter)(const struct dirent *) = nullptr,
+      int (*compare)(const struct dirent **, const struct dirent **) = nullptr);
 
   LIBC_INLINE static size_t reclen(struct dirent *d) {
     return platform_dir_reclen(d);

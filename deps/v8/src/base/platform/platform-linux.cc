@@ -439,14 +439,12 @@ bool SignalSafeMapsParser::ReadDecimal(uintptr_t* out_val, char* out_delim) {
 
 // static
 uint64_t OS::GetAddressUntagMask() {
-  // TODO(559990948): The check clashes with Chrome's seccomp policy, disable it
-  // temporarily.
-  // #if defined(V8_HOST_ARCH_X64)
-  //   uint64_t untag_mask = ~uint64_t{0};
-  //   if (syscall(SYS_arch_prctl, ARCH_GET_UNTAG_MASK, &untag_mask) == 0) {
-  //     return untag_mask;
-  //   }
-  // #endif  // defined(V8_HOST_ARCH_X64)
+#if defined(V8_HOST_ARCH_X64)
+  uint64_t untag_mask = ~uint64_t{0};
+  if (syscall(SYS_arch_prctl, ARCH_GET_UNTAG_MASK, &untag_mask) == 0) {
+    return untag_mask;
+  }
+#endif  // defined(V8_HOST_ARCH_X64)
   return ~uint64_t{0};
 }
 

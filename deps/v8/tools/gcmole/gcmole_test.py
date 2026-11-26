@@ -46,8 +46,6 @@ class FilesTest(unittest.TestCase):
         'x64/file2.cc',
         'file3.cc',
         'file4.cc',
-        'test/cctest/test-x64-file1.cc',
-        'test/cctest/test-x64-file2.cc',
     ]
     self.assertEqual(
         gcmole.build_file_list(options),
@@ -59,7 +57,6 @@ class FilesTest(unittest.TestCase):
         'file1.cc',
         'x64/file1.cc',
         'file3.cc',
-        'test/cctest/test-x64-file1.cc',
     ]
     self.assertEqual(
         gcmole.build_file_list(options),
@@ -71,7 +68,6 @@ class FilesTest(unittest.TestCase):
         'file2.cc',
         'x64/file2.cc',
         'file4.cc',
-        'test/cctest/test-x64-file2.cc',
     ]
     self.assertEqual(
         gcmole.build_file_list(options),

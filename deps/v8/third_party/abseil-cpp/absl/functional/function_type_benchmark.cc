@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include <functional>
-#include <memory>
 #include <string>
 
 #include "absl/base/attributes.h"

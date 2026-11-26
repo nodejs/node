@@ -9,9 +9,7 @@
 #ifndef LLVM_LIBC_SRC_STRING_ALLOCATING_STRING_UTILS_H
 #define LLVM_LIBC_SRC_STRING_ALLOCATING_STRING_UTILS_H
 
-#include "src/__support/CPP/new.h"
-#include "src/__support/CPP/optional.h"
-#include "src/__support/alloc-checker.h"
+#include "src/__support/checked_ptr.h"
 #include "src/__support/macros/config.h" // LIBC_NAMESPACE_DECL
 #include "src/string/memory_utils/inline_memcpy.h"
 #include "src/string/string_utils.h"
@@ -21,15 +19,13 @@
 namespace LIBC_NAMESPACE_DECL {
 namespace internal {
 
-template <typename T> LIBC_INLINE cpp::optional<T *> strdup(const T *src) {
+template <typename T> LIBC_INLINE CheckedPtr<T[]> strdup(const T *src) {
   if (src == nullptr)
-    return cpp::nullopt;
+    return nullptr;
   size_t len = string_length(src) + 1;
-  AllocChecker ac;
-  T *newstr = new (ac) T[len];
-  if (!ac)
-    return cpp::nullopt;
-  inline_memcpy(newstr, src, len * sizeof(T));
+  CheckedPtr<T[]> newstr = make_unique_for_overwrite<T[]>(len);
+  if (newstr)
+    inline_memcpy(newstr.get(), src, len * sizeof(T));
   return newstr;
 }
 

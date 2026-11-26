@@ -150,6 +150,12 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
       }
     }
 
+#ifdef DEBUG
+    for (const Block& block : Asm().output_graph().blocks()) {
+      block.CheckPredecessorCount();
+    }
+#endif
+
     input_graph_.SwapWithCompanion();
   }
 
@@ -189,36 +195,40 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
     blocks_to_clone_.push_back({input_block, added_block_phi_input, new_block});
   }
 
-  // Visits and emits {input_block} right now (ie, in the current block). This
-  // should not be called recursively in order to avoid stack overflow (ie,
-  // processing {input_block} should never lead to calling CloneAndInlingBlock).
+  // Visits and emits {input_block} right now (ie, in the current block). To
+  // avoid stack overflow from recursive calls, any nested CloneAndInlineBlock
+  // triggered while visiting {input_block}'s terminator is queued into
+  // {block_to_clone_and_inline_now_} and processed iteratively.
   void CloneAndInlineBlock(const Block* input_block) {
     if (Asm().generating_unreachable_operations()) return;
 
-#ifdef DEBUG
-    // Making sure that we didn't call CloneAndInlineBlock recursively.
-    DCHECK(!is_in_recursive_inlining_);
+    if (is_in_recursive_inlining_) {
+      DCHECK_NULL(block_to_clone_and_inline_now_);
+      block_to_clone_and_inline_now_ = input_block;
+      return;
+    }
     ScopedModification<bool> recursive_guard(&is_in_recursive_inlining_, true);
-#endif
-
-    // Computing which input of Phi operations to use when visiting
-    // {input_block} (since {input_block} doesn't really have predecessors
-    // anymore).
-    int added_block_phi_input = input_block->GetPredecessorIndex(
-        Asm().current_block()->OriginForBlockEnd());
-
-    // There is no guarantees that {input_block} will be entirely removed just
-    // because it's cloned/inlined, since it's possible that it has predecessors
-    // for which this optimization didn't apply. As a result, we add it to
-    // {blocks_needing_variables_}, so that if it's ever generated
-    // normally, Variables are used when emitting its content, so that
-    // they can later be merged when control flow merges with the current
-    // version of {input_block} that we just cloned.
-    blocks_needing_variables_.Add(input_block->index().id());
-
     ScopedModification<bool> set_true(&current_block_needs_variables_, true);
-    VisitBlockBody<CanHavePhis::kYes, ForCloning::kYes, false>(
-        input_block, added_block_phi_input);
+
+    for (const Block* block = input_block; block != nullptr;
+         block = std::exchange(block_to_clone_and_inline_now_, nullptr)) {
+      // Computing which input of Phi operations to use when visiting
+      // {block} (since {block} doesn't really have predecessors anymore).
+      int added_block_phi_input = block->GetPredecessorIndex(
+          Asm().current_block()->OriginForBlockEnd());
+
+      // There is no guarantees that {block} will be entirely removed just
+      // because it's cloned/inlined, since it's possible that it has
+      // predecessors for which this optimization didn't apply. As a result, we
+      // add it to {blocks_needing_variables_}, so that if it's ever generated
+      // normally, Variables are used when emitting its content, so that they
+      // can later be merged when control flow merges with the current version
+      // of {block} that we just cloned.
+      blocks_needing_variables_.Add(block->index().id());
+
+      VisitBlockBody<CanHavePhis::kYes, ForCloning::kYes, false>(
+          block, added_block_phi_input);
+    }
   }
 
   // {InlineOp} introduces two limitations unlike {CloneAndInlineBlock}:
@@ -1084,14 +1094,11 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
   };
   ZoneVector<BlockToClone> blocks_to_clone_;
 
-#ifdef DEBUG
-  // Recursively inlining blocks is still allowed (mainly for
-  // LoopUnrollingReducer), but it shouldn't be actually recursive. This is
-  // checked by the {is_in_recursive_inlining_}, which is set to true while
-  // recursively inlining a block. Trying to inline a block while
-  // {is_in_recursive_inlining_} is true will lead to a DCHECK failure.
+  // When CloneAndInlineBlock is called while already inlining a block (from its
+  // terminator), {block_to_clone_and_inline_now_} queues the next block so the
+  // outer CloneAndInlineBlock loop can inline it iteratively without recursion.
+  const Block* block_to_clone_and_inline_now_ = nullptr;
   bool is_in_recursive_inlining_ = false;
-#endif
 };
 
 template <template <class> class... Reducers>

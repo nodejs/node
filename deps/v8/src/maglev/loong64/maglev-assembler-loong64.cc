@@ -218,7 +218,7 @@ void MaglevAssembler::Prologue(Graph* graph) {
         St_d(zero_reg, MemOperand(sp, i * 8));
       }
       Sub_d(count, count, Operand(1));
-      MacroAssembler::Branch(&loop, gt, count, Operand(zero_reg), Label::kNear);
+      MacroAssembler::Branch(&loop, gt, count, Operand(zero_reg));
     }
   }
   if (graph->untagged_stack_slots() > 0) {
@@ -279,13 +279,12 @@ void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
                                          Register result, Register char_code,
                                          Register scratch,
                                          CharCodeMaskMode mask_mode) {
-  // AssertZeroExtended(char_code);
-  MacroAssembler::lu32i_d(char_code, 0);
   DCHECK_NE(char_code, scratch);
   ZoneLabelRef done(this);
   if (mask_mode == CharCodeMaskMode::kMustApplyMask) {
     And(char_code, char_code, Operand(0xFFFF));
   }
+  AssertZeroExtended(char_code);
   // Allocate two-bytes string if {char_code} doesn't fit one byte.
   MacroAssembler::Branch(  // FIXME: reimplement with JumpToDeferredIf
       MakeDeferredCode(
@@ -315,7 +314,7 @@ void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
             if (need_restore_result) {
               __ Move(result, string);
             }
-            __ jmp(*done);
+            __ Jump(*done);
           },
           register_snapshot, done, result, char_code, scratch),
       Ugreater, char_code, Operand(String::kMaxOneByteCharCode));
@@ -364,7 +363,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
           __ SmiUntag(kReturnRegister0);
           __ Move(result, kReturnRegister0);
         }
-        __ jmp(*done);
+        __ Jump(*done);
       },
       mode, register_snapshot, done, result, string, index);
 
@@ -436,11 +435,11 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     // TODO(victorgomes): Add fast path for external strings.
     And(representation, instance_type, Operand(kStringRepresentationMask));
     MacroAssembler::Branch(&seq_string, kEqual, representation,
-                           Operand(kSeqStringTag), Label::kNear);
+                           Operand(kSeqStringTag));
     MacroAssembler::Branch(&cons_string, kEqual, representation,
-                           Operand(kConsStringTag), Label::kNear);
+                           Operand(kConsStringTag));
     MacroAssembler::Branch(&sliced_string, kEqual, representation,
-                           Operand(kSlicedStringTag), Label::kNear);
+                           Operand(kSlicedStringTag));
     MacroAssembler::Branch(deferred_runtime_call, kNotEqual, representation,
                            Operand(kThinStringTag));
     // Fallthrough to thin string.
@@ -450,13 +449,33 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
   // Is a thin string.
   {
     LoadTaggedField(string, string, offsetof(ThinString, actual_));
-    MacroAssembler::Branch(&loop, Label::kNear);
+    Jump(&loop);
   }
 
   bind(&sliced_string);
   {
     TemporaryRegisterScope temps(this);
     Register offset = temps.AcquireScratch();
+
+    if (mode == BuiltinStringPrototypeCharCodeOrCodePointAt::kCodePointAt) {
+      Label unwrap_sliced;
+#if V8_STATIC_ROOTS_BOOL
+      MacroAssembler::Branch(&unwrap_sliced, kEqual, map,
+                             Operand(static_cast<int32_t>(
+                                 StaticReadOnlyRoot::kSlicedOneByteStringMap)));
+#else
+      TestInt32AndJumpIfAnySet(instance_type, kOneByteStringTag,
+                               &unwrap_sliced);
+#endif
+      // Unwrapping a two-byte SlicedString loses its end bound; if {index} is
+      // the last code unit of the slice, fall back to the runtime before
+      // unwrapping.
+      Ld_w(scratch1, FieldMemOperand(string, offsetof(String, length_)));
+      Add_w(offset, index, Operand(1));
+      MacroAssembler::Branch(deferred_runtime_call, kUnsignedGreaterThanEqual,
+                             offset, Operand(scratch1));
+      bind(&unwrap_sliced);
+    }
 
     LoadAndUntagTaggedSignedField(offset, string,
                                   offsetof(SlicedString, offset_));
@@ -466,7 +485,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     // so that a (corrupted) negative offset cannot be interpreted as a
     // negative index by the subsequent address computation.
     Bstrpick_d(index, index, 31, 0);
-    MacroAssembler::Branch(&loop, Label::kNear);
+    Jump(&loop);
   }
 
   bind(&cons_string);
@@ -480,8 +499,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
                 RootIndex::kempty_string);  // Sets 1 to flag if not equal
     JumpIf(ne, deferred_runtime_call);      // Check the flag to not be equal 0
     LoadTaggedField(string, string, offsetof(ConsString, first_));
-    MacroAssembler::Branch(&loop,
-                           Label::kNear);  // Try again with first string.
+    Jump(&loop);  // Try again with first string.
   }
 
   bind(&seq_string);
@@ -499,13 +517,13 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
 #else
     And(instance_type, instance_type, Operand(kStringEncodingMask));
     MacroAssembler::Branch(&two_byte_string, equal, instance_type,
-                           Operand(kTwoByteStringTag), Label::kNear);
+                           Operand(kTwoByteStringTag));
 #endif
     // The result of one-byte string will be the same for both modes
     // (CharCodeAt/CodePointAt), since it cannot be the first half of a
     // surrogate pair.
     SeqOneByteStringCharCodeAt(result, string, index);
-    MacroAssembler::Branch(result_fits_one_byte);
+    Jump(result_fits_one_byte);
 
     bind(&two_byte_string);
     // {instance_type} is unused from this point, so we can use as scratch.
@@ -520,36 +538,43 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     } else {
       DCHECK_EQ(mode,
                 BuiltinStringPrototypeCharCodeOrCodePointAt::kCodePointAt);
+      DCHECK_NE(string, index);
+      // {result} is written before the trailing-surrogate lookahead, which
+      // still needs {string} and {index}. Preserve whichever one {result}
+      // aliases.
       Register string_backup = string;
+      Register index_backup = index;
       if (result == string) {
         string_backup = scratch2;
         mov(string_backup, string);
+      } else if (result == index) {
+        index_backup = scratch2;
+        mov(index_backup, index);
       }
       Ld_hu(result, MemOperand(string, scratch));
 
       Register first_code_point = scratch;
       And(first_code_point, result, Operand(0xfc00));
       MacroAssembler::Branch(*done, kNotEqual, first_code_point,
-                             Operand(0xd800), Label::kNear);
+                             Operand(0xd800));
 
       Register length = scratch;
       Ld_w(length, FieldMemOperand(string_backup, offsetof(String, length_)));
-      Add_w(index, index, Operand(1));
-      MacroAssembler::Branch(*done, kGreaterThanEqual, index, Operand(length),
-                             Label::kNear);
+      Add_w(index_backup, index_backup, Operand(1));
+      MacroAssembler::Branch(*done, kGreaterThanEqual, index_backup,
+                             Operand(length));
 
       Register second_code_point = scratch;
-      Bstrpick_d(index, index, 31, 0);
-      slli_d(index, index, 1);
-      Add_d(index, index,
+      Bstrpick_d(index_backup, index_backup, 31, 0);
+      slli_d(index_backup, index_backup, 1);
+      Add_d(index_backup, index_backup,
             Operand(OFFSET_OF_DATA_START(SeqTwoByteString) - kHeapObjectTag));
-      Ld_hu(second_code_point, MemOperand(string_backup, index));
+      Ld_hu(second_code_point, MemOperand(string_backup, index_backup));
 
-      // {index} is not needed at this point.
-      Register scratch2 = index;
+      // {string_backup} and {index_backup} are dead here, so {scratch2} is
+      // free even if it held a backup.
       And(scratch2, second_code_point, Operand(0xfc00));
-      MacroAssembler::Branch(*done, kNotEqual, scratch2, Operand(0xdc00),
-                             Label::kNear);
+      MacroAssembler::Branch(*done, kNotEqual, scratch2, Operand(0xdc00));
 
       int surrogate_offset = 0x10000 - (0xd800 << 10) - 0xdc00;
       Add_d(second_code_point, second_code_point, Operand(surrogate_offset));

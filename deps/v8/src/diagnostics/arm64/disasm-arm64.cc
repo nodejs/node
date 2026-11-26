@@ -1819,7 +1819,7 @@ void DisassemblingDecoder::VisitNEON3Same(Instruction* instr) {
       default:
         form = "(NEON3Same)";
     }
-    nfd.SetFormatMaps(nfd.LogicalFormatMap());
+    nfd.SetFormatMaps(NEONFormatDecoder::LogicalFormatMap());
   } else {
     static const char* mnemonics[] = {
         "shadd",       "uhadd",       "shadd",       "uhadd",
@@ -1867,7 +1867,7 @@ void DisassemblingDecoder::VisitNEON3Same(Instruction* instr) {
     DCHECK_NOT_NULL(mnemonic);
 
     if (instr->Mask(NEON3SameFPFMask) == NEON3SameFPFixed) {
-      nfd.SetFormatMaps(nfd.FPFormatMap());
+      nfd.SetFormatMaps(NEONFormatDecoder::FPFormatMap());
     }
   }
   Format(instr, mnemonic, nfd.Substitute(form));
@@ -1997,16 +1997,16 @@ void DisassemblingDecoder::VisitNEON2RegMisc(Instruction* instr) {
           default:
             form = "(NEON2RegMisc)";
         }
-        nfd.SetFormatMaps(nfd.LogicalFormatMap());
+        nfd.SetFormatMaps(NEONFormatDecoder::LogicalFormatMap());
         break;
     }
   } else {
     // These instructions all use a one bit size field, except XTN, SQXTUN,
     // SHLL, SQXTN and UQXTN, which use a two bit size field.
     if (instr->Mask(NEON2RegMiscHPFixed) == NEON2RegMiscHPFixed) {
-      nfd.SetFormatMaps(nfd.FPHPFormatMap());
+      nfd.SetFormatMaps(NEONFormatDecoder::FPHPFormatMap());
     } else {
-      nfd.SetFormatMaps(nfd.FPFormatMap());
+      nfd.SetFormatMaps(NEONFormatDecoder::FPFormatMap());
     }
     switch (instr->Mask(NEON2RegMiscFPMask ^ NEON2RegMiscHPFixed)) {
       case NEON_FABS:
@@ -2125,8 +2125,8 @@ void DisassemblingDecoder::VisitNEON2RegMisc(Instruction* instr) {
       default:
         if ((NEON_XTN_opcode <= instr->Mask(NEON2RegMiscOpcode)) &&
             (instr->Mask(NEON2RegMiscOpcode) <= NEON_UQXTN_opcode)) {
-          nfd.SetFormatMap(0, nfd.IntegerFormatMap());
-          nfd.SetFormatMap(1, nfd.LongIntegerFormatMap());
+          nfd.SetFormatMap(0, NEONFormatDecoder::IntegerFormatMap());
+          nfd.SetFormatMap(1, NEONFormatDecoder::LongIntegerFormatMap());
 
           switch (instr->Mask(NEON2RegMiscMask)) {
             case NEON_XTN:
@@ -2143,8 +2143,8 @@ void DisassemblingDecoder::VisitNEON2RegMisc(Instruction* instr) {
               break;
             case NEON_SHLL:
               mnemonic = "shll";
-              nfd.SetFormatMap(0, nfd.LongIntegerFormatMap());
-              nfd.SetFormatMap(1, nfd.IntegerFormatMap());
+              nfd.SetFormatMap(0, NEONFormatDecoder::LongIntegerFormatMap());
+              nfd.SetFormatMap(1, NEONFormatDecoder::IntegerFormatMap());
               switch (instr->NEONSize()) {
                 case 0:
                   form = "'Vd.%s, 'Vn.%s, #8";
@@ -2175,7 +2175,7 @@ void DisassemblingDecoder::VisitNEON3Different(Instruction* instr) {
   const char* form = "'Vd.%s, 'Vn.%s, 'Vm.%s";
 
   NEONFormatDecoder nfd(instr);
-  nfd.SetFormatMap(0, nfd.LongIntegerFormatMap());
+  nfd.SetFormatMap(0, NEONFormatDecoder::LongIntegerFormatMap());
 
   // Ignore the Q bit. Appending a "2" suffix is handled later.
   switch (instr->Mask(NEON3DifferentMask) & ~NEON_Q) {
@@ -2235,39 +2235,39 @@ void DisassemblingDecoder::VisitNEON3Different(Instruction* instr) {
       break;
     case NEON_SADDW:
       mnemonic = "saddw";
-      nfd.SetFormatMap(1, nfd.LongIntegerFormatMap());
+      nfd.SetFormatMap(1, NEONFormatDecoder::LongIntegerFormatMap());
       break;
     case NEON_SSUBW:
       mnemonic = "ssubw";
-      nfd.SetFormatMap(1, nfd.LongIntegerFormatMap());
+      nfd.SetFormatMap(1, NEONFormatDecoder::LongIntegerFormatMap());
       break;
     case NEON_UADDW:
       mnemonic = "uaddw";
-      nfd.SetFormatMap(1, nfd.LongIntegerFormatMap());
+      nfd.SetFormatMap(1, NEONFormatDecoder::LongIntegerFormatMap());
       break;
     case NEON_USUBW:
       mnemonic = "usubw";
-      nfd.SetFormatMap(1, nfd.LongIntegerFormatMap());
+      nfd.SetFormatMap(1, NEONFormatDecoder::LongIntegerFormatMap());
       break;
     case NEON_ADDHN:
       mnemonic = "addhn";
-      nfd.SetFormatMaps(nfd.LongIntegerFormatMap());
-      nfd.SetFormatMap(0, nfd.IntegerFormatMap());
+      nfd.SetFormatMaps(NEONFormatDecoder::LongIntegerFormatMap());
+      nfd.SetFormatMap(0, NEONFormatDecoder::IntegerFormatMap());
       break;
     case NEON_RADDHN:
       mnemonic = "raddhn";
-      nfd.SetFormatMaps(nfd.LongIntegerFormatMap());
-      nfd.SetFormatMap(0, nfd.IntegerFormatMap());
+      nfd.SetFormatMaps(NEONFormatDecoder::LongIntegerFormatMap());
+      nfd.SetFormatMap(0, NEONFormatDecoder::IntegerFormatMap());
       break;
     case NEON_RSUBHN:
       mnemonic = "rsubhn";
-      nfd.SetFormatMaps(nfd.LongIntegerFormatMap());
-      nfd.SetFormatMap(0, nfd.IntegerFormatMap());
+      nfd.SetFormatMaps(NEONFormatDecoder::LongIntegerFormatMap());
+      nfd.SetFormatMap(0, NEONFormatDecoder::IntegerFormatMap());
       break;
     case NEON_SUBHN:
       mnemonic = "subhn";
-      nfd.SetFormatMaps(nfd.LongIntegerFormatMap());
-      nfd.SetFormatMap(0, nfd.IntegerFormatMap());
+      nfd.SetFormatMaps(NEONFormatDecoder::LongIntegerFormatMap());
+      nfd.SetFormatMap(0, NEONFormatDecoder::IntegerFormatMap());
       break;
     default:
       form = "(NEON3Different)";
@@ -2305,8 +2305,8 @@ void DisassemblingDecoder::VisitNEONAcrossLanes(Instruction* instr) {
                         NEONFormatDecoder::IntegerFormatMap());
 
   if (instr->Mask(NEONAcrossLanesFPFMask) == NEONAcrossLanesFPFixed) {
-    nfd.SetFormatMap(0, nfd.FPScalarFormatMap());
-    nfd.SetFormatMap(1, nfd.FPFormatMap());
+    nfd.SetFormatMap(0, NEONFormatDecoder::FPScalarFormatMap());
+    nfd.SetFormatMap(1, NEONFormatDecoder::FPFormatMap());
     switch (instr->Mask(NEONAcrossLanesFPMask)) {
       case NEON_FMAXV:
         mnemonic = "fmaxv";
@@ -2343,11 +2343,11 @@ void DisassemblingDecoder::VisitNEONAcrossLanes(Instruction* instr) {
         break;
       case NEON_SADDLV:
         mnemonic = "saddlv";
-        nfd.SetFormatMap(0, nfd.LongScalarFormatMap());
+        nfd.SetFormatMap(0, NEONFormatDecoder::LongScalarFormatMap());
         break;
       case NEON_UADDLV:
         mnemonic = "uaddlv";
-        nfd.SetFormatMap(0, nfd.LongScalarFormatMap());
+        nfd.SetFormatMap(0, NEONFormatDecoder::LongScalarFormatMap());
         break;
       default:
         form = "(NEONAcrossLanes)";
@@ -2446,10 +2446,10 @@ void DisassemblingDecoder::VisitNEONByIndexedElement(Instruction* instr) {
   if (l_instr) {
     Format(instr, nfd.Mnemonic(mnemonic), nfd.Substitute(form));
   } else if (fp_instr) {
-    nfd.SetFormatMap(0, nfd.FPFormatMap());
+    nfd.SetFormatMap(0, NEONFormatDecoder::FPFormatMap());
     Format(instr, mnemonic, nfd.Substitute(form));
   } else {
-    nfd.SetFormatMap(0, nfd.IntegerFormatMap());
+    nfd.SetFormatMap(0, NEONFormatDecoder::IntegerFormatMap());
     Format(instr, mnemonic, nfd.Substitute(form));
   }
 }
@@ -2463,11 +2463,11 @@ void DisassemblingDecoder::VisitNEONCopy(Instruction* instr) {
 
   if (instr->Mask(NEONCopyInsElementMask) == NEON_INS_ELEMENT) {
     mnemonic = "mov";
-    nfd.SetFormatMap(0, nfd.TriangularScalarFormatMap());
+    nfd.SetFormatMap(0, NEONFormatDecoder::TriangularScalarFormatMap());
     form = "'Vd.%s['IVInsIndex1], 'Vn.%s['IVInsIndex2]";
   } else if (instr->Mask(NEONCopyInsGeneralMask) == NEON_INS_GENERAL) {
     mnemonic = "mov";
-    nfd.SetFormatMap(0, nfd.TriangularScalarFormatMap());
+    nfd.SetFormatMap(0, NEONFormatDecoder::TriangularScalarFormatMap());
     if (nfd.GetVectorFormat() == kFormatD) {
       form = "'Vd.%s['IVInsIndex1], 'Xn";
     } else {
@@ -2479,7 +2479,7 @@ void DisassemblingDecoder::VisitNEONCopy(Instruction* instr) {
     } else {
       mnemonic = "umov";
     }
-    nfd.SetFormatMap(0, nfd.TriangularScalarFormatMap());
+    nfd.SetFormatMap(0, NEONFormatDecoder::TriangularScalarFormatMap());
     if (nfd.GetVectorFormat() == kFormatD) {
       form = "'Xd, 'Vn.%s['IVInsIndex1]";
     } else {
@@ -2487,7 +2487,7 @@ void DisassemblingDecoder::VisitNEONCopy(Instruction* instr) {
     }
   } else if (instr->Mask(NEONCopySmovMask) == NEON_SMOV) {
     mnemonic = "smov";
-    nfd.SetFormatMap(0, nfd.TriangularScalarFormatMap());
+    nfd.SetFormatMap(0, NEONFormatDecoder::TriangularScalarFormatMap());
     form = "'Rdq, 'Vn.%s['IVInsIndex1]";
   } else if (instr->Mask(NEONCopyDupElementMask) == NEON_DUP_ELEMENT) {
     mnemonic = "dup";
@@ -3212,7 +3212,7 @@ void DisassemblingDecoder::VisitNEONScalar2RegMisc(Instruction* instr) {
   } else {
     // These instructions all use a one bit size field, except SQXTUN, SQXTN
     // and UQXTN, which use a two bit size field.
-    nfd.SetFormatMaps(nfd.FPScalarFormatMap());
+    nfd.SetFormatMaps(NEONFormatDecoder::FPScalarFormatMap());
     switch (instr->Mask(NEONScalar2RegMiscFPMask)) {
       case NEON_FRSQRTE_scalar:
         mnemonic = "frsqrte";
@@ -3280,12 +3280,12 @@ void DisassemblingDecoder::VisitNEONScalar2RegMisc(Instruction* instr) {
         mnemonic = "fcvtau";
         break;
       case NEON_FCVTXN_scalar:
-        nfd.SetFormatMap(0, nfd.LongScalarFormatMap());
+        nfd.SetFormatMap(0, NEONFormatDecoder::LongScalarFormatMap());
         mnemonic = "fcvtxn";
         break;
       default:
-        nfd.SetFormatMap(0, nfd.ScalarFormatMap());
-        nfd.SetFormatMap(1, nfd.LongScalarFormatMap());
+        nfd.SetFormatMap(0, NEONFormatDecoder::ScalarFormatMap());
+        nfd.SetFormatMap(1, NEONFormatDecoder::LongScalarFormatMap());
         switch (instr->Mask(NEONScalar2RegMiscMask)) {
           case NEON_SQXTN_scalar:
             mnemonic = "sqxtn";
@@ -3332,7 +3332,7 @@ void DisassemblingDecoder::VisitNEONScalar3Same(Instruction* instr) {
   NEONFormatDecoder nfd(instr, NEONFormatDecoder::ScalarFormatMap());
 
   if (instr->Mask(NEONScalar3SameFPFMask) == NEONScalar3SameFPFixed) {
-    nfd.SetFormatMaps(nfd.FPScalarFormatMap());
+    nfd.SetFormatMaps(NEONFormatDecoder::FPScalarFormatMap());
     switch (instr->Mask(NEONScalar3SameFPMask)) {
       case NEON_FACGE_scalar:
         mnemonic = "facge";
@@ -3465,7 +3465,7 @@ void DisassemblingDecoder::VisitNEONScalarByIndexedElement(Instruction* instr) {
       mnemonic = "sqrdmulh";
       break;
     default:
-      nfd.SetFormatMap(0, nfd.FPScalarFormatMap());
+      nfd.SetFormatMap(0, NEONFormatDecoder::FPScalarFormatMap());
       switch (instr->Mask(NEONScalarByIndexedElementFPMask)) {
         case NEON_FMUL_byelement_scalar:
           mnemonic = "fmul";
@@ -3485,11 +3485,13 @@ void DisassemblingDecoder::VisitNEONScalarByIndexedElement(Instruction* instr) {
   }
 
   if (long_instr) {
-    nfd.SetFormatMap(0, nfd.LongScalarFormatMap());
+    nfd.SetFormatMap(0, NEONFormatDecoder::LongScalarFormatMap());
   }
 
   Format(instr, mnemonic,
-         nfd.Substitute(form, nfd.kPlaceholder, nfd.kPlaceholder, nfd.kFormat));
+         nfd.Substitute(form, NEONFormatDecoder::kPlaceholder,
+                        NEONFormatDecoder::kPlaceholder,
+                        NEONFormatDecoder::kFormat));
 }
 
 void DisassemblingDecoder::VisitNEONScalarCopy(Instruction* instr) {
@@ -3503,7 +3505,9 @@ void DisassemblingDecoder::VisitNEONScalarCopy(Instruction* instr) {
     form = "%sd, 'Vn.%s['IVInsIndex1]";
   }
 
-  Format(instr, mnemonic, nfd.Substitute(form, nfd.kPlaceholder, nfd.kFormat));
+  Format(instr, mnemonic,
+         nfd.Substitute(form, NEONFormatDecoder::kPlaceholder,
+                        NEONFormatDecoder::kFormat));
 }
 
 void DisassemblingDecoder::VisitNEONScalarPairwise(Instruction* instr) {
@@ -3890,7 +3894,11 @@ void DisassemblingDecoder::VisitUnimplemented(Instruction* instr) {
 }
 
 void DisassemblingDecoder::VisitUnallocated(Instruction* instr) {
-  Format(instr, "unallocated", "(Unallocated)");
+  if (instr->IsUdf()) {
+    Format(instr, "udf", "'IUdf");
+  } else {
+    Format(instr, "unallocated", "(Unallocated)");
+  }
 }
 
 void DisassemblingDecoder::ProcessOutput(Instruction* /*instr*/) {
@@ -4294,6 +4302,10 @@ int DisassemblingDecoder::SubstituteImmediateField(Instruction* instr,
     case 'D': {  // IDebug - HLT and BRK instructions.
       AppendToOutput("#0x%x", instr->ImmException());
       return 6;
+    }
+    case 'U': {  // IUdf - UDF instruction.
+      AppendToOutput("#0x%x", instr->ImmUdf());
+      return 4;
     }
     case 'V': {  // Immediate Vector.
       switch (format[2]) {

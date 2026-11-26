@@ -1,84 +1,126 @@
-# Stack Walking in V8
+# Stack Walking and Frame Layouts in V8
 
-Stack walking is the process of traversing the call stack to inspect active frames. V8 uses stack walking for several critical features:
-*   **Exception Handling**: Finding the appropriate catch handler when an exception is thrown.
-*   **Stack Traces**: Generating the string representation of the stack for `Error.stack`.
-*   **Garbage Collection**: Identifying root pointers held in stack slots.
-*   **Profiling**: The CPU profiler samples the stack to determine where time is spent.
+## Conceptual Overview
 
-## Frame Types
+At any moment during execution, a V8 thread's call stack contains an interleaved mix of frames: C++ entry frames, Ignition bytecode interpreter frames, Sparkplug baseline frames, Maglev and TurboFan optimized frames, builtin continuation frames, and WebAssembly frames.
 
-V8 has a rich set of frame types, as execution can transition between interpreted JavaScript, optimized JavaScript, WebAssembly, and C++ host code.
-
-Key frame types (defined in `src/execution/frames.h`):
-*   **`ENTRY`**: The entry point from C++ into JavaScript.
-*   **`EXIT`**: The exit point from JavaScript back into C++ (e.g., calling a C++ runtime function).
-*   **`INTERPRETED`**: A frame for code running in the Ignition interpreter.
-*   **`BASELINE`**: A frame for code compiled by Sparkplug.
-*   **`MAGLEV`**: A frame for code compiled by Maglev.
-*   **`TURBOFAN`**: A frame for code compiled by TurboFan.
-*   **`BUILTIN`**: A frame for a builtin function (e.g., written in Torque or CSA).
-*   **`WASM`**: Frames for WebAssembly execution.
-
-## The Stack Frame Iterator
-
-The primary mechanism for stack walking in C++ is the `StackFrameIterator` class (and its variants like `DebuggableStackFrameIterator`).
-
-```cpp
-for (StackFrameIterator it(isolate); !it.done(); it.Advance()) {
-  StackFrame* frame = it.frame();
-  // Inspect frame...
-}
-```
-
-### How it Works:
-1.  **Starting Point**: The iterator typically starts from the current top of the stack (retrieved from the isolate's saved state or current CPU registers).
-2.  **Frame Identification**: V8 identifies the type of frame by looking at the **Frame Marker** (a special value stored in the frame) or by looking up the PC (Program Counter) in the instruction stream of active code objects.
-3.  **Navigation**: The iterator uses the saved Frame Pointer (FP) to find the caller's frame. Standard V8 frames maintain a consistent link chain of FPs.
-
-## Standard Frame Layout
-
-Most V8 frames follow a standard layout (though optimized frames may vary to save space):
-
-```text
-                      +---------------------------+
-                      |  Caller's Frame Pointer   |  <- Higher addresses
-                      +---------------------------+
-                      |  Caller's Return Address  |
-                      +---------------------------+
-                      |  Context / Marker         |
-                      +---------------------------+
-                      |  Function / Code Object   |  <- Current FP points here
-                      +---------------------------+
-                      |  ... Locals / Stack ...   |  <- SP points to the top
-                      +---------------------------+
-```
-
-## GC Stack Scanning
-
-During Garbage Collection, V8 must scan the stack to find all root pointers to heap objects. This process relies on the stack walking infrastructure.
-
-### Precise vs. Conservative Scanning
-V8 primarily uses **Precise Stack Scanning**. It knows exactly which slots on the stack contain tagged pointers and which contain raw data (like integers or floats).
-*   **Tagged Pointers**: V8 uses pointer tagging (typically the lowest bit being 1 for HeapObjects and 0 for Smis). The GC uses this tag to identify pointers that need to be traced and updated if the object moves.
-*   **Safepoint Tables**: For optimized code (Maglev and TurboFan), V8 generates **Safepoint Tables**. At specific instruction offsets (safepoints, usually calls), these tables describe exactly which stack slots and registers contain tagged pointers. The GC uses the return address to look up the safepoint table entry.
-*   **Unoptimized Code**: For Ignition frames, the GC knows that the slots correspond to bytecode registers, which are all treated as tagged values containing either Smis or HeapObjects.
-
-### Handling Arguments
-Arguments to functions can be passed on the stack or in registers, depending on the calling convention and execution tier.
-*   **JS Linkage**: For standard JavaScript function calls, arguments are pushed onto the stack by the caller.
-*   **Accessing Arguments**: `CommonFrameWithJSLinkage` provides methods like `GetParameter(index)` to access arguments. The location is calculated relative to the frame pointer.
-*   **GC Scanning of Arguments**: The GC needs to scan arguments passed on the stack. To do this precisely, V8 frames track the actual number of arguments passed (e.g., via `GetActualArgumentCount()`). This ensures that even with variadic arguments or parameter mismatch, the GC scans exactly the valid range of arguments on the stack.
-
-## Safe Stack Walking
-
-Stack walking must be done safely, especially when handling signals for the CPU profiler or during GC when the stack might be in an inconsistent state.
-
-*   **Profiler Safety**: The CPU profiler interrupts execution at arbitrary points. The stack may be in an inconsistent state (e.g., in the middle of pushing a frame). V8 uses a specialized, safe stack walker (`SafeStackFrameIterator`) that performs sanity checks on pointers before dereferencing them to avoid crashes.
+Four critical subsystems in V8 rely on walking this heterogeneous stack accurately:
+1. **Garbage Collection (Root Scanning)**: The GC must find every live heap object pointer on the stack (using a combination of precise frame-slot / `SafepointTable` iteration and **Conservative Stack Scanning**).
+2. **Exception Unwinding (`Isolate::Throw`)**: Walks from the throwing PC outward until a frame's `HandlerTable` catches the exception.
+3. **Deoptimization**: Replaces an optimized `TURBOFAN_JS` or `MAGLEV` frame on the physical stack with one or more reconstructed `INTERPRETED` and `BUILTIN_CONTINUATION` frames.
+4. **CPU Profiling & Stack Traces (`Error.stack`, DevTools)**: Samples the call stack asynchronously from a signal handler or walks frames synchronously to symbolize function names and line numbers.
 
 ---
 
-## See Also
--   [Exception Handling](exception-handling.md)
--   [Deoptimization](deoptimization.md)
--   [Ignition](../interpreter/interpreter-ignition.md)
+## 1. Standard Frame Pointer (`fp`) Chain and Frame Type Markers
+
+V8 maintains a contiguous linked list of **Frame Pointers (`fp` / `rbp` on x64 / `x29` on ARM64)** across all generated frames. At `fp + 0`, every frame stores the caller's saved `fp`, and at `fp + kSystemPointerSize`, it stores the caller's return `pc`:
+
+```text
+Higher Memory Addresses (Caller Frames)
++-----------------------------------------------------------------------+
+| Caller Parameter N ... Parameter 0 / Receiver                         |
++-----------------------------------------------------------------------+
+| Return Address (saved PC in caller)             [ fp + kPCOnStackSize ]|
++=======================================================================+
+| Saved Caller Frame Pointer (prev FP)            [ fp + 0 ]            | <-- Current FP
++-----------------------------------------------------------------------+
+| Context OR Frame Type Marker (Smi)              [ fp - kPointerSize ] |
++-----------------------------------------------------------------------+
+| JSFunction (or Frame Type Marker for Stubs)     [ fp - 2*kPointerSize]|
++-----------------------------------------------------------------------+
+| Frame-Specific Header & Local Slots / Registers                       |
++-----------------------------------------------------------------------+
+Lower Memory Addresses (Current Stack Pointer SP)
+```
+
+### How V8 Distinguishes JavaScript Frames from Internal/Stub Frames
+How does `StackFrame::ComputeType` know what kind of frame sits at a given `fp`?
+- **Standard JavaScript Frames (`INTERPRETED`, `BASELINE`, `MAGLEV`, `TURBOFAN_JS`)**:
+  - Store a valid `Tagged<Context>` heap pointer at `[fp + StandardFrameConstants::kContextOffset]` and the `Tagged<JSFunction>` at `[fp + StandardFrameConstants::kFunctionOffset]`.
+  - To distinguish which tier a JS frame belongs to without adding extra words to every JS frame:
+    - **`INTERPRETED` (`InterpretedFrame`)**: Identified because the return `pc` (or current PC) lies inside an Ignition bytecode handler builtin (`Isolate::builtins()->IsBytecodeHandlerPc(pc)`) or `InterpreterEntryTrampoline`! It adds `[fp + UnoptimizedFrameConstants::kBytecodeArrayFromFp]` and `[fp + kBytecodeOffsetOrFeedbackCellFromFp]`.
+    - **`BASELINE` / `MAGLEV` / `TURBOFAN_JS`**: Identified by looking up the `Code` object for `pc` (or reading the `Code` / marker slot) and checking `code->kind()` (`CodeKind::BASELINE`, `CodeKind::MAGLEV`, `CodeKind::TURBOFAN_JS`).
+- **Typed / Marker Frames (`ENTRY`, `CONSTRUCT`, `EXIT`, `BUILTIN_CONTINUATION`, `WASM`, etc.)**:
+  - Store a **tagged `Smi` encoding `StackFrame::Type`** (`StackFrame::TypeToMarker(type)`) in the context/marker slot (`[fp + TypedFrameConstants::kFrameTypeOffset]`)! Because every `HeapObject` (like a `Context`) has a low tag bit of `1` while every `Smi` has a low tag bit of `0`, a single bit test tells the stack walker whether the slot holds a `Context` or a `StackFrame::Type` marker!
+
+---
+
+## 2. Complete `StackFrame::Type` Taxonomy (`src/execution/frames.h`)
+
+`FRAME_TYPE_LIST` in `src/execution/frames.h` defines the concrete `StackFrame` subclasses:
+
+| Category | `StackFrame::Type` Enum (`StackFrame` Class) | Role |
+| :--- | :--- | :--- |
+| **C++ -> JS Entry** | `ENTRY` (`EntryFrame`)<br/>`CONSTRUCT_ENTRY` (`ConstructEntryFrame`) | Pushed by `JSEntryTrampoline` when C++ invokes JS (`Execution::Call` / `Construct`). Saves C++ callee-saved registers and links to the previous `c_entry_fp`. |
+| **JS -> C++ Exit** | `EXIT` (`ExitFrame`)<br/>`BUILTIN_EXIT` (`BuiltinExitFrame`)<br/>`API_CALLBACK_EXIT` (`ApiCallbackExitFrame`)<br/>`API_ACCESSOR_EXIT` (`ApiAccessorExitFrame`) | Pushed by `CEntry` or API stubs when JS calls into a C++ `RUNTIME_FUNCTION`, C++ builtin, or `v8::FunctionCallback`. Records `Isolate::c_entry_fp()` so stack walking can jump across arbitrary C++ compiler frames! |
+| **JavaScript Execution Tiers** | `INTERPRETED` (`InterpretedFrame`)<br/>`BASELINE` (`BaselineFrame`)<br/>`MAGLEV` (`MaglevFrame`)<br/>`TURBOFAN_JS` (`TurbofanJSFrame`) | The four JavaScript execution tiers (`UnoptimizedJSFrame` base for Ignition/Sparkplug; `OptimizedJSFrame` base for Maglev/TurboFan). |
+| **Construct & Argument Adapters** | `CONSTRUCT` (`ConstructFrame`)<br/>`FAST_CONSTRUCT` (`FastConstructFrame`) | Wraps `new Foo()` calls to enforce ECMAScript constructor return-value semantics (returning the allocated `receiver` if the constructor returns a primitive). |
+| **Deopt & Builtin Continuations** | `IRREGEXP` (`IrregexpFrame`)<br/>`INTERNAL` (`InternalFrame`)<br/>`TURBOFAN_STUB_WITH_CONTEXT` (`TurbofanStubWithContextFrame`)<br/>`BUILTIN_CONTINUATION` (`BuiltinContinuationFrame`)<br/>`JAVASCRIPT_BUILTIN_CONTINUATION` (`JavaScriptBuiltinContinuationFrame`)<br/>`JAVASCRIPT_BUILTIN_CONTINUATION_WITH_CATCH` (`...WithCatchFrame`) | Internal helper frames and synthetic frames reconstructed by the Deoptimizer when an inlined builtin deoptimizes mid-operation. |
+| **WebAssembly & JSPI** | `WASM` (`WasmFrame`), `WASM_TO_JS`, `JS_TO_WASM`, `WASM_INTERPRETER_ENTRY`, `WASM_DEBUG_BREAK`, `C_WASM_ENTRY`, `WASM_EXIT`, `WASM_LIFTOFF_SETUP`, `WASM_SEGMENT_START` (`WasmSegmentStartFrame`) | WebAssembly execution, JS/Wasm boundary wrappers, and JS Promise Integration (JSPI) stack-switching segment headers. |
+
+### Bridging C++ Frames (`c_entry_fp` and `handler` Chain)
+When V8 is executing inside C++ (e.g., `Runtime_LoadIC_Miss`), the C++ compiler's stack frames on top of `ExitFrame` do not have V8 frame headers. How does `StackFrameIterator` start from C++ and find the topmost JS frame?
+1. When JS enters C++ through an `ExitFrame`, the stub stores the `ExitFrame`'s `fp` in `Isolate::c_entry_fp()`.
+2. If that C++ code recursively re-enters JS (pushing a new `EntryFrame`), the `EntryFrame` saves the outer `c_entry_fp` on the stack (`EntryFrameConstants::kDirectCallerFPOffset`) and links into `ThreadLocalTop`.
+3. Thus, `StackFrameIterator` starts at `Isolate::c_entry_fp()`, walks `fp` links upward through JS frames until it hits an `EntryFrame`, and then jumps across the C++ gap directly to the previous saved `c_entry_fp`!
+
+---
+
+## 3. `StackFrameIterator` vs `StackFrameIteratorForProfiler` (`src/execution/frames.h`)
+
+V8 provides two distinct frame iterators for very different operating environments:
+
+### 1. `StackFrameIterator` (Synchronous, Exact In-Runtime Walking)
+Used by GC root scanning, `Isolate::Throw`, `Deoptimizer`, and synchronous `Error.stack` capture.
+- **Precondition**: Runs **only at well-defined safepoints** (inside a C++ runtime call, builtin, or GC pause) when every frame on the stack has a completely constructed header and valid `fp` chain.
+- **Inlined Frame Expansion (`FrameSummary` / `JavaScriptFrameIterator`)**: A single physical `MAGLEV` or `TURBOFAN_JS` frame may represent multiple inlined JS functions. Calling `frame->Summarize(&frames)` decodes the `SafepointEntry`'s `deoptimization_index` in `DeoptimizationData` to expand the single physical frame into a vector of logical `FrameSummary` records (innermost to outermost).
+- **Placeholder Constructor Receivers (`TdzHole`)**: When a derived class constructor throws before `super()` (or while a builtin/API constructor frame is on the stack), `frame->receiver()` is `tdz_hole_value()` (`TdzHole`). All three stack-trace receiver consumers -- `CallSiteBuilder::AppendFrame` (`src/execution/isolate.cc`), `StringStream::PrintPrototype` (`src/strings/string-stream.cc`), and `DebugStackTraceIterator::GetReceiver` (`src/debug/debug-stack-trace-iterator.cc`) -- must check `IsTdzHole` (rather than `IsTheHole`) to avoid dereferencing `TdzHole` as a `JSReceiver`.
+- **Unmaterialized Deoptimization Frames (`ArgumentsMarker`)**: While `Deoptimizer::MaterializeHeapObjects()` is allocating escape-analyzed objects for reconstructed stack frames, a frame's closure (`function`) or `receiver` slot may temporarily hold `arguments_marker()`. Stack walkers reachable from allocation hooks or crash printing (`SamplingHeapProfiler::AddStack`, `AllocationTracker::AllocationEvent`, `JavaScriptFrame::Print`, and `StringStream::PrintPrototype`) must check `IsJSFunction(frame->unchecked_function())` and `IsArgumentsMarker(receiver)` before dereferencing them.
+
+### 2. `StackFrameIteratorForProfiler` (Asynchronous Signal-Handler Safe Walking)
+Used by V8's sampling CPU profiler (`TickSample` / `CpuProfiler`), which interrupts the target thread at **completely arbitrary machine instructions** via an OS signal (`SIGPROF` on POSIX) or thread suspension.
+
+Why can't a signal handler use `StackFrameIterator`?
+- **Prologue / Epilogue Hazards**: The signal might arrive in the middle of a function prologue (before `push rbp; mov rbp, rsp` has finished) or epilogue (after `pop rbp` before `ret`), or inside a frameless stub (`IsNoFrameBytecodeHandlerPc`).
+- **Validation Guards (`StackFrameIteratorForProfiler`)**:
+  - Checks pointer alignment (`IsAligned(..., kSystemPointerSize)`) alongside stack bounds for every candidate `sp` and `fp` (`IsValidStackAddress` / `IsValidFramePointer` / `IsValidState`), preventing misaligned reads if `SIGPROF` interrupts a signal handler (such as the Wasm trap handler) or frame-pointer-less C++ helper while `js_entry_sp` is active and `c_entry_fp` is null.
+  - Validates `IsValidFrameType` before dereferencing frame markers.
+  - Inspects `top_frame_type_` and registers from `TickSample` (`pc`, `fp`, `sp`, `lr`) to recover the caller when stopped mid-prologue/epilogue.
+
+> [!CAUTION]
+> **Never Add `V8_EXPORT_PRIVATE` to `StackFrameIteratorForProfiler`!**
+> As documented in `src/execution/frames.h`, `StackFrameIteratorForProfiler` runs inside an asynchronous POSIX signal handler (`SIGPROF`) on the interrupted thread's stack -- which may be right at the edge of a stack overflow! If `StackFrameIteratorForProfiler` methods were exported across shared-library boundaries (`V8_EXPORT_PRIVATE` in component builds), calling them would invoke the dynamic linker's lazy PLT resolver (`_dl_runtime_resolve`), which allocates a large stack frame and **crashes with a stack overflow inside the signal handler**.
+
+---
+
+## 4. Garbage Collection & Conservative Stack Scanning (CSS)
+
+Historically, every V8 C++ runtime function had to wrap all heap pointers in indirect `Handle<T>` slots allocated in a `HandleScope` table because the GC only knew how to scan `HandleScope`s and tagged slots described by `SafepointTable`s in JIT frames.
+
+Modern V8 combines **Precise Frame Scanning** with **Conservative Stack Scanning (CSS)** (`src/heap/base/stack.h`, `ConservativeStackVisitor`):
+
+```mermaid
+flowchart TD
+    GC["GC Root Scanning (IterateStackRoots)"] --> Precise["1. Precise StackFrameIterator<br/>(Visit each StackFrame::Iterate)"]
+    Precise --> Ign["UnoptimizedJSFrame / BaselineFrame:<br/>Scan parameters, context, closure, and all bytecode register slots"]
+    Precise --> Opt["OptimizedJSFrame (Maglev/TurboFan):<br/>Look up PC in SafepointTable -> scan tagged stack slots & registers"]
+    GC --> CSS["2. Conservative Stack Scanning (when active)<br/>(Scan raw words in C++ frames between stack start and current SP)"]
+    CSS --> Pin["Pin / Mark any HeapObject whose page/cage/markbit validates<br/>(Enables zero-overhead DirectHandle<T> on the C++ stack!)"]
+```
+
+1. **Precise Scanning (`StackFrame::Iterate`)**:
+   - In `InterpretedFrame` and `BaselineFrame`, every bytecode register slot on the stack is guaranteed to hold a valid tagged value (initialized to `undefined` or `stale_register` / `tdz_hole`), so the GC visits all parameter and register slots directly.
+   - In `MaglevFrame` and `TurbofanJSFrame`, local stack slots and CPU registers may hold raw unboxed 32-bit/64-bit integers or floats that look like heap pointers! Therefore, the compiler emits a **`SafepointTable`** (or `MaglevSafepointTable`) recording a bitmap of which stack spill slots (`VisitSpillSlots`) and callee-saved registers hold **tagged pointers** at each call PC.
+2. **Conservative Stack Scanning (`ConservativeStackVisitor`)**:
+   - In C++ frames (between `c_entry_fp` segments), modern V8 allows `DirectHandle<T>` -- a zero-indirection wrapper holding a direct `Tagged<T>` pointer on the C++ CPU stack or in a CPU register!
+   - When a GC occurs while C++ frames are on the stack, `ConservativeStackVisitor` scans raw words on the C++ stack, checks whether each word falls within a valid V8 heap page in the pointer-compression cage and points to a valid `HeapObject` allocation boundary (`MarkingBitmap`), and conservatively marks and pins those objects so they are not moved while C++ holds direct stack pointers to them.
+
+---
+
+## Key Source Files
+
+- `src/execution/frames.h`, `src/execution/frames-inl.h`, & `src/execution/frames.cc`: `StackFrame` hierarchy, `StackFrameIterator`, `StackFrameIteratorForProfiler`, and `FrameSummary`.
+- `src/execution/frame-constants.h`: Architecture-independent and architecture-specific frame slot offsets (`StandardFrameConstants`, `UnoptimizedFrameConstants`, `TypedFrameConstants`).
+- `src/codegen/safepoint-table.h` & `src/codegen/maglev-safepoint-table.h`: Safepoint bitmaps for tagged spill slots and registers in optimized frames.
+- `src/heap/conservative-stack-visitor.h` & `.cc`: Conservative Stack Scanning (CSS) for `DirectHandle<T>`.

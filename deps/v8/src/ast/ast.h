@@ -1123,9 +1123,8 @@ class AggregateLiteral : public MaterializedLiteral {
   enum Flags {
     kNoFlags = 0,
     kIsShallow = 1,
-    kDisableMementos = 1 << 1,
+    kDisableAllocationSiteTracking = 1 << 1,
     kNeedsInitialAllocationSite = 1 << 2,
-    kIsShallowAndDisableMementos = kIsShallow | kDisableMementos,
   };
 
  protected:
@@ -1163,10 +1162,9 @@ class LiteralBoilerplateBuilder {
     return NeedsInitialAllocationSiteField::decode(bit_field_);
   }
 
-  int ComputeFlags(bool disable_mementos = false) const {
+  int ComputeFlags() const {
     int flags = AggregateLiteral::kNoFlags;
     if (is_shallow()) flags |= AggregateLiteral::kIsShallow;
-    if (disable_mementos) flags |= AggregateLiteral::kDisableMementos;
     if (needs_initial_allocation_site()) {
       flags |= AggregateLiteral::kNeedsInitialAllocationSite;
     }
@@ -1382,7 +1380,7 @@ class ObjectLiteralBoilerplateBuilder final : public LiteralBoilerplateBuilder {
            properties()->length() == 0;
   }
   // Assemble bitfield of flags for the CreateObjectLiteral helper.
-  int ComputeFlags(bool disable_mementos = false) const;
+  int ComputeFlags() const;
 
   bool IsEmptyObjectLiteral() const {
     return is_empty() && !has_null_prototype();
@@ -1474,9 +1472,7 @@ class ArrayLiteralBoilerplateBuilder final : public LiteralBoilerplateBuilder {
   bool IsFastCloningSupported() const;
 
   // Assemble bitfield of flags for the CreateArrayLiteral helper.
-  int ComputeFlags(bool disable_mementos = false) const {
-    return LiteralBoilerplateBuilder::ComputeFlags(disable_mementos);
-  }
+  int ComputeFlags() const { return LiteralBoilerplateBuilder::ComputeFlags(); }
 
   int first_spread_index() const { return first_spread_index_; }
 

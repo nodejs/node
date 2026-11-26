@@ -232,8 +232,8 @@ class CallForwardVarargsParameters final {
     return p.bit_field_;
   }
 
-  using ArityField = base::BitField<size_t, 0, 15>;
-  using StartIndexField = base::BitField<uint32_t, 15, 15>;
+  using ArityField = base::BitField<size_t, 0, 16>;
+  using StartIndexField = base::BitField<uint32_t, 16, 16>;
 
   uint32_t const bit_field_;
 };
@@ -903,6 +903,18 @@ std::ostream& operator<<(std::ostream&, ForOfNextParameters const&);
 
 const ForOfNextParameters& ForOfNextParametersOf(const Operator* op);
 
+// Distinguishes explicit ToObject conversions (e.g. Object(x), where a boxed
+// primitive wrapper can escape and acquire own properties) from implicit
+// Bytecode::kToObject conversions emitted for for..in / with statements.
+enum class ToObjectMode : uint8_t {
+  kExplicit,
+  kForInOrWith,
+};
+size_t hash_value(ToObjectMode);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, ToObjectMode);
+V8_EXPORT_PRIVATE ToObjectMode ToObjectModeOf(const Operator* op)
+    V8_WARN_UNUSED_RESULT;
+
 enum class ForInMode : uint8_t {
   kUseEnumCacheKeysAndIndices,
   kUseEnumCacheKeys,
@@ -933,15 +945,20 @@ const ForInParameters& ForInParametersOf(const Operator* op);
 #if V8_ENABLE_WEBASSEMBLY
 class JSWasmCallParameters final {
  public:
-  explicit JSWasmCallParameters(wasm::NativeModule* native_module,
-                                int function_index,
-                                SharedFunctionInfoRef shared_fct_info,
-                                FeedbackSource const& feedback);
+  explicit JSWasmCallParameters(
+      wasm::NativeModule* native_module, int function_index,
+      SharedFunctionInfoRef shared_fct_info, FeedbackSource const& feedback,
+      bool has_break_on_entry,
+      IndirectHandle<WasmInternalFunction> internal_function = {});
 
   wasm::NativeModule* native_module() const { return native_module_; }
   int function_index() const { return function_index_; }
   SharedFunctionInfoRef shared_fct_info() const { return shared_fct_info_; }
   FeedbackSource const& feedback() const { return feedback_; }
+  bool has_break_on_entry() const { return has_break_on_entry_; }
+  IndirectHandle<WasmInternalFunction> internal_function() const {
+    return internal_function_;
+  }
   int input_count() const;
   int arity_without_implicit_args() const;
 
@@ -950,6 +967,8 @@ class JSWasmCallParameters final {
   int function_index_;
   SharedFunctionInfoRef shared_fct_info_;
   const FeedbackSource feedback_;
+  bool has_break_on_entry_;
+  IndirectHandle<WasmInternalFunction> internal_function_;
 };
 
 JSWasmCallParameters const& JSWasmCallParametersOf(const Operator* op)
@@ -1032,7 +1051,8 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* ToBigInt();
   const Operator* ToBigIntConvertNumber();
   const Operator* ToNumeric();
-  const Operator* ToObject();
+  const Operator* ToObject() { return ToObject(ToObjectMode::kExplicit); }
+  const Operator* ToObject(ToObjectMode mode);
   const Operator* ToString();
 
   const Operator* Create();
@@ -1103,7 +1123,8 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* CallWasm(wasm::NativeModule* native_module,
                            int wasm_function_index,
                            SharedFunctionInfoRef shared_fct_info,
-                           FeedbackSource const& feedback);
+                           FeedbackSource const& feedback,
+                           bool has_break_on_entry);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   const Operator* ConstructForwardVarargs(size_t arity, uint32_t start_index);

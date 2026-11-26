@@ -69,11 +69,8 @@ macro LocationAllocatorForWasmInterpreterReturns(stack: RawPtr):
 
 
 transitioning javascript builtin JSToWasmInterpreterWrapper(
-    js-implicit context: NativeContext, receiver: JSAny, target: JSFunction,
-    dispatchHandle: DispatchHandle)(...arguments): JSAny {
-  // This is a generic builtin that can be installed on functions with different
-  // parameter counts, so we need to support that.
-  SetSupportsDynamicParameterCount(target, dispatchHandle);
+    js-implicit context: NativeContext, receiver: JSAny, target: JSFunction)(
+    ...arguments): JSAny {
   const functionData = target.shared_function_info.wasm_exported_function_data;
 
   const internalFunction = functionData.internal;

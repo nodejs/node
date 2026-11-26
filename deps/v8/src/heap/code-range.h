@@ -109,9 +109,9 @@ class CodeRangeAddressHint {
 // 4) non-allocatable region might be empty (if |base| == |allocatable base|),
 // 5) if optional RW pages are necessary and they don't fit into non-allocatable
 //    region, then the first page is excluded from allocatable area.
-class CodeRange final : public VirtualMemoryCage {
+class V8_EXPORT_PRIVATE CodeRange final : public VirtualMemoryCage {
  public:
-  V8_EXPORT_PRIVATE ~CodeRange() override;
+  ~CodeRange() override;
 
   // Returns the size of the initial area of a code range, which is marked
   // writable and reserved to contain unwind information.
@@ -146,7 +146,7 @@ class CodeRange final : public VirtualMemoryCage {
   bool InitReservation(v8::PageAllocator* page_allocator, size_t requested,
                        bool immutable);
 
-  V8_EXPORT_PRIVATE void Free();
+  void Free();
 
   // Remap and copy the embedded builtins into this CodeRange. This method is
   // idempotent and only performs the copy once. This property is so that this
@@ -176,6 +176,13 @@ class CodeRange final : public VirtualMemoryCage {
 
   // Red zones that we should not allocate in.
   RedZones red_zones_;
+
+#ifdef V8_ENABLE_MEMORY_SEALING
+  bool is_sealed() const { return is_sealed_; }
+  bool is_sealed_ = false;
+#else
+  constexpr bool is_sealed() const { return false; }
+#endif
 
 #if !defined(V8_OS_WIN) && !defined(V8_OS_IOS) && defined(DEBUG)
   bool immutable_ = false;

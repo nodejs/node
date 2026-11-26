@@ -30,6 +30,7 @@
 #include "src/flags/flags-impl.h"
 #include "src/flags/flags.h"
 #include "src/init/v8.h"
+#include "test/common/flag-utils.h"
 #include "test/unittests/fuzztest.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -223,7 +224,7 @@ TEST_F(FlagDefinitionsTest, FlagsDisableOptimizingCompilersImplications) {
 TEST_F(FlagDefinitionsTest, FreezeFlags) {
   // Before freezing, we can arbitrarily change values.
   CHECK_EQ(13, v8_flags.testing_int_flag);  // Initial (default) value.
-  v8_flags.testing_int_flag = 27;
+  v8_flags.testing_int_flag.Set(27);
   CHECK_EQ(27, v8_flags.testing_int_flag);
 
   // Get a direct pointer to the flag storage.
@@ -238,7 +239,9 @@ TEST_F(FlagDefinitionsTest, FreezeFlags) {
   // both crash.
   FlagList::FreezeFlags();
   // Accessing via the API fails with a CHECK.
-  ASSERT_DEATH_IF_SUPPORTED(v8_flags.testing_int_flag = 41,
+  ASSERT_DEATH_IF_SUPPORTED(v8_flags.testing_int_flag.Set(41),
+                            "Check failed: !IsFrozen\\(\\)");
+  ASSERT_DEATH_IF_SUPPORTED(v8_flags.testing_int_flag.Overwrite(41),
                             "Check failed: !IsFrozen\\(\\)");
   // Writing to the memory directly results in a segfault.
   ASSERT_DEATH_IF_SUPPORTED(*direct_testing_int_ptr = 41, "");
@@ -360,18 +363,36 @@ INSTANTIATE_TEST_SUITE_P(ExperimentalFlagImplication,
 
 TEST(FlagContradictionsTest, ResolvesContradictions) {
 #ifdef V8_ENABLE_MAGLEV
-  int argc = 4;
-  const char* argv[] = {"Test", "--fuzzing", "--stress-maglev", "--jitless"};
-  FlagList::SetFlagsFromCommandLine(&argc, const_cast<char**>(argv), false);
-  CHECK(v8_flags.fuzzing);
-  CHECK(v8_flags.jitless);
-  CHECK(v8_flags.stress_maglev);
-  FlagList::ResolveContradictionsWhenFuzzing();
-  FlagList::EnforceFlagImplications();
-  CHECK(v8_flags.fuzzing);
-  CHECK(!v8_flags.jitless);
-  CHECK(v8_flags.stress_maglev);
+  {
+    SaveFlags save_flags;
+    int argc = 4;
+    const char* argv[] = {"Test", "--fuzzing", "--stress-maglev", "--jitless"};
+    FlagList::SetFlagsFromCommandLine(&argc, const_cast<char**>(argv), false);
+    CHECK(v8_flags.fuzzing);
+    CHECK(v8_flags.jitless);
+    CHECK(v8_flags.stress_maglev);
+    FlagList::ResolveContradictionsWhenFuzzing();
+    FlagList::EnforceFlagImplications();
+    CHECK(v8_flags.fuzzing);
+    CHECK(!v8_flags.jitless);
+    CHECK(v8_flags.stress_maglev);
+  }
 #endif
+  {
+    SaveFlags save_flags;
+    int argc = 4;
+    const char* argv[] = {"Test", "--fuzzing", "--hole-fuzzing",
+                          "--assert-types"};
+    FlagList::SetFlagsFromCommandLine(&argc, const_cast<char**>(argv), false);
+    CHECK(v8_flags.fuzzing);
+    CHECK(v8_flags.hole_fuzzing);
+    CHECK(v8_flags.assert_types);
+    FlagList::ResolveContradictionsWhenFuzzing();
+    FlagList::EnforceFlagImplications();
+    CHECK(v8_flags.fuzzing);
+    CHECK(v8_flags.hole_fuzzing);
+    CHECK(!v8_flags.assert_types);
+  }
 }
 
 TEST(FlagContradictionsTest, ResolvesNegContradictions) {
@@ -483,15 +504,30 @@ TEST(FlagInternalsTest, ImplicationOrderShouldNotMatter) {
 TEST_F(FlagDefinitionsTest, FlagValueSetChecksContradictions) {
   SaveFlags save_flags;
   v8_flags.flag_processing_mode.Set("abort-on-error");
-  v8_flags.testing_bool_flag.Set(true);
-  // Setting the same boolean value again is allowed.
-  v8_flags.testing_bool_flag.Set(true);
-  // Setting a contradictory boolean value fails.
-  ASSERT_DEATH_IF_SUPPORTED(
-      v8_flags.testing_bool_flag.Set(false),
-      "Command-line provided flag --testing-bool-flag specified as both true "
-      "and false");
-  FindFlagByName("flag_processing_mode")->Reset();
+  {
+    SaveFlags inner_save;
+    v8_flags.testing_bool_flag.Set(true);
+    // Setting the same boolean value again is allowed.
+    v8_flags.testing_bool_flag.Set(true);
+    // Setting a contradictory boolean value fails.
+    ASSERT_DEATH_IF_SUPPORTED(
+        v8_flags.testing_bool_flag.Set(false),
+        "Command-line provided flag --testing-bool-flag specified as both true "
+        "and false");
+    // Overwriting bypasses contradiction checks.
+    v8_flags.testing_bool_flag.Overwrite(false);
+    CHECK(!v8_flags.testing_bool_flag);
+  }
+  // {SaveFlags} and {FlagScope} restore flag metadata, so setting the flag to
+  // different values across sequential scopes succeeds.
+  {
+    FlagScope<bool> scope(&v8_flags.testing_bool_flag, false);
+    CHECK(!v8_flags.testing_bool_flag);
+  }
+  {
+    FlagScope<bool> scope(&v8_flags.testing_bool_flag, true);
+    CHECK(v8_flags.testing_bool_flag);
+  }
 }
 
 TEST_F(FlagDefinitionsTest, UnsafeFlagImpliesTestOnlyUnsafe) {
@@ -505,6 +541,14 @@ TEST_F(FlagDefinitionsTest, UnsafeFlagImpliesTestOnlyUnsafe) {
     v8_flags.expose_trigger_failure.Set(true);
     FlagList::EnforceFlagImplications();
     CHECK(v8_flags.expose_trigger_failure);
+    CHECK(v8_flags.test_only_unsafe);
+  }
+  {
+    SaveFlags save_flags;
+    v8_flags.parallel_compile_tasks_for_eager_toplevel.Set(true);
+    FlagList::EnforceFlagImplications();
+    CHECK(v8_flags.parallel_compile_tasks_for_eager_toplevel);
+    CHECK(v8_flags.lazy_compile_dispatcher);
     CHECK(v8_flags.test_only_unsafe);
   }
 #if V8_ENABLE_WEBASSEMBLY
@@ -522,7 +566,6 @@ TEST_F(FlagDefinitionsTest, UnsafeFlagImpliesTestOnlyUnsafe) {
     FlagList::EnforceFlagImplications();
     CHECK_EQ(0, strcmp(v8_flags.gc_fake_mmap, "/tmp/foo"));
     CHECK(v8_flags.test_only_unsafe);
-    FindFlagByName("gc_fake_mmap")->Reset();
   }
   {
     // Test conditional DISALLOW_UNSAFE_FLAG_IF: a non-default valid stack size
@@ -561,7 +604,12 @@ TEST_F(FlagDefinitionsTest, FuzzingImpliesDisallowUnsafeFlags) {
 #ifdef DEBUG
         " --turboshaft-opt-bisect-break=50 --turboshaft-opt-bisect-limit=100"
 #endif
-        " --expose-trigger-failure --stack-size=40";
+#if V8_ENABLE_WEBASSEMBLY
+        " --wasm-max-code-space-size-mb=2000"
+#endif
+        " --expose-trigger-failure --stack-size=40"
+        " --parallel-compile-tasks-for-eager-toplevel"
+        " --parallel-compile-tasks-for-lazy --lazy-compile-dispatcher";
     CHECK_EQ(0, FlagList::SetFlagsFromString(str, strlen(str)));
     FlagList::ResolveContradictionsWhenFuzzing();
     FlagList::EnforceFlagImplications();
@@ -576,8 +624,15 @@ TEST_F(FlagDefinitionsTest, FuzzingImpliesDisallowUnsafeFlags) {
     CHECK_EQ(std::numeric_limits<uint64_t>::max(),
              v8_flags.turboshaft_opt_bisect_limit);
 #endif
+#if V8_ENABLE_WEBASSEMBLY
+    CHECK_EQ(kDefaultMaxWasmCodeSpaceSizeMb,
+             v8_flags.wasm_max_code_space_size_mb);
+#endif
     CHECK(!v8_flags.expose_trigger_failure);
     CHECK_EQ(V8_DEFAULT_STACK_SIZE_KB, v8_flags.stack_size);
+    CHECK(!v8_flags.parallel_compile_tasks_for_eager_toplevel);
+    CHECK(!v8_flags.parallel_compile_tasks_for_lazy);
+    CHECK(!v8_flags.lazy_compile_dispatcher);
     CHECK(!v8_flags.test_only_unsafe);
   }
 }
@@ -589,5 +644,15 @@ TEST_F(FlagDefinitionsTest, CorrectnessFuzzerSuppressionsIsDeveloperOnly) {
   CHECK(v8_flags.correctness_fuzzer_suppressions);
   CHECK(v8_flags.developer_only_features);
 }
+
+#ifdef V8_CODE_COMMENTS
+TEST_F(FlagDefinitionsTest, CodeCommentsIsDeveloperOnly) {
+  SaveFlags save_flags;
+  v8_flags.code_comments.Set(true);
+  FlagList::EnforceFlagImplications();
+  CHECK(v8_flags.code_comments);
+  CHECK(v8_flags.developer_only_features);
+}
+#endif  // V8_CODE_COMMENTS
 
 }  // namespace v8::internal

@@ -14,12 +14,11 @@
 #ifndef LLVM_LIBC_SRC___SUPPORT_MATH_EXPF_FLOAT_EVAL_H
 #define LLVM_LIBC_SRC___SUPPORT_MATH_EXPF_FLOAT_EVAL_H
 
-#include "src/__support/FPUtil/FEnvImpl.h"
 #include "src/__support/FPUtil/FPBits.h"
 #include "src/__support/FPUtil/double_double.h"
+#include "src/__support/FPUtil/except_value_utils.h"
 #include "src/__support/FPUtil/multiply_add.h"
 #include "src/__support/FPUtil/nearest_integer.h"
-#include "src/__support/FPUtil/rounding_mode.h"
 #include "src/__support/common.h"
 #include "src/__support/macros/config.h"
 #include "src/__support/macros/optimization.h"
@@ -56,27 +55,13 @@ LIBC_INLINE float expf(float x) {
       // exp(nan) = nan
       if (xbits.is_nan())
         return x;
-#ifndef LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
-      if (fputil::fenv_is_round_up())
-        return FPBits::min_subnormal().get_val();
-#endif // LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
-      fputil::set_errno_if_required(ERANGE);
-      fputil::raise_except_if_required(FE_UNDERFLOW);
-      return 0.0f;
+      return fputil::set_underflow<float>();
     }
     // x >= log(2^127 * (2 - 2^-23)) or nan
     if (xbits.is_pos() && (xbits.uintval() >= FPBounds::UPPER_BITS)) {
       // x is finite
-      if (xbits.uintval() < 0x7f80'0000U) {
-#ifndef LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
-        int rounding = fputil::quick_get_round();
-        if (rounding == FE_DOWNWARD || rounding == FE_TOWARDZERO)
-          return FPBits::max_normal().get_val();
-#endif // LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
-
-        fputil::set_errno_if_required(ERANGE);
-        fputil::raise_except_if_required(FE_OVERFLOW);
-      }
+      if (xbits.uintval() < 0x7f80'0000U)
+        return fputil::set_overflow<float>();
       // x is +inf or nan
       return x + FPBits::inf().get_val();
     }
@@ -97,7 +82,7 @@ LIBC_INLINE float expf(float x) {
   float kf = fputil::nearest_integer(x * LOG2_E.hi);
   int k = static_cast<int>(kf);
 
-  float u_hi = fputil::multiply_add(x, LOG2_E.hi, -kf);
+  float u_hi = fputil::multiply_sub(x, LOG2_E.hi, kf);
   float u = fputil::multiply_add(x, LOG2_E.lo, u_hi);
 #else  // !LIBC_TARGET_CPU_HAS_FMA_FLOAT
   // Cody-Waite reduction for non-FMA targets:
@@ -113,8 +98,8 @@ LIBC_INLINE float expf(float x) {
   float kf = fputil::nearest_integer(x * LOG2_E);
   int k = static_cast<int>(kf);
 
-  float v_hi = fputil::multiply_add(-kf, LOG_2_HI, x);
-  float v = fputil::multiply_add(-kf, LOG_2_LO, v_hi);
+  float v_hi = fputil::sub_multiply(x, kf, LOG_2_HI);
+  float v = fputil::sub_multiply(v_hi, kf, LOG_2_LO);
 
   // Convert reduced argument to base-2: u = v * log2(e)
   float u = v * LOG2_E;
@@ -123,10 +108,14 @@ LIBC_INLINE float expf(float x) {
   return exp2f_eval(u, k);
 }
 
+} // namespace float_eval
+
+namespace float_eval_cr_rn {
+
 // Designed for GPU performance. Correctly rounded only in round-to-nearest,
 // ties-to-even mode. Requires single-precision FMA. Does not support errno
 // or floating-point exception reporting.
-LIBC_INLINE float cr_expf_rn(float x) {
+LIBC_INLINE float expf(float x) {
   using FPBits = fputil::FPBits<float>;
   using FPBounds = math::check::exp_internal::Bounds<float>;
 
@@ -172,17 +161,17 @@ LIBC_INLINE float cr_expf_rn(float x) {
   float kf = fputil::nearest_integer(x_safe * LOG2_E);
   int k = static_cast<int>(kf);
 
-  float u_hi = fputil::multiply_add(-kf, LOG_2_HI, x_safe);
+  float u_hi = fputil::sub_multiply(x_safe, kf, LOG_2_HI);
   fputil::FloatFloat u_lo = fputil::quick_mult(-kf, LOG_2_LO);
 
   fputil::FloatFloat u = fputil::exact_add(u_hi, u_lo.hi);
   u.lo += u_lo.lo;
 
   // Polynomial approximation: e^u
-  fputil::FloatFloat exp_u = cr_expf_rn_internal::exp_eval(u);
+  fputil::FloatFloat exp_u = expf_internal::exp_eval(u);
 
   // Reconstruction: 2^k * e^u
-  float res = cr_expf_rn_internal::scale_result(exp_u, k, produces_subnormal);
+  float res = expf_internal::scale_result(exp_u, k, produces_subnormal);
 
   // Special cases
   constexpr float INF = FPBits::inf().get_val();
@@ -194,7 +183,7 @@ LIBC_INLINE float cr_expf_rn(float x) {
   return res;
 }
 
-} // namespace float_eval
+} // namespace float_eval_cr_rn
 } // namespace math
 } // namespace LIBC_NAMESPACE_DECL
 

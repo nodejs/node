@@ -7,12 +7,13 @@
 #include "src/compiler/zone-stats.h"
 #include "src/objects/js-function-inl.h"
 #include "src/objects/shared-function-info.h"
+#include "src/tracing/trace-event.h"
 
 namespace v8 {
 namespace internal {
 namespace maglev {
 
-constexpr char MaglevPipelineStatistics::kTraceCategory[];
+constexpr char kTraceCategory[] = TRACE_DISABLED_BY_DEFAULT("v8.maglev");
 
 MaglevPipelineStatistics::MaglevPipelineStatistics(
     maglev::MaglevCompilationInfo* info,

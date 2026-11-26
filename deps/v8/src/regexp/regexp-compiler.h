@@ -555,6 +555,11 @@ class FrequencyCollator {
     total_samples_++;
   }
 
+  // Replaces the sampled frequencies with a static table of typical subject
+  // string frequencies, so that generated code does not depend on the subject
+  // (see --regexp-static-frequencies).
+  void UseStaticFrequencies();
+
   // Does not measure in percent, but rather per-128 (the table size from the
   // regexp macro assembler).
   int Frequency(int in_character) {
@@ -573,6 +578,7 @@ class FrequencyCollator {
         : counter_(0), character_(character) {}
 
     void Increment() { counter_++; }
+    void Add(int n) { counter_ += n; }
     int counter() { return counter_; }
     int character() { return character_; }
 

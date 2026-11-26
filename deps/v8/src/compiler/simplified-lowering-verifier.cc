@@ -280,7 +280,8 @@ void SimplifiedLoweringVerifier::VisitNode(Node* node,
       CheckAndSet(node, InputType(node, 0), InputTruncation(node, 0));
       break;
     }
-    case IrOpcode::kChangeFloat64ToInt64: {
+    case IrOpcode::kChangeFloat64ToInt64:
+    case IrOpcode::kTruncateFloat64ToInt64: {
       Truncation output_trunc =
           JoinTruncation(InputTruncation(node, 0), Truncation::Word64());
       CheckAndSet(node, InputType(node, 0), output_trunc);
@@ -513,6 +514,7 @@ void SimplifiedLoweringVerifier::VisitNode(Node* node,
       CASE(ChangeTaggedToUint32)
       CASE(ChangeTaggedToFloat64)
       CASE(ChangeTaggedToTaggedSigned)
+      CASE(ChangeTaggedToTaggedPointer)
       CASE(ChangeSmiOrHoleToFloat64)
       CASE(ChangeNumberOrHoleToFloat64)
       CASE(ChangeInt64ToTagged)
@@ -656,7 +658,6 @@ void SimplifiedLoweringVerifier::VisitNode(Node* node,
       CASE(ChangeFloat64ToUint32)
       CASE(ChangeFloat64ToUint64)
       CASE(Float64SilenceNaN)
-      CASE(TruncateFloat64ToInt64)
       CASE(TruncateFloat64ToUint32)
       CASE(TruncateFloat32ToInt32)
       CASE(TruncateFloat32ToUint32)
@@ -667,7 +668,6 @@ void SimplifiedLoweringVerifier::VisitNode(Node* node,
       CASE(TryTruncateFloat64ToInt32)
       CASE(TryTruncateFloat64ToUint32)
       CASE(ChangeInt32ToFloat64)
-      CASE(BitcastWord32ToWord64)
       CASE(ChangeInt64ToFloat64)
       CASE(ChangeUint32ToFloat64)
       CASE(ChangeFloat16RawBitsToFloat64)
@@ -757,7 +757,6 @@ void SimplifiedLoweringVerifier::VisitNode(Node* node,
         break;
       }
       MACHINE_SIMD128_OP_LIST(CASE)
-      IF_SIMD256(MACHINE_SIMD256_OP_LIST, CASE)
       IF_WASM(SIMPLIFIED_WASM_OP_LIST, CASE) {
         // SIMD operators should not be in the graph, yet.
         UNREACHABLE();

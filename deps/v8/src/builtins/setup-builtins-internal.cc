@@ -444,7 +444,8 @@ void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
             Builtins::IsIsolateIndependent(target_code->builtin_id()));
         if (!target_code->is_builtin()) continue;
         Tagged<Code> new_target = builtins->code(target_code->builtin_id());
-        rinfo->set_target_address(istream, new_target->instruction_start(),
+        rinfo->set_target_address(isolate, istream,
+                                  new_target->instruction_start(),
                                   UPDATE_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
       } else {
         DCHECK(RelocInfo::IsEmbeddedObjectMode(rinfo->rmode()));
@@ -453,8 +454,8 @@ void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
         Tagged<Code> target = TrustedCast<Code>(object);
         if (!target->is_builtin()) continue;
         Tagged<Code> new_target = builtins->code(target->builtin_id());
-        rinfo->set_target_object(istream, new_target, UPDATE_WRITE_BARRIER,
-                                 SKIP_ICACHE_FLUSH);
+        rinfo->set_target_object(isolate, istream, new_target,
+                                 UPDATE_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
       }
       flush_icache = true;
     }
@@ -491,7 +492,7 @@ void SetupIsolateDelegate::SetupBuiltinsInternal(
   std::array<Handle<Code>, Builtins::kBuiltinCount> generated_builtins;
   auto install_generated_builtin = [&generated_builtins, isolate](
                                        Builtin builtin, Handle<Code> code) {
-    DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
+    DCHECK_EQ(base::ThreadId::Current(), isolate->thread_id());
     USE(isolate);
     generated_builtins[Builtins::ToInt(builtin)] = code;
   };

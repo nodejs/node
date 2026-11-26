@@ -169,8 +169,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   void Step(v8::base::TimeDelta max_duration, size_t max_bytes_to_process,
             StepOrigin step_origin);
 
-  size_t OldGenerationSizeOfObjects() const;
-
   MarkingState* marking_state() { return marking_state_; }
   MarkingWorklists::Local* local_marking_worklists() const {
     return current_local_marking_worklists_;

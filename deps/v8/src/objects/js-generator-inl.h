@@ -99,14 +99,6 @@ void JSGeneratorObject::set_parameters_and_registers(Tagged<FixedArray> value,
   parameters_and_registers_.store(this, value, mode);
 }
 
-Tagged<JSAny> JSGeneratorObject::yielded_value() const {
-  return yielded_value_.load();
-}
-void JSGeneratorObject::set_yielded_value(Tagged<JSAny> value,
-                                          WriteBarrierMode mode) {
-  yielded_value_.store(this, value, mode);
-}
-
 Tagged<JSPromise> JSAsyncFunctionObject::promise() const {
   return promise_.load();
 }

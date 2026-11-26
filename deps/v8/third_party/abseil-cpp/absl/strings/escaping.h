@@ -27,9 +27,7 @@
 #include <cstddef>
 #include <optional>
 #include <string>
-#include <vector>
 
-#include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/base/macros.h"
 #include "absl/base/nullability.h"
@@ -152,7 +150,8 @@ WebSafeBase64Escape(absl::string_view src, std::string* absl_nonnull dest) {
 // equivalent, writing it to a `dest` buffer, returning `true` on success. If
 // `src` contains invalid characters, `dest` is cleared and returns `false`.
 // If padding is included (note that `Base64Escape()` does produce it), it must
-// be correct. In the padding, '=' and '.' are treated identically.
+// be correct. In the padding, '=' and '.' are treated identically. `src` and
+// `*dest` must not overlap.
 bool Base64Unescape(absl::string_view src, std::string* absl_nonnull dest);
 
 // WebSafeBase64Unescape()
@@ -162,7 +161,7 @@ bool Base64Unescape(absl::string_view src, std::string* absl_nonnull dest);
 // success. If `src` contains invalid characters, `dest` is cleared and returns
 // `false`. If padding is included (note that `WebSafeBase64Escape()` does not
 // produce it), it must be correct. In the padding, '=' and '.' are treated
-// identically.
+// identically. `src` and `*dest` must not overlap.
 bool WebSafeBase64Unescape(absl::string_view src,
                            std::string* absl_nonnull dest);
 

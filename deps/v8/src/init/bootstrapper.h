@@ -55,6 +55,8 @@ class Bootstrapper final {
 
   // Creates a JavaScript Global Context with initial object graph.
   // The returned value is a global handle casted to V8Environment*.
+  // Passing nullptr for |extensions| skips extension and special-object
+  // installation so no JavaScript runs during context creation.
   DirectHandle<NativeContext> CreateEnvironment(
       MaybeDirectHandle<JSGlobalProxy> maybe_global_proxy,
       v8::Local<v8::ObjectTemplate> global_object_template,

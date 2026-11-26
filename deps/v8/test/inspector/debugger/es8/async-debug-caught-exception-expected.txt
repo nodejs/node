@@ -1,0 +1,25 @@
+Tests exception events in async functions with caught and uncaught exceptions.
+Caught throw, events on any exception:
+log: ["a"] (matches: true)
+exception: null
+Caught throw, events on uncaught exception:
+log: [] (matches: true)
+exception: null
+Caught reject, events on any exception:
+log: [] (matches: true)
+exception: null
+Caught reject, events on uncaught exception:
+log: [] (matches: true)
+exception: null
+Propagate return, events on any exception:
+log: ["a"] (matches: true)
+exception: null
+Propagate await return, events on any exception:
+log: ["a"] (matches: true)
+exception: null
+Promise reject caught, events on uncaught exception:
+log: ["d"] (matches: true)
+exception: null
+Confused catch prediction:
+log: ["e"] (matches: true)
+exception: null

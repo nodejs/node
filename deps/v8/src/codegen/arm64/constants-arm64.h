@@ -241,6 +241,7 @@ using float16 = uint16_t;
   V_(ImmCmpBranch, 23, 5, SignedBits)                   \
   V_(ImmLLiteral, 23, 5, SignedBits)                    \
   V_(ImmException, 20, 5, Bits)                         \
+  V_(ImmUdf, 15, 0, Bits)                               \
   V_(ImmHint, 11, 5, Bits)                              \
   V_(ImmBarrierDomain, 11, 10, Bits)                    \
   V_(ImmBarrierType, 9, 8, Bits)                        \
@@ -845,6 +846,11 @@ constexpr ExceptionOp DCPS2 = ExceptionFixed | 0x00A00002;
 constexpr ExceptionOp DCPS3 = ExceptionFixed | 0x00A00003;
 // Code used to spot hlt instructions that should not be hit.
 constexpr int kHltBadCode = 0xbad;
+
+// Permanently undefined.
+using ReservedOp = uint32_t;
+constexpr ReservedOp ReservedMask = 0xFFFF0000;
+constexpr ReservedOp UDF = 0x00000000;
 
 using MemBarrierOp = uint32_t;
 constexpr MemBarrierOp MemBarrierFixed = 0xD503309F;

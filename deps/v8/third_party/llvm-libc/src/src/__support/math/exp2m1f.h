@@ -9,18 +9,18 @@
 #ifndef LLVM_LIBC_SRC___SUPPORT_MATH_EXP2M1F_H
 #define LLVM_LIBC_SRC___SUPPORT_MATH_EXP2M1F_H
 
-#include "exp10f_utils.h"
+#include "hdr/errno_macros.h"
 #include "src/__support/FPUtil/FEnvImpl.h"
 #include "src/__support/FPUtil/FPBits.h"
-#include "src/__support/FPUtil/PolyEval.h"
 #include "src/__support/FPUtil/except_value_utils.h"
 #include "src/__support/FPUtil/multiply_add.h"
+#include "src/__support/FPUtil/polyeval.h"
 #include "src/__support/FPUtil/rounding_mode.h"
 #include "src/__support/common.h"
-#include "src/__support/libc_errno.h"
 #include "src/__support/macros/config.h"
 #include "src/__support/macros/optimization.h"
 #include "src/__support/macros/properties/cpu_features.h"
+#include "src/__support/math/exp10f_utils.h"
 
 namespace LIBC_NAMESPACE_DECL {
 
@@ -95,18 +95,10 @@ LIBC_INLINE float exp2m1f(float x) {
 
     // x >= 128, or x is nan
     if (xbits.is_pos()) {
-      if (xbits.is_finite()) {
-#ifndef LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
-        int rounding = fputil::quick_get_round();
-        if (rounding == FE_DOWNWARD || rounding == FE_TOWARDZERO)
-          return FPBits::max_normal().get_val();
-#endif
+      if (xbits.is_finite())
+        return fputil::set_overflow<float>();
 
-        fputil::set_errno_if_required(ERANGE);
-        fputil::raise_except_if_required(FE_OVERFLOW);
-      }
-
-      // x >= 128 and 2^x - 1 rounds to +inf, or x is +inf or nan
+      // x is +inf or nan
       return x + FPBits::inf().get_val();
     }
   }
@@ -162,7 +154,7 @@ LIBC_INLINE float exp2m1f(float x) {
 #endif // LIBC_TARGET_CPU_HAS_NEAREST_INT
 
   // lo = x - (hi + mid) = x - kf * 2^(-5)
-  double lo = fputil::multiply_add(-0x1.0p-5f, kf, x);
+  double lo = fputil::sub_multiply(x, 0x1.0p-5f, kf);
 
   // hi = floor(kf * 2^(-4))
   // exp2_hi = shift hi to the exponent field of double precision.
@@ -189,7 +181,7 @@ LIBC_INLINE float exp2m1f(float x) {
   //         = 2^(hi + mid) * 2^lo - 1
   //         ~ mh * (1 + lo * P(lo)) - 1
   //         = mh * exp2_lo - 1
-  return static_cast<float>(fputil::multiply_add(exp2_lo, mh, -1.0));
+  return static_cast<float>(fputil::multiply_sub(exp2_lo, mh, 1.0));
 }
 
 } // namespace math

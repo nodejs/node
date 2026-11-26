@@ -275,7 +275,7 @@ void FuzzIt(base::Vector<const uint8_t> data) {
           ->SyncInstantiate(i_isolate, &thrower, module_object, {})
           .ToHandleChecked();
   CHECK_EQ(expression_count,
-           module_object->native_module()->module()->num_declared_functions);
+           module_object->native_module()->module()->num_defined_functions);
 
   for (size_t i = 0; i < expression_count; ++i) {
     char buffer[22];

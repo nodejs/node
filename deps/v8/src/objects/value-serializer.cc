@@ -4,6 +4,7 @@
 
 #include "src/objects/value-serializer.h"
 
+#include <memory>
 #include <type_traits>
 
 #include "include/v8-maybe.h"
@@ -11,6 +12,7 @@
 #include "include/v8-value-serializer.h"
 #include "include/v8-wasm.h"
 #include "src/api/api-inl.h"
+#include "src/base/bounds.h"
 #include "src/base/logging.h"
 #include "src/base/platform/memory.h"
 #include "src/execution/isolate.h"
@@ -27,8 +29,6 @@
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/js-regexp-inl.h"
-#include "src/objects/js-shared-array.h"
-#include "src/objects/js-struct.h"
 #include "src/objects/map-updater.h"
 #include "src/objects/object-conversions-inl.h"
 #include "src/objects/objects-inl.h"
@@ -104,6 +104,65 @@ namespace {
 using JSArrayBufferViewIsLengthTracking = base::BitField<bool, 0, 1>;
 using JSArrayBufferViewIsBackedByRab =
     JSArrayBufferViewIsLengthTracking::Next<bool, 1>;
+
+// Compact bitset recording which indices in a HOLEY_ELEMENTS JSArray were
+// originally holes after the first non-primitive element. Keeps a single
+// inline 64-bit word (zero heap allocations for spans up to 64 elements) and
+// avoids out-of-line destructor calls on the common empty path.
+class OriginalHoleSet {
+ public:
+  V8_NOINLINE void Record(Tagged<FixedArray> elements, uint32_t first_hole,
+                          uint32_t last_hole, Tagged<Object> the_hole) {
+    DCHECK_EQ(span_, 0u);
+    DCHECK(!heap_bits_);
+    DCHECK_LE(first_hole, last_hole);
+    DCHECK_LT(last_hole, FixedArray::kMaxLength);
+    DCHECK_EQ(elements->get(first_hole), the_hole);
+    DCHECK_EQ(elements->get(last_hole), the_hole);
+    first_ = first_hole;
+    span_ = last_hole - first_hole + 1;
+    if (span_ == 1) {
+      inline_bits_ = 1;
+      return;
+    }
+    if (span_ <= 64) {
+      uint64_t bits = 0;
+      for (uint32_t j = first_hole; j <= last_hole; j++) {
+        if (elements->get(j) == the_hole) {
+          bits |= uint64_t{1} << (j - first_hole);
+        }
+      }
+      inline_bits_ = bits;
+      return;
+    }
+    uint32_t num_words = (span_ - 1) / 64 + 1;
+    heap_bits_ = std::make_unique<uint64_t[]>(num_words);
+    for (uint32_t j = first_hole; j <= last_hole; j++) {
+      if (elements->get(j) == the_hole) {
+        uint32_t bit = j - first_hole;
+        heap_bits_[bit >> 6] |= uint64_t{1} << (bit & 63);
+      }
+    }
+  }
+
+  V8_INLINE bool Contains(uint32_t index) const {
+    // Unsigned wraparound folds `index < first_` into `bit >= span_` (safe
+    // because `first_ + span_ <= FixedArray::kMaxLength < 2^31`).
+    uint32_t bit = index - first_;
+    if (V8_LIKELY(bit >= span_)) return false;
+    if (V8_LIKELY(!heap_bits_)) {
+      DCHECK_LT(bit, 64u);
+      return (inline_bits_ & (uint64_t{1} << bit)) != 0;
+    }
+    return (heap_bits_[bit >> 6] & (uint64_t{1} << (bit & 63))) != 0;
+  }
+
+ private:
+  uint32_t first_ = 0;
+  uint32_t span_ = 0;
+  uint64_t inline_bits_ = 0;
+  std::unique_ptr<uint64_t[]> heap_bits_;
+};
 
 }  // namespace
 
@@ -700,10 +759,6 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(
       }
       return WriteJSError(js_error);
     }
-    case JS_SHARED_ARRAY_TYPE:
-      return WriteJSSharedArray(Cast<JSSharedArray>(receiver));
-    case JS_SHARED_STRUCT_TYPE:
-      return WriteJSSharedStruct(Cast<JSSharedStruct>(receiver));
 #if V8_ENABLE_WEBASSEMBLY
     case WASM_MODULE_OBJECT_TYPE:
       return WriteWasmModule(Cast<WasmModuleObject>(receiver));
@@ -791,28 +846,130 @@ Maybe<bool> ValueSerializer::WriteJSArray(DirectHandle<JSArray> array) {
   DCHECK(valid_length);
   USE(valid_length);
 
-  // To keep things simple, for now we decide between dense and sparse
-  // serialization based on elements kind. A more principled heuristic could
-  // count the elements, but would need to take care to note which indices
-  // existed (as only indices which were enumerable own properties at this point
-  // should be serialized).
-  const bool should_serialize_densely =
-      array->HasFastElements() && !array->HasHoleyElements();
+  // Decide between dense and sparse serialization. Empty or packed fast /
+  // non-extensible arrays are always serialized densely. Holey fast /
+  // non-extensible arrays are serialized densely if at least half of the
+  // elements in [0, length) are present. For HOLEY_ELEMENTS with holes
+  // occurring after a non-primitive element (serializing primitives cannot
+  // trigger side effects, and non-extensible arrays cannot have holes filled),
+  // we also record which indices were originally holes so that holes filled by
+  // side effects (e.g. getters) during serialization are still serialized as
+  // holes.
+  bool should_serialize_densely = false;
+  OriginalHoleSet original_holes;
+
+  const ElementsKind elements_kind = array->GetElementsKind();
+  if (IsFastElementsKind(elements_kind) ||
+      IsAnyNonextensibleElementsKind(elements_kind)) {
+    if (!IsHoleyElementsKindForRead(elements_kind) || length == 0) {
+      should_serialize_densely = true;
+    } else {
+      DisallowGarbageCollection no_gc;
+      Tagged<FixedArrayBase> raw_elements = array->elements();
+      DCHECK_GE(raw_elements->ulength().value(), length);
+      const uint32_t max_holes = length / 2;
+      uint32_t holes = 0;
+      switch (elements_kind) {
+        case HOLEY_SMI_ELEMENTS:
+        case HOLEY_NONEXTENSIBLE_ELEMENTS:
+        case HOLEY_SEALED_ELEMENTS:
+        case HOLEY_FROZEN_ELEMENTS: {
+          Tagged<FixedArray> elements = Cast<FixedArray>(raw_elements);
+          Tagged<Object> the_hole = ReadOnlyRoots(isolate_).the_hole_value();
+          for (uint32_t j = 0; j < length; j++) {
+            holes += (elements->get(j) == the_hole);
+          }
+          should_serialize_densely = holes <= max_holes;
+          break;
+        }
+        case HOLEY_DOUBLE_ELEMENTS: {
+          Tagged<FixedDoubleArray> elements =
+              Cast<FixedDoubleArray>(raw_elements);
+          for (uint32_t j = 0; j < length; j++) {
+            holes += elements->is_the_hole(j);
+          }
+          should_serialize_densely = holes <= max_holes;
+          break;
+        }
+        case HOLEY_ELEMENTS: {
+          Tagged<FixedArray> elements = Cast<FixedArray>(raw_elements);
+          Tagged<Object> the_hole = ReadOnlyRoots(isolate_).the_hole_value();
+          bool seen_non_primitive = false;
+          uint32_t first_recorded_hole = length;
+          uint32_t last_recorded_hole = 0;
+          for (uint32_t j = 0; j < length; j++) {
+            Tagged<Object> elem = elements->get(j);
+            if (elem == the_hole) {
+              if (++holes > max_holes) break;
+              if (seen_non_primitive) {
+                if (first_recorded_hole == length) first_recorded_hole = j;
+                last_recorded_hole = j;
+              }
+            } else if (!seen_non_primitive && !IsPrimitive(elem)) {
+              seen_non_primitive = true;
+            }
+          }
+          should_serialize_densely = holes <= max_holes;
+          if (should_serialize_densely && first_recorded_hole < length) {
+            original_holes.Record(elements, first_recorded_hole,
+                                  last_recorded_hole, the_hole);
+          }
+          break;
+        }
+        default:
+          UNREACHABLE();
+      }
+    }
+  }
 
   if (should_serialize_densely) {
     DCHECK_LE(length, FixedArray::kMaxLength);
+    // Snapshot non-index enumerable own keys before element serialization can
+    // invoke getters. Fast-properties JSArrays with <= 1 own descriptor only
+    // have the non-enumerable `length` descriptor, so they have no extra
+    // properties to collect.
+    const bool may_have_extra_properties =
+        !array->HasFastProperties() ||
+        array->map()->NumberOfOwnDescriptors() > 1;
+    DirectHandle<FixedArray> keys;
+    if (may_have_extra_properties) {
+      if (!KeyAccumulator::GetKeys(
+               isolate_, array, KeyCollectionMode::kOwnOnly, ENUMERABLE_STRINGS,
+               GetKeysConversion::kKeepNumbers, /*is_for_in=*/false,
+               /*skip_indices=*/true)
+               .ToHandle(&keys)) {
+        return Nothing<bool>();
+      }
+    } else {
+      DCHECK_EQ(0, array->map()->NumberOfEnumerableProperties());
+    }
+
     WriteTag(SerializationTag::kBeginDenseJSArray);
     WriteVarint<uint32_t>(length);
     uint32_t i = 0;
 
-    // Fast paths. Note that PACKED_ELEMENTS in particular can bail due to the
-    // structure of the elements changing.
-    switch (array->GetElementsKind()) {
+    // Fast paths. Note that object-elements kinds in particular can bail due to
+    // the structure of the elements changing.
+    switch (elements_kind) {
       case PACKED_SMI_ELEMENTS: {
         DisallowGarbageCollection no_gc;
         Tagged<FixedArray> elements = Cast<FixedArray>(array->elements());
         for (i = 0; i < length; i++) {
           WriteSmi(Cast<Smi>(elements->get(i)));
+        }
+        break;
+      }
+      case HOLEY_SMI_ELEMENTS: {
+        DisallowGarbageCollection no_gc;
+        Tagged<FixedArray> elements = Cast<FixedArray>(array->elements());
+        Tagged<Object> the_hole = ReadOnlyRoots(isolate_).the_hole_value();
+        for (i = 0; i < length; i++) {
+          Tagged<Object> element = elements->get(i);
+          if (element == the_hole) {
+            WriteTag(SerializationTag::kTheHole);
+          } else {
+            WriteSmi(Cast<Smi>(element));
+          }
         }
         break;
       }
@@ -829,11 +986,36 @@ Maybe<bool> ValueSerializer::WriteJSArray(DirectHandle<JSArray> array) {
         }
         break;
       }
-      case PACKED_ELEMENTS: {
-        DirectHandle<Object> old_length(array->length(), isolate_);
+      case HOLEY_DOUBLE_ELEMENTS: {
+        // Elements are empty_fixed_array, not a FixedDoubleArray, if the array
+        // is empty. No elements to encode in this case anyhow.
+        if (length == 0) break;
+        DisallowGarbageCollection no_gc;
+        Tagged<FixedDoubleArray> elements =
+            Cast<FixedDoubleArray>(array->elements());
+        for (i = 0; i < length; i++) {
+          uint64_t bits = elements->get_representation(i);
+          if (bits == kHoleNanInt64) {
+            WriteTag(SerializationTag::kTheHole);
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
+          } else if (bits == kUndefinedNanInt64) {
+            WriteTag(SerializationTag::kUndefined);
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
+          } else {
+            WriteTag(SerializationTag::kDouble);
+            WriteDouble(base::bit_cast<double>(bits));
+          }
+        }
+        break;
+      }
+      case PACKED_ELEMENTS:
+      case PACKED_NONEXTENSIBLE_ELEMENTS:
+      case PACKED_SEALED_ELEMENTS:
+      case PACKED_FROZEN_ELEMENTS: {
+        const Tagged<Smi> expected_length = Smi::FromUInt(length);
         for (; i < length; i++) {
-          if (array->length() != *old_length ||
-              array->GetElementsKind() != PACKED_ELEMENTS) {
+          if (array->length() != expected_length ||
+              array->GetElementsKind() != elements_kind) {
             // Fall back to slow path.
             break;
           }
@@ -843,12 +1025,42 @@ Maybe<bool> ValueSerializer::WriteJSArray(DirectHandle<JSArray> array) {
         }
         break;
       }
-      default:
+      case HOLEY_ELEMENTS:
+      case HOLEY_NONEXTENSIBLE_ELEMENTS:
+      case HOLEY_SEALED_ELEMENTS:
+      case HOLEY_FROZEN_ELEMENTS: {
+        const Tagged<Smi> expected_length = Smi::FromUInt(length);
+        for (; i < length; i++) {
+          if (original_holes.Contains(i)) {
+            WriteTag(SerializationTag::kTheHole);
+            continue;
+          }
+          if (array->length() != expected_length ||
+              array->GetElementsKind() != elements_kind) {
+            // Fall back to slow path.
+            break;
+          }
+          Tagged<Object> raw_element =
+              Cast<FixedArray>(array->elements())->get(i);
+          if (IsTheHole(raw_element)) {
+            WriteTag(SerializationTag::kTheHole);
+            continue;
+          }
+          DirectHandle<Object> element(raw_element, isolate_);
+          if (!WriteObject(element).FromMaybe(false)) return Nothing<bool>();
+        }
         break;
+      }
+      default:
+        UNREACHABLE();
     }
 
     // If there are elements remaining, serialize them slowly.
     for (; i < length; i++) {
+      if (original_holes.Contains(i)) {
+        WriteTag(SerializationTag::kTheHole);
+        continue;
+      }
       // Serializing the array's elements can have arbitrary side effects, so we
       // cannot rely on still having fast elements, even if it did to begin
       // with.
@@ -867,16 +1079,9 @@ Maybe<bool> ValueSerializer::WriteJSArray(DirectHandle<JSArray> array) {
       }
     }
 
-    DirectHandle<FixedArray> keys;
-    if (!KeyAccumulator::GetKeys(isolate_, array, KeyCollectionMode::kOwnOnly,
-                                 ENUMERABLE_STRINGS,
-                                 GetKeysConversion::kKeepNumbers, false, true)
-             .ToHandle(&keys)) {
-      return Nothing<bool>();
-    }
-
-    uint32_t properties_written;
-    if (!WriteJSObjectPropertiesSlow(array, keys).To(&properties_written)) {
+    uint32_t properties_written = 0;
+    if (may_have_extra_properties &&
+        !WriteJSObjectPropertiesSlow(array, keys).To(&properties_written)) {
       return Nothing<bool>();
     }
     WriteTag(SerializationTag::kEndDenseJSArray);
@@ -1226,17 +1431,6 @@ Maybe<bool> ValueSerializer::WriteJSError(DirectHandle<JSObject> error) {
 
   WriteVarint(static_cast<uint8_t>(ErrorTag::kEnd));
   return ThrowIfOutOfMemory();
-}
-
-Maybe<bool> ValueSerializer::WriteJSSharedStruct(
-    DirectHandle<JSSharedStruct> shared_struct) {
-  // TODO(v8:12547): Support copying serialization for shared structs as well.
-  return WriteSharedObject(shared_struct);
-}
-
-Maybe<bool> ValueSerializer::WriteJSSharedArray(
-    DirectHandle<JSSharedArray> shared_array) {
-  return WriteSharedObject(shared_array);
 }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -1671,12 +1865,13 @@ MaybeDirectHandle<Object> ValueDeserializer::ReadObjectWrapper() {
   return result;
 }
 
-MaybeDirectHandle<Object> ValueDeserializer::ReadObject() {
+MaybeDirectHandle<Object> ValueDeserializer::ReadObject(
+    InternalizeStrings internalize_strings) {
   DisallowJavascriptExecution no_js(isolate_);
   // If we are at the end of the stack, abort. This function may recurse.
   STACK_CHECK(isolate_, MaybeDirectHandle<Object>());
 
-  MaybeDirectHandle<Object> result = ReadObjectInternal();
+  MaybeDirectHandle<Object> result = ReadObjectInternal(internalize_strings);
 
   // ArrayBufferView is special in that it consumes the value before it, even
   // after format version 0.
@@ -1703,7 +1898,8 @@ MaybeDirectHandle<Object> ValueDeserializer::ReadObject() {
   return result;
 }
 
-MaybeDirectHandle<Object> ValueDeserializer::ReadObjectInternal() {
+MaybeDirectHandle<Object> ValueDeserializer::ReadObjectInternal(
+    InternalizeStrings internalize_strings) {
   SerializationTag tag;
   if (!ReadTag().To(&tag)) return MaybeDirectHandle<Object>();
   switch (tag) {
@@ -1712,7 +1908,7 @@ MaybeDirectHandle<Object> ValueDeserializer::ReadObjectInternal() {
       if (ReadVarint<uint32_t>().IsNothing()) {
         return MaybeDirectHandle<Object>();
       }
-      return ReadObject();
+      return ReadObject(internalize_strings);
     case SerializationTag::kUndefined:
       return isolate_->factory()->undefined_value();
     case SerializationTag::kNull:
@@ -1739,11 +1935,11 @@ MaybeDirectHandle<Object> ValueDeserializer::ReadObjectInternal() {
     case SerializationTag::kBigInt:
       return ReadBigInt();
     case SerializationTag::kUtf8String:
-      return ReadUtf8String();
+      return ReadUtf8String(internalize_strings);
     case SerializationTag::kOneByteString:
-      return ReadOneByteString();
+      return ReadOneByteString(internalize_strings);
     case SerializationTag::kTwoByteString:
-      return ReadTwoByteString();
+      return ReadTwoByteString(internalize_strings);
     case SerializationTag::kObjectReference: {
       uint32_t id;
       if (!ReadVarint<uint32_t>().To(&id)) return MaybeDirectHandle<Object>();
@@ -1838,28 +2034,44 @@ MaybeDirectHandle<BigInt> ValueDeserializer::ReadBigInt() {
 }
 
 MaybeDirectHandle<String> ValueDeserializer::ReadUtf8String(
-    AllocationType allocation) {
+    InternalizeStrings internalize) {
   uint32_t utf8_length;
   if (!ReadVarint<uint32_t>().To(&utf8_length)) return {};
   // utf8_length is checked in ReadRawBytes.
   base::Vector<const uint8_t> utf8_bytes;
   if (!ReadRawBytes(utf8_length).To(&utf8_bytes)) return {};
-  return isolate_->factory()->NewStringFromUtf8(
-      utf8_bytes, unibrow::Utf8Variant::kLossyUtf8, allocation);
+  if (internalize && utf8_length <= String::kMaxLength) {
+    if (utf8_length == 0) return isolate_->factory()->empty_string();
+    return isolate_->factory()->InternalizeUtf8String(std::string_view(
+        reinterpret_cast<const char*>(utf8_bytes.begin()), utf8_length));
+  }
+  DirectHandle<String> string;
+  if (!isolate_->factory()
+           ->NewStringFromUtf8(utf8_bytes, unibrow::Utf8Variant::kLossyUtf8)
+           .ToHandle(&string)) {
+    return {};
+  }
+  if (internalize) {
+    return isolate_->factory()->InternalizeString(string);
+  }
+  return string;
 }
 
 MaybeDirectHandle<String> ValueDeserializer::ReadOneByteString(
-    AllocationType allocation) {
+    InternalizeStrings internalize) {
   uint32_t byte_length;
   base::Vector<const uint8_t> bytes;
   if (!ReadVarint<uint32_t>().To(&byte_length)) return {};
   // byte_length is checked in ReadRawBytes.
   if (!ReadRawBytes(byte_length).To(&bytes)) return {};
-  return isolate_->factory()->NewStringFromOneByte(bytes, allocation);
+  if (internalize && base::IsInRange(byte_length, 2u, String::kMaxLength)) {
+    return isolate_->factory()->InternalizeString(bytes);
+  }
+  return isolate_->factory()->NewStringFromOneByte(bytes);
 }
 
 MaybeDirectHandle<String> ValueDeserializer::ReadTwoByteString(
-    AllocationType allocation) {
+    InternalizeStrings internalize) {
   uint32_t byte_length;
   base::Vector<const uint8_t> bytes;
   if (!ReadVarint<uint32_t>().To(&byte_length)) return {};
@@ -1872,17 +2084,29 @@ MaybeDirectHandle<String> ValueDeserializer::ReadTwoByteString(
   // Allocate an uninitialized string so that we can do a raw memcpy into the
   // string on the heap (regardless of alignment).
   if (byte_length == 0) return isolate_->factory()->empty_string();
+  uint32_t char_length = byte_length / sizeof(base::uc16);
+  if (internalize && char_length <= String::kMaxLength &&
+      IsAlignedAddress(bytes.begin(), sizeof(base::uc16))) {
+    base::Vector<const base::uc16> chars(
+        reinterpret_cast<const base::uc16*>(bytes.begin()), char_length);
+    return isolate_->factory()->InternalizeString(chars);
+  }
   DirectHandle<SeqTwoByteString> string;
   if (!isolate_->factory()
-           ->NewRawTwoByteString(byte_length / sizeof(base::uc16), allocation)
+           ->NewRawTwoByteString(char_length)
            .ToHandle(&string)) {
     return MaybeDirectHandle<String>();
   }
 
   // Copy the bytes directly into the new string.
   // Warning: this uses host endianness.
-  DisallowGarbageCollection no_gc;
-  memcpy(string->GetChars(no_gc), bytes.begin(), bytes.size());
+  {
+    DisallowGarbageCollection no_gc;
+    memcpy(string->GetChars(no_gc), bytes.begin(), bytes.size());
+  }
+  if (internalize) {
+    return isolate_->factory()->InternalizeString(string);
+  }
   return string;
 }
 
@@ -2095,16 +2319,10 @@ MaybeDirectHandle<JSRegExp> ValueDeserializer::ReadJSRegExp() {
 
 namespace {
 
-DirectHandle<Object> CanonicalizeCollectionKey(Isolate* isolate,
-                                               DirectHandle<Object> key) {
-  if (IsString(*key)) {
-    // Deserialized strings are allocated as fresh SeqStrings, whereas
-    // OrderedHashTable CSA lookups require string keys to be internalized
-    // (compared by pointer equality).
-    return isolate->factory()->InternalizeString(Cast<String>(key));
-  }
-  CHECK(!IsHeapNumber(*key) || Cast<HeapNumber>(*key)->value() != 0.0);
-  return key;
+bool IsValidCollectionKey(Tagged<Object> key) {
+  // Valid ValueSerializer payloads never write -0.0 as a Map/Set key, since
+  // JSMap/JSSet keys are already canonicalized to +0.
+  return !IsHeapNumber(key) || Cast<HeapNumber>(key)->value() != 0.0;
 }
 
 }  // namespace
@@ -2136,11 +2354,12 @@ MaybeDirectHandle<JSMap> ValueDeserializer::ReadJSMap() {
     HandleScope loop_scope(isolate_);
     DirectHandle<Object> key;
     DirectHandle<Object> value;
-    if (!ReadObject().ToHandle(&key) || !ReadObject().ToHandle(&value)) {
+    if (!ReadObject(InternalizeStrings{true}).ToHandle(&key) ||
+        !IsValidCollectionKey(*key) || !ReadObject().ToHandle(&value)) {
       return MaybeDirectHandle<JSMap>();
     }
 
-    key = CanonicalizeCollectionKey(isolate_, key);
+    DCHECK_IMPLIES(IsString(*key), IsInternalizedString(*key));
     Handle<OrderedHashMap> table(Cast<OrderedHashMap>(map->table()), isolate_);
     if (!OrderedHashMap::Add(isolate_, table, key, value).ToHandle(&table)) {
       return MaybeDirectHandle<JSMap>();
@@ -2184,9 +2403,12 @@ MaybeDirectHandle<JSSet> ValueDeserializer::ReadJSSet() {
 
     HandleScope loop_scope(isolate_);
     DirectHandle<Object> key;
-    if (!ReadObject().ToHandle(&key)) return MaybeDirectHandle<JSSet>();
+    if (!ReadObject(InternalizeStrings{true}).ToHandle(&key) ||
+        !IsValidCollectionKey(*key)) {
+      return MaybeDirectHandle<JSSet>();
+    }
 
-    key = CanonicalizeCollectionKey(isolate_, key);
+    DCHECK_IMPLIES(IsString(*key), IsInternalizedString(*key));
     DirectHandle<OrderedHashSet> table(Cast<OrderedHashSet>(set->table()),
                                        isolate_);
     if (!OrderedHashSet::Add(isolate_, table, key).ToHandle(&table)) {
@@ -2729,8 +2951,7 @@ Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
     DirectHandle<Map> map(object->map(), isolate_);
     DCHECK(!map->is_dictionary_map());
     DCHECK_EQ(0, map->instance_descriptors()->number_of_descriptors());
-    DirectHandleVector<Object> properties(isolate_);
-    properties.reserve(8);
+    DirectHandleSmallVector<Object, 8> properties(isolate_);
 
     while (transitioning) {
       // If there are no more properties, finish.
@@ -2791,11 +3012,12 @@ Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
       }
       if (!transition_was_found) {
         position_ = start_position;
-        if (!ReadObject().ToHandle(&key) || !IsValidObjectKey(*key, isolate_)) {
+        if (!ReadObject(InternalizeStrings{true}).ToHandle(&key) ||
+            !IsValidObjectKey(*key, isolate_)) {
           return Nothing<uint32_t>();
         }
         if (IsString(*key)) {
-          key = isolate_->factory()->InternalizeString(Cast<String>(key));
+          DCHECK(IsInternalizedString(*key));
           // Don't reuse |transitions| because it could be stale.
           transitioning = TransitionsAccessor(isolate_, *map)
                               .FindTransitionToField(Cast<String>(key))
@@ -2879,7 +3101,8 @@ Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
     }
 
     DirectHandle<Object> key;
-    if (!ReadObject().ToHandle(&key) || !IsValidObjectKey(*key, isolate_)) {
+    if (!ReadObject(InternalizeStrings{true}).ToHandle(&key) ||
+        !IsValidObjectKey(*key, isolate_)) {
       return Nothing<uint32_t>();
     }
     DirectHandle<Object> value;

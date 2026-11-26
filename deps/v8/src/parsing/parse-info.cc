@@ -29,7 +29,7 @@ UnoptimizedCompileFlags::UnoptimizedCompileFlags(Isolate* isolate,
       function_kind_(FunctionKind::kNormalFunction),
       function_syntax_kind_(FunctionSyntaxKind::kDeclaration),
       parsing_while_debugging_(ParsingWhileDebugging::kNo) {
-  set_coverage_enabled(!isolate->is_best_effort_code_coverage());
+  set_coverage_enabled(isolate->requires_bytecode_for_code_coverage());
   set_block_coverage_enabled(isolate->is_block_code_coverage());
   set_allow_natives_syntax(v8_flags.allow_natives_syntax);
   set_allow_lazy_compile(true);
@@ -51,6 +51,15 @@ UnoptimizedCompileFlags UnoptimizedCompileFlags::ForFunctionCompile(
 
   flags.SetFlagsFromFunction(shared);
   flags.SetFlagsForFunctionFromScript(script);
+  if (shared->HasBytecodeArray()) {
+    Tagged<BytecodeArray> bytecode = shared->GetBytecodeArray(isolate);
+    if (!bytecode->HasSourcePositionTable()) {
+      flags.set_coverage_enabled(
+          bytecode->coverage_enabled_for_source_positions());
+      flags.set_block_coverage_enabled(
+          bytecode->block_coverage_enabled_for_source_positions());
+    }
+  }
   flags.set_allow_lazy_parsing(true);
   flags.set_is_lazy_compile(true);
 

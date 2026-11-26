@@ -21,7 +21,7 @@ class BaselineAssembler {
   inline static MemOperand RegisterFrameOperand(
       interpreter::Register interpreter_register);
   inline void RegisterFrameAddress(interpreter::Register interpreter_register,
-                                   Register rscratch);
+                                   V8_REG_OUT Register rscratch);
   inline MemOperand ContextOperand();
   inline MemOperand FunctionOperand();
   inline MemOperand FeedbackVectorOperand();
@@ -32,97 +32,112 @@ class BaselineAssembler {
   inline void CodeEntry() const;
   inline void ExceptionHandler() const;
   V8_INLINE void RecordComment(const char* string);
-  inline void Trap();
+  V8_ASM_NO_FALLTHROUGH inline void Trap();
   inline void DebugBreak();
 #ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
   inline void AssertInSandboxedExecutionMode();
 #endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
 
   template <typename Field>
-  inline void DecodeField(Register reg);
+  inline void DecodeField(V8_REG_INOUT Register reg);
 
-  inline void Bind(Label* label);
+  inline void Bind(V8_ASM_BIND Label* label);
   // Marks the current position as a valid jump target on CFI enabled
   // architectures.
   inline void JumpTarget();
-  inline void Jump(Label* target, Label::Distance distance = Label::kFar);
-  inline void JumpIfRoot(Register value, RootIndex index, Label* target,
+  V8_ASM_NO_FALLTHROUGH inline void Jump(
+      V8_ASM_BRANCH Label* target, Label::Distance distance = Label::kFar);
+  inline void JumpIfRoot(V8_REG_IN Register value, RootIndex index,
+                         V8_ASM_BRANCH Label* target,
                          Label::Distance distance = Label::kFar);
-  inline void JumpIfNotRoot(Register value, RootIndex index, Label* target,
-                            Label ::Distance distance = Label::kFar);
-  inline void JumpIfSmi(Register value, Label* target,
+  inline void JumpIfNotRoot(V8_REG_IN Register value, RootIndex index,
+                            V8_ASM_BRANCH Label* target,
+                            Label::Distance distance = Label::kFar);
+  inline void JumpIfSmi(V8_REG_IN Register value, V8_ASM_BRANCH Label* target,
                         Label::Distance distance = Label::kFar);
-  inline void JumpIfNotSmi(Register value, Label* target,
+  inline void JumpIfNotSmi(V8_REG_IN Register value,
+                           V8_ASM_BRANCH Label* target,
                            Label::Distance distance = Label::kFar);
 
-  inline void TestAndBranch(Register value, int mask, Condition cc,
-                            Label* target,
+  inline void TestAndBranch(V8_REG_IN Register value, int mask, Condition cc,
+                            V8_ASM_BRANCH Label* target,
                             Label::Distance distance = Label::kFar);
 
-  inline void JumpIf(Condition cc, Register lhs, const Operand& rhs,
-                     Label* target, Label::Distance distance = Label::kFar);
+  inline void JumpIf(Condition cc, V8_REG_IN Register lhs, const Operand& rhs,
+                     V8_ASM_BRANCH Label* target,
+                     Label::Distance distance = Label::kFar);
 #if V8_STATIC_ROOTS_BOOL
   // Fast JS_RECEIVER test which assumes to receive either a primitive object or
   // a js receiver.
-  inline void JumpIfJSAnyIsPrimitive(Register heap_object, Label* target,
+  inline void JumpIfJSAnyIsPrimitive(V8_REG_IN Register heap_object,
+                                     V8_ASM_BRANCH Label* target,
                                      Label::Distance distance = Label::kFar);
 #endif
-  inline void JumpIfObjectType(Condition cc, Register object,
-                               InstanceType instance_type, Register map,
-                               Label* target,
+  inline void JumpIfObjectType(Condition cc, V8_REG_IN Register object,
+                               InstanceType instance_type,
+                               V8_REG_OUT Register map,
+                               V8_ASM_BRANCH Label* target,
                                Label::Distance distance = Label::kFar);
   // Might not load the map into the scratch register.
-  inline void JumpIfObjectTypeFast(Condition cc, Register object,
-                                   InstanceType instance_type, Label* target,
+  inline void JumpIfObjectTypeFast(Condition cc, V8_REG_IN Register object,
+                                   InstanceType instance_type,
+                                   V8_ASM_BRANCH Label* target,
                                    Label::Distance distance = Label::kFar);
-  inline void JumpIfInstanceType(Condition cc, Register map,
-                                 InstanceType instance_type, Label* target,
+  inline void JumpIfInstanceType(Condition cc, V8_REG_IN Register map,
+                                 InstanceType instance_type,
+                                 V8_ASM_BRANCH Label* target,
                                  Label::Distance distance = Label::kFar);
-  inline void JumpIfPointer(Condition cc, Register value, MemOperand operand,
-                            Label* target,
+  inline void JumpIfPointer(Condition cc, V8_REG_IN Register value,
+                            MemOperand operand, V8_ASM_BRANCH Label* target,
                             Label::Distance distance = Label::kFar);
-  inline Condition CheckSmi(Register value);
-  inline void JumpIfSmi(Condition cc, Register value, Tagged<Smi> smi,
-                        Label* target, Label::Distance distance = Label::kFar);
-  inline void JumpIfSmi(Condition cc, Register lhs, Register rhs, Label* target,
+  inline Condition CheckSmi(V8_REG_IN Register value);
+  inline void JumpIfSmi(Condition cc, V8_REG_IN Register value, Tagged<Smi> smi,
+                        V8_ASM_BRANCH Label* target,
                         Label::Distance distance = Label::kFar);
-  inline void JumpIfImmediate(Condition cc, Register left, int right,
-                              Label* target,
+  inline void JumpIfSmi(Condition cc, V8_REG_IN Register lhs,
+                        V8_REG_IN Register rhs, V8_ASM_BRANCH Label* target,
+                        Label::Distance distance = Label::kFar);
+  inline void JumpIfImmediate(Condition cc, V8_REG_IN Register left, int right,
+                              V8_ASM_BRANCH Label* target,
                               Label::Distance distance = Label::kFar);
-  inline void JumpIfTagged(Condition cc, Register value, MemOperand operand,
-                           Label* target,
+  inline void JumpIfTagged(Condition cc, V8_REG_IN Register value,
+                           MemOperand operand, V8_ASM_BRANCH Label* target,
                            Label::Distance distance = Label::kFar);
-  inline void JumpIfTagged(Condition cc, MemOperand operand, Register value,
-                           Label* target,
+  inline void JumpIfTagged(Condition cc, MemOperand operand,
+                           V8_REG_IN Register value,
+                           V8_ASM_BRANCH Label* target,
                            Label::Distance distance = Label::kFar);
 #ifdef V8_STATIC_ROOTS
   // Jumps to the true or false target if the value is a static root known to by
   // truthy/falsy, fallthrough otherwise.
-  inline void JumpIfStaticRootToBoolean(Register value, Label* true_target,
+  inline void JumpIfStaticRootToBoolean(V8_REG_IN Register value,
+                                        V8_ASM_BRANCH Label* true_target,
                                         Label::Distance true_distance,
-                                        Label* false_target,
+                                        V8_ASM_BRANCH Label* false_target,
                                         Label::Distance false_distance);
 #endif
-  inline void JumpIfByte(Condition cc, Register value, int32_t byte,
-                         Label* target, Label::Distance distance = Label::kFar);
+  inline void JumpIfByte(Condition cc, V8_REG_IN Register value, int32_t byte,
+                         V8_ASM_BRANCH Label* target,
+                         Label::Distance distance = Label::kFar);
 
-  inline void LoadMap(Register output, Register value);
-  inline void LoadRoot(Register output, RootIndex index);
-  inline void LoadNativeContextSlot(Register output, uint32_t index);
+  inline void LoadMap(V8_REG_OUT Register output, V8_REG_IN Register value);
+  inline void LoadRoot(V8_REG_OUT Register output, RootIndex index);
+  inline void LoadNativeContextSlot(V8_REG_OUT Register output, uint32_t index);
 
-  inline void Move(Register output, Register source);
-  inline void Move(Register output, MemOperand operand);
-  inline void Move(Register output, Tagged<Smi> value);
-  inline void Move(Register output, Tagged<TaggedIndex> value);
-  inline void Move(Register output, interpreter::Register source);
-  inline void Move(interpreter::Register output, Register source);
-  inline void Move(Register output, RootIndex source);
-  inline void Move(MemOperand output, Register source);
-  inline void Move(Register output, ExternalReference reference);
-  inline void Move(Register output, Handle<HeapObject> value);
-  inline void Move(Register output, int32_t immediate);
-  inline void MoveMaybeSmi(Register output, Register source);
-  inline void MoveSmi(Register output, Register source);
+  inline void Move(V8_REG_OUT Register output, V8_REG_IN Register source);
+  inline void Move(V8_REG_OUT Register output, MemOperand operand);
+  inline void Move(V8_REG_OUT Register output, Tagged<Smi> value);
+  inline void Move(V8_REG_OUT Register output, Tagged<TaggedIndex> value);
+  inline void Move(V8_REG_OUT Register output, interpreter::Register source);
+  inline void Move(interpreter::Register output, V8_REG_IN Register source);
+  inline void Move(V8_REG_OUT Register output, RootIndex source);
+  inline void Move(MemOperand output, V8_REG_IN Register source);
+  inline void Move(V8_REG_OUT Register output, ExternalReference reference);
+  inline void Move(V8_REG_OUT Register output, Handle<HeapObject> value);
+  inline void Move(V8_REG_OUT Register output, int32_t immediate);
+  inline void MoveMaybeSmi(V8_REG_OUT Register output,
+                           V8_REG_IN Register source);
+  inline void MoveSmi(V8_REG_OUT Register output, V8_REG_IN Register source);
 
   // Push the given values, in the given order. If the stack needs alignment
   // (looking at you Arm64), the stack is padded from the front (i.e. before the
@@ -134,7 +149,7 @@ class BaselineAssembler {
   // The total number of values pushed is returned. Note that this might be
   // different from sizeof(T...), specifically if there was a RegisterList.
   template <typename... T>
-  inline int Push(T... vals);
+  V8_ASM_PUSH inline int Push(V8_REG_IN T... vals);
 
   // Like Push(vals...), but pushes in reverse order, to support our reversed
   // order argument JS calling convention. Doesn't return the number of
@@ -143,7 +158,7 @@ class BaselineAssembler {
   // Note that padding is still inserted before the first pushed value (i.e. the
   // last value).
   template <typename... T>
-  inline void PushReverse(T... vals);
+  inline void PushReverse(V8_REG_IN T... vals);
 
   // Pop values off the stack into the given registers.
   //
@@ -159,59 +174,82 @@ class BaselineAssembler {
   // register. This the behaviour of Push, which means that the above code still
   // works even if the number of registers doesn't match stack alignment.
   template <typename... T>
-  inline void Pop(T... registers);
+  V8_ASM_POP inline void Pop(V8_REG_OUT T... registers);
 
-  inline void CallBuiltin(Builtin builtin);
-  inline void TailCallBuiltin(Builtin builtin);
-  inline void CallRuntime(Runtime::FunctionId function, int nargs);
+  V8_REG_CLOBBERS_CALLER_SAVED inline void CallBuiltin(Builtin builtin);
+  V8_ASM_NO_FALLTHROUGH inline void TailCallBuiltin(Builtin builtin);
+  V8_REG_CLOBBERS_CALLER_SAVED inline void CallRuntime(
+      Runtime::FunctionId function, int nargs);
 
-  inline void LoadTaggedField(Register output, Register source, int offset);
-  inline void LoadTaggedSignedField(Register output, Register source,
-                                    int offset);
-  inline void LoadTaggedSignedFieldAndUntag(Register output, Register source,
+  inline void LoadTaggedField(V8_REG_OUT Register output,
+                              V8_REG_IN Register source, int offset);
+  inline void LoadTaggedSignedField(V8_REG_OUT Register output,
+                                    V8_REG_IN Register source, int offset);
+  inline void LoadTaggedSignedFieldAndUntag(V8_REG_OUT Register output,
+                                            V8_REG_IN Register source,
                                             int offset);
-  inline void LoadWord16FieldZeroExtend(Register output, Register source,
-                                        int offset);
-  inline void LoadWord8Field(Register output, Register source, int offset);
-  inline void StoreTaggedSignedField(Register target, int offset,
+  inline void LoadWord16FieldZeroExtend(V8_REG_OUT Register output,
+                                        V8_REG_IN Register source, int offset);
+  inline void LoadWord8Field(V8_REG_OUT Register output,
+                             V8_REG_IN Register source, int offset);
+#if V8_TARGET_ARCH_X64
+  V8_REG_CLOBBERS(kScratchRegister)
+#endif
+  inline void StoreTaggedSignedField(V8_REG_IN Register target, int offset,
                                      Tagged<Smi> value);
-  inline void StoreTaggedFieldWithWriteBarrier(Register target, int offset,
-                                               Register value);
-  inline void StoreTaggedFieldNoWriteBarrier(Register target, int offset,
-                                             Register value);
-  inline void LoadFixedArrayElement(Register output, Register array,
-                                    int32_t index);
-  inline void LoadPrototype(Register prototype, Register object);
+#if V8_TARGET_ARCH_X64
+  V8_REG_CLOBBERS(rcx, kScratchRegister)
+#elif V8_TARGET_ARCH_ARM64
+  V8_REG_CLOBBERS(x5)
+#endif
+  inline void StoreTaggedFieldWithWriteBarrier(
+      V8_REG_IN Register target, int offset, V8_REG_IN_CLOBBER Register value);
+  inline void StoreTaggedFieldNoWriteBarrier(V8_REG_IN Register target,
+                                             int offset,
+                                             V8_REG_IN Register value);
+  inline void LoadFixedArrayElement(V8_REG_OUT Register output,
+                                    V8_REG_IN Register array, int32_t index);
+  inline void LoadPrototype(V8_REG_OUT Register prototype,
+                            V8_REG_IN Register object);
 
 // Loads compressed pointer or loads from compressed pointer. This is because
 // X64 supports complex addressing mode, pointer decompression can be done by
 // [%compressed_base + %r1 + K].
 #if V8_TARGET_ARCH_X64
-  inline void LoadTaggedField(TaggedRegister output, Register source,
-                              int offset);
-  inline void LoadTaggedField(TaggedRegister output, TaggedRegister source,
-                              int offset);
-  inline void LoadTaggedField(Register output, TaggedRegister source,
-                              int offset);
-  inline void LoadFixedArrayElement(Register output, TaggedRegister array,
+  inline void LoadTaggedField(V8_REG_OUT TaggedRegister output,
+                              V8_REG_IN Register source, int offset);
+  inline void LoadTaggedField(V8_REG_OUT TaggedRegister output,
+                              V8_REG_IN TaggedRegister source, int offset);
+  inline void LoadTaggedField(V8_REG_OUT Register output,
+                              V8_REG_IN TaggedRegister source, int offset);
+  inline void LoadFixedArrayElement(V8_REG_OUT Register output,
+                                    V8_REG_IN TaggedRegister array,
                                     int32_t index);
-  inline void LoadFixedArrayElement(TaggedRegister output, TaggedRegister array,
+  inline void LoadFixedArrayElement(V8_REG_OUT TaggedRegister output,
+                                    V8_REG_IN TaggedRegister array,
                                     int32_t index);
+
+  // Pushes a single register slot without inserting 16-byte stack alignment
+  // padding. Only for building fixed/local frame layouts (e.g.
+  // PrologueFillFrame) where alignment is managed across the whole frame body.
+  inline void PushUnpadded(Register reg);
 #endif
 
   // Falls through and sets scratch_and_result to 0 on failure, jumps to
   // on_result on success.
-  inline void TryLoadOptimizedOsrCode(Register scratch_and_result,
-                                      Register feedback_vector,
-                                      FeedbackSlot slot, Label* on_result,
+#if V8_TARGET_ARCH_X64
+  V8_REG_CLOBBERS(kScratchRegister)
+#endif
+  inline void TryLoadOptimizedOsrCode(V8_REG_OUT Register scratch_and_result,
+                                      V8_REG_IN Register feedback_vector,
+                                      FeedbackSlot slot,
+                                      V8_ASM_BRANCH Label* on_result,
                                       Label::Distance distance);
 
   // Loads the feedback cell from the function, and sets flags on add so that
   // we can compare afterward.
   inline void AddToInterruptBudgetAndJumpIfNotExceeded(
-      int32_t weight, Label* skip_interrupt_label);
-  inline void AddToInterruptBudgetAndJumpIfNotExceeded(
-      Register weight, Label* skip_interrupt_label);
+      int32_t weight, V8_ASM_BRANCH Label* skip_interrupt_label);
 
   // By default, the output register may be compressed on 64-bit architectures
   // that support pointer compression.
@@ -220,66 +258,85 @@ class BaselineAssembler {
     kForceDecompression,
   };
   inline void LdaContextSlotNoCell(
-      Register context, uint32_t index, uint32_t depth,
+      V8_REG_INOUT Register context, uint32_t index, uint32_t depth,
       CompressionMode compression_mode = CompressionMode::kDefault,
-      Register output = kInterpreterAccumulatorRegister);
-  inline void StaContextSlotNoCell(Register context, Register value,
+      V8_REG_OUT Register output = kInterpreterAccumulatorRegister);
+#if V8_TARGET_ARCH_X64
+  V8_REG_CLOBBERS(rcx, kScratchRegister)
+#elif V8_TARGET_ARCH_ARM64
+  V8_REG_CLOBBERS(x5)
+#endif
+  inline void StaContextSlotNoCell(V8_REG_IN_CLOBBER Register context,
+                                   V8_REG_IN_CLOBBER Register value,
                                    uint32_t index, uint32_t depth);
-  inline void LdaModuleVariable(Register context, int cell_index,
-                                uint32_t depth);
-  inline void StaModuleVariable(Register context, Register value,
+  V8_REG_IMPLICIT_OUT(kInterpreterAccumulatorRegister)
+  inline void LdaModuleVariable(V8_REG_IN_CLOBBER Register context,
+                                int cell_index, uint32_t depth);
+#if V8_TARGET_ARCH_X64
+  V8_REG_CLOBBERS(rcx, kScratchRegister)
+#elif V8_TARGET_ARCH_ARM64
+  V8_REG_CLOBBERS(x5)
+#endif
+  inline void StaModuleVariable(V8_REG_IN_CLOBBER Register context,
+                                V8_REG_IN_CLOBBER Register value,
                                 int cell_index, uint32_t depth);
 
   inline void IncrementSmi(MemOperand lhs);
-  inline void SmiUntag(Register value);
-  inline void SmiUntag(Register output, Register value);
+  inline void SmiUntag(V8_REG_INOUT Register value);
+  inline void SmiUntag(V8_REG_OUT Register output, V8_REG_IN Register value);
 
-  inline void Word32And(Register output, Register lhs, int rhs);
+  inline void Word32And(V8_REG_OUT Register output, V8_REG_IN Register lhs,
+                        int rhs);
 
 #ifdef V8_ENABLE_SPARKPLUG_PLUS
   // Jumps to |target| unless both |lhs| and |rhs| are Smis, using a single
   // merged tag test.
-  inline void JumpIfNotBothSmi(Register lhs, Register rhs, Label* target,
+  inline void JumpIfNotBothSmi(V8_REG_IN Register lhs, V8_REG_IN Register rhs,
+                               V8_ASM_BRANCH Label* target,
                                Label::Distance distance = Label::kFar);
 
   // Compares two tagged values without asserting that they are Smis.
-  inline void JumpIfTagged(Condition cc, Register lhs, Register rhs,
-                           Label* target,
+  inline void JumpIfTagged(Condition cc, V8_REG_IN Register lhs,
+                           V8_REG_IN Register rhs, V8_ASM_BRANCH Label* target,
                            Label::Distance distance = Label::kFar);
 
   // value := value + Smi(constant). Jumps to |overflow| when the result is not
   // a valid Smi.
   inline void SmiAddConstantAndJumpIfOverflow(
-      Register value, int constant, Label* overflow,
+      V8_REG_INOUT Register value, int constant, V8_ASM_BRANCH Label* overflow,
       Label::Distance distance = Label::kFar);
 
   // Computes a tagged Smi Add/Sub into |output|. |output| may alias |lhs|.
   // Jumps to |overflow| without modifying |lhs| when the result is not a Smi.
   inline void SmiAddSubAndJumpIfOverflow(
-      Register output, Register lhs, Tagged<Smi> rhs, Operation operation,
-      Label* overflow, Label::Distance distance = Label::kFar);
+      V8_REG_OUT Register output, V8_REG_IN Register lhs, Tagged<Smi> rhs,
+      Operation operation, V8_ASM_BRANCH Label* overflow,
+      Label::Distance distance = Label::kFar);
 
   // Computes BitwiseAnd/BitwiseOr/BitwiseXor/ShiftRight in place.
   // TODO(yuheng): Add support for ShiftLeft and ShiftRightLogical with overflow
   // checks. They are currently omitted because their results can exceed the Smi
   // range.
-  inline void SmiBitwiseOp(Register lhs, Tagged<Smi> rhs, Operation operation);
+  inline void SmiBitwiseOp(V8_REG_INOUT Register lhs, Tagged<Smi> rhs,
+                           Operation operation);
 #endif  // V8_ENABLE_SPARKPLUG_PLUS
 
-  inline void Switch(Register reg, int case_value_base, Label** labels,
-                     int num_labels);
+  inline void Switch(V8_REG_IN_CLOBBER Register reg, int case_value_base,
+                     Label** labels, int num_labels);
 
   // Register operands.
-  inline void LoadRegister(Register output, interpreter::Register source);
-  inline void StoreRegister(interpreter::Register output, Register value);
+  inline void LoadRegister(V8_REG_OUT Register output,
+                           interpreter::Register source);
+  inline void StoreRegister(interpreter::Register output,
+                            V8_REG_IN Register value);
 
   // Frame values
-  inline void LoadFunction(Register output);
-  inline void LoadContext(Register output);
-  inline void StoreContext(Register context);
+  inline void LoadFunction(V8_REG_OUT Register output);
+  inline void LoadContext(V8_REG_OUT Register output);
+  inline void StoreContext(V8_REG_IN Register context);
 
-  inline void LoadFeedbackCell(Register output);
-  inline void AssertFeedbackCell(Register object);
+  inline void LoadFeedbackCell(V8_REG_OUT Register output);
+  inline void AssertFeedbackCell(V8_REG_IN Register object);
 
 #ifdef V8_ENABLE_CET_SHADOW_STACK
   // If CET shadow stack is enabled, reserves a few bytes as NOP that can be

@@ -11152,55 +11152,93 @@ TEST_F(RunWasmSimdTest, RunWasmTurbofan_RegressStoreInfoCompareCollision) {
   r.Call(0);
 }
 
+// Two adjacent I32x4DotI16x8S are revectorized into one I32x8DotI16x16S
+// (kX64I32x8DotI16x16S on x64), which is lowered to a 256-bit vpmaddwd.
+TEST_F(RunWasmSimdTest, RunWasmTurbofan_I32x8DotI16x16S) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+  WasmRunner<int32_t, int32_t, int32_t, int32_t> r(
+      TestExecutionTier::kTurbofan);
+  int16_t* memory = r.builder().AddMemoryElems<int16_t>(64);
+  // Layout (in int16 elements): a = [0, 16), b = [16, 32), c = [32, 48) where
+  // c holds 8 int32 results.
+  //   simd128 *a, *b, *c;
+  //   *c = dot(*a, *b);
+  //   *(c+1) = dot(*(a+1), *(b+1));
+  uint8_t param1 = 0;
+  uint8_t param2 = 1;
+  uint8_t param3 = 2;
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+  constexpr uint8_t offset = 16;
+  {
+    TSSimd256VerifyScope ts_scope(
+        r.zone(), TSSimd256VerifyScope::VerifyHaveOpcode<
+                      compiler::turboshaft::Opcode::kSimd256Binop>);
+    r.Build(
+        {WASM_LOCAL_SET(temp1, WASM_SIMD_BINOP(
+                                   kExprI32x4DotI16x8S,
+                                   WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param1)),
+                                   WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param2)))),
+         WASM_LOCAL_SET(
+             temp2,
+             WASM_SIMD_BINOP(
+                 kExprI32x4DotI16x8S,
+                 WASM_SIMD_LOAD_MEM_OFFSET(offset, WASM_LOCAL_GET(param1)),
+                 WASM_SIMD_LOAD_MEM_OFFSET(offset, WASM_LOCAL_GET(param2)))),
+         WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param3), WASM_LOCAL_GET(temp1)),
+         WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_LOCAL_GET(param3),
+                                    WASM_LOCAL_GET(temp2)),
+         WASM_ONE});
+  }
+
+  auto check = [&](const int16_t* a, const int16_t* b) {
+    for (int i = 0; i < 16; i++) {
+      r.builder().WriteMemory(&memory[i], a[i]);
+      r.builder().WriteMemory(&memory[i + 16], b[i]);
+    }
+    r.Call(0, 32, 64);
+    const int32_t* result = reinterpret_cast<const int32_t*>(&memory[32]);
+    for (int i = 0; i < 8; i++) {
+      // Products of two int16 fit in int32, but their sum can overflow
+      // (-32768 * -32768 * 2); the behavior is to wrap around.
+      int32_t expected = base::AddWithWraparound(
+          static_cast<int32_t>(a[2 * i]) * b[2 * i],
+          static_cast<int32_t>(a[2 * i + 1]) * b[2 * i + 1]);
+      CHECK_EQ(expected, result[i]);
+    }
+  };
+
+  // Distinct values in every lane, so lane mix-ups between the two 128-bit
+  // halves or within pairs are detected.
+  int16_t a[16], b[16];
+  for (int i = 0; i < 16; i++) {
+    a[i] = static_cast<int16_t>(i * 1001 - 7000);
+    b[i] = static_cast<int16_t>(3000 - i * 777);
+  }
+  check(a, b);
+
+  // Splat combinations of interesting values, including overflow cases.
+  for (int16_t x : compiler::ValueHelper::GetVector<int16_t>()) {
+    for (int16_t y : compiler::ValueHelper::GetVector<int16_t>()) {
+      for (int i = 0; i < 16; i++) {
+        a[i] = x;
+        b[i] = y;
+      }
+      check(a, b);
+    }
+  }
+}
+
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
 #undef WASM_SIMD_CHECK_LANE_S
 #undef WASM_SIMD_CHECK_LANE_U
-#undef TO_BYTE
-#undef WASM_SIMD_OP
-#undef WASM_SIMD_SPLAT
-#undef WASM_SIMD_UNOP
-#undef WASM_SIMD_BINOP
-#undef WASM_SIMD_SHIFT_OP
-#undef WASM_SIMD_CONCAT_OP
-#undef WASM_SIMD_SELECT
-#undef WASM_SIMD_F64x2_SPLAT
-#undef WASM_SIMD_F64x2_EXTRACT_LANE
-#undef WASM_SIMD_F64x2_REPLACE_LANE
-#undef WASM_SIMD_F32x4_SPLAT
-#undef WASM_SIMD_F32x4_EXTRACT_LANE
-#undef WASM_SIMD_F32x4_REPLACE_LANE
-#undef WASM_SIMD_I64x2_SPLAT
-#undef WASM_SIMD_I64x2_EXTRACT_LANE
-#undef WASM_SIMD_I64x2_REPLACE_LANE
-#undef WASM_SIMD_I32x4_SPLAT
-#undef WASM_SIMD_I32x4_EXTRACT_LANE
-#undef WASM_SIMD_I32x4_REPLACE_LANE
-#undef WASM_SIMD_I16x8_SPLAT
-#undef WASM_SIMD_I16x8_EXTRACT_LANE
-#undef WASM_SIMD_I16x8_EXTRACT_LANE_U
-#undef WASM_SIMD_I16x8_REPLACE_LANE
-#undef WASM_SIMD_I8x16_SPLAT
-#undef WASM_SIMD_I8x16_EXTRACT_LANE
-#undef WASM_SIMD_I8x16_EXTRACT_LANE_U
-#undef WASM_SIMD_I8x16_REPLACE_LANE
-#undef WASM_SIMD_I8x16_SHUFFLE_OP
-#undef WASM_SIMD_LOAD_MEM
-#undef WASM_SIMD_LOAD_MEM_OFFSET
-#undef WASM_SIMD_STORE_MEM
-#undef WASM_SIMD_STORE_MEM_OFFSET
 #undef WASM_SIMD_SELECT_TEST
 #undef WASM_SIMD_NON_CANONICAL_SELECT_TEST
 #undef WASM_SIMD_BOOL_REDUCTION_TEST
 #undef WASM_SIMD_ANYTRUE_TEST
 #undef WASM_SIMD_ALLTRUE_TEST
-#undef WASM_SIMD_F64x2_QFMA
-#undef WASM_SIMD_F64x2_QFMS
-#undef WASM_SIMD_F32x4_QFMA
-#undef WASM_SIMD_F32x4_QFMS
-#undef WASM_SIMD_LOAD_OP
-#undef WASM_SIMD_LOAD_OP_OFFSET
-#undef WASM_SIMD_LOAD_OP_ALIGNMENT
 #undef WASM_EXEC_TEST_SUITE
 
 }  // namespace test_run_wasm_simd

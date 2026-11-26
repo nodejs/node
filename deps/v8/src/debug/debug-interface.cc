@@ -9,8 +9,11 @@
 #include <span>
 #include <vector>
 
+#include "include/v8-exception.h"
 #include "include/v8-function.h"
+#include "include/v8-regexp.h"
 #include "src/api/api-inl.h"
+#include "src/base/atomicops.h"
 #include "src/base/logging.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/codegen/compiler.h"
@@ -23,11 +26,16 @@
 #include "src/debug/debug.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/heap/heap.h"
+#include "src/init/bootstrapper.h"
 #include "src/objects/js-generator-inl.h"
+#include "src/objects/js-regexp-inl.h"
 #include "src/objects/script-inl.h"
 #include "src/objects/shared-function-info-inl.h"
 #include "src/objects/templates-inl.h"
 #include "src/profiler/heap-profiler.h"
+#include "src/regexp/regexp-stack.h"
+#include "src/regexp/regexp.h"
+#include "src/sandbox/check.h"
 #include "src/strings/string-builder-inl.h"
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -43,6 +51,8 @@ namespace debug {
 void SetContextId(Local<Context> context, int id) {
   auto v8_context = Utils::OpenDirectHandle(*context);
   auto* i_isolate = i::Isolate::Current();
+  Utils::ApiCheck(!i_isolate->serializer_enabled(), "v8::debug::SetContextId",
+                  "Cannot set debug context ID while creating a snapshot");
   i::DisallowJavascriptExecutionDebugOnly no_execution(i_isolate);
   i::DisallowExceptionsDebugOnly no_exceptions(i_isolate);
   v8_context->set_debug_context_id(i::Smi::FromInt(id));
@@ -61,6 +71,9 @@ void SetInspector(Isolate* isolate, v8_inspector::V8Inspector* inspector) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i::DisallowJavascriptExecutionDebugOnly no_execution(i_isolate);
   i::DisallowExceptionsDebugOnly no_exceptions(i_isolate);
+  // Setting a passive V8Inspector pointer is allowed during snapshot creation
+  // (e.g. Blink's v8_context_snapshot_generator creates MainThreadDebugger).
+  // It does not allocate global/eternal handles or activate Debug.
   if (inspector == nullptr) {
     i_isolate->set_inspector(nullptr);
   } else {
@@ -82,9 +95,32 @@ i::Handle<i::String> GetBigIntStringPresentationHandle(
   // For large BigInts computing the decimal string representation
   // can take a long time, so we go with hexadecimal in that case.
   int radix = (i_bigint->Words64Count() > 100 * 1000) ? 16 : 10;
-  i::Handle<i::String> string_value =
-      i::BigInt::ToString(i_isolate, i_bigint, radix, i::kDontThrow)
-          .ToHandleChecked();
+  i::Handle<i::String> string_value;
+  {
+    v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(i_isolate));
+    if (!i::BigInt::ToString(i_isolate, i_bigint, radix, i::kDontThrow)
+             .ToHandle(&string_value)) {
+      // If ToString was interrupted by a termination request, clear the
+      // internal termination exception from V8 so subsequent allocations do
+      // not fail, but re-arm the stack guard so that termination will be
+      // delivered at the next interrupt check. Reset the local TryCatch so
+      // its destructor does not propagate the cleared termination to an
+      // enclosing TryCatch handler.
+      if (i_isolate->is_execution_terminating()) {
+        i_isolate->clear_internal_exception();
+        i_isolate->stack_guard()->RequestTerminateExecution();
+      }
+      try_catch.Reset();
+      // Retry with radix 16. Power-of-two radix conversion in the bigint
+      // processor uses the linear base-case algorithm which does not check
+      // InterruptRequested() and therefore cannot be interrupted.
+      radix = 16;
+      if (!i::BigInt::ToString(i_isolate, i_bigint, radix, i::kDontThrow)
+               .ToHandle(&string_value)) {
+        return i_isolate->factory()->empty_string();
+      }
+    }
+  }
   if (radix == 16) {
     if (i_bigint->IsNegative()) {
       string_value =
@@ -92,7 +128,7 @@ i::Handle<i::String> GetBigIntStringPresentationHandle(
               ->NewConsString(
                   i_isolate->factory()->NewStringFromAsciiChecked("-0x"),
                   i_isolate->factory()->NewProperSubString(
-                      string_value, 1, string_value->length() - 1))
+                      string_value, 1, string_value->length()))
               .ToHandleChecked();
     } else {
       string_value =
@@ -171,7 +207,11 @@ Local<String> GetFunctionDescription(Local<Function> function) {
       return Utils::ToLocal(builder.Finish().ToHandleChecked());
     }
 #endif  // V8_ENABLE_WEBASSEMBLY
-    return Utils::ToLocal(i::JSFunction::ToString(i_isolate, js_function));
+    i::DirectHandle<i::String> fun_str;
+    if (i::JSFunction::ToString(i_isolate, js_function, i::kDontThrow)
+            .ToHandle(&fun_str)) {
+      return Utils::ToLocal(fun_str);
+    }
   }
   return Utils::ToLocal(i_isolate->factory()->function_native_code_string());
 }
@@ -402,7 +442,8 @@ void PrepareStep(Isolate* v8_isolate, StepAction action, bool enter_functions) {
   // Clear all current stepping setup.
   isolate->debug()->ClearStepping();
   // Prepare step.
-  isolate->debug()->set_step_over_enters_functions(enter_functions);
+  isolate->debug()->set_step_over_enters_functions(action == StepOver &&
+                                                   enter_functions);
   isolate->debug()->PrepareStep(static_cast<i::StepAction>(action));
 }
 
@@ -416,6 +457,7 @@ bool PrepareRestartFrame(Isolate* v8_isolate, int callFrameOrdinal) {
 
   // Clear all current stepping setup.
   isolate->debug()->ClearStepping();
+  isolate->debug()->set_step_over_enters_functions(false);
   it.PrepareRestart();
   return true;
 }
@@ -425,17 +467,19 @@ void ClearStepping(Isolate* v8_isolate) {
   EnterV8NoScriptNoExceptionScope api_scope(isolate);
   // Clear all current stepping setup.
   isolate->debug()->ClearStepping();
+  isolate->debug()->set_step_over_enters_functions(false);
 }
 
-void BreakRightNow(Isolate* v8_isolate,
+bool BreakRightNow(Isolate* v8_isolate,
                    base::EnumSet<debug::BreakReason> break_reasons) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   EnterV8BasicScope api_scope(isolate);
-  isolate->debug()->HandleDebugBreak(i::kIgnoreIfAllFramesBlackboxed,
-                                     break_reasons);
+  bool delivered = isolate->debug()->HandleDebugBreak(
+      i::kIgnoreIfAllFramesBlackboxed, break_reasons);
   if (isolate->debug()->IsRestartFrameScheduled()) {
     isolate->TerminateExecution();
   }
+  return delivered;
 }
 
 void SetTerminateOnResume(Isolate* v8_isolate) {
@@ -501,8 +545,7 @@ bool Script::WasCompiled() const {
 }
 
 bool Script::IsEmbedded() const {
-  auto script = Utils::OpenDirectHandle(this);
-  return script->context_data() == i::GetReadOnlyRoots().uninitialized_symbol();
+  return Utils::OpenDirectHandle(this)->is_embedded();
 }
 
 int Script::Id() const { return Utils::OpenDirectHandle(this)->id(); }
@@ -587,13 +630,6 @@ MaybeLocal<String> Script::GetSha256Hash() const {
   i::DirectHandle<i::String> value =
       i::Script::GetScriptHash(isolate, script, /* forceForInspector: */ true);
   return Utils::ToLocal(value);
-}
-
-Maybe<int> Script::ContextId() const {
-  auto script = Utils::OpenDirectHandle(this);
-  i::Tagged<i::Object> value = script->context_data();
-  if (IsSmi(value)) return Just(i::Smi::ToInt(value));
-  return {};
 }
 
 Local<ScriptSource> Script::Source() const {
@@ -979,8 +1015,7 @@ int WasmScript::CodeOffset() const {
 
   // If the module contains at least one function, the code offset must have
   // been initialized, and it cannot be zero.
-  DCHECK_IMPLIES(module->num_declared_functions > 0,
-                 module->code.offset() != 0);
+  DCHECK_IMPLIES(module->num_defined_functions > 0, module->code.offset() != 0);
   return module->code.offset();
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -1030,6 +1065,14 @@ void GetLoadedScripts(Isolate* v8_isolate,
       scripts.emplace_back(v8_isolate, ToApiHandle<Script>(script_handle));
     }
   }
+}
+
+void GetContextScripts(
+    Isolate* v8_isolate,
+    std::map<int, std::unordered_set<int>>& context_scripts) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  EnterV8NoScriptNoExceptionScope api_scope(isolate);
+  isolate->debug()->GetContextScripts(context_scripts);
 }
 
 std::optional<v8::ScriptOrigin> GetScriptOrigin(Isolate* v8_isolate,
@@ -1104,6 +1147,11 @@ void LeaveDebuggingForIsolate(Isolate* v8_isolate) {
 
 void SetDebugDelegate(Isolate* v8_isolate, DebugDelegate* delegate) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  if (delegate != nullptr) {
+    Utils::ApiCheck(!isolate->serializer_enabled(),
+                    "v8::debug::SetDebugDelegate",
+                    "Cannot set debug delegate while creating a snapshot");
+  }
   isolate->debug()->SetDebugDelegate(delegate);
 }
 
@@ -1276,6 +1324,14 @@ MaybeLocal<Value> CallFunctionOn(Local<Context> context,
   return api_scope.EscapeMaybe(result);
 }
 
+void ThrowSideEffectError(Local<Context> context) {
+  auto isolate = i::Isolate::Current();
+  PrepareForDebugInterfaceExecutionScope api_scope(isolate, context);
+  i::DisableBreak disable_break_scope(isolate->debug());
+  isolate->Throw(*isolate->factory()->NewEvalError(
+      i::MessageTemplate::kNoSideEffectDebugEvaluate));
+}
+
 MaybeLocal<v8::Value> EvaluateGlobal(v8::Isolate* isolate,
                                      v8::Local<v8::String> source,
                                      EvaluateGlobalMode mode, bool repl) {
@@ -1297,6 +1353,22 @@ bool IsAPIFunctionWithSideEffects(v8::Local<v8::Value> value) {
   i::Tagged<i::FunctionTemplateInfo> info =
       js_function->shared()->api_func_data();
   return info->has_side_effects();
+}
+
+bool IsBuiltinOrApiFunction(v8::Local<v8::Function> function) {
+  if (function.IsEmpty()) return false;
+  auto self = v8::Utils::OpenDirectHandle(*function);
+  if (!i::IsJSFunction(*self)) return false;
+  i::DirectHandle<i::JSFunction> js_function = i::Cast<i::JSFunction>(self);
+  i::Tagged<i::SharedFunctionInfo> shared = js_function->shared();
+  return (shared->HasBuiltinId() &&
+          shared->builtin_id() != i::Builtin::kCompileLazy) ||
+         shared->IsApiFunction();
+}
+
+bool IsBuiltinOrApiFunction(v8::Local<v8::Value> value) {
+  if (value.IsEmpty() || !value->IsFunction()) return false;
+  return IsBuiltinOrApiFunction(value.As<v8::Function>());
 }
 
 void GlobalLexicalScopeNames(v8::Local<v8::Context> v8_context,
@@ -1543,6 +1615,70 @@ uint64_t GetIsolateId(v8::Isolate* v8_isolate) {
 void SetIsolateId(v8::Isolate* v8_isolate, uint64_t id) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   isolate->debug()->SetIsolateId(id);
+}
+
+bool IsJavascriptExecutionAllowed(v8::Isolate* v8_isolate) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  return isolate->is_javascript_execution_allowed();
+}
+
+MaybeLocal<Context> CreateBareContext(v8::Isolate* v8_isolate) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  if (isolate->is_execution_terminating()) {
+    return {};
+  }
+  EnterV8NoScriptNoExceptionScope api_scope(isolate);
+  i::HandleScope scope(isolate);
+  i::DirectHandle<i::NativeContext> env =
+      isolate->bootstrapper()->CreateEnvironment(
+          i::MaybeDirectHandle<i::JSGlobalProxy>(),
+          v8::Local<v8::ObjectTemplate>(), nullptr, 0,
+          i::DeserializeEmbedderFieldsCallback(), nullptr);
+  if (env.is_null()) {
+    return {};
+  }
+  return Utils::ToLocal(scope.CloseAndEscape(env));
+}
+
+Maybe<int> ExecRegExp(v8::Isolate* v8_isolate, v8::Local<v8::Context> context,
+                      v8::Local<v8::RegExp> regexp,
+                      v8::Local<v8::String> subject, int* match_length) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  if (isolate->is_execution_terminating()) {
+    return Nothing<int>();
+  }
+  isolate->clear_internal_exception();
+  EnterV8NoScriptScope<> api_scope{isolate, context,
+                                   i::RuntimeCallCounterId::kAPI_RegExp_Exec};
+  i::DirectHandle<i::JSRegExp> i_regexp = Utils::OpenDirectHandle(*regexp);
+  i::DirectHandle<i::String> i_subject = Utils::OpenDirectHandle(*subject);
+  const uint32_t subject_length = i_subject->length();
+  i::regexp::StackScope stack_scope(isolate);
+  i::DirectHandle<i::RegExpData> data(i_regexp->data(isolate), isolate);
+  int capture_count = data->capture_count();
+  int result_offsets_vector_length =
+      i::JSRegExp::RegistersForCaptureCount(capture_count);
+  i::regexp::ResultVectorScope result_vector_scope(
+      isolate, result_offsets_vector_length);
+  std::optional<int> result =
+      i::RegExp::Exec(isolate, data, i_subject, 0, result_vector_scope.value(),
+                      result_offsets_vector_length);
+  if (!result.has_value()) {
+    DCHECK(isolate->has_exception());
+    return Nothing<int>();
+  }
+  if (result.value() == 0) {
+    if (match_length) *match_length = 0;
+    return Just(-1);
+  }
+  int32_t* result_vector = result_vector_scope.value();
+  int32_t start = base::AsAtomic32::Relaxed_Load(&result_vector[0]);
+  int32_t end = base::AsAtomic32::Relaxed_Load(&result_vector[1]);
+  SBXCHECK_GE(start, 0);
+  SBXCHECK_LE(start, end);
+  SBXCHECK_LE(static_cast<uint32_t>(end), subject_length);
+  if (match_length) *match_length = end - start;
+  return Just(start);
 }
 
 std::unique_ptr<PropertyIterator> PropertyIterator::Create(

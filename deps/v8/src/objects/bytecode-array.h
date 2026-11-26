@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_BYTECODE_ARRAY_H_
 #define V8_OBJECTS_BYTECODE_ARRAY_H_
 
+#include "src/objects/bit-field-group.h"
 #include "src/objects/struct.h"
 #include "src/objects/trusted-object.h"
 #include "src/sandbox/trusted-pointer.h"
@@ -46,13 +47,29 @@ V8_OBJECT class BytecodeArray : public ExposedTrustedObject {
                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Source position table. Can contain:
-  // * Smi::zero() (initial value, or if an error occurred while explicitly
-  // collecting source positions for pre-existing bytecode).
+  // * A Smi encoding the UnoptimizedCompileFlags coverage state (initial value
+  // before source positions are collected, or if an error occurred while
+  // explicitly collecting source positions for pre-existing bytecode).
   // * empty_trusted_byte_array (for bytecode generated for functions that will
   // never have source positions, e.g. native functions).
   // * TrustedByteArray (if source positions were collected for the bytecode)
   DECL_RELEASE_ACQUIRE_PROTECTED_POINTER_ACCESSORS(source_position_table,
                                                    TrustedByteArray)
+
+  struct CoverageFlags : BitFieldGroup<CoverageFlags, uint32_t> {
+    using BitFieldGroup::BitFieldGroup;
+
+    using CoverageEnabledBit = First<bool, 1>;
+    using BlockCoverageEnabledBit = CoverageEnabledBit::Next<bool, 1>;
+
+    BIT_FIELD_GROUP_ACCESSORS(coverage_enabled, CoverageEnabledBit)
+    BIT_FIELD_GROUP_ACCESSORS(block_coverage_enabled, BlockCoverageEnabledBit)
+  };
+
+  inline void set_source_positions_coverage_flags(bool coverage_enabled,
+                                                  bool block_coverage_enabled);
+  inline bool coverage_enabled_for_source_positions() const;
+  inline bool block_coverage_enabled_for_source_positions() const;
 
   DECL_INT32_ACCESSORS(frame_size)
 
@@ -95,8 +112,9 @@ V8_OBJECT class BytecodeArray : public ExposedTrustedObject {
   inline Tagged<Union<Smi, TrustedByteArray>> raw_handler_table() const;
   // This accessor can also be used when it's not guaranteed that a source
   // position table exists, for example because it hasn't been collected. In
-  // that case, Smi::zero() will be returned.
-  inline Tagged<Object> raw_source_position_table(AcquireLoadTag) const;
+  // that case, a Smi encoding the coverage flags will be returned.
+  inline Tagged<UnionOf<TrustedByteArray, Smi>> raw_source_position_table(
+      AcquireLoadTag) const;
 
   // Indicates that an attempt was made to collect source positions, but that it
   // failed, most likely due to stack exhaustion. When in this state
@@ -148,7 +166,7 @@ V8_OBJECT class BytecodeArray : public ExposedTrustedObject {
  public:
   V8_TQ_CONST TaggedMember<Smi> length_;
   TaggedMember<BytecodeWrapper> wrapper_;
-  ProtectedTaggedMember<TrustedByteArray> source_position_table_;
+  ProtectedTaggedMember<UnionOf<TrustedByteArray, Smi>> source_position_table_;
   ProtectedTaggedMember<TrustedByteArray> handler_table_;
   ProtectedTaggedMember<TrustedFixedArray> constant_pool_;
   int32_t frame_size_;

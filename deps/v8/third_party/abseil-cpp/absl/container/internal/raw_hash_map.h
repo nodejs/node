@@ -63,11 +63,18 @@ class raw_hash_map : public raw_hash_set<Policy, Params...> {
   using Hash = typename raw_hash_map::raw_hash_set::hasher;
   using Eq = typename raw_hash_map::raw_hash_set::key_equal;
   using Alloc = typename raw_hash_map::raw_hash_set::allocator_type;
+  using KeyArgImpl =
+      KeyArg<IsTransparent<Eq>::value && IsTransparent<Hash>::value>;
 
   template <class K>
   using key_arg =
-      typename KeyArg<IsTransparent<Eq>::value && IsTransparent<Hash>::value>::
-          template type<K, typename Policy::key_type>;
+      typename KeyArgImpl::template Select<K, typename Policy::key_type>;
+  template <class K>
+  using const_key_arg =
+      typename KeyArgImpl::template SelectReadOnly<
+          K, typename Policy::key_type>;
+  template <class K>
+  using KeyParam = typename raw_hash_map::raw_hash_set::template KeyParam<K>;
 
   // NOTE: The mess here is to shorten the code for the (very repetitive)
   // function overloads, and to allow the lifetime-bound overloads to dispatch
@@ -84,8 +91,8 @@ class raw_hash_map : public raw_hash_set<Policy, Params...> {
   // separate move-only overloads.
   template <class K, bool Value, bool ExtraConstraint = true>
   using LifetimeBoundK = std::bool_constant<
-      (ExtraConstraint ||
-       !IsAllocMoveSameAsCopy<absl::remove_cvref_t<K>, Alloc>::value) &&
+      (ExtraConstraint || !type_traits_internal::IsAllocMoveSameAsCopy<
+                              absl::remove_cvref_t<K>, Alloc>::value) &&
       HasValue<Value, std::conditional_t<
                           policy_trait_element_is_owner<Policy>::value,
                           std::false_type,
@@ -301,22 +308,22 @@ class raw_hash_map : public raw_hash_set<Policy, Params...> {
   }
 
   template <class K = key_type, class P = Policy>
-  MappedReference<P> at(const key_arg<K>& key) ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  MappedReference<P> at(const_key_arg<K> key) ABSL_ATTRIBUTE_LIFETIME_BOUND {
     auto it = this->find(key);
-    if (it == this->end()) {
+    if (this->unchecked_is_end(it)) {
       ThrowStdOutOfRange("absl::container_internal::raw_hash_map<>::at");
     }
-    return Policy::value(&*it);
+    return Policy::value(&this->unchecked_deref(it));
   }
 
   template <class K = key_type, class P = Policy>
-  MappedConstReference<P> at(const key_arg<K>& key) const
+  MappedConstReference<P> at(const_key_arg<K> key) const
       ABSL_ATTRIBUTE_LIFETIME_BOUND {
     auto it = this->find(key);
-    if (it == this->end()) {
+    if (this->unchecked_is_end(it)) {
       ThrowStdOutOfRange("absl::container_internal::raw_hash_map<>::at");
     }
-    return Policy::value(&*it);
+    return Policy::value(&this->unchecked_deref(it));
   }
 
   template <class K = key_type, class P = Policy,
@@ -365,7 +372,7 @@ class raw_hash_map : public raw_hash_set<Policy, Params...> {
   template <class K, class V>
   std::pair<iterator, bool> insert_or_assign_impl(K&& k, V&& v)
       ABSL_ATTRIBUTE_LIFETIME_BOUND {
-    auto res = this->find_or_prepare_insert(k);
+    auto res = this->template find_or_prepare_insert<KeyParam<K>>(k);
     if (res.second) {
       this->emplace_at(res.first, std::forward<K>(k), std::forward<V>(v));
     } else {
@@ -377,20 +384,19 @@ class raw_hash_map : public raw_hash_set<Policy, Params...> {
   template <class K = key_type, class... Args>
   std::pair<iterator, bool> try_emplace_impl(K&& k, Args&&... args)
       ABSL_ATTRIBUTE_LIFETIME_BOUND {
-    auto res = this->find_or_prepare_insert(k);
+    auto res = this->template find_or_prepare_insert<KeyParam<K>>(k);
     if (res.second) {
       // Try to avoid using std::tuple since that slows compilation.
       // (example: https://godbolt.org/z/nefW93T6K)
 
-      if constexpr (ShouldPreferPassByValue<std::conditional_t<
-                        sizeof...(Args) == 0 &&
-                            std::is_same_v<
-                                typename std::allocator_traits<
-                                    Alloc>::template rebind_alloc<char>,
-                                std::allocator<char>>,
-                        mapped_type,
-                        // Trick to avoid unnecessary template instantiations.
-                        void>>::value) {
+      if constexpr (type_traits_internal::ShouldPreferPassByValueOverRRef<
+                        std::conditional_t<sizeof...(Args) == 0 &&
+                                               type_traits_internal::
+                                                   IsDefaultAlloc<Alloc>::value,
+                                           mapped_type,
+                                           // Trick to avoid unnecessary
+                                           // template instantiations.
+                                           void>>::value) {
         // Common case: operator[]
         // Note: This has a different run-time performance characteristic than
         // the other branches, due to the usage of a temporary object. In the

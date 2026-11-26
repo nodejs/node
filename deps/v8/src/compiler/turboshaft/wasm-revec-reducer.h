@@ -840,7 +840,7 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
         // Needs to update offset and base to align with node0.
         const Simd128LoadTransformOp& op0 =
             __ input_graph()
-                .Get(pnode -> nodes()[0])
+                .Get(pnode->nodes()[0])
                 .template Cast<Simd128LoadTransformOp>();
         const WordBinopOp& add_op0 =
             __ input_graph().Get(op0.base()).template Cast<WordBinopOp>();
@@ -856,10 +856,8 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
             __ output_graph().Get(add_op.right()).template Cast<ConstantOp>();
 
         if (offset0 != offset1) {
-          V<WordPtr> og_offset0 = __ WordPtrConstant(offset0.word64());
-          base = V<WordPtr>::Cast(__ WordBinop(add_op.left(), og_offset0,
-                                               WordBinopOp::Kind::kAdd,
-                                               WordRepresentation::Word64()));
+          static_assert(Is64());
+          base = __ Word64Add(add_op.left<Word64>(), offset0.word64());
         }
       }
 
@@ -900,8 +898,7 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
             (shuffle_pnode->info().splat_index() & lane_mask) * bytes_per_lane;
         const int64_t offset = splat_offset + load.offset;
 
-        V<WordPtr> base = __ WordPtrAdd(__ MapToNewGraph(load.base()),
-                                        __ IntPtrConstant(offset));
+        V<WordPtr> base = __ WordPtrAdd(__ MapToNewGraph(load.base()), offset);
         V<WordPtr> index = load.index().has_value()
                                ? __ MapToNewGraph(load.index().value())
                                : __ IntPtrConstant(0);
@@ -970,7 +967,7 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
       V<Simd256> value = analyzer_.GetReducedInput(pnode);
       DCHECK(value.valid());
       __ Store(base, index, value, store.kind, MemoryRepresentation::Simd256(),
-               store.write_barrier, store.memory_order(), start.offset);
+               store.write_barrier, start.offset);
 
       // Set an arbitrary valid OpIndex here to skip reduce later.
       pnode->SetRevectorizedNode(ig_index);
@@ -1028,7 +1025,7 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
                       .template TryCast<PendingLoopPhiOp>()) {
             __ output_graph().template Replace<PhiOp>(
                 pending_index,
-                base::VectorOf({pending_phi -> first(),
+                base::VectorOf({pending_phi->first(),
                                 analyzer_.GetReducedInput(pnode, 1)}),
                 RegisterRepresentation::Simd256());
             return;

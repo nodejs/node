@@ -729,6 +729,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     return UncheckedCast<UintPtrT>(x);
   }
 
+  bool IsAtStart() const;
+
   // Support for code with a "dynamic" parameter count.
   //
   // Code assembled by our code assembler always has a "static" parameter count
@@ -738,9 +740,9 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   // objects with different parameter counts. In that case, the actual
   // parameter count is only known at runtime. Examples of such builtins
   // include the CompileLazy builtin and the InterpreterEntryTrampoline, or the
-  // generic JSToWasm and JSToJS wrappers. These builtins then may have to
-  // obtain the "dynamic" parameter count, for example to correctly remove all
-  // function arguments (including padding arguments) from the stack.
+  // generic JSToWasm wrappers. These builtins then may have to obtain the
+  // "dynamic" parameter count, for example to correctly remove all function
+  // arguments (including padding arguments) from the stack.
   bool HasDynamicJSParameterCount();
   TNode<Uint16T> DynamicJSParameterCount();
   void SetDynamicJSParameterCount(TNode<Uint16T> parameter_count);
@@ -777,6 +779,9 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   Node* UntypedParameter(int value);
 
   TNode<Context> GetJSContextParameter();
+#ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
+  TNode<JSDispatchHandleT> GetJSDispatchHandleParameter();
+#endif
   void Return(TNode<Object> value);
   void Return(TNode<Object> value1, TNode<Object> value2);
   void Return(TNode<Object> value1, TNode<Object> value2, TNode<Object> value3);

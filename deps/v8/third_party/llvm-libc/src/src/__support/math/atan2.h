@@ -75,28 +75,53 @@ namespace math {
 // and relative errors bounded by:
 //   |(atan(u) - P(u)) / P(u)| < u^10 / 11 < 2^-73.
 
+namespace atan2_internal {
+
+using DoubleDouble = fputil::DoubleDouble;
+
+LIBC_INLINE_VAR constexpr DoubleDouble ZERO = {0.0, 0.0};
+LIBC_INLINE_VAR constexpr DoubleDouble MZERO = {-0.0, -0.0};
+LIBC_INLINE_VAR constexpr DoubleDouble PI = {0x1.1a62633145c07p-53,
+                                             0x1.921fb54442d18p+1};
+LIBC_INLINE_VAR constexpr DoubleDouble MPI = {-0x1.1a62633145c07p-53,
+                                              -0x1.921fb54442d18p+1};
+LIBC_INLINE_VAR constexpr DoubleDouble PI_OVER_2 = {0x1.1a62633145c07p-54,
+                                                    0x1.921fb54442d18p0};
+LIBC_INLINE_VAR constexpr DoubleDouble MPI_OVER_2 = {-0x1.1a62633145c07p-54,
+                                                     -0x1.921fb54442d18p0};
+LIBC_INLINE_VAR constexpr DoubleDouble PI_OVER_4 = {0x1.1a62633145c07p-55,
+                                                    0x1.921fb54442d18p-1};
+LIBC_INLINE_VAR constexpr DoubleDouble THREE_PI_OVER_4 = {0x1.a79394c9e8a0ap-54,
+                                                          0x1.2d97c7f3321d2p+1};
+
+// Adjustment for constant term:
+//   CONST_ADJ[x_sign][y_sign][recip]
+LIBC_INLINE_VAR constexpr DoubleDouble CONST_ADJ[2][2][2] = {
+    {{ZERO, MPI_OVER_2}, {MZERO, MPI_OVER_2}},
+    {{MPI, PI_OVER_2}, {MPI, PI_OVER_2}}};
+
+// Exceptional cases:
+//   EXCEPT[y_except][x_except][x_is_neg]
+// with x_except & y_except:
+//   0: zero
+//   1: finite, non-zero
+//   2: infinity
+LIBC_INLINE_VAR constexpr DoubleDouble EXCEPTS[3][3][2] = {
+    {{ZERO, PI}, {ZERO, PI}, {ZERO, PI}},
+    {{PI_OVER_2, PI_OVER_2}, {ZERO, ZERO}, {ZERO, PI}},
+    {{PI_OVER_2, PI_OVER_2},
+     {PI_OVER_2, PI_OVER_2},
+     {PI_OVER_4, THREE_PI_OVER_4}},
+};
+
+} // namespace atan2_internal
+
 LIBC_INLINE double atan2(double y, double x) {
   using namespace atan_internal;
+  using namespace atan2_internal;
   using FPBits = fputil::FPBits<double>;
 
   constexpr double IS_NEG[2] = {1.0, -1.0};
-  constexpr DoubleDouble ZERO = {0.0, 0.0};
-  constexpr DoubleDouble MZERO = {-0.0, -0.0};
-  constexpr DoubleDouble PI = {0x1.1a62633145c07p-53, 0x1.921fb54442d18p+1};
-  constexpr DoubleDouble MPI = {-0x1.1a62633145c07p-53, -0x1.921fb54442d18p+1};
-  constexpr DoubleDouble PI_OVER_2 = {0x1.1a62633145c07p-54,
-                                      0x1.921fb54442d18p0};
-  constexpr DoubleDouble MPI_OVER_2 = {-0x1.1a62633145c07p-54,
-                                       -0x1.921fb54442d18p0};
-  constexpr DoubleDouble PI_OVER_4 = {0x1.1a62633145c07p-55,
-                                      0x1.921fb54442d18p-1};
-  constexpr DoubleDouble THREE_PI_OVER_4 = {0x1.a79394c9e8a0ap-54,
-                                            0x1.2d97c7f3321d2p+1};
-  // Adjustment for constant term:
-  //   CONST_ADJ[x_sign][y_sign][recip]
-  constexpr DoubleDouble CONST_ADJ[2][2][2] = {
-      {{ZERO, MPI_OVER_2}, {MZERO, MPI_OVER_2}},
-      {{MPI, PI_OVER_2}, {MPI, PI_OVER_2}}};
 
   FPBits x_bits(x), y_bits(y);
   bool x_sign = x_bits.sign().is_neg();
@@ -124,20 +149,6 @@ LIBC_INLINE double atan2(double y, double x) {
     }
     unsigned x_except = x == 0.0 ? 0 : (FPBits(x_abs).is_inf() ? 2 : 1);
     unsigned y_except = y == 0.0 ? 0 : (FPBits(y_abs).is_inf() ? 2 : 1);
-
-    // Exceptional cases:
-    //   EXCEPT[y_except][x_except][x_is_neg]
-    // with x_except & y_except:
-    //   0: zero
-    //   1: finite, non-zero
-    //   2: infinity
-    constexpr DoubleDouble EXCEPTS[3][3][2] = {
-        {{ZERO, PI}, {ZERO, PI}, {ZERO, PI}},
-        {{PI_OVER_2, PI_OVER_2}, {ZERO, ZERO}, {ZERO, PI}},
-        {{PI_OVER_2, PI_OVER_2},
-         {PI_OVER_2, PI_OVER_2},
-         {PI_OVER_4, THREE_PI_OVER_4}},
-    };
 
     if ((x_except != 1) || (y_except != 1)) {
       DoubleDouble r = EXCEPTS[y_except][x_except][x_sign];

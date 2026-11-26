@@ -261,22 +261,13 @@ class LinkageAllocator {
     return simd128_regs_[simd128_offset_++].code();
   }
 
-  // Stackslots are counted upwards starting from 0 (or the offset set by
-  // {SetStackOffset}. If {type} needs more than one stack slot, the lowest
-  // used stack slot is returned.
+  // Stackslots are counted upwards starting from 0. If {type} needs more than
+  // one stack slot, the lowest used stack slot is returned.
   int NextStackSlot(MachineRepresentation type) {
     int num_slots =
         AlignedSlotAllocator::NumSlotsForWidth(ElementSizeInBytes(type));
     int slot = slot_allocator_.Allocate(num_slots);
     return slot;
-  }
-
-  // Set an offset for the stack slots returned by {NextStackSlot} and
-  // {NumStackSlots}. Can only be called before any call to {NextStackSlot}.
-  void SetStackOffset(int offset) {
-    DCHECK_LE(0, offset);
-    DCHECK_EQ(0, slot_allocator_.Size());
-    slot_allocator_.AllocateUnaligned(offset);
   }
 
   int NumStackSlots() const { return slot_allocator_.Size(); }

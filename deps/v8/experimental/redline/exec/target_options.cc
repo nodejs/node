@@ -68,6 +68,14 @@ bool TargetOptions::FromFlags(const Flags& flags, TargetOptions* out,
                           out->executable.c_str(), strerror(errno));
     return false;
   }
+  if (flags.Has("target-kind") &&
+      !ParseTargetKind(flags.GetString("target-kind"), &out->kind)) {
+    *error =
+        "--target-kind must be \"auto\", \"redline\" or \"fuzzilli\", "
+        "not \"" +
+        flags.GetString("target-kind") + "\"";
+    return false;
+  }
 
   if (flags.Has("d8-args")) {
     out->args = SplitWhitespace(flags.GetString("d8-args"));
@@ -109,6 +117,8 @@ ReprlChild::Options TargetOptions::ToReprlOptions(
   options.capture_stdout = capture_output;
   options.capture_stderr = capture_output;
   options.max_execs_before_respawn = max_execs_before_respawn;
+  options.random_args = random_args;
+  options.spawn_result = spawn_result;
   options.env = InheritedEnvironment();
   options.env.emplace_back("SHM_ID", shm_name);
   for (const auto& kv : extra_env) {

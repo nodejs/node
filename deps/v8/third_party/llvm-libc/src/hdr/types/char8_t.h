@@ -20,10 +20,19 @@
 #include "hdr/uchar_overlay.h"
 #endif // !__APPLE__
 
-// Define char8_t in C++ for internal usage if it is not provided by compiler
-// or system uchar.h header.
+// Define char8_t for internal usage if it is not provided by compiler or
+// system uchar.h header.
 #ifndef __cpp_char8_t
-using char8_t = unsigned char;
+#if defined(__GNUC__) && !defined(__clang__) && (__GNUC__ >= 10) &&            \
+    defined(__cplusplus)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wc++20-compat"
+#endif
+typedef unsigned char char8_t;
+#if defined(__GNUC__) && !defined(__clang__) && (__GNUC__ >= 10) &&            \
+    defined(__cplusplus)
+#pragma GCC diagnostic pop
+#endif
 #endif // !__cpp_char8_t
 
 #endif // LIBC_FULL_BUILD

@@ -1,0 +1,5 @@
+Tests crbug.com/1259878.
+function f() {
+var C = #class {};
+}
+

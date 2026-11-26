@@ -478,28 +478,6 @@
     TaggedField<Smi, offset>::Relaxed_Store(this, Smi::FromInt(value)); \
   }
 
-#define BOOL_GETTER(holder, field, name, offset) \
-  bool holder::name() const { return BooleanBit::get(field(), offset); }
-
-#define BOOL_ACCESSORS(holder, field, name, offset)                      \
-  bool holder::name() const { return BooleanBit::get(field(), offset); } \
-  void holder::set_##name(bool value) {                                  \
-    set_##field(BooleanBit::set(field(), offset, value));                \
-  }
-
-#define DECL_RELAXED_BOOL_ACCESSORS(name) \
-  inline bool name(RelaxedLoadTag) const; \
-  inline void set_##name(bool value, RelaxedStoreTag);
-
-#define RELAXED_BOOL_ACCESSORS(holder, field, name, offset)          \
-  bool holder::name(RelaxedLoadTag) const {                          \
-    return BooleanBit::get(field(kRelaxedLoad), offset);             \
-  }                                                                  \
-  void holder::set_##name(bool value, RelaxedStoreTag) {             \
-    set_##field(BooleanBit::set(field(kRelaxedLoad), offset, value), \
-                kRelaxedStore);                                      \
-  }
-
 // Host objects in ReadOnlySpace can't define the isolate-less accessor.
 #define DECL_LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(name, type) \
   inline void init_##name();                                                  \
@@ -869,18 +847,24 @@
 
 // Defines accessors for one bit field of a BitFieldGroup.
 #define BIT_FIELD_GROUP_ACCESSORS(name, Bit)                                  \
-  constexpr typename Bit::FieldType name() const { return get<Bit>(); }       \
+  constexpr typename Bit::FieldType name() const {                            \
+    return this->template get<Bit>();                                         \
+  }                                                                           \
   V8_NODISCARD constexpr GroupType with_##name(typename Bit::FieldType value) \
       const {                                                                 \
-    return with<Bit>(value);                                                  \
+    return this->template with<Bit>(value);                                   \
+  }                                                                           \
+  V8_NODISCARD constexpr GroupType with_##name##_unchecked(                   \
+      typename Bit::FieldType value) const {                                  \
+    return this->template with_unchecked<Bit>(value);                         \
   }
 
 #define BIT_FIELD_ACCESSORS2(holder, get_field, set_field, name, BitField) \
   typename BitField::FieldType holder::name() const {                      \
-    return BitField::decode(get_field());                                  \
+    return get_field().template get<BitField>();                           \
   }                                                                        \
   void holder::set_##name(typename BitField::FieldType value) {            \
-    set_##set_field(BitField::update(set_field(), value));                 \
+    set_##set_field(set_field().template with<BitField>(value));           \
   }
 
 #define BIT_FIELD_ACCESSORS(holder, field, name, BitField) \
@@ -896,9 +880,6 @@
 
 #define FIELD_ADDR(p, offset) ((p)->ptr() + offset - kHeapObjectTag)
 
-#define SEQ_CST_READ_FIELD(p, offset) \
-  TaggedField<Object>::SeqCst_Load(p, offset)
-
 #define ACQUIRE_READ_FIELD(p, offset) \
   TaggedField<Object>::Acquire_Load(p, offset)
 
@@ -911,9 +892,6 @@
 #define WRITE_FIELD(p, offset, value) \
   TaggedField<Object>::store(p, offset, value)
 
-#define SEQ_CST_WRITE_FIELD(p, offset, value) \
-  TaggedField<Object>::SeqCst_Store(p, offset, value)
-
 #define RELEASE_WRITE_FIELD(p, offset, value) \
   TaggedField<Object>::Release_Store(p, offset, value)
 
@@ -922,12 +900,6 @@
 
 #define RELAXED_WRITE_WEAK_FIELD(p, offset, value) \
   TaggedField<MaybeObject>::Relaxed_Store(p, offset, value)
-
-#define SEQ_CST_SWAP_FIELD(p, offset, value) \
-  TaggedField<Object>::SeqCst_Swap(p, offset, value)
-
-#define SEQ_CST_COMPARE_AND_SWAP_FIELD(p, offset, expected, value) \
-  TaggedField<Object>::SeqCst_CompareAndSwap(p, offset, expected, value)
 
 #ifdef V8_DISABLE_WRITE_BARRIERS
 #define WRITE_BARRIER(object, offset, value)
@@ -943,15 +915,15 @@
   } while (false)
 #endif
 
-#ifdef V8_DISABLE_WRITE_BARRIERS
-#define EXTERNAL_POINTER_WRITE_BARRIER(object, offset, tag, handle)
+#if defined(V8_DISABLE_WRITE_BARRIERS) || !defined(V8_COMPRESS_POINTERS)
+#define EXTERNAL_POINTER_WRITE_BARRIER(isolate, object, offset, tag, handle)
 #else
-#define EXTERNAL_POINTER_WRITE_BARRIER(object, offset, tag, handle)           \
-  do {                                                                        \
-    DCHECK(TrustedHeapLayout::IsOwnedByAnyHeap(object));                      \
-    WriteBarrier::ForExternalPointer(                                         \
-        object, Tagged(object)->RawExternalPointerField(offset, tag), handle, \
-        UPDATE_WRITE_BARRIER);                                                \
+#define EXTERNAL_POINTER_WRITE_BARRIER(isolate, object, offset, tag, handle)   \
+  do {                                                                         \
+    DCHECK(TrustedHeapLayout::IsOwnedByAnyHeap(object));                       \
+    WriteBarrier::ForExternalPointer(                                          \
+        isolate, object, Tagged(object)->RawExternalPointerField(offset, tag), \
+        handle, UPDATE_WRITE_BARRIER);                                         \
   } while (false)
 #endif
 
@@ -993,17 +965,17 @@
   } while (false)
 #endif
 
-#ifdef V8_DISABLE_WRITE_BARRIERS
-#define CONDITIONAL_EXTERNAL_POINTER_WRITE_BARRIER(object, offset, tag, \
-                                                   handle, mode)
+#if defined(V8_DISABLE_WRITE_BARRIERS) || !defined(V8_COMPRESS_POINTERS)
+#define CONDITIONAL_EXTERNAL_POINTER_WRITE_BARRIER(isolate, object, offset, \
+                                                   tag, handle, mode)
 #else
-#define CONDITIONAL_EXTERNAL_POINTER_WRITE_BARRIER(object, offset, tag,       \
-                                                   handle, mode)              \
-  do {                                                                        \
-    DCHECK(TrustedHeapLayout::IsOwnedByAnyHeap(object));                      \
-    WriteBarrier::ForExternalPointer(                                         \
-        object, Tagged(object)->RawExternalPointerField(offset, tag), handle, \
-        mode);                                                                \
+#define CONDITIONAL_EXTERNAL_POINTER_WRITE_BARRIER(isolate, object, offset,    \
+                                                   tag, handle, mode)          \
+  do {                                                                         \
+    DCHECK(TrustedHeapLayout::IsOwnedByAnyHeap(object));                       \
+    WriteBarrier::ForExternalPointer(                                          \
+        isolate, object, Tagged(object)->RawExternalPointerField(offset, tag), \
+        handle, mode);                                                         \
   } while (false)
 #endif
 

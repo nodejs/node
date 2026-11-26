@@ -476,22 +476,73 @@ struct PushAllHelper<Arg, Args...> {
   }
 };
 
+// Counts the number of stack slots that pushing {args...} will occupy. An
+// interpreter::RegisterList contributes one slot per register; every other
+// value contributes exactly one slot.
+template <typename... Args>
+struct CountPushHelper;
+template <>
+struct CountPushHelper<> {
+  static int Count() { return 0; }
+};
+template <typename Arg, typename... Args>
+struct CountPushHelper<Arg, Args...> {
+  static int Count(Arg arg, Args... args) {
+    return 1 + CountPushHelper<Args...>::Count(args...);
+  }
+};
+template <typename... Args>
+struct CountPushHelper<interpreter::RegisterList, Args...> {
+  static int Count(interpreter::RegisterList list, Args... args) {
+    return list.register_count() + CountPushHelper<Args...>::Count(args...);
+  }
+};
+
+// With V8_X64_16BYTE_STACK_ALIGNMENT, every group of values pushed by
+// BaselineAssembler::Push/PushReverse is rounded up to an even number of
+// slots by pushing one padding slot BEFORE the first value, i.e. the padding
+// ends up at the HIGHEST address of the group (same convention as arm64).
+inline void MaybePushPadding(BaselineAssembler* basm, int push_count) {
+  if (ShouldPadArguments(push_count)) {
+    basm->masm()->PushTaggedStackPadding();
+  }
+}
+
 }  // namespace detail
 
 template <typename... T>
 int BaselineAssembler::Push(T... vals) {
-  return detail::PushAllHelper<T...>::Push(this, vals...);
+  // We have to count the pushes first, to decide whether to add padding before
+  // the first push.
+  int push_count = detail::CountPushHelper<T...>::Count(vals...);
+  detail::MaybePushPadding(this, push_count);
+  int pushed = detail::PushAllHelper<T...>::Push(this, vals...);
+  DCHECK_EQ(push_count, pushed);
+  return pushed;
 }
 
 template <typename... T>
 void BaselineAssembler::PushReverse(T... vals) {
+  // As in Push, the padding (if any) goes before the first pushed value, which
+  // for PushReverse is the last element of {vals}. This keeps the padding at
+  // the highest address, above the last JS argument.
+  int push_count = detail::CountPushHelper<T...>::Count(vals...);
+  detail::MaybePushPadding(this, push_count);
   detail::PushAllHelper<T...>::PushReverse(this, vals...);
 }
 
 template <typename... T>
 void BaselineAssembler::Pop(T... registers) {
   (__ Pop(registers), ...);
+  // Undo the padding that a matching Push(...) of the same number of values
+  // inserted before its first value (see detail::MaybePushPadding). The
+  // padding sits above the popped values, so it is dropped last.
+  if (ShouldPadArguments(static_cast<int>(sizeof...(registers)))) {
+    __ DropStackPadding();
+  }
 }
+
+void BaselineAssembler::PushUnpadded(Register reg) { __ Push(reg); }
 
 void BaselineAssembler::LoadTaggedField(Register output, Register source,
                                         int offset) {
@@ -585,18 +636,6 @@ void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
     DCHECK_LT(weight, 0);
     __ j(greater_equal, skip_interrupt_label);
   }
-}
-
-void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
-    Register weight, Label* skip_interrupt_label) {
-  ASM_CODE_COMMENT(masm_);
-  ScratchRegisterScope scratch_scope(this);
-  Register feedback_cell = scratch_scope.AcquireScratch();
-  LoadFeedbackCell(feedback_cell);
-  __ addl(
-      FieldOperand(feedback_cell, offsetof(FeedbackCell, interrupt_budget_)),
-      weight);
-  if (skip_interrupt_label) __ j(greater_equal, skip_interrupt_label);
 }
 
 void BaselineAssembler::LdaContextSlotNoCell(Register context, uint32_t index,
@@ -735,27 +774,7 @@ void BaselineAssembler::EmitReturn(MacroAssembler* masm) {
   ASM_CODE_COMMENT(masm);
   BaselineAssembler basm(masm);
 
-  Register weight = BaselineLeaveFrameDescriptor::WeightRegister();
   Register params_size = BaselineLeaveFrameDescriptor::ParamsSizeRegister();
-
-  {
-    ASM_CODE_COMMENT_STRING(masm, "Update Interrupt Budget");
-
-    Label skip_interrupt_label;
-    __ AddToInterruptBudgetAndJumpIfNotExceeded(weight, &skip_interrupt_label);
-    {
-      __ masm()->SmiTag(params_size);
-      __ Push(params_size, kInterpreterAccumulatorRegister);
-
-      __ LoadContext(kContextRegister);
-      __ Push(MemOperand(rbp, InterpreterFrameConstants::kFunctionOffset));
-      __ CallRuntime(Runtime::kBytecodeBudgetInterrupt_Sparkplug, 1);
-
-      __ Pop(kInterpreterAccumulatorRegister, params_size);
-      __ masm()->SmiUntagUnsigned(params_size);
-    }
-    __ Bind(&skip_interrupt_label);
-  }
 
   BaselineAssembler::ScratchRegisterScope scope(&basm);
   Register scratch = scope.AcquireScratch();

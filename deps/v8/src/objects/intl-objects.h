@@ -385,8 +385,11 @@ class Intl {
     std::map<std::string, std::string> extensions;
   };
 
+  using AvailableLocalesGetter = const std::set<std::string>& (*)();
+
+  // Calls `get_available_locales` only if needed; building the set is slow.
   static Maybe<ResolvedLocale> ResolveLocale(
-      Isolate* isolate, const std::set<std::string>& available_locales,
+      Isolate* isolate, AvailableLocalesGetter get_available_locales,
       const std::vector<std::string>& requested_locales, MatcherOption options,
       const std::set<std::string>& relevant_extension_keys);
 

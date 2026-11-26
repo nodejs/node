@@ -12,6 +12,7 @@
 #include "src/heap/cppgc-internal/heap-object-header.h"
 #include "src/heap/cppgc-internal/heap-page.h"
 #include "src/heap/cppgc-internal/marker.h"
+#include "src/heap/cppgc-internal/memory.h"
 #include "src/heap/cppgc-internal/stats-collector.h"
 #include "test/unittests/heap/cppgc/tests.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -96,6 +97,20 @@ class CompactorTest : public testing::TestWithPlatform {
         SweepingConfig::CompactableSpaceHandling::kIgnore};
     heap()->sweeper().Start(sweeping_config);
     heap()->sweeper().FinishIfRunning();
+  }
+
+  // Purges the last system page of the payload of `page`, which must be
+  // unused. Returns the size of the purged memory.
+  size_t PurgeLastSystemPage(NormalPage* page, const void* last_object) {
+    const size_t commit_page_size = size_t{1}
+                                    << heap()->commit_page_size_bits();
+    const Address purge_end = reinterpret_cast<Address>(RoundDown(
+        reinterpret_cast<uintptr_t>(page->PayloadEnd()), commit_page_size));
+    const Address purge_start = purge_end - commit_page_size;
+    CHECK_LT(static_cast<ConstAddress>(last_object) + sizeof(CompactableGCed),
+             purge_start);
+    page->PurgeSystemPages(purge_start, commit_page_size);
+    return commit_page_size;
   }
 
   Heap* heap() { return Heap::From(heap_.get()); }
@@ -203,6 +218,56 @@ TEST_F(CompactorTest, CompactAcrossPages) {
   // Half of object were destroyed.
   EXPECT_EQ(kObjectsPerPage, CompactableGCed::g_destructor_callcount);
   EXPECT_EQ(reference, holder->objects[0]);
+}
+
+TEST_F(CompactorTest, CompactedPageHasNoPurgedMemory) {
+  if (!CanPurgeMemory()) return;
+  heap()->set_purge_memory_mode(PurgeMemoryMode::kDiscard);
+  static constexpr int kNumObjects = 10;
+  Persistent<CompactableHolder<kNumObjects>> holder =
+      MakeGarbageCollected<CompactableHolder<kNumObjects>>(
+          GetAllocationHandle(), GetAllocationHandle());
+  auto* page = NormalPage::From(
+      BasePage::FromPayload(holder->objects[kNumObjects - 1].Get()));
+  const size_t purged_size =
+      PurgeLastSystemPage(page, holder->objects[kNumObjects - 1].Get());
+  EXPECT_EQ(purged_size, page->purged_memory());
+  EXPECT_EQ(purged_size, heap()->stats_collector()->purged_memory_size());
+  StartGC();
+  EndGC();
+  // The page was compacted into and its remainder was made inaccessible, which
+  // wrote to all of its payload.
+  EXPECT_EQ(page, BasePage::FromPayload(holder->objects[0].Get()));
+  EXPECT_EQ(0u, page->purged_memory());
+  EXPECT_EQ(0u, heap()->stats_collector()->purged_memory_size());
+}
+
+TEST_F(CompactorTest, ReleasedPageHasNoPurgedMemory) {
+  if (!CanPurgeMemory()) return;
+  heap()->set_purge_memory_mode(PurgeMemoryMode::kDiscard);
+  Persistent<CompactableHolder<1>> holder =
+      MakeGarbageCollected<CompactableHolder<1>>(GetAllocationHandle(),
+                                                 GetAllocationHandle());
+  CompactableGCed* reference = holder->objects[0];
+  static constexpr size_t kObjectsPerPage =
+      kPageSize / (sizeof(CompactableGCed) + sizeof(HeapObjectHeader));
+  for (size_t i = 0; i < kObjectsPerPage; ++i) {
+    holder->objects[0] =
+        MakeGarbageCollected<CompactableGCed>(GetAllocationHandle());
+  }
+  // The last allocated object is on a second page.
+  auto* second_page =
+      NormalPage::From(BasePage::FromPayload(holder->objects[0].Get()));
+  ASSERT_NE(BasePage::FromPayload(reference), second_page);
+  const size_t purged_size =
+      PurgeLastSystemPage(second_page, holder->objects[0].Get());
+  EXPECT_EQ(purged_size, heap()->stats_collector()->purged_memory_size());
+  StartGC();
+  EndGC();
+  // The only live object was moved to the first page and the second page was
+  // released, which removes its purged memory from the heap-wide counter.
+  EXPECT_EQ(reference, holder->objects[0]);
+  EXPECT_EQ(0u, heap()->stats_collector()->purged_memory_size());
 }
 
 TEST_F(CompactorTest, InteriorSlotToPreviousObject) {

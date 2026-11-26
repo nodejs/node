@@ -30,13 +30,10 @@ class V8_BASE_EXPORT Bignum {
   void AssignUInt64(uint64_t value);
   void AssignBignum(const Bignum& other);
 
-  void AssignDecimalString(std::string_view value);
   void AssignHexString(std::string_view value);
 
   void AssignPowerUInt16(uint16_t base, int exponent);
 
-  void AddUInt16(uint16_t operand);
-  void AddUInt64(uint64_t operand);
   void AddBignum(const Bignum& other);
   // Precondition: this >= other.
   void SubtractBignum(const Bignum& other);
@@ -45,7 +42,6 @@ class V8_BASE_EXPORT Bignum {
   void ShiftLeft(int shift_amount);
   void MultiplyByUInt32(uint32_t factor);
   void MultiplyByUInt64(uint64_t factor);
-  void MultiplyByPowerOfTen(int exponent);
   void Times10() { return MultiplyByUInt32(10); }
   // Pseudocode:
   //  int result = this / other;

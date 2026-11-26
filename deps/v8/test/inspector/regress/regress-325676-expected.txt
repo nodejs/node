@@ -1,0 +1,13 @@
+Tests regress-325676.
+at debugger: undefined
+after debugger: evaluated
+at debugger: value
+after debugger: evaluated
+at debugger: 1
+after debugger: evaluated
+at debugger: value
+after debugger: evaluated
+at debugger: 1
+after debugger: evaluated
+at debugger: value
+after debugger: evaluated

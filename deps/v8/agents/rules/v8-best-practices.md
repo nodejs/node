@@ -40,7 +40,20 @@ When proposing a fix, ensure the code adheres to V8 standards:
   owning class rather than duplicating low-level steps across callers.
 - **Mandatory Reproducer Rule**: Unless explicitly specified otherwise by the
   user, **every single bug fix in V8 MUST be uploaded with a working reproducer
-  (regression test)**. Uploading just the fix alone is NEVER acceptable.
+  (regression test)**. Uploading just the fix alone is NEVER acceptable. Always
+  verify that every regression test (and every test case within it) a) actually
+  exercises the specific code path/fix being tested and b) fails without the fix
+  (for `%OptimizeFunctionOnNextCall` tests targeting Maglev, omit
+  `--optimize-on-next-call-optimizes-to-maglev` from `// Flags:` in the test
+  file and verify failure under `--variants=stress_maglev`).
+- **Documentation Sync Requirement**: Whenever a CL changes V8 architecture,
+  data structures, object layouts, pipeline passes, bytecodes/IR nodes, flags,
+  or cross-tier invariants (or adds a feature or bug fix that invalidates or
+  expands a concept covered in `docs/`), search `docs/` (`git --no-pager grep`
+  across `docs/` or run the `doc-invalidation-checker` skill) and update the
+  relevant `.md` file(s) in the same CL. Keep `docs/security/triaging.md`
+  unchanged unless explicitly requested by the user, as it is maintained
+  manually.
 
 ## Technical Guardrails & Guidelines
 
@@ -55,10 +68,11 @@ When proposing a fix, ensure the code adheres to V8 standards:
   `namespace {}` in the `.cc` file rather than as private class methods.
 - **Pre-Upload Diff Self-Review**: Inspect `git diff` before uploading to ensure
   minimal diff noise, tight local variable scopes (declaring variables at first
-  use), and clean regression tests.
-- **Cleanup Constraint**: Keep diffs small by changing only the code intended
-  for the task. Propose cleanups to nearby code as a separate patch to keep the
-  current change focused.
+  use), clean regression tests, and synchronized `docs/` updates for any
+  modified invariants, classes, passes, or flags.
+- **Cleanup Constraint**: Keep diffs small by changing only the code and `docs/`
+  documentation intended for the task. Propose cleanups to nearby unrelated code
+  as a separate patch to keep the current change focused.
 - **Supported Architectures**: For most changes and bug fixes, it is fine to
   omit not officially supported architectures and only implement or fix the main
   four: `ia32`, `x64`, `arm`, and `arm64`. Architectures without official Google
@@ -76,6 +90,13 @@ When proposing a fix, ensure the code adheres to V8 standards:
 - **Match test configuration to build:** Ensure you are running tests against
   the correct build type (e.g., run mjsunit from out/x64.debug if you built
   x64.debug).
+- **Relocating or copying `d8` binaries (`icudtl.dat` and
+  `snapshot_blob.bin`):** `d8` resolves `icudtl.dat` and `snapshot_blob.bin`
+  relative to the executable directory. When comparing baseline vs. modified
+  `d8` across commits, either use a separate build directory (e.g.,
+  `out/x64.release-baseline`) or, if copying `out/<config>/d8` to a scratch
+  directory, also copy (do not symlink) `icudtl.dat` and `snapshot_blob.bin`
+  alongside the copied binary.
 - **Check surrounding code for conventions:** Before adding new code, always
   study the existing patterns, naming conventions, and architectural choices in
   the file and directory you are working in.
@@ -86,3 +107,33 @@ When proposing a fix, ensure the code adheres to V8 standards:
   instead.
 - **Be careful with forward declarations:** Many types are forward declared; if
   you want to use them, you'll need to find the definition.
+
+## Inspector & Debugger Invariants
+
+- **Side-effect check mode is non-reentrant and per-call:**
+  `Debug::StartSideEffectCheckMode()` asserts
+  `DCHECK_EQ(isolate_->debug_execution_mode(), DebugInfo::kBreakpoints)` and is
+  not re-entrant. `DebugEvaluate::Global`, `DebugEvaluate::Evaluate`, and
+  `v8::debug::CallFunctionOn` enable it only around the single user-code
+  `Execution::Call`. Inspector post-processing that touches JS objects (such as
+  `InjectedScript::wrapEvaluateResult`, `createExceptionDetails`, or
+  `.repl_result` lookup) must run inside an explicit
+  `v8::debug::SideEffectCheckScope` when `throwOnSideEffect` is enabled; never
+  nest `StartSideEffectCheckMode()` or `SideEffectCheckScope` inside an already
+  active side-effect check mode.
+- **Execution termination vs. `v8::TryCatch` and `PrepareForExecutionScope`:**
+  `v8::TryCatch::HasCaught()` returns `true` even on execution termination
+  (while `TryCatch::Exception()` returns `v8::Null()`), and
+  `PrepareForExecutionScope` calls `i_isolate->clear_internal_exception()` on
+  entry. Always check `tryCatch.HasTerminated() || !tryCatch.CanContinue()`
+  before `tryCatch.HasCaught()`, and stop making V8 API calls once
+  `isolate->IsExecutionTerminating()` is true unless explicitly propagating or
+  recovering termination.
+- **Avoid `toStringView("literal")` dangling pointers:**
+  `v8_inspector::toStringView` (`src/inspector/string-util.h`) only provides
+  overloads for `const String16&` and `const char* str[N]` (array of pointers,
+  not a string literal reference). Passing a string literal decays to
+  `const char*`, constructs a temporary `String16`, and returns a `StringView`
+  pointing to freed memory. Use
+  `StringView(reinterpret_cast<const uint8_t*>(lit), sizeof(lit) - 1)` or bind a
+  local `String16` variable that outlives the `StringView` consumer.

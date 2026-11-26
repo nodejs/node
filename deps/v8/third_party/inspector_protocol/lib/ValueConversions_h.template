@@ -222,8 +222,10 @@ struct ValueConversions<DictionaryValue> {
     static std::unique_ptr<DictionaryValue> fromValue(protocol::Value* value, ErrorSupport* errors)
     {
         bool success = value && value->type() == protocol::Value::TypeObject;
-        if (!success)
+        if (!success) {
             errors->AddError("object expected");
+            return nullptr;
+        }
         return DictionaryValue::cast(value->clone());
     }
 

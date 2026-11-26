@@ -24,6 +24,7 @@
 #include "EFI_TIME.h"
 #include "char16_t.h"
 #include "size_t.h"
+#include <stdbool.h>
 
 #define EFI_RUNTIME_SERVICES_SIGNATURE 0x56524553544e5552
 #define EFI_RUNTIME_SERVICES_REVISION EFI_SPECIFICATION_VERSION

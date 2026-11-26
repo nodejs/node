@@ -29,10 +29,13 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <algorithm>
 #include <cmath>
 #include <limits>
 #include <optional>
+#include <vector>
 
+#include "src/base/memory.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/codegen/arm64/assembler-arm64-inl.h"
 #include "src/codegen/arm64/decoder-arm64-inl.h"
@@ -282,7 +285,7 @@ class AssemblerArm64Test : public i::TestWithIsolate {
  public:
   AssemblerArm64Test() {
 #ifdef V8_ENABLE_GENERATED_CODE_VALIDATOR
-    v8_flags.validate_generated_code = false;
+    v8_flags.validate_generated_code.Set(false);
 #endif  // V8_ENABLE_GENERATED_CODE_VALIDATOR
   }
 
@@ -1718,6 +1721,23 @@ TEST_F(AssemblerArm64Test, adr) {
   CHECK_EQUAL_64(0x0, x1);
 }
 
+TEST_F(AssemblerArm64Test, adr_unaligned) {
+  SETUP();
+
+  START();
+  __ adr(x0, 0);
+  __ adr(x1, -3);
+  __ adr(x2, 2);
+  __ Sub(x1, x1, x0);
+  __ Sub(x2, x2, x0);
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_64(1, x1);
+  CHECK_EQUAL_64(10, x2);
+}
+
 TEST_F(AssemblerArm64Test, adr_far) {
   int max_range = 1 << (Instruction::ImmPCRelRangeBitwidth - 1);
   SETUP_SIZE(max_range + 1000 * kInstrSize);
@@ -2613,6 +2633,113 @@ TEST_F(AssemblerArm64Test, far_branch_veneer_broken_link_chain) {
 
   CHECK_EQUAL_64(0x3, x0);
   CHECK_EQUAL_64(0x1, x1);
+}
+
+TEST_F(AssemblerArm64Test, far_branch_veneer_same_label) {
+  // Several branches to the same label that all need a veneer in the same
+  // pool. The TBZs are removed from the label's link chain one after another,
+  // some from the middle of the chain (between CBZs) and some after a veneer
+  // for an earlier TBZ has been linked into the chain.
+  constexpr int kBranchCount = 6;
+  int max_range = Instruction::ImmBranchRange(TestBranchType);
+
+  SETUP_SIZE(max_range + 1000 * kInstrSize);
+
+  START();
+
+  Label fail, done, far_target;
+  Label tests[kBranchCount];
+
+  __ Mov(x0, 0);
+  __ Mov(x1, 1);
+  __ Mov(x10, 0);
+
+  for (int i = 0; i < kBranchCount; ++i) {
+    __ Bind(&tests[i]);
+    __ Mov(x0, i + 1);
+    if (i % 2 == 0) {
+      __ Tbz(x10, 7, &far_target);
+    } else {
+      __ Cbz(x10, &far_target);
+    }
+  }
+
+  GenerateLandingNops(&masm, max_range / kInstrSize + 1, &fail);
+  __ B(&fail);
+
+  __ Bind(&far_target);
+  for (int i = 1; i < kBranchCount; ++i) {
+    __ Cmp(x0, i);
+    __ B(eq, &tests[i]);
+  }
+
+  __ B(&done);
+  __ Bind(&fail);
+  __ Mov(x1, 0);
+  __ Bind(&done);
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_64(kBranchCount, x0);
+  CHECK_EQUAL_64(0x1, x1);
+}
+
+TEST_F(AssemblerArm64Test, unresolved_branches_compact) {
+  Zone zone(isolate()->allocator(), ZONE_NAME);
+  UnresolvedBranches branches(&zone);
+  Label label;
+  std::vector<int> unresolved;
+
+  auto record = [&](int index) {
+    const int pc_offset = index * kInstrSize;
+    if (index % 2 == 0) {
+      branches.Record<TestBranchType>(
+          pc_offset, pc_offset + Instruction::ImmBranchRange(TestBranchType),
+          &label);
+    } else {
+      branches.Record<CondBranchType>(
+          pc_offset, pc_offset + Instruction::ImmBranchRange(CondBranchType),
+          &label);
+    }
+    unresolved.push_back(pc_offset);
+  };
+  auto resolve = [&](int index) {
+    const int pc_offset = index * kInstrSize;
+    branches.Resolve(pc_offset);
+    unresolved.erase(
+        std::find(unresolved.begin(), unresolved.end(), pc_offset));
+  };
+
+  // Interleave TB[N]Z and B.cond entries, then advance both queue heads past
+  // a resolved prefix.
+  constexpr int kCount = 200;
+  for (int i = 0; i < kCount; ++i) record(i);
+  for (int i = 0; i < 10; ++i) resolve(i);
+  CHECK_EQ(10 * kInstrSize, branches.First()->pc_offset);
+
+  // Resolve enough entries to trigger compaction on the next Record.
+  for (int i = 10; i < kCount; ++i) {
+    if (i % 3 != 0) resolve(i);
+  }
+  CHECK_EQ(unresolved.size(), branches.size());
+  record(kCount);
+  record(kCount + 1);
+  CHECK_EQ(unresolved.size(), branches.size());
+
+  // All TB[N]Z entries have a lower limit than all B.cond entries.
+  std::stable_partition(unresolved.begin(), unresolved.end(),
+                        [](int pc_offset) { return pc_offset % 8 == 0; });
+  for (int pc_offset : unresolved) {
+    const UnresolvedBranches::Info* first = branches.First();
+    CHECK_NOT_NULL(first);
+    CHECK_EQ(pc_offset, first->pc_offset);
+    CHECK_EQ(&label, first->label);
+    branches.Resolve(pc_offset);
+  }
+  CHECK(branches.empty());
+  CHECK_NULL(branches.First());
 }
 
 TEST_F(AssemblerArm64Test, branch_type) {
@@ -6875,8 +7002,8 @@ void AssemblerArm64Test::LdrLiteralRangeHelper(
 
   // Emit prepadding to influence alignment of the pool.
   bool currently_aligned = IsAligned(__ pc_offset(), kInt64Size);
-  if ((unaligned_emission == EmitAtUnaligned && currently_aligned) ||
-      (unaligned_emission == EmitAtAligned && !currently_aligned)) {
+  if ((unaligned_emission == EmitAtUnaligned && !currently_aligned) ||
+      (unaligned_emission == EmitAtAligned && currently_aligned)) {
     __ Nop();
   }
 
@@ -6890,7 +7017,7 @@ void AssemblerArm64Test::LdrLiteralRangeHelper(
   auto PoolSizeAt = [&](int pc_offset) {
     // To determine padding, consider the size of the prologue of the pool,
     // and the jump around the pool, which we always need.
-    size_t prologue_size = 2 * kInstrSize + kInstrSize;
+    size_t prologue_size = kInstrSize + kInstrSize;
     size_t pc = pc_offset + prologue_size;
     const size_t padding = IsAligned(pc, kInt64Size) ? 0 : kInt32Size;
     CHECK_EQ(padding == 0, unaligned_emission == EmitAtAligned);
@@ -6947,13 +7074,11 @@ void AssemblerArm64Test::LdrLiteralRangeHelper(
     CHECK_EQ(expected_pool_size, branch->ImmPCOffset());
     Instruction* marker =
         reinterpret_cast<Instruction*>(pool_start + kInstrSize);
-    CHECK(marker->IsLdrLiteralX());
-    size_t pool_data_start_offset = pc_offset_before_emission + kInstrSize;
+    CHECK(marker->IsUdf());
+    size_t pool_data_start_offset = pc_offset_before_emission + 2 * kInstrSize;
     size_t padding =
         IsAligned(pool_data_start_offset, kInt64Size) ? 0 : kInt32Size;
-    size_t marker_size = kInstrSize;
-    CHECK_EQ((first_pool_size_bytes + marker_size + padding) / kInt32Size,
-             marker->ImmLLiteral());
+    CHECK_EQ((first_pool_size_bytes + padding) / kInt32Size, marker->ImmUdf());
   }
 
   RUN();
@@ -11957,7 +12082,7 @@ TEST_F(AssemblerArm64Test, system_msr) {
 }
 
 TEST_F(AssemblerArm64Test, system_pauth_b) {
-  i::v8_flags.sim_abort_on_bad_auth = false;
+  i::v8_flags.sim_abort_on_bad_auth.Set(false);
   SETUP();
   START();
 
@@ -15899,6 +16024,161 @@ TEST_F(AssemblerArm64Test, internal_reference_linked) {
   CHECK_EQUAL_64(0x1, x0);
 }
 
+namespace {
+
+struct InternalReferencesWithVeneers {
+  std::vector<int> reference_offsets;
+  int target_offset;
+  int origin_count;
+};
+
+// Mixed chain split twice by veneer pools while keeping dcptr links alive:
+//   (1),(2) dcptr <far>
+//   (3) B.cond <far>, (4) CBZ <far>
+//   (5) TBZ <veneer A>, (6) TBZ <far>, (7) dcptr <far>
+//   veneer A: B <far>   -- splits chain, dropping (3)-(6) onto veneer A
+//   (8) TBZ <veneer B>, (9) TBZ <far>
+//   veneer B: B <far>   -- splits chain again across (7)
+//   far:
+// Execution visits (1)..(9) in sequence via x0; x1 stays 1 iff none miss.
+InternalReferencesWithVeneers GenerateInternalReferencesWithVeneers(
+    MacroAssembler* masm) {
+  const int max_range = Instruction::ImmBranchRange(TestBranchType);
+  const int inter_nops = (max_range / 2 + max_range / 10) / kInstrSize;
+
+  InternalReferencesWithVeneers result;
+  Label fail, done, far_target;
+  static constexpr int kOriginCount = 9;
+  Label origins[kOriginCount];
+  int origin = 0;
+
+  auto next_origin = [&]() {
+    masm->Bind(&origins[origin]);
+    masm->Mov(x0, ++origin);
+  };
+  auto jump_table = [&](int count) {
+    Assembler::BlockPoolsScope block_pools(masm);
+    Label base;
+    masm->Adr(x11, &base);
+    masm->Ldr(x11, MemOperand(x11, x12, LSL, kSystemPointerSizeLog2));
+    masm->Br(x11);
+    masm->Bind(&base);
+    for (int i = 0; i < count; i++) {
+      result.reference_offsets.push_back(masm->pc_offset());
+      masm->dcptr(&far_target);
+    }
+  };
+  auto tbz = [&]() {
+    const int offset = masm->pc_offset();
+    masm->Tbz(x10, 7, &far_target);
+    // Must emit a single TBZ, not TBNZ+B, while the previous link is in range.
+    CHECK_EQ(1 * kInstrSize, masm->pc_offset() - offset);
+  };
+
+  masm->Mov(x0, 0);
+  masm->Mov(x1, 1);
+  masm->Mov(x10, 0);
+
+  // (1), (2): two consecutive dcptr slots.
+  Label jump;
+  next_origin();
+  masm->Mov(x12, 0);
+  masm->B(&jump);
+  next_origin();
+  masm->Mov(x12, 1);
+  masm->Bind(&jump);
+  jump_table(2);
+
+  // (3) B.cond, (4) CBZ.
+  next_origin();
+  masm->Cmp(x10, 0);
+  masm->B(eq, &far_target);
+  masm->B(&fail);
+
+  next_origin();
+  masm->Cbz(x10, &far_target);
+  GenerateLandingNops(masm, inter_nops, &fail);
+
+  // (5) TBZ, (6) TBZ, (7) dcptr -> veneer A splits (6) from (4) after (7).
+  next_origin();
+  tbz();
+  GenerateLandingNops(masm, inter_nops, &fail);
+
+  next_origin();
+  tbz();
+  masm->B(&fail);
+
+  next_origin();
+  masm->Mov(x12, 0);
+  jump_table(1);
+  GenerateLandingNops(masm, inter_nops, &fail);
+
+  // (8) TBZ, (9) TBZ -> veneer B splits (9) from veneer A across (7).
+  next_origin();
+  tbz();
+  GenerateLandingNops(masm, inter_nops + (max_range / 4) / kInstrSize, &fail);
+
+  next_origin();
+  tbz();
+  GenerateLandingNops(masm, inter_nops, &fail);
+  masm->B(&fail);
+
+  CHECK_EQ(kOriginCount, origin);
+  masm->Bind(&far_target, BranchTargetIdentifier::kBtiJump);
+  for (int i = 1; i < kOriginCount; i++) {
+    masm->Cmp(x0, i);
+    masm->B(eq, &origins[i]);
+  }
+  masm->B(&done);
+  masm->Bind(&fail);
+  masm->Mov(x1, 0);
+  masm->Bind(&done);
+
+  result.target_offset = far_target.pos();
+  result.origin_count = kOriginCount;
+  return result;
+}
+
+void CheckInternalReferences(Address base,
+                             const InternalReferencesWithVeneers& generated) {
+  CHECK_EQ(3u, generated.reference_offsets.size());
+  for (int offset : generated.reference_offsets) {
+    CHECK_EQ(base + generated.target_offset,
+             base::ReadUnalignedValue<Address>(base + offset));
+  }
+}
+
+}  // namespace
+
+TEST_F(AssemblerArm64Test, internal_reference_veneer_mixed_link_chain) {
+  SETUP_SIZE(4 * Instruction::ImmBranchRange(TestBranchType));
+  START();
+  auto generated = GenerateInternalReferencesWithVeneers(&masm);
+  END();
+  CheckInternalReferences(code->instruction_start(), generated);
+  RUN();
+  CHECK_EQUAL_64(generated.origin_count, x0);
+  CHECK_EQUAL_64(0x1, x1);
+}
+
+TEST_F(AssemblerArm64Test, internal_reference_veneer_grow_buffer) {
+  // Verify GrowBuffer() relocates dcptr entries both while linked and after
+  // bind().
+  Isolate* isolate = i_isolate();
+  HandleScope scope(isolate);
+  MacroAssembler masm(isolate, CodeObjectRequired{false},
+                      NewAssemblerBuffer(AssemblerBase::kDefaultBufferSize));
+  auto generated = GenerateInternalReferencesWithVeneers(&masm);
+  CHECK_LT(AssemblerBase::kDefaultBufferSize, generated.target_offset);
+
+  const int buffer_size = __ buffer_size();
+  while (__ buffer_size() == buffer_size) {
+    __ Nop();
+  }
+  CheckInternalReferences(reinterpret_cast<Address>(__ buffer_start()),
+                          generated);
+}
+
 TEST_F(AssemblerArm64Test, scalar_movi) {
   SETUP();
   START();
@@ -16501,7 +16781,7 @@ TEST_F(AssemblerArm64Test, cssc_smax) {
 TEST_F(AssemblerArm64Test, sve_bit_permute) {
 #ifdef V8_ENABLE_GENERATED_CODE_VALIDATOR
   // TODO(523128533): Disarm doesn't support sve.
-  v8_flags.validate_generated_code = false;
+  v8_flags.validate_generated_code.Set(false);
 #endif  // V8_ENABLE_GENERATED_CODE_VALIDATOR
 
   SETUP();

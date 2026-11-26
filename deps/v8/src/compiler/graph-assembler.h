@@ -32,7 +32,6 @@ class Reducer;
   V(BitcastFloat32ToInt32)               \
   V(BitcastFloat64ToInt64)               \
   V(BitcastInt32ToFloat32)               \
-  V(BitcastWord32ToWord64)               \
   V(BitcastInt64ToFloat64)               \
   V(ChangeFloat32ToFloat64)              \
   V(ChangeFloat64ToInt32)                \
@@ -537,6 +536,7 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   }
 
   void ConnectUnreachableToEnd();
+  void MergeControlToEnd(Node* control);
 
   // Add an inline reducers such that nodes added to the graph will be run
   // through the reducers and possibly further lowered. Each reducer should
@@ -726,7 +726,7 @@ void GraphAssembler::MergeState(
                                         effect(), label->control_);
       Node* terminate = graph()->NewNode(common()->Terminate(), label->effect_,
                                          label->control_);
-      NodeProperties::MergeControlToEnd(graph(), common(), terminate);
+      MergeControlToEnd(terminate);
       for (size_t i = 0; i < var_count; i++) {
         label->bindings_[i] =
             graph()->NewNode(common()->Phi(label->representations_[i], 2),

@@ -27,9 +27,9 @@ import sys
 import tempfile
 
 DEFAULT_LINTER = ('/google/src/files/head/depot/google3/learning/gemini/agents/'
-                  'skills/communication/asd_ste100/ste_lint.py')
+                  'skills/communication/asd_ste100/ste_lint_main.py')
 SPEC = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), 'ste_lint.vpython3')
+    os.path.dirname(os.path.abspath(__file__)), 'ste_lint.vpython.toml')
 REDLINE = 'experimental/redline/'
 FOOTER = re.compile(r'^[A-Za-z][A-Za-z-]*: \S')
 HUNK = re.compile(r'^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@')
@@ -55,12 +55,29 @@ def default_base():
   sys.exit('Cannot find the base revision. Use --base=REV.')
 
 
+def linter_env(linter):
+  """Returns the environment for the linter subprocess."""
+  env = os.environ.copy()
+  full = os.path.abspath(linter)
+  if '/google3/' in full:
+    depot = full.split('/google3/', 1)[0]
+    existing = env.get('PYTHONPATH', '')
+    env['PYTHONPATH'] = f'{depot}:{existing}' if existing else depot
+  return env
+
+
 def lint(linter, path):
   """Returns the hard and the advisory findings for the file at path."""
   proc = subprocess.run(
       ['vpython3', '-vpython-spec', SPEC, linter, '--json', path],
       capture_output=True,
-      text=True)
+      text=True,
+      env=linter_env(linter))
+  if not proc.stdout.strip():
+    detail = proc.stderr.strip()
+    extra = f'\n{detail}' if detail else ''
+    sys.exit(f'The linter printed nothing on {path} (exit {proc.returncode}): '
+             f'{linter} produced no output (use ste_lint_main.py).{extra}')
   try:
     findings = json.loads(proc.stdout).get('violations', [])
   except json.JSONDecodeError:

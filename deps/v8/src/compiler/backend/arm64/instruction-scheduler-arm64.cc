@@ -56,6 +56,8 @@ ArchInstResource InstructionScheduler::GetInstructionResource(
       return ArchInstResource::kLoad;
 #endif  // V8_ENABLE_SIMD128
 
+    case kArm64ClaimPoke:
+    case kArm64ClaimPokePair:
     case kArm64Poke:
     case kArm64PokePair:
     case kArm64Str:
@@ -794,6 +796,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
       return kIsLoadOperation;
 
     case kArm64Claim:
+    case kArm64ClaimPoke:
+    case kArm64ClaimPokePair:
     case kArm64Poke:
     case kArm64PokePair:
     case kArm64StrH:

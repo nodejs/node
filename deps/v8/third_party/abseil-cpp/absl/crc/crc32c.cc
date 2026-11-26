@@ -44,8 +44,8 @@ crc32c_t UnextendCrc32cByZeroes(crc32c_t initial_crc, size_t length) {
   return static_cast<crc32c_t>(crc ^ kCRC32Xor);
 }
 
-// Called by `absl::ExtendCrc32c()` on strings with size > 64 or when hardware
-// CRC32C support is missing.
+// Called by `absl::ExtendCrc32c()` on strings with size >= `kSmallCutoff` or
+// when hardware CRC32C support is missing.
 crc32c_t ExtendCrc32cInternal(crc32c_t initial_crc,
                               absl::string_view buf_to_add) {
   uint32_t crc = static_cast<uint32_t>(initial_crc) ^ kCRC32Xor;

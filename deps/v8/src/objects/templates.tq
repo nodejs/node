@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-@cppScope('TemplateInfo')
+@cppScope('TemplateInfo::Flags')
 bitfield struct TemplateInfoFlags extends uint31 {
   is_cacheable: bool: 1 bit;
   should_promote_to_read_only: bool: 1 bit;
@@ -109,7 +109,7 @@ extern class FunctionTemplateInfo extends TemplateInfoWithProperties {
   callback: ExternalPointer;
 }
 
-@cppScope('ObjectTemplateInfo')
+@cppScope('ObjectTemplateInfo::Flags')
 bitfield struct ObjectTemplateInfoFlags extends uint31 {
   is_immutable_prototype: bool: 1 bit;
   is_code_kind: bool: 1 bit;

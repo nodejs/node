@@ -12,9 +12,9 @@
 #include "asin_utils.h"
 #include "src/__support/FPUtil/FEnvImpl.h"
 #include "src/__support/FPUtil/FPBits.h"
-#include "src/__support/FPUtil/PolyEval.h"
 #include "src/__support/FPUtil/cast.h"
 #include "src/__support/FPUtil/multiply_add.h"
+#include "src/__support/FPUtil/polyeval.h"
 #include "src/__support/FPUtil/sqrt.h"
 #include "src/__support/macros/optimization.h"
 
@@ -78,7 +78,7 @@ LIBC_INLINE float acospif(float x) {
   constexpr double C0_MINUS_1OVERPI =
       (asin_internal::ASINPIF_COEFFS[0] - ONE_OVER_PI_HI) + ONE_OVER_PI_LO;
 
-  double u = fputil::multiply_add(-0.5, x_abs, 0.5);
+  double u = fputil::sub_multiply(0.5, 0.5, x_abs);
   double sqrt_u = fputil::sqrt<double>(u);
   double neg2_sqrt_u = -2.0 * sqrt_u;
 

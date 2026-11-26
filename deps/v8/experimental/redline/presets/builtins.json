@@ -1,4 +1,6 @@
 {
+  "randomize_d8_flags": true,
+  "d8_flag_profile": "runtime",
   "selection": {"seeds": {"strategy": "rarity"}, "partners": {"strategy": "rarity-partner"}, "mutators": {"strategy": "adaptive"},
     "generators": {"strategy": "adaptive", "params": {"weights": {
       "DiscoveredApi": 12, "BuiltinCall": 8, "PrototypeMethodCall": 4, "UnboundMethodCall": 4,

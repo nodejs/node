@@ -27,6 +27,7 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
 #include "src/objects/primitive-heap-object.h"
+#include "src/tracing/trace-event.h"
 #include "src/utils/ostreams.h"
 #include "src/wasm/function-compiler.h"
 #include "src/wasm/module-compiler.h"
@@ -650,7 +651,8 @@ bool WasmEngine::SyncValidate(Isolate* isolate, WasmEnabledFeatures enabled,
 MaybeDirectHandle<WasmModuleObject> WasmEngine::SyncCompile(
     Isolate* isolate, WasmEnabledFeatures enabled_features,
     CompileTimeImports compile_imports, ErrorThrower* thrower,
-    base::UniqueArray<const uint8_t> bytes, std::string_view source_url) {
+    base::UniqueArray<const uint8_t> bytes, std::string_view source_url,
+    MaybeDirectHandle<Map> maybe_map) {
   int compilation_id = next_compilation_id_.fetch_add(1);
   TRACE_EVENT("v8.wasm", "wasm.SyncCompile", "id", compilation_id);
   v8::metrics::Recorder::ContextId context_id =
@@ -711,7 +713,7 @@ MaybeDirectHandle<WasmModuleObject> WasmEngine::SyncCompile(
   // serializable. Instantiation may occur off a deserialized version of this
   // object.
   DirectHandle<WasmModuleObject> module_object =
-      WasmModuleObject::New(isolate, script);
+      WasmModuleObject::New(isolate, script, maybe_map);
 
   // Finish the Wasm script now and make it public to the debugger.
   isolate->debug()->OnAfterCompile(script);
@@ -721,9 +723,11 @@ MaybeDirectHandle<WasmModuleObject> WasmEngine::SyncCompile(
 MaybeDirectHandle<WasmInstanceObject> WasmEngine::SyncInstantiate(
     Isolate* isolate, ErrorThrower* thrower,
     DirectHandle<WasmModuleObject> module_object,
-    MaybeDirectHandle<JSReceiver> imports) {
+    MaybeDirectHandle<JSReceiver> imports,
+    MaybeDirectHandle<Map> maybe_instance_map) {
   TRACE_EVENT("v8.wasm", "wasm.SyncInstantiate");
-  return InstantiateToInstanceObject(isolate, thrower, module_object, imports);
+  return InstantiateToInstanceObject(isolate, thrower, module_object, imports,
+                                     maybe_instance_map);
 }
 
 void WasmEngine::AsyncInstantiate(
@@ -1006,7 +1010,6 @@ DirectHandle<Script> CreateWasmScript(
     DisallowGarbageCollection no_gc;
     Tagged<Script> raw_script = *script;
     raw_script->set_compilation_state(Script::CompilationState::kCompiled);
-    raw_script->set_context_data(isolate->native_context()->debug_context_id());
     raw_script->set_name(*url_str);
     raw_script->set_type(Script::Type::kWasm);
     raw_script->set_source_mapping_url(*source_map_url);
@@ -1676,7 +1679,7 @@ void WasmEngine::FreeNativeModule(NativeModule* native_module) {
     // Note: instead of failing, this CHECK could also crash if `isolate` was
     // deallocated in the meantime (and hence is *not* the current isolate).
     // TODO(clemensb): Add this check to `Isolate::TryGetCurrent()` directly.
-    CHECK_EQ(isolate->thread_id(), ThreadId::Current());
+    CHECK_EQ(isolate->thread_id(), base::ThreadId::Current());
     native_module->counter_updates()->Publish(isolate);
   }
   for (Isolate* isolate : module->second->isolates) {

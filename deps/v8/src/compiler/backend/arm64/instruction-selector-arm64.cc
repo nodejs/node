@@ -1540,7 +1540,9 @@ void InstructionSelector::VisitStore(OpIndex node) {
   // TODO(arm64): I guess this could be done in a better way.
   if (write_barrier_kind != kNoWriteBarrier &&
       !v8_flags.disable_write_barriers) {
-    DCHECK(CanBeTaggedOrCompressedOrTrustedPointer(representation));
+    DCHECK(CanBeTaggedOrCompressedOrTrustedPointer(representation) ||
+           (write_barrier_kind == kSkippedWriteBarrier &&
+            representation == MachineRepresentation::kTaggedSigned));
     AddressingMode addressing_mode;
     InstructionOperand inputs[5];
     size_t input_count = 0;
@@ -1572,6 +1574,8 @@ void InstructionSelector::VisitStore(OpIndex node) {
       inputs[input_count++] = g.UseImmediate64(static_cast<int64_t>(tag));
     } else if (write_barrier_kind == kSkippedWriteBarrier) {
       code = kArchStoreSkippedWriteBarrier;
+      code |= CheckSmiField::encode(representation ==
+                                    MachineRepresentation::kTaggedSigned);
     } else {
       code = kArchStoreWithWriteBarrier;
       const RecordWriteMode record_write_mode =
@@ -1584,7 +1588,9 @@ void InstructionSelector::VisitStore(OpIndex node) {
     }
     InstructionOperand temps[1];
     size_t temp_count = 0;
-    if (write_barrier_kind == kSkippedWriteBarrier) {
+    // The inline Smi check doesn't need a scratch register.
+    if (write_barrier_kind == kSkippedWriteBarrier &&
+        !CheckSmiField::decode(code)) {
       temps[temp_count++] = g.TempRegister();
     }
     Emit(code, 0, nullptr, input_count, inputs, temp_count, temps);
@@ -2900,7 +2906,7 @@ void InstructionSelector::VisitInt32MulHigh(OpIndex node) {
   InstructionOperand const smull_operand = g.TempRegister();
   Emit(kArm64Smull, smull_operand, g.UseRegister(op.left()),
        g.UseRegister(op.right()));
-  Emit(kArm64Asr, g.DefineAsRegister(node), smull_operand, g.TempImmediate(32));
+  Emit(kArm64Lsr, g.DefineAsRegister(node), smull_operand, g.TempImmediate(32));
 }
 
 void InstructionSelector::VisitInt64MulHigh(OpIndex node) {
@@ -3082,12 +3088,6 @@ void InstructionSelector::VisitTryTruncateFloat64ToUint32(OpIndex node) {
   Emit(kArm64Float64ToUint32, output_count, outputs, 1, inputs);
 }
 
-void InstructionSelector::VisitBitcastWord32ToWord64(OpIndex node) {
-  DCHECK(SmiValuesAre31Bits());
-  DCHECK(COMPRESS_POINTERS_BOOL);
-  EmitIdentity(node);
-}
-
 void InstructionSelector::VisitChangeInt32ToInt64(OpIndex node) {
   const ChangeOp& change_op = this->Get(node).template Cast<ChangeOp>();
   const Operation& input_op = this->Get(change_op.input());
@@ -3150,8 +3150,18 @@ bool InstructionSelector::ZeroExtendsWord32ToWord64NoPhis(OpIndex node) {
   switch (op.opcode) {
     case Opcode::kWordBinop:
       return op.Cast<WordBinopOp>().rep == WordRepresentation::Word32();
-    case Opcode::kShift:
-      return op.Cast<ShiftOp>().rep == WordRepresentation::Word32();
+    case Opcode::kShift: {
+      const ShiftOp& shift = op.Cast<ShiftOp>();
+      if (shift.rep != WordRepresentation::Word32()) return false;
+      if ((shift.kind == ShiftOp::Kind::kShiftRightArithmetic ||
+           shift.kind == ShiftOp::Kind::kShiftRightArithmeticShiftOutZeros) &&
+          Get(shift.left()).Is<Opmask::kWord32SignedMulOverflownBits>()) {
+        // VisitWord32Sar combines Word32Sar(Int32MulHigh, const) into a 64-bit
+        // Smull + Asr, which leaves sign bits in the upper 32 bits.
+        return false;
+      }
+      return true;
+    }
     case Opcode::kComparison:
       return op.Cast<ComparisonOp>().rep == RegisterRepresentation::Word32();
     case Opcode::kOverflowCheckedBinop: {
@@ -3251,21 +3261,21 @@ void InstructionSelector::EmitPrepareArguments(
 
   // `arguments` includes alignment "holes". This means that slots bigger than
   // kSystemPointerSize, e.g. Simd128, will span across multiple arguments.
-  int claim_count = static_cast<int>(arguments->size());
-  bool needs_padding = claim_count % 2 != 0;
-  int slot = claim_count - 1;
-  claim_count = RoundUp(claim_count, 2);
-  // Bump the stack pointer.
-  if (claim_count > 0) {
-    // TODO(titzer): claim and poke probably take small immediates.
-    // TODO(titzer): it would be better to bump the sp here only
-    //               and emit paired stores with increment for non c frames.
-    Emit(kArm64Claim, g.NoOutput(), g.TempImmediate(claim_count));
+  int slot_count = static_cast<int>(arguments->size());
+  if (slot_count == 0) return;
+  bool needs_padding = slot_count % 2 != 0;
+  int claim_count = RoundUp(slot_count, 2);
 
-    if (needs_padding) {
-      Emit(kArm64Poke, g.NoOutput(), g.UseImmediate(0),
-           g.TempImmediate(claim_count - 1));
-    }
+  // The store to the lowest slot claims the stack space with a pre-indexed
+  // address, `stp x1, x0, [sp, #-16]!`, when the claim fits the addressing
+  // mode and the lowest slot is not a hole. Otherwise bump the stack pointer
+  // separately.
+  bool claim_with_store =
+      (*arguments)[0].node.valid() &&
+      internal::Assembler::IsImmLSUnscaled(-claim_count * kSystemPointerSize);
+  if (!claim_with_store) {
+    // TODO(titzer): claim and poke probably take small immediates.
+    Emit(kArm64Claim, g.NoOutput(), g.TempImmediate(claim_count));
   }
 
   // Zero-valued constants (e.g. Smi zero) can be stored through the zero
@@ -3278,27 +3288,59 @@ void InstructionSelector::EmitPrepareArguments(
     return g.UseRegisterOrImmediateZero(input.node);
   };
 
-  // Poke the arguments into the stack.
-  while (slot >= 0) {
+  // Poke the arguments into the stack, lowest slot first so that the claiming
+  // store comes before the others.
+  int slot = 0;
+  while (slot < slot_count) {
     PushParameter input0 = (*arguments)[slot];
     // Skip holes in the param array. These represent both extra slots for
     // multi-slot values and padding slots for alignment.
     if (!input0.node.valid()) {
-      slot--;
+      slot++;
       continue;
     }
-    PushParameter input1 = slot > 0 ? (*arguments)[slot - 1] : PushParameter();
-    // Emit a poke-pair if consecutive parameters have the same type.
+    PushParameter input1 =
+        slot + 1 < slot_count ? (*arguments)[slot + 1] : PushParameter();
+    // Emit a poke-pair if consecutive parameters have the same type. The
+    // parameter in the higher slot comes first, as for kArm64PokePair.
     // TODO(arm): Support consecutive Simd128 parameters.
     if (input1.node.valid() &&
         input0.location.GetType() == input1.location.GetType()) {
-      Emit(kArm64PokePair, g.NoOutput(), poke_value(input0), poke_value(input1),
-           g.TempImmediate(slot));
-      slot -= 2;
+      if (slot == 0 && claim_with_store) {
+        Emit(kArm64ClaimPokePair, g.NoOutput(), poke_value(input1),
+             poke_value(input0), g.TempImmediate(claim_count));
+      } else {
+        Emit(kArm64PokePair, g.NoOutput(), poke_value(input1),
+             poke_value(input0), g.TempImmediate(slot + 1));
+      }
+      slot += 2;
+    } else if (needs_padding && slot == slot_count - 1 &&
+               !IsFloatingPoint(input0.location.GetType().representation())) {
+      // Store the padding slot together with the last parameter.
+      if (slot == 0 && claim_with_store) {
+        Emit(kArm64ClaimPokePair, g.NoOutput(), g.UseImmediate(0),
+             poke_value(input0), g.TempImmediate(claim_count));
+      } else {
+        Emit(kArm64PokePair, g.NoOutput(), g.UseImmediate(0),
+             poke_value(input0), g.TempImmediate(slot + 1));
+      }
+      needs_padding = false;
+      slot += 2;
     } else {
-      Emit(kArm64Poke, g.NoOutput(), poke_value(input0), g.TempImmediate(slot));
-      slot--;
+      if (slot == 0 && claim_with_store) {
+        Emit(kArm64ClaimPoke, g.NoOutput(), poke_value(input0),
+             g.TempImmediate(claim_count));
+      } else {
+        Emit(kArm64Poke, g.NoOutput(), poke_value(input0),
+             g.TempImmediate(slot));
+      }
+      slot++;
     }
+  }
+
+  if (needs_padding) {
+    Emit(kArm64Poke, g.NoOutput(), g.UseImmediate(0),
+         g.TempImmediate(claim_count - 1));
   }
 }
 
@@ -4169,12 +4211,19 @@ void VisitAtomicStore(InstructionSelector* selector, OpIndex node,
 
   if (write_barrier_kind != kNoWriteBarrier &&
       !v8_flags.disable_write_barriers) {
-    DCHECK(CanBeTaggedOrCompressedPointer(rep));
+    DCHECK(CanBeTaggedOrCompressedPointer(rep) ||
+           (write_barrier_kind == kSkippedWriteBarrier &&
+            rep == MachineRepresentation::kTaggedSigned));
     DCHECK_EQ(AtomicWidthSize(width), kTaggedSize);
 
     if (write_barrier_kind == kSkippedWriteBarrier) {
       code = kArchAtomicStoreSkippedWriteBarrier;
-      temps[temp_count++] = g.TempRegister();
+      code |=
+          CheckSmiField::encode(rep == MachineRepresentation::kTaggedSigned);
+      // The inline Smi check doesn't need a scratch register.
+      if (!CheckSmiField::decode(code)) {
+        temps[temp_count++] = g.TempRegister();
+      }
     } else {
       RecordWriteMode record_write_mode =
           WriteBarrierKindToRecordWriteMode(write_barrier_kind);
@@ -5854,8 +5903,11 @@ void InstructionSelector::VisitI64x2Mul(OpIndex node) {
   OpIndex left = op.left();
   OpIndex right = op.right();
 
-  // Call unpredicated SVE2 mul if supported.
-  if (IsSupported(SVE2) && CpuFeatures::svevlen() == kSimd128Size) {
+  // Call unpredicated SVE2 mul if supported, but keep in mind that the scalable
+  // vector length is unknown when cross-compiling the built-ins.
+  if (IsSupported(SVE2) &&
+      (isolate() == nullptr || !isolate()->IsGeneratingEmbeddedBuiltins()) &&
+      CpuFeatures::vlenb() == kSimd128Size) {
     return VisitRRR(this, kArm64IMul | LaneSizeField::encode(LaneSize::kL64),
                     node);
   }
@@ -6177,6 +6229,201 @@ bool TryEmitAdd(InstructionSelector* selector, const OpIndex node,
   }
   return false;
 }
+
+// ARM64 has no single instruction for i32x4.dot_i16x8_s, so a standalone dot
+// product lowers to SMULL + SMULL2 + ADDP. Because lane-wise wrapping i32 adds
+// commute with the pairwise add:
+//
+//   dot(a0, b0) + dot(a1, b1) + ...
+//     == ADDP(SMULL(a0, b0) + SMULL(a1, b1) + ...,
+//             SMULL2(a0, b0) + SMULL2(a1, b1) + ...)
+//
+// When an I32x4Add tree sums two or more dot products, accumulate the low and
+// high 16-bit products with SMULL/SMULL2 followed by SMLAL/SMLAL2, fold them
+// with a single ADDP, accumulate any widening multiplies (SMLAL/SMLAL2 or
+// UMLAL/UMLAL2), and add any remaining addends with ADD.
+bool TryEmitSumOfDotProducts(InstructionSelector* selector, OpIndex node) {
+  // Every i32x4 add retries this on its own subtree, so bounding the walk keeps
+  // lowering linear.
+  static constexpr size_t kMaxVisitedAdds = 8;
+  // A fused dot product keeps both of its inputs live until the root add
+  // instead of until the dot product.
+  static constexpr size_t kMaxDotProducts = 6;
+  static constexpr size_t kMaxLeaves = kMaxVisitedAdds + 2;
+
+  base::SmallVector<OpIndex, kMaxDotProducts> dot_products;
+  base::SmallVector<OpIndex, kMaxLeaves> multiplies;
+  base::SmallVector<OpIndex, kMaxLeaves> other_addends;
+  size_t visited_adds = 0;
+
+  auto is_fusable_multiply = [](Simd128BinopOp::Kind kind) {
+    switch (kind) {
+      case Simd128BinopOp::Kind::kI32x4ExtMulLowI16x8S:
+      case Simd128BinopOp::Kind::kI32x4ExtMulHighI16x8S:
+      case Simd128BinopOp::Kind::kI32x4ExtMulLowI16x8U:
+      case Simd128BinopOp::Kind::kI32x4ExtMulHighI16x8U:
+        return true;
+      default:
+        return false;
+    }
+  };
+
+  auto is_i32x4_add = [&](OpIndex op) {
+    const Simd128BinopOp* binop = selector->Get(op).TryCast<Simd128BinopOp>();
+    return binop && binop->kind == Simd128BinopOp::Kind::kI32x4Add;
+  };
+
+  auto collect_children = [&](auto& self, OpIndex parent,
+                              const Simd128BinopOp& add) -> void {
+    // Visit non-add children before recursing into inner I32x4Add subtrees so
+    // dot products closer to the root claim kMaxDotProducts first and any
+    // remaining inner I32x4Add prefix stays intact in other_addends.
+    if (is_i32x4_add(add.left()) && !is_i32x4_add(add.right())) {
+      size_t dots_before = dot_products.size();
+      size_t muls_before = multiplies.size();
+      size_t others_before = other_addends.size();
+      self(self, parent, add.right());
+      size_t dots_mid = dot_products.size();
+      size_t muls_mid = multiplies.size();
+      size_t others_mid = other_addends.size();
+      self(self, parent, add.left());
+      std::rotate(dot_products.begin() + dots_before,
+                  dot_products.begin() + dots_mid, dot_products.end());
+      std::rotate(multiplies.begin() + muls_before,
+                  multiplies.begin() + muls_mid, multiplies.end());
+      std::rotate(other_addends.begin() + others_before,
+                  other_addends.begin() + others_mid, other_addends.end());
+    } else {
+      self(self, parent, add.left());
+      self(self, parent, add.right());
+    }
+  };
+
+  auto collect = [&](auto& self, OpIndex parent, OpIndex addend) -> void {
+    if (!selector->CanCover(parent, addend) ||
+        !selector->Get(addend).saturated_use_count.Is(1)) {
+      other_addends.push_back(addend);
+      return;
+    }
+    const Simd128BinopOp* binop =
+        selector->Get(addend).TryCast<Simd128BinopOp>();
+    if (!binop) {
+      other_addends.push_back(addend);
+      return;
+    }
+    if (binop->kind == Simd128BinopOp::Kind::kI32x4DotI16x8S &&
+        dot_products.size() < kMaxDotProducts) {
+      dot_products.push_back(addend);
+      return;
+    }
+    if (is_fusable_multiply(binop->kind)) {
+      multiplies.push_back(addend);
+      return;
+    }
+    if (binop->kind == Simd128BinopOp::Kind::kI32x4Add &&
+        visited_adds < kMaxVisitedAdds &&
+        dot_products.size() < kMaxDotProducts) {
+      ++visited_adds;
+      size_t fused_leaves = dot_products.size() + multiplies.size();
+      size_t other_addends_size = other_addends.size();
+      collect_children(self, addend, *binop);
+      // Flattening a subtree with nothing to fuse would turn its balanced adds
+      // into a serial chain.
+      if (dot_products.size() + multiplies.size() == fused_leaves) {
+        other_addends.resize(other_addends_size);
+        other_addends.push_back(addend);
+      }
+      return;
+    }
+    other_addends.push_back(addend);
+  };
+
+  const Simd128BinopOp& root = selector->Get(node).Cast<Simd128BinopOp>();
+  DCHECK_EQ(root.kind, Simd128BinopOp::Kind::kI32x4Add);
+  collect_children(collect, node, root);
+
+  if (dot_products.size() < 2) {
+    return false;
+  }
+
+  Arm64OperandGenerator g(selector);
+  auto emit_accumulate = [&](InstructionCode opcode, InstructionOperand acc,
+                             OpIndex left, OpIndex right,
+                             bool is_final) -> InstructionOperand {
+    if (is_final) {
+      selector->Emit(opcode, g.DefineSameAsFirst(node), acc,
+                     g.UseRegister(left), g.UseRegister(right));
+      return InstructionOperand();
+    }
+    InstructionOperand next = g.TempSimd128Register();
+    int next_vreg = UnallocatedOperand::cast(next).virtual_register();
+    selector->Emit(opcode, g.DefineSameAsFirstForVreg(next_vreg), acc,
+                   g.UseRegister(left), g.UseRegister(right));
+    return g.UseRegisterForVreg(next_vreg);
+  };
+
+  constexpr InstructionCode kLaneSize = LaneSizeField::encode(LaneSize::kL32);
+  const Simd128BinopOp& first_dot =
+      selector->Get(dot_products[0]).Cast<Simd128BinopOp>();
+  InstructionOperand low = g.TempSimd128Register();
+  InstructionOperand high = g.TempSimd128Register();
+  selector->Emit(kArm64Smull | kLaneSize, low, g.UseRegister(first_dot.left()),
+                 g.UseRegister(first_dot.right()));
+  selector->Emit(kArm64Smull2 | kLaneSize, high,
+                 g.UseRegister(first_dot.left()),
+                 g.UseRegister(first_dot.right()));
+  for (size_t i = 1; i < dot_products.size(); ++i) {
+    const Simd128BinopOp& dot =
+        selector->Get(dot_products[i]).Cast<Simd128BinopOp>();
+    low = emit_accumulate(kArm64Smlal | kLaneSize, low, dot.left(), dot.right(),
+                          false);
+    high = emit_accumulate(kArm64Smlal2 | kLaneSize, high, dot.left(),
+                           dot.right(), false);
+  }
+
+  if (multiplies.empty() && other_addends.empty()) {
+    selector->Emit(kArm64IAddp | kLaneSize, g.DefineAsRegister(node), low,
+                   high);
+    return true;
+  }
+
+  InstructionOperand sum = g.TempSimd128Register();
+  selector->Emit(kArm64IAddp | kLaneSize, sum, low, high);
+
+  for (size_t i = 0; i < multiplies.size(); ++i) {
+    const Simd128BinopOp& mul =
+        selector->Get(multiplies[i]).Cast<Simd128BinopOp>();
+    InstructionCode opcode = kArchNop;
+    switch (mul.kind) {
+      case Simd128BinopOp::Kind::kI32x4ExtMulLowI16x8S:
+        opcode = kArm64Smlal | kLaneSize;
+        break;
+      case Simd128BinopOp::Kind::kI32x4ExtMulHighI16x8S:
+        opcode = kArm64Smlal2 | kLaneSize;
+        break;
+      case Simd128BinopOp::Kind::kI32x4ExtMulLowI16x8U:
+        opcode = kArm64Umlal | kLaneSize;
+        break;
+      case Simd128BinopOp::Kind::kI32x4ExtMulHighI16x8U:
+        opcode = kArm64Umlal2 | kLaneSize;
+        break;
+      default:
+        UNREACHABLE();
+    }
+    bool is_final = (i + 1 == multiplies.size()) && other_addends.empty();
+    sum = emit_accumulate(opcode, sum, mul.left(), mul.right(), is_final);
+  }
+
+  for (size_t i = 0; i < other_addends.size(); ++i) {
+    bool is_final = (i + 1 == other_addends.size());
+    InstructionOperand dst =
+        is_final ? g.DefineAsRegister(node) : g.TempSimd128Register();
+    selector->Emit(kArm64IAdd | kLaneSize, dst, sum,
+                   g.UseRegister(other_addends[i]));
+    sum = dst;
+  }
+  return true;
+}
 }  // namespace
 
 void InstructionSelector::VisitI64x2Add(OpIndex node) {
@@ -6291,6 +6538,9 @@ void InstructionSelector::VisitI32x4Add(OpIndex node) {
           return;
         }
       }
+    }
+    if (TryEmitSumOfDotProducts(this, node)) {
+      return;
     }
     VISIT_SIMD_ADD(I32x4, I16x8, LaneSize::kL32)
   }

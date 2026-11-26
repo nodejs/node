@@ -21,13 +21,11 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 28
+bytecode array length: 23
 bytecodes: [
   /*   35 E> */ B(GetNamedProperty), R(closure), U8(0:SYMBOL_TYPE), FBV(0),
-                B(JumpIfUndefined), U8(10),
                 B(Star1),
                 B(CallProperty0), R(1), R(this), FBV(2),
-                B(Mov), R(this), R(0),
   /*   44 S> */ B(LdaImmutableCurrentContextSlot), C8(2),
                 B(Star3),
                 B(LdaImmutableCurrentContextSlot), C8(3),
@@ -60,13 +58,11 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 28
+bytecode array length: 23
 bytecodes: [
   /*   35 E> */ B(GetNamedProperty), R(closure), U8(0:SYMBOL_TYPE), FBV(0),
-                B(JumpIfUndefined), U8(10),
                 B(Star1),
                 B(CallProperty0), R(1), R(this), FBV(2),
-                B(Mov), R(this), R(0),
   /*   44 S> */ B(LdaImmutableCurrentContextSlot), C8(2),
                 B(Star3),
                 B(LdaImmutableCurrentContextSlot), C8(3),

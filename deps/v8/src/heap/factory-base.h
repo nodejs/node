@@ -125,7 +125,7 @@ class FactoryBase {
 #endif
 #undef ROOT_ACCESSOR
 
-  // Numbers (e.g. literals) are pretenured by the parser.
+  // Numbers (e.g. literals) are allocated in old space by the parser.
   // The return value may be a smi or a heap number.
   template <AllocationType allocation = AllocationType::kYoung>
   inline Handle<Number> NewNumber(double value);
@@ -148,7 +148,7 @@ class FactoryBase {
   template <AllocationType allocation = AllocationType::kYoung>
   inline Handle<UninitializedHeapNumber> NewUninitializedHeapNumber();
 
-  // Create a pre-tenured empty AccessorPair.
+  // Create an empty AccessorPair in old space.
   Handle<AccessorPair> NewAccessorPair();
 
   // Allocates a fixed array initialized with undefined values.
@@ -257,9 +257,12 @@ class FactoryBase {
       DirectHandle<UnionOf<String, Undefined>> source, int script_id,
       ScriptEventType event_type = ScriptEventType::kCreate);
 
+  // Allocates SloppyArgumentsElements with all mapped entries set to the hole
+  // (unmapped). If |context| or |arguments| is empty, the corresponding slot is
+  // filled with undefined and must be initialized by the caller before use.
   DirectHandle<SloppyArgumentsElements> NewSloppyArgumentsElements(
-      uint32_t length, DirectHandle<Context> context,
-      DirectHandle<FixedArray> arguments,
+      uint32_t length, MaybeDirectHandle<Context> context,
+      MaybeDirectHandle<FixedArray> arguments,
       AllocationType allocation = AllocationType::kYoung);
   DirectHandle<ArrayList> NewArrayList(
       uint32_t size, AllocationType allocation = AllocationType::kYoung);
@@ -307,16 +310,14 @@ class FactoryBase {
   Handle<CoverageInfo> NewCoverageInfo(const ZoneVector<SourceRange>& slots);
 
   Handle<InternalizedString> InternalizeString(
-      base::Vector<const uint8_t> string, bool convert_encoding = false);
+      base::Vector<const uint8_t> string);
   Handle<InternalizedString> InternalizeString(
-      base::Vector<const uint16_t> string, bool convert_encoding = false);
-  Handle<InternalizedString> InternalizeString(std::string_view str,
-                                               bool convert_encoding = false) {
+      base::Vector<const uint16_t> string);
+  Handle<InternalizedString> InternalizeString(std::string_view str) {
     DCHECK(std::all_of(str.begin(), str.end(), [](char c) {
       return static_cast<unsigned char>(c) <= 0x7f;
     }));
-    return InternalizeString(base::OneByteVector(str.data(), str.size()),
-                             convert_encoding);
+    return InternalizeString(base::OneByteVector(str.data(), str.size()));
   }
 
   template <class StringTableKey>
@@ -358,7 +359,7 @@ class FactoryBase {
 
   // Allocates and partially initializes an one-byte or two-byte String. The
   // characters of the string are uninitialized. Currently used in regexp code
-  // only, where they are pretenured.
+  // only, where they are allocated in old space.
   V8_WARN_UNUSED_RESULT MaybeHandle<SeqOneByteString> NewRawOneByteString(
       uint32_t length, AllocationType allocation = AllocationType::kYoung,
       AllocationHint hint = AllocationHint());
@@ -413,7 +414,12 @@ class FactoryBase {
 
   Handle<DescriptorArray> NewDescriptorArray(
       int number_of_descriptors, int slack = 0,
-      AllocationType allocation = AllocationType::kYoung);
+      AllocationType allocation = AllocationType::kYoung
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+      ,
+      bool allocate_lookup_table = true
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+  );
 
   Handle<ClassPositions> NewClassPositions(int start, int end);
 

@@ -58,12 +58,12 @@ Flags Flags::Parse(int argc, const char* const* argv, int start_index) {
     arg.remove_prefix(2);
     size_t eq = arg.find('=');
     if (eq != std::string_view::npos) {
-      flags.values_[std::string(arg.substr(0, eq))] =
-          std::string(arg.substr(eq + 1));
+      flags.values_[std::string(arg.substr(0, eq))].emplace_back(
+          arg.substr(eq + 1));
     } else if (arg.size() > 3 && arg.starts_with("no-")) {
-      flags.values_[std::string(arg.substr(3))] = "false";
+      flags.values_[std::string(arg.substr(3))].emplace_back("false");
     } else {
-      flags.values_[std::string(arg)] = "true";
+      flags.values_[std::string(arg)].emplace_back("true");
     }
   }
   return flags;
@@ -78,22 +78,23 @@ std::string Flags::GetString(std::string_view name,
                              std::string default_value) const {
   queried_.emplace(name);
   auto it = values_.find(name);
-  if (it == values_.end()) {
+  if (it == values_.end() || it->second.empty()) {
     return default_value;
   }
-  return it->second;
+  return it->second.back();
 }
 
 int64_t Flags::GetInt(std::string_view name, int64_t default_value) const {
   queried_.emplace(name);
   auto it = values_.find(name);
-  if (it == values_.end()) {
+  if (it == values_.end() || it->second.empty()) {
     return default_value;
   }
+  const std::string& raw = it->second.back();
   int64_t value;
-  if (!ParseInt64(it->second, &value)) {
+  if (!ParseInt64(raw, &value)) {
     Fatal("Flag --%s expects an integer, got '%s'", std::string(name).c_str(),
-          it->second.c_str());
+          raw.c_str());
   }
   return value;
 }
@@ -101,14 +102,15 @@ int64_t Flags::GetInt(std::string_view name, int64_t default_value) const {
 double Flags::GetDouble(std::string_view name, double default_value) const {
   queried_.emplace(name);
   auto it = values_.find(name);
-  if (it == values_.end()) {
+  if (it == values_.end() || it->second.empty()) {
     return default_value;
   }
+  const std::string& raw = it->second.back();
   char* end = nullptr;
-  double value = strtod(it->second.c_str(), &end);
-  if (end == nullptr || *end != '\0' || it->second.empty()) {
+  double value = strtod(raw.c_str(), &end);
+  if (end == nullptr || *end != '\0' || raw.empty()) {
     Fatal("Flag --%s expects a number, got '%s'", std::string(name).c_str(),
-          it->second.c_str());
+          raw.c_str());
   }
   return value;
 }
@@ -116,10 +118,10 @@ double Flags::GetDouble(std::string_view name, double default_value) const {
 bool Flags::GetBool(std::string_view name, bool default_value) const {
   queried_.emplace(name);
   auto it = values_.find(name);
-  if (it == values_.end()) {
+  if (it == values_.end() || it->second.empty()) {
     return default_value;
   }
-  const std::string& v = it->second;
+  const std::string& v = it->second.back();
   if (v == "true" || v == "1" || v == "yes" || v == "on") {
     return true;
   }
@@ -132,26 +134,32 @@ bool Flags::GetBool(std::string_view name, bool default_value) const {
 
 std::vector<std::string> Flags::GetList(std::string_view name,
                                         char separator) const {
+  queried_.emplace(name);
   std::vector<std::string> result;
-  std::string value = GetString(name);
-  size_t start = 0;
-  while (start <= value.size()) {
-    size_t end = value.find(separator, start);
-    if (end == std::string::npos) {
-      end = value.size();
+  auto it = values_.find(name);
+  if (it == values_.end()) {
+    return result;
+  }
+  for (const std::string& value : it->second) {
+    size_t start = 0;
+    while (start <= value.size()) {
+      size_t end = value.find(separator, start);
+      if (end == std::string::npos) {
+        end = value.size();
+      }
+      if (end > start) {
+        result.push_back(value.substr(start, end - start));
+      }
+      start = end + 1;
     }
-    if (end > start) {
-      result.push_back(value.substr(start, end - start));
-    }
-    start = end + 1;
   }
   return result;
 }
 
 std::vector<std::string> Flags::UnusedFlags() const {
   std::vector<std::string> unused;
-  for (const auto& [name, value] : values_) {
-    if (queried_.find(name) == queried_.end()) {
+  for (const auto& [name, vals] : values_) {
+    if (!vals.empty() && queried_.find(name) == queried_.end()) {
       unused.push_back(name);
     }
   }
@@ -160,14 +168,16 @@ std::vector<std::string> Flags::UnusedFlags() const {
 
 std::string Flags::ToString() const {
   std::string result;
-  for (const auto& [name, value] : values_) {
-    if (!result.empty()) {
-      result += ' ';
+  for (const auto& [name, vals] : values_) {
+    for (const std::string& value : vals) {
+      if (!result.empty()) {
+        result += ' ';
+      }
+      result += "--";
+      result += name;
+      result += '=';
+      result += value;
     }
-    result += "--";
-    result += name;
-    result += '=';
-    result += value;
   }
   for (const std::string& p : positional_) {
     if (!result.empty()) {

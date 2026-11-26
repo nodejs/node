@@ -342,12 +342,7 @@ class Block : public RandomAccessStackDominatorNode<Block> {
     return NeighboringPredecessorIterable(last_predecessor_);
   }
 
-  int PredecessorCount() const {
-#ifdef DEBUG
-    CheckPredecessorCount();
-#endif
-    return predecessor_count_;
-  }
+  int PredecessorCount() const { return predecessor_count_; }
 
 #ifdef DEBUG
   // Checks that the {predecessor_count_} is equal to the number of predecessors

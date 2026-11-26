@@ -195,8 +195,9 @@ struct ExternalEntityTableCompactionTraits<ExternalPointerTableEntry> {
  *
  * When V8_ENABLE_SANDBOX, its primary use is for pointing to objects outside
  * the sandbox, as described below.
- * When V8_COMPRESS_POINTERS, external pointer tables are also used to ease
- * alignment requirements in heap object fields via indirection.
+ * When V8_COMPRESS_POINTERS, external pointer tables are used to store all
+ * tagged external pointer fields as 32-bit handles, reducing object size and
+ * easing alignment requirements in heap object fields via indirection.
  *
  * A table's role for the V8 Sandbox:
  * --------------------------------
@@ -408,6 +409,11 @@ class V8_EXPORT_PRIVATE ExternalPointerTable
     // This method must be called before destroying the external resource.
     // When the sandbox is enabled, it will take care of zapping its EPT entry.
     inline void ZapExternalPointerTableEntry();
+
+    // Clears the EPT entry's pointer to kNullAddress while preserving its tag
+    // and mark bit, and unlinks this resource from the entry. Used when a
+    // resource is retired while its owning heap object may remain reachable.
+    inline void ClearExternalPointerTableEntry();
 
    private:
     friend class ExternalPointerTable;

@@ -1,0 +1,8 @@
+links {
+  name: "README"
+  links {
+    text: "readme"
+    url: "https://chromium.googlesource.com/v8/v8/+/refs/heads/main/infra/config/docs/branch-coverage.md"
+    alt: "readme"
+  }
+}

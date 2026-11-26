@@ -152,6 +152,10 @@ macros:
     macro_value: 26 # int
   - macro_name: IPV6_RECVPKTINFO
     macro_value: 49 # int
+  - macro_name: IPV6_PKTINFO
+    macro_value: 50 # struct in6_pktinfo
+  - macro_name: IPV6_RECVHOPLIMIT
+    macro_value: 51 # int
   - macro_name: IPV6_HOPLIMIT
     macro_value: 52 # int
   - macro_name: IPV6_HOPOPTS
@@ -160,6 +164,10 @@ macros:
     macro_value: 57 # int
   - macro_name: IPV6_DSTOPTS
     macro_value: 59 # int
+  - macro_name: IPV6_RECVTCLASS
+    macro_value: 66 # int
+  - macro_name: IPV6_TCLASS
+    macro_value: 67 # int
 types:
   - type_name: in_port_t
   - type_name: in_addr_t
@@ -169,6 +177,7 @@ types:
   - type_name: struct_group_source_req
   - type_name: struct_in_addr
   - type_name: struct_in6_addr
+  - type_name: struct_in6_pktinfo
   - type_name: struct_ipv6_mreq
   - type_name: struct_ip_mreq
   - type_name: struct_ip_mreq_source

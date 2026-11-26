@@ -92,7 +92,6 @@ absl_cc_library(
     absl::int128
     absl::log_severity
     absl::optional
-    absl::str_format
     absl::string_view
     absl::strings
 )
@@ -201,6 +200,7 @@ absl_cc_library(
     absl::flags_commandlineflag_internal
     absl::flags_config
     absl::flags_marshalling
+    absl::flat_hash_map
     absl::meta
     absl::no_destructor
     absl::synchronization

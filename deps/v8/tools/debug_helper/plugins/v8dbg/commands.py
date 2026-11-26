@@ -12,18 +12,19 @@ import os
 import re
 import traceback
 
-from .format import (format_frame_location, format_frame_trailer,
+from .format import (format_arg_label, format_frame_location,
+                     format_frame_trailer, is_js_identifier,
                      render_function_span)
 from .hints import resolve_current_isolate, resolve_heap_hints
 from .inspect import Formatter, preview_tagged_value
 from .models import HeapHints
 
-_V8_USAGE = (
-    "usage: v8 <subcommand>\n"
-    "  v8 inspect <addr>|this|[N] [--type T] [--depth N] [--array-length N]\n"
-    "  v8 args [frame#]\n"
-    "  v8 isolate\n"
-    "  v8 source [frame#] [--max-lines N]\n")
+_V8_USAGE = ("usage: v8 <subcommand>\n"
+             "  v8 inspect <addr>|this|[N]|<param-name> [--type T] [--depth N]"
+             " [--array-length N]\n"
+             "  v8 args [frame#]\n"
+             "  v8 isolate\n"
+             "  v8 source [frame#] [--max-lines N]\n")
 
 # Cap on the number of function span lines `v8 source` prints. Top-level
 # frames span the whole script, which can be arbitrarily large.
@@ -223,12 +224,13 @@ def _run_args(bridge, argv, output, read_memory, frame_fp, resolver):
     output.write(f"v8 args: the argument slots of {frame_desc} are "
                  "unreadable\n")
     return
+  param_names = info["param_names"]
   for index, preview in enumerate(previews):
-    output.write(f"[{index}] = {preview}\n")
+    output.write(f"{format_arg_label(index, param_names)} = {preview}\n")
 
 
-# Frame-relative value tokens: this and the [N] labels shown in the frame
-# annotations.
+# Frame-relative value tokens: this, the [N] labels, and recovered parameter
+# names.
 _FRAME_VALUE_RE = re.compile(r"^(?:this|\[(\d+)\])$")
 
 
@@ -276,6 +278,29 @@ def _resolve_frame_value(bridge, text, read_memory, frame_fp):
   return (True, value, error)
 
 
+def _resolve_param_name(bridge, text, read_memory, frame_fp):
+  """Resolve a parameter name recovered from ScopeInfo against the frame.
+
+  Returns `(handled, value, error)`. If the name cannot be resolved using
+  V8's information, handled is False.
+  """
+  if not is_js_identifier(text or ""):
+    return (False, None, None)
+  resolved = frame_fp(None) if frame_fp is not None else None
+  if resolved is None:
+    return (False, None, None)
+  _, frame_pointer = resolved
+  info = bridge.describe_js_frame(frame_pointer, read_memory)
+  if info is None:
+    return (False, None, None)
+  index = next((i for i, name in info["param_names"].items() if name == text),
+               None)
+  if index is None:
+    return (False, None, None)
+  value, error = _read_argument_slot(info, index, read_memory)
+  return (True, value, error)
+
+
 def _run_inspect(bridge, argv, output, read_memory, eval_address, resolver,
                  frame_fp):
   # TODO(joyee): per-flag error messages, reject negative ints.
@@ -302,6 +327,9 @@ def _run_inspect(bridge, argv, output, read_memory, eval_address, resolver,
 
   handled, address, error = _resolve_frame_value(bridge, addr_text, read_memory,
                                                  frame_fp)
+  if not handled:
+    handled, address, error = _resolve_param_name(bridge, addr_text,
+                                                  read_memory, frame_fp)
   if error is not None:
     output.write(f"v8 inspect: {error}\n")
     return

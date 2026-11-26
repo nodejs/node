@@ -76,7 +76,7 @@ class InliningTree : public ZoneObject {
   }
 
   double score() const {
-    // '0' can only happen for imported functions. Every valid declared
+    // '0' can only happen for imported functions. Every valid defined
     // function has to have size at least 2 (locals count, kExprEnd).
     DCHECK_IMPLIES(wire_byte_size_ == 0,
                    function_index_ < data_->module->num_imported_functions);
@@ -124,7 +124,7 @@ class InliningTree : public ZoneObject {
     //   sfp >= 50%: use "high" budget
     //   25% < sfp < 50%: interpolate linearly between both budgets.
     double small_function_percentage =
-        module->num_small_functions * 100.0 / module->num_declared_functions;
+        module->num_small_functions * 100.0 / module->num_defined_functions;
     if (small_function_percentage <= 25) {
       return 0;
     } else if (small_function_percentage >= 50) {

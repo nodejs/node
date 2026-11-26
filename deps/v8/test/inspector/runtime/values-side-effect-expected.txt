@@ -1,0 +1,47 @@
+Tests that values() properly propagates side-effect and normal exceptions.
+Test 1: normal exception
+{
+    result : {
+        type : string
+        value : caught: boom
+    }
+}
+Test 2: throwOnSideEffect
+{
+    exceptionDetails : {
+        columnNumber : -1
+        exception : {
+            className : EvalError
+            description : EvalError: Possible side-effect in debug-evaluate
+            objectId : <objectId>
+            subtype : error
+            type : object
+        }
+        exceptionId : <exceptionId>
+        lineNumber : -1
+        scriptId : <scriptId>
+        text : Uncaught
+    }
+    result : {
+        className : EvalError
+        description : EvalError: Possible side-effect in debug-evaluate
+        objectId : <objectId>
+        subtype : error
+        type : object
+    }
+}
+{
+    result : {
+        type : undefined
+    }
+}
+Test 3: plain object sanity check
+{
+    result : {
+        className : Array
+        description : Array(2)
+        objectId : <objectId>
+        subtype : array
+        type : object
+    }
+}

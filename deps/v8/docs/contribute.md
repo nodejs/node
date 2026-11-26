@@ -30,7 +30,7 @@ The source code of V8 follows the [Google C++ Style Guide](https://google.github
 git cl presubmit
 ```
 
-The presubmit script uses a linter from Google, [`cpplint.py`](https://raw.githubusercontent.com/google/styleguide/gh-pages/cpplint/cpplint.py). It is part of [`depot_tools`](https://dev.chromium.org/developers/how-tos/install-depot-tools), and it must be in your `PATH` — so if you have `depot_tools` in your `PATH`, everything should just work.
+The presubmit script uses a linter from Google, [`cpplint.py`](https://chromium.googlesource.com/chromium/tools/depot_tools/+/main/cpplint.py). It is part of [`depot_tools`](https://dev.chromium.org/developers/how-tos/install-depot-tools), and it must be in your `PATH` — so if you have `depot_tools` in your `PATH`, everything should just work.
 
 ### Upload to V8’s codereview tool
 

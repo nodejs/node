@@ -205,8 +205,6 @@ const char* DependentCode::DependencyGroupName(DependencyGroup group) {
       return "field-representation";
     case kInitialMapChangedGroup:
       return "initial-map-changed";
-    case kAllocationSiteTenuringChangedGroup:
-      return "allocation-site-tenuring-changed";
     case kAllocationSiteTransitionChangedGroup:
       return "allocation-site-transition-changed";
     case kContextCellChangedGroup:
@@ -234,8 +232,6 @@ LazyDeoptimizeReason DependentCode::DependencyGroupToLazyDeoptReason(
       return LazyDeoptimizeReason::kFieldRepresentationChange;
     case kInitialMapChangedGroup:
       return LazyDeoptimizeReason::kInitialMapChange;
-    case kAllocationSiteTenuringChangedGroup:
-      return LazyDeoptimizeReason::kAllocationSiteTenuringChange;
     case kAllocationSiteTransitionChangedGroup:
       return LazyDeoptimizeReason::kAllocationSiteTransitionChange;
     case kContextCellChangedGroup:

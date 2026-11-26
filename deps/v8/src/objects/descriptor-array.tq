@@ -24,11 +24,16 @@ bitfield struct DescriptorArrayFlags extends uint32 {
   fast_iterable: DescriptorArrayFastIterableState: 2 bit;
 }
 
+type DescriptorLookupTable extends FixedUInt32Array
+    constexpr 'DescriptorLookupTable';
+
 @cppObjectLayoutDefinition
 extern class DescriptorArray extends HeapObject {
   const number_of_all_descriptors: uint16;
   number_of_descriptors: uint16;
   flags: DescriptorArrayFlags;
   enum_cache: EnumCache;
+  @if(V8_ADD_DESCRIPTOR_ARRAY_LOOKUP_TABLE)
+  lookup_table: DescriptorLookupTable|Undefined;
   entries[number_of_all_descriptors]: DescriptorEntry;
 }

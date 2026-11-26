@@ -16,7 +16,7 @@
 
 #define READ_8(adr)  ((unsigned char)*(adr))
 #define READ_16(adr) ( READ_8(adr) | (READ_8(adr+1) << 8) )
-#define READ_32(adr) ( READ_16(adr) | (READ_16((adr)+2) << 16) )
+#define READ_32(adr) ( (uLong)READ_16(adr) | ((uLong)READ_16((adr)+2) << 16) )
 
 #define WRITE_8(buff, n) do { \
   *((unsigned char*)(buff)) = (unsigned char) ((n) & 0xff); \

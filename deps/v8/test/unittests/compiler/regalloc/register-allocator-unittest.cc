@@ -99,7 +99,7 @@ class RegisterAllocatorTest : public InstructionSequenceTest {
     }
 
     turboshaft::Pipeline pipeline(&data, turboshaft::kNoLinkage);
-    CHECK(pipeline.AllocateRegisters(config(), nullptr, true));
+    CHECK(pipeline.AllocateRegisters(config(), true));
   }
 };
 
@@ -853,6 +853,42 @@ TEST_F(RegisterAllocatorTest, AllocateBlockedRegDeferredClampBelowStart) {
   EndBlock(Last());
 
   Allocate();
+}
+
+#if V8_LOGGING_LEVEL == 0
+constexpr const char* kOversubscribedDeathRegex = ".*";
+#else
+constexpr const char* kOversubscribedDeathRegex =
+    "Register oversubscription: instruction requires more registers than "
+    "available";
+#endif
+
+TEST_F(RegisterAllocatorTest, OversubscribedRegistersAtGapEnd) {
+  SetNumRegs(2, 1);
+
+  StartBlock();
+  VReg c0 = DefineConstant();
+  VReg c1 = DefineConstant();
+  VReg c2 = DefineConstant();
+  EmitCall(Slot(-1));
+  EmitI(DeoptArg(c0), DeoptArg(c1), DeoptArg(c2));
+  Return(Reg(c0));
+  EndBlock(Last());
+
+  ASSERT_DEATH_IF_SUPPORTED(Allocate(), kOversubscribedDeathRegex);
+}
+
+TEST_F(RegisterAllocatorTest, OversubscribedRegistersAtInstructionStart) {
+  SetNumRegs(2, 1);
+
+  StartBlock();
+  VReg v0 = Define(Reg());
+  VReg v1 = Define(Reg());
+  VReg out = EmitOI(Reg(), UniqueReg(v0), UniqueReg(v1));
+  Return(Reg(out));
+  EndBlock(Last());
+
+  ASSERT_DEATH_IF_SUPPORTED(Allocate(), kOversubscribedDeathRegex);
 }
 
 }  // namespace

@@ -1,0 +1,3 @@
+Check that the script source for all functions in a script is the same.
+getScriptSource matches source: true
+FunctionGetScriptSource(f) matches getScriptSource: true

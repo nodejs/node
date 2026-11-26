@@ -4,8 +4,8 @@
 
 #include "src/maglev/maglev-concurrent-dispatcher.h"
 
+#include "src/base/synchronization-point-support.h"
 #include "src/codegen/compiler.h"
-#include "src/common/synchronization-point-support.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/execution/isolate.h"
@@ -22,6 +22,7 @@
 #include "src/maglev/maglev-pipeline-statistics.h"
 #include "src/objects/js-function-inl.h"
 #include "src/objects/shared-function-info-inl.h"
+#include "src/tracing/trace-event.h"
 #include "src/utils/identity-map.h"
 #include "src/utils/locked-queue-inl.h"
 
@@ -114,7 +115,7 @@ MaglevCompilationJob::~MaglevCompilationJob() = default;
 
 CompilationJob::Status MaglevCompilationJob::AbortOptimization(
     Isolate* isolate, BailoutReason reason) {
-  DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
+  DCHECK_EQ(base::ThreadId::Current(), isolate->thread_id());
   bailout_reason_ = reason;
   DirectHandle<SharedFunctionInfo> shared(function()->shared(), isolate);
   shared->DisableOptimization(isolate, reason);
@@ -147,13 +148,22 @@ CompilationJob::Status MaglevCompilationJob::ExecuteJobImpl(
     RuntimeCallStats* stats, LocalIsolate* local_isolate) {
   BeginPhaseKind("V8.MaglevExecuteJob");
   SYNCHRONIZATION_POINT("MaglevExecuteJob");
-  LocalIsolateScope scope{info(), local_isolate};
-  if (!maglev::MaglevCompiler::Compile(local_isolate, info())) {
-    EndPhaseKind();
+  bool success;
+  {
+    LocalIsolateScope scope{info(), local_isolate};
+    success = maglev::MaglevCompiler::Compile(local_isolate, info());
+    if (!success) {
+      compiler::UnparkedScopeIfNeeded unparked_scope(local_isolate);
+      info()->broker()->DetachCanonicalHandles(info());
+    }
+  }
+  EndPhaseKind();
+  if (!success) {
+    pipeline_statistics_.reset();
+    info()->ReleaseBrokerAndZone();
     bailout_reason_ = BailoutReason::kMaglevGraphBuildingFailed;
     return CompilationJob::FAILED;
   }
-  EndPhaseKind();
   // TODO(v8:7700): Actual return codes.
   return CompilationJob::SUCCEEDED;
 }
@@ -194,7 +204,7 @@ CompilationJob::Status MaglevCompilationJob::FinalizeJobImpl(Isolate* isolate) {
 }
 
 void MaglevCompilationJob::DisposeOnMainThread(Isolate* isolate) {
-  DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
+  DCHECK_EQ(base::ThreadId::Current(), isolate->thread_id());
   if (auto canonical_handles = info()->DetachCanonicalHandles()) {
     canonical_handles->Clear();
   }

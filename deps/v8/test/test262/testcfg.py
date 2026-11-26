@@ -25,7 +25,6 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import importlib.machinery
 import sys
 
 from functools import cached_property
@@ -68,6 +67,7 @@ FEATURE_FLAGS = {
     'import-text': '--js-import-text',
     'import-bytes': '--js-import-bytes',
     'iterator-includes': '--js-iterator-includes',
+    'iterator-chunking': '--js-iterator-chunking',
 }
 
 SKIPPED_FEATURES = set([])
@@ -158,18 +158,13 @@ class TestSuite(testsuite.TestSuite):
 
   def _load_parse_test_record(self):
     root = TEST_262_TOOLS_ABS_PATH
-    f = None
     try:
-      loader = importlib.machinery.SourceFileLoader(
-          "parseTestRecord", f"{root}/parseTestRecord.py")
-      module = loader.load_module()
+      module = testsuite.load_module_from_path("parseTestRecord",
+                                               f"{root}/parseTestRecord.py")
       return module.parseTestRecord
     except Exception as e:
       print(f'Cannot load parseTestRecord: {e}')
       raise
-    finally:
-      if f:
-        f.close()
 
   def _test_loader_class(self):
     return TestLoader

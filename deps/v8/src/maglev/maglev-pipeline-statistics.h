@@ -11,7 +11,6 @@
 #include "src/compiler/zone-stats.h"
 #include "src/diagnostics/compilation-statistics.h"
 #include "src/maglev/maglev-compilation-info.h"
-#include "src/tracing/trace-event.h"
 
 namespace v8 {
 namespace internal {
@@ -26,9 +25,6 @@ class MaglevPipelineStatistics : public compiler::PipelineStatisticsBase,
   ~MaglevPipelineStatistics();
   MaglevPipelineStatistics(const MaglevPipelineStatistics&) = delete;
   MaglevPipelineStatistics& operator=(const MaglevPipelineStatistics&) = delete;
-
-  static constexpr char kTraceCategory[] =
-      TRACE_DISABLED_BY_DEFAULT("v8.maglev");
 
   void BeginPhaseKind(const char* name);
   void EndPhaseKind();

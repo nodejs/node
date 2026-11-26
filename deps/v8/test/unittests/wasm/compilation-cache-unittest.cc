@@ -80,10 +80,9 @@ class StreamTester {
 // Create a valid module such that the bytes depend on {n}.
 ZoneBuffer GetValidModuleBytes(Zone* zone, uint8_t n) {
   ZoneBuffer buffer(zone);
-  TestSignatures sigs;
   WasmModuleBuilder builder(zone);
   {
-    WasmFunctionBuilder* f = builder.AddFunction(sigs.v_v());
+    WasmFunctionBuilder* f = builder.AddFunction(TestSignatures::v_v());
     f->EmitCode({kExprI32Const, n, kExprDrop, kExprEnd});
   }
   builder.WriteTo(&buffer);

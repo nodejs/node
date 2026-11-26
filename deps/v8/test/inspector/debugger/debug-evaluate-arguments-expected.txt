@@ -1,0 +1,13 @@
+Tests evaluating arguments object on unoptimized and optimized frames.
+foo arguments: [3]
+bar arguments: [1, 2, 3]
+Run 1 result: 6
+foo arguments: [3]
+bar arguments: [1, 2, 3]
+Run 2 result: 6
+foo arguments: [3]
+bar arguments: [1, 2, 3]
+Run 3 (optimized) result: 6
+foo arguments: [3, 4, 5]
+bar arguments: [1, 2, 3]
+Run 4 (optimized extra args) result: 6

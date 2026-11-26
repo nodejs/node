@@ -162,7 +162,7 @@ function assertKind(expected, obj, name_opt) {
   %PrepareFunctionForOptimization(bar);
   var size = 100001;
   // Perform a gc, because we are allocating a very large array and if a gc
-  // happens during the allocation we could lose our memento.
+  // happens during the allocation we could lose our AllocationSiteCache entry.
   gc();
   bar(size)[0] = 'string';
   var res = bar(size);

@@ -129,6 +129,18 @@ void LoadValueTypesArray(MacroAssembler* masm, Register function_data,
 }
 
 void Builtins::Generate_JSToWasmInterpreterWrapperAsm(MacroAssembler* masm) {
+  Label stack_overflow;
+  Register wrapper_buffer =
+      WasmJSToWasmWrapperDescriptor::WrapperBufferRegister();
+  __ movq(
+      rax,
+      MemOperand(
+          wrapper_buffer,
+          JSToWasmWrapperFrameConstants::kWrapperBufferStackReturnBufferSize));
+  // StackOverflowCheck compares the free stack space, in slots, with the
+  // return buffer size in rax (in slots).
+  __ StackOverflowCheck(rax, &stack_overflow);
+
   __ EnterFrame(StackFrame::JS_TO_WASM);
 
   /* Current frame */
@@ -146,9 +158,6 @@ void Builtins::Generate_JSToWasmInterpreterWrapperAsm(MacroAssembler* masm) {
   Register wasm_instance = kWasmImplicitArgRegister;  // rsi
   Register implicitArg = rax;
   Register result_array = kScratchRegister;
-  Register wrapper_buffer =
-      WasmJSToWasmWrapperDescriptor::WrapperBufferRegister();
-
   // Leave the frame space
   __ subq(rsp, Immediate(4 * kSystemPointerSize));
   __ movq(implicitArg,
@@ -236,6 +245,24 @@ void Builtins::Generate_JSToWasmInterpreterWrapperAsm(MacroAssembler* masm) {
   __ LeaveFrame(StackFrame::JS_TO_WASM);
 
   __ Ret();
+
+  __ bind(&stack_overflow);
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    // The assembly wrapper is called without a context.
+    __ movq(kContextRegister,
+            MemOperand(rbp, JSToWasmWrapperFrameConstants::kImplicitArgOffset));
+    __ LoadProtectedPointerField(
+        kContextRegister,
+        FieldOperand(kContextRegister, offsetof(WasmExportedFunctionData,
+                                                protected_instance_data_)));
+    __ LoadTaggedField(
+        kContextRegister,
+        FieldOperand(kContextRegister,
+                     WasmTrustedInstanceData::kNativeContextOffset));
+    __ CallRuntime(Runtime::kThrowStackOverflow);
+    __ Trap();
+  }
 }
 
 // For compiled code, V8 generates signature-specific CWasmEntries that manage
@@ -399,7 +426,7 @@ void Builtins::Generate_WasmInterpreterCWasmEntry(MacroAssembler* masm) {
 
 void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
     MacroAssembler* masm) {
-  Register target_js_function = kCArgRegs[0];  // Win: rcx, Posix: rdi
+  Register target_context = kCArgRegs[0];      // Win: rcx, Posix: rdi
   Register packed_args = kCArgRegs[1];         // Win: rdx, Posix: rsi
   Register callable = rdi;
   Register signature = kCArgRegs[3];  // Win: r9, Posix: rcx
@@ -468,47 +495,23 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
   // Windows has a different calling convention.
   signature = r9;
   __ movq(signature, kCArgRegs[3]);
-  target_js_function = rcx;
-  __ movq(target_js_function, kCArgRegs[0]);
+  target_context = rcx;
+  __ movq(target_context, kCArgRegs[0]);
   packed_args = rdx;
   __ movq(packed_args, kCArgRegs[1]);
 #endif                    // !V8_TARGET_OS_WIN
   __ movq(callable, r8);  // Callable passed in r8.
 
-  Register shared_function_info = r15;
-  __ LoadTaggedField(
-      shared_function_info,
-      FieldMemOperand(target_js_function,
-                      offsetof(JSFunction, shared_function_info_)));
-
-  // Set the context of the function; the call has to run in the function
-  // context.
   Register context = rsi;
-  __ LoadTaggedField(context, FieldOperand(target_js_function,
-                                           offsetof(JSFunction, context_)));
-  target_js_function = no_reg;
+  __ movq(context, target_context);
+  target_context = no_reg;
 
-  // Store context to be retrieved after the call.
+  // Root the context before argument conversion can allocate.
   __ pushq(context);
 
-  // Load global receiver if sloppy else use undefined.
-  Label receiver_undefined;
-  Label calculate_js_function_arity;
+  // Call_ReceiverIsAny handles receiver conversion for the original callable.
   Register receiver = r11;
-  Register flags = rbx;
-  __ movl(flags, FieldOperand(shared_function_info,
-                              offsetof(SharedFunctionInfo, flags_)));
-  __ testq(flags, Immediate(SharedFunctionInfo::IsNativeBit::kMask |
-                            SharedFunctionInfo::IsStrictBit::kMask));
-  flags = no_reg;
-  __ j(not_equal, &receiver_undefined);
-  __ LoadGlobalProxy(receiver);
-  __ jmp(&calculate_js_function_arity);
-
-  __ bind(&receiver_undefined);
   __ LoadRoot(receiver, RootIndex::kUndefinedValue);
-
-  __ bind(&calculate_js_function_arity);
 
   // Load values from the signature.
   __ movq(MemOperand(rbp, kSignatureOffset), signature);
@@ -517,11 +520,24 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
   Register param_count = rcx;
   LoadFromSignature(masm, valuetypes_array_ptr, return_count, param_count);
   __ movq(MemOperand(rbp, kParamCountOffset), param_count);
-  shared_function_info = no_reg;
-
   // Calculate target function arity.
   Register expected_arity = rbx;
   __ movq(expected_arity, param_count);
+
+  // Throw a RangeError instead of overflowing the stack when there is not
+  // enough room for the arguments.
+  {
+    Label stack_overflow, stack_ok;
+    __ StackOverflowCheck(expected_arity, &stack_overflow);
+    __ jmp(&stack_ok);
+    __ bind(&stack_overflow);
+    {
+      FrameScope scope(masm, StackFrame::MANUAL);
+      __ CallRuntime(Runtime::kThrowStackOverflow);
+      __ Trap();
+    }
+    __ bind(&stack_ok);
+  }
 
   // Make room to pass args and store the context.
   __ movq(rax, expected_arity);
@@ -2196,6 +2212,8 @@ class WasmInterpreterHandlerBuiltins {
             MemOperand(wasm_runtime,
                        wasm::WasmInterpreterRuntime::memory_start_offset()));
 
+    // A fault in the store must select its PC, not the preceding load's PC.
+    __ addq(code, Immediate(kNextHandlerId));
     EmitStoreInstruction(masm, value, memory_start_plus_store_index,
                          store_offset, memory_type);
 #ifdef V8_ENABLE_DRUMBRAKE_TRACING
@@ -2203,8 +2221,8 @@ class WasmInterpreterHandlerBuiltins {
 #endif  // V8_ENABLE_DRUMBRAKE_TRACING
 
     Register next_handler_id = rax;
-    EmitLoadNextInstructionId(masm, next_handler_id, code, kNextHandlerId);
-    __ addq(code, Immediate(kInstructionCodeLength));
+    EmitLoadNextInstructionId(masm, next_handler_id, code, 0);
+    __ addq(code, Immediate(kInstructionCodeLength - kNextHandlerId));
 
     Register instr_table = r9;
     __ movq(
@@ -2270,6 +2288,8 @@ class WasmInterpreterHandlerBuiltins {
             MemOperand(wasm_runtime,
                        wasm::WasmInterpreterRuntime::memory_start_offset()));
 
+    // A fault in the store must select its PC, not the preceding load's PC.
+    __ addq(code, Immediate(kNextHandlerId));
     EmitStoreInstruction(masm, value, memory_start_plus_store_index,
                          store_offset, memory_type);
 #ifdef V8_ENABLE_DRUMBRAKE_TRACING
@@ -2277,8 +2297,8 @@ class WasmInterpreterHandlerBuiltins {
 #endif  // V8_ENABLE_DRUMBRAKE_TRACING
 
     Register next_handler_id = rax;
-    EmitLoadNextInstructionId(masm, next_handler_id, code, kNextHandlerId);
-    __ addq(code, Immediate(kInstructionCodeLength));
+    EmitLoadNextInstructionId(masm, next_handler_id, code, 0);
+    __ addq(code, Immediate(kInstructionCodeLength - kNextHandlerId));
 
     Register instr_table = r9;
     __ movq(
@@ -2348,6 +2368,8 @@ class WasmInterpreterHandlerBuiltins {
             MemOperand(wasm_runtime,
                        wasm::WasmInterpreterRuntime::memory_start_offset()));
 
+    // A fault in the store must select its PC, not the preceding load's PC.
+    __ addq(code, Immediate(kNextHandlerId));
     EmitStoreInstruction(masm, value, memory_start_plus_store_index,
                          store_offset, float_type);
 #ifdef V8_ENABLE_DRUMBRAKE_TRACING
@@ -2355,8 +2377,8 @@ class WasmInterpreterHandlerBuiltins {
 #endif  // V8_ENABLE_DRUMBRAKE_TRACING
 
     Register next_handler_id = rax;
-    EmitLoadNextInstructionId(masm, next_handler_id, code, kNextHandlerId);
-    __ addq(code, Immediate(kInstructionCodeLength));
+    EmitLoadNextInstructionId(masm, next_handler_id, code, 0);
+    __ addq(code, Immediate(kInstructionCodeLength - kNextHandlerId));
 
     Register instr_table = r9;
     __ movq(
@@ -2430,6 +2452,8 @@ class WasmInterpreterHandlerBuiltins {
             MemOperand(wasm_runtime,
                        wasm::WasmInterpreterRuntime::memory_start_offset()));
 
+    // A fault in the store must select its PC, not the preceding load's PC.
+    __ addq(code, Immediate(kNextHandlerId));
     EmitStoreInstruction(masm, value, memory_start_plus_store_index,
                          store_offset, float_type);
 #ifdef V8_ENABLE_DRUMBRAKE_TRACING
@@ -2437,8 +2461,8 @@ class WasmInterpreterHandlerBuiltins {
 #endif  // V8_ENABLE_DRUMBRAKE_TRACING
 
     Register next_handler_id = rax;
-    EmitLoadNextInstructionId(masm, next_handler_id, code, kNextHandlerId);
-    __ addq(code, Immediate(kInstructionCodeLength));
+    EmitLoadNextInstructionId(masm, next_handler_id, code, 0);
+    __ addq(code, Immediate(kInstructionCodeLength - kNextHandlerId));
 
     Register instr_table = r9;
     __ movq(

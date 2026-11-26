@@ -1080,23 +1080,35 @@ int DisassemblerX64::AVXVectorInstruction(uint8_t* data) {
     if (evex_w()) synth_rex |= 0x08;
     setRex(synth_rex);
   }
-  if (is_evex() && (evex_map5() || evex_map6())) {
+  const bool is_round =
+      is_evex() && evex_map3() && evex_pp_none() && opcode == 0x08;
+  if (is_evex() && (evex_map5() || evex_map6() || is_round)) {
     // Decode only the unmasked, non-broadcast XMM/YMM FP16 forms we emit.
     // Require EVEX.z, L', b and aaa to be zero; L and V' may be set.
     const char* mnemonic = nullptr;
-    if (evex_map5() && evex_pp_none()) {
+    const bool is_unary = is_round || (evex_map5() && opcode == 0x51);
+    if (is_round) {
+      mnemonic = "vrndscaleph";
+    } else if (evex_map5() && evex_pp_none()) {
+      if (opcode == 0x51) mnemonic = "vsqrtph";
       if (opcode == 0x58) mnemonic = "vaddph";
+      if (opcode == 0x59) mnemonic = "vmulph";
       if (opcode == 0x5c) mnemonic = "vsubph";
+      if (opcode == 0x5d) mnemonic = "vminph";
+      if (opcode == 0x5e) mnemonic = "vdivph";
+      if (opcode == 0x5f) mnemonic = "vmaxph";
     } else if (evex_map6() && evex_pp_66()) {
       if (opcode == 0xa8) mnemonic = "vfmadd213ph";
       if (opcode == 0xac) mnemonic = "vfnmadd213ph";
     }
-    if (mnemonic != nullptr && !evex_w() && (evex_byte3_ & 0xd7) == 0) {
+    if (mnemonic != nullptr && !evex_w() && (evex_byte3_ & 0xd7) == 0 &&
+        (!is_unary || get_vreg() == 0)) {
       int mod, regop, rm;
       get_modrm(*current, &mod, &regop, &rm);
-      AppendToBuffer("%s %s,%s,", mnemonic, NameOfAVXRegister(regop),
-                     NameOfAVXRegister(get_vreg()));
+      AppendToBuffer("%s %s,", mnemonic, NameOfAVXRegister(regop));
+      if (!is_unary) AppendToBuffer("%s,", NameOfAVXRegister(get_vreg()));
       current += PrintRightEVEXOperand(current, TupleType::kFull);
+      if (is_round) AppendToBuffer(",0x%x", *current++);
     } else {
       UnimplementedInstruction();
     }

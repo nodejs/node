@@ -31,11 +31,11 @@ let $makeExternRefArr = builder.addFunction(
 
 let data = [
   1,  // 1 config
+  0x7f, // parentidx = -1
   1,  // 1 constructor
   1, 0x41,  // name: "A"
   0,   // no statics
   0,   // no methods
-  0x7f // parentidx = -1
 ]
 let data_segment = builder.addPassiveDataSegment(data);
 

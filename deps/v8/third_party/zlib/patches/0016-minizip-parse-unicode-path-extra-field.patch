@@ -90,8 +90,20 @@ Date:   Mon Apr 27 13:24:27 2026 +0200
     Change-Id: I06e6c8a8ff8baa729b10a67a998f8804803ae6cd
     Reviewed-on: https://chromium-review.googlesource.com/c/chromium/src/+/7797172
 
+commit 14964355aff9695897f7a2e06a4af2c4e25b71d5
+Author: Hans Wennborg <hans@chromium.org>
+Date:   Wed Sep 16 15:45:40 2026 +0200
+
+    [minizip] Ignore invalid Unicode Path Extra Fields rather than erroring
+    
+    To match what other extractors do.
+    
+    Bug: 553273868
+    Change-Id: Ia5d64fb92d2abe5eba1e74f7180688a7a4362987
+    Reviewed-on: https://chromium-review.googlesource.com/c/chromium/src/+/8418328
+
 diff --git a/third_party/zlib/contrib/minizip/unzip.c b/third_party/zlib/contrib/minizip/unzip.c
-index 56f1468cd8d22..0264f7ac570f7 100644
+index 838092494056a..d6ac9c5d06d03 100644
 --- a/third_party/zlib/contrib/minizip/unzip.c
 +++ b/third_party/zlib/contrib/minizip/unzip.c
 @@ -63,6 +63,7 @@
@@ -129,10 +141,10 @@ index 56f1468cd8d22..0264f7ac570f7 100644
  local int unz64local_getShort(const zlib_filefunc64_32_def* pzlib_filefunc_def,
                                voidpf filestream,
                                uLong *pX) {
-@@ -836,6 +857,10 @@ local int unz64local_GetCurrentFileInfoInternal(unzFile file,
-     uLong uMagic;
-     long lSeek=0;
+@@ -740,6 +761,10 @@ local int unz64local_GetCurrentFileInfoInternal(unzFile file,
      uLong uL;
+     unsigned zip64_required;
+     unsigned zip64_consumed = 0;
 +    uLong uFileNameCrc;
 +
 +    file_info.size_utf8_filename = 0;
@@ -140,8 +152,8 @@ index 56f1468cd8d22..0264f7ac570f7 100644
  
      if (file==NULL)
          return UNZ_PARAMERROR;
-@@ -907,21 +932,34 @@ local int unz64local_GetCurrentFileInfoInternal(unzFile file,
-     file_info_internal.offset_curfile = uL;
+@@ -822,21 +847,34 @@ local int unz64local_GetCurrentFileInfoInternal(unzFile file,
+         (file_info.disk_num_start == 0xffff ? 8U : 0U);
  
      lSeek+=file_info.size_filename;
 -    if ((err==UNZ_OK) && (szFileName!=NULL))
@@ -186,70 +198,50 @@ index 56f1468cd8d22..0264f7ac570f7 100644
      }
  
      /* Read extrafield */
-@@ -1007,6 +1045,62 @@ local int unz64local_GetCurrentFileInfoInternal(unzFile file,
+@@ -949,6 +987,42 @@ local int unz64local_GetCurrentFileInfoInternal(unzFile file,
+                     zip64_consumed |= 8U;
                  }
- 
              }
 +            else if (headerId == 0x7075) /* Info-ZIP Unicode Path Extra Field */
 +            {
 +                int version = 0;
++                uLong uCrc;
 +
-+                if (dataSize < 1 + 4)
++                /* dataSize includes version (1 byte), uCrc (4 bytes), and
++                 * the filename data. If it's too small, the filename size
++                 * below would overflow. */
++                if (dataSize >= 1 + 4)
 +                {
-+                    /* dataSize includes version (1 byte), uCrc (4 bytes), and
-+                     * the filename data. If it's too small, fileNameSize below
-+                     * would overflow. */
-+                    err = UNZ_ERRNO;
-+                    break;
++                    if (unz64local_getByte(&s->z_filefunc, s->filestream, &version) != UNZ_OK)
++                        return UNZ_ERRNO;
++                    used += 1;
 +                }
-+                else if (unz64local_getByte(&s->z_filefunc, s->filestream, &version) != UNZ_OK)
-+                {
-+                    err = UNZ_ERRNO;
-+                }
-+                if (version != 1)
-+                {
-+                    if (ZSEEK64(s->z_filefunc, s->filestream,dataSize - 1, ZLIB_FILEFUNC_SEEK_CUR) != 0)
-+                    {
-+                        err = UNZ_ERRNO;
-+                    }
-+                }
-+                else
-+                {
-+                    uLong uCrc, utf8FileNameSize;
 +
++                if (version == 1)
++                {
 +                    if (unz64local_getLong(&s->z_filefunc, s->filestream, &uCrc) != UNZ_OK)
-+                    {
-+                        err = UNZ_ERRNO;
-+                    }
-+                    utf8FileNameSize = dataSize - (1 + 4);  /* 1 for version, 4 for uCrc */
++                        return UNZ_ERRNO;
++                    used += 4;
 +
 +                    /* Check CRC against file name in the header. */
-+                    if (uCrc != uFileNameCrc)
++                    if (uCrc == uFileNameCrc)
 +                    {
-+                        if (ZSEEK64(s->z_filefunc, s->filestream, utf8FileNameSize, ZLIB_FILEFUNC_SEEK_CUR) != 0)
-+                        {
-+                            err = UNZ_ERRNO;
-+                        }
-+                    }
-+                    else
-+                    {
-+                        file_info.size_utf8_filename = utf8FileNameSize;
++                        file_info.size_utf8_filename = dataSize - used;
 +
 +                        if (file_info.size_utf8_filename > 0)
 +                        {
 +                            if (ZREAD64(s->z_filefunc, s->filestream, file_info.utf8_filename, file_info.size_utf8_filename) != file_info.size_utf8_filename)
-+                            {
-+                                err = UNZ_ERRNO;
-+                            }
++                                return UNZ_ERRNO;
 +                        }
 +                        file_info.utf8_filename[file_info.size_utf8_filename] = '\0';
++                        used += file_info.size_utf8_filename;
 +                    }
 +                }
 +            }
-             else
-             {
-                 if (ZSEEK64(s->z_filefunc, s->filestream,dataSize,ZLIB_FILEFUNC_SEEK_CUR)!=0)
-@@ -1106,6 +1200,9 @@ extern int ZEXPORT unzGetCurrentFileInfo(unzFile file,
+ 
+             /* Skip remaining bytes, but never leave this record. */
+             if (used < dataSize &&
+@@ -1050,6 +1124,9 @@ extern int ZEXPORT unzGetCurrentFileInfo(unzFile file,
          pfile_info->compressed_size = (uLong)file_info64.compressed_size;
          pfile_info->uncompressed_size = (uLong)file_info64.uncompressed_size;
  
@@ -260,7 +252,7 @@ index 56f1468cd8d22..0264f7ac570f7 100644
      return err;
  }
 diff --git a/third_party/zlib/contrib/minizip/unzip.h b/third_party/zlib/contrib/minizip/unzip.h
-index 9c98b608c7342..05efa64ea477e 100644
+index c85c65e56c2a1..5b5e820a44032 100644
 --- a/third_party/zlib/contrib/minizip/unzip.h
 +++ b/third_party/zlib/contrib/minizip/unzip.h
 @@ -42,6 +42,8 @@

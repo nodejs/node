@@ -79,11 +79,10 @@ int Dir::close() {
   return 0;
 }
 
-ErrorOr<int> Dir::scan(const char *name, struct dirent ***namelist,
-                       int (*filter)(const struct dirent *),
-                       int (*compare)(const struct dirent **,
-                                      const struct dirent **)) {
-  return internal::scan_impl<Dir>(name, namelist, filter, compare);
+ErrorOr<DirScanResult>
+Dir::scan(const char *name, int (*filter)(const struct dirent *),
+          int (*compare)(const struct dirent **, const struct dirent **)) {
+  return internal::scan_impl<Dir>(name, filter, compare);
 }
 
 } // namespace LIBC_NAMESPACE_DECL

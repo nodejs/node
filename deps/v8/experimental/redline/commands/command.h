@@ -5,9 +5,6 @@
 #ifndef V8_EXPERIMENTAL_REDLINE_COMMANDS_COMMAND_H_
 #define V8_EXPERIMENTAL_REDLINE_COMMANDS_COMMAND_H_
 
-#include <string>
-#include <vector>
-
 namespace redline {
 
 class Flags;
@@ -29,6 +26,7 @@ constexpr int kExitUsage = 2;
 extern const Command kAmplifyCommand;
 extern const Command kAuditCommand;
 extern const Command kExecCommand;
+extern const Command kFlagsCommand;
 extern const Command kFuzzCommand;
 extern const Command kMinimizeCommand;
 extern const Command kMutateCommand;

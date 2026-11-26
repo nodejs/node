@@ -401,11 +401,10 @@ transitioning macro InvokeThen<F: type>(
     const then =
         *NativeContextSlot(nativeContext, ContextSlot::PROMISE_THEN_INDEX);
     return callFunctor.Call(nativeContext, then, receiver, arg1, arg2);
-  } else
-    deferred {
-      const then = UnsafeCast<JSAny>(GetProperty(receiver, kThenString));
-      return callFunctor.Call(nativeContext, then, receiver, arg1, arg2);
-    }
+  } else deferred {
+    const then = UnsafeCast<JSAny>(GetProperty(receiver, kThenString));
+    return callFunctor.Call(nativeContext, then, receiver, arg1, arg2);
+  }
 }
 
 transitioning macro InvokeThen(

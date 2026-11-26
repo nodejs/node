@@ -9,6 +9,7 @@
 #include "src/base/iterator.h"
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
+#include "src/heap/cppgc-js/cpp-heap.h"
 #include "src/heap/factory.h"
 #include "src/heap/gc-tracer-inl.h"
 #include "src/heap/heap-layout-inl.h"
@@ -28,6 +29,10 @@ namespace internal {
 
 void HeapInternalsBase::SetForceOOM(Heap* heap, bool value) {
   heap->set_force_oom(value);
+}
+
+void HeapInternalsBase::SetForceGCOnNextAllocation(Heap* heap, bool value) {
+  heap->set_force_gc_on_next_allocation(value);
 }
 
 void HeapInternalsBase::SetDelaySweeperTasksForTesting(Heap* heap, bool value) {
@@ -186,7 +191,7 @@ void HeapInternalsBase::SimulateFullSpace(
                                  kGlobalSafepointForSharedSpaceIsolate);
   heap->FreeLinearAllocationAreas();
   // If you see this check failing, disable the flag at the start of your test:
-  // v8_flags.stress_concurrent_allocation = false;
+  // v8_flags.stress_concurrent_allocation.Set(false);
   // Background thread allocating concurrently interferes with this function.
   CHECK(!v8_flags.stress_concurrent_allocation);
   new_space->heap()->EnsureSweepingCompleted(
@@ -213,7 +218,7 @@ void HeapInternalsBase::SimulateFullSpace(PagedSpace* space) {
                                  kGlobalSafepointForSharedSpaceIsolate);
   heap->FreeLinearAllocationAreas();
   // If you see this check failing, disable the flag at the start of your test:
-  // v8_flags.stress_concurrent_allocation = false;
+  // v8_flags.stress_concurrent_allocation.Set(false);
   // Background thread allocating concurrently interferes with this function.
   CHECK(!v8_flags.stress_concurrent_allocation);
   heap->EnsureSweepingCompleted(
@@ -367,16 +372,16 @@ ManualGCScope::ManualGCScope(Isolate* isolate)
     }
   }
 
-  v8_flags.concurrent_marking = false;
-  v8_flags.concurrent_sweeping = false;
-  v8_flags.concurrent_minor_ms_marking = false;
-  v8_flags.stress_incremental_marking = false;
-  v8_flags.stress_concurrent_allocation = false;
+  v8_flags.concurrent_marking.Set(false);
+  v8_flags.concurrent_sweeping.Set(false);
+  v8_flags.concurrent_minor_ms_marking.Set(false);
+  v8_flags.stress_incremental_marking.Set(false);
+  v8_flags.stress_concurrent_allocation.Set(false);
   // Parallel marking has a dependency on concurrent marking.
-  v8_flags.parallel_marking = false;
-  v8_flags.detect_ineffective_gcs_near_heap_limit = false;
+  v8_flags.parallel_marking.Set(false);
+  v8_flags.detect_ineffective_gcs_near_heap_limit.Set(false);
   // CppHeap concurrent marking has a dependency on concurrent marking.
-  v8_flags.cppheap_concurrent_marking = false;
+  v8_flags.cppheap_concurrent_marking.Set(false);
 
   if (isolate_) {
     CppHeap::From(isolate_->heap()->cpp_heap())
@@ -385,15 +390,15 @@ ManualGCScope::ManualGCScope(Isolate* isolate)
 }
 
 ManualGCScope::~ManualGCScope() {
-  v8_flags.concurrent_marking = flag_concurrent_marking_;
-  v8_flags.concurrent_sweeping = flag_concurrent_sweeping_;
-  v8_flags.concurrent_minor_ms_marking = flag_concurrent_minor_ms_marking_;
-  v8_flags.stress_concurrent_allocation = flag_stress_concurrent_allocation_;
-  v8_flags.stress_incremental_marking = flag_stress_incremental_marking_;
-  v8_flags.parallel_marking = flag_parallel_marking_;
-  v8_flags.detect_ineffective_gcs_near_heap_limit =
-      flag_detect_ineffective_gcs_near_heap_limit_;
-  v8_flags.cppheap_concurrent_marking = flag_cppheap_concurrent_marking_;
+  v8_flags.concurrent_marking.Set(flag_concurrent_marking_);
+  v8_flags.concurrent_sweeping.Set(flag_concurrent_sweeping_);
+  v8_flags.concurrent_minor_ms_marking.Set(flag_concurrent_minor_ms_marking_);
+  v8_flags.stress_concurrent_allocation.Set(flag_stress_concurrent_allocation_);
+  v8_flags.stress_incremental_marking.Set(flag_stress_incremental_marking_);
+  v8_flags.parallel_marking.Set(flag_parallel_marking_);
+  v8_flags.detect_ineffective_gcs_near_heap_limit.Set(
+      flag_detect_ineffective_gcs_near_heap_limit_);
+  v8_flags.cppheap_concurrent_marking.Set(flag_cppheap_concurrent_marking_);
 
   if (isolate_) {
     CppHeap::From(isolate_->heap()->cpp_heap())

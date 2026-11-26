@@ -113,8 +113,9 @@ transitioning javascript builtin ArrayPrototypeToSorted(
 
   // 4. Let A be ? ArrayCreate(𝔽(len)).
   //
-  // The actual array will be created later, but perform the range check.
-  if (len > kMaxArrayLength) {
+  // The actual array will be created later.
+  // Unlike the spec, only Smi lengths are supported (crbug.com/v8/7970).
+  if (!TaggedIsSmi(len)) {
     ThrowRangeError(MessageTemplate::kInvalidArrayLength);
   }
 

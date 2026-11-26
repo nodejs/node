@@ -1010,12 +1010,22 @@ DirectHandle<String> BigInt::NoSideEffectsToString(
   DisallowGarbageCollection no_gc;
   char* characters = reinterpret_cast<char*>(result->GetChars(no_gc));
   bigint::Digits digits = bigint->digits();
-  // Resetting the budget should be enough to make sure the following ToString()
-  // can complete without checking for (termination) interrupt requests.
-  isolate->bigint_processor()->ResetInterruptCheckBudget();
-  isolate->bigint_processor()->ToString(characters, &chars_written, digits, 10,
-                                        bigint->sign());
+  // Ignore (termination) interrupt requests so the following ToString() can
+  // always complete.
+  bigint::Processor::IgnoreInterruptsScope ignore_interrupts(
+      isolate->bigint_processor());
+  bigint::Status status = isolate->bigint_processor()->ToString(
+      characters, &chars_written, digits, 10, bigint->sign());
+  DCHECK_EQ(status, bigint::Status::kOk);
+  USE(status);
   RightTrimString(isolate, result, chars_allocated, chars_written);
+#if DEBUG
+  // Verify that all characters have been written.
+  DCHECK_EQ(result->length(), chars_written);
+  for (uint32_t i = 0; i < chars_written; i++) {
+    DCHECK_NE(characters[i], bigint::kStringZapValue);
+  }
+#endif
   return result;
 }
 
@@ -1693,7 +1703,10 @@ int32_t MutableBigInt_AbsoluteModAndCanonicalize(Address result_addr,
         SBXCHECK(Y.len() >= 2 &&
                  Y.len() <= bigint::Processor::kMaxCachedModDivisorSize);
         heap->SetCachedBigIntDivisor(y);
-        processor->CachedMod_MakeInverse(Y);
+        if (processor->CachedMod_MakeInverse(Y) ==
+            bigint::Status::kInterrupted) {
+          return 1;
+        }
       }
     } else if (Y.len() >= 2 &&
                Y.len() <= bigint::Processor::kMaxCachedModDivisorSize) {

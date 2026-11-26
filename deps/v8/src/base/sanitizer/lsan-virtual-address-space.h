@@ -81,6 +81,10 @@ class V8_BASE_EXPORT LsanVirtualAddressSpace final
     return vas_->DecommitPages(address, size);
   }
 
+#if V8_OS_FUCHSIA
+  uint32_t GetVmarHandle() const override { return vas_->GetVmarHandle(); }
+#endif  // V8_OS_FUCHSIA
+
  private:
   std::unique_ptr<v8::VirtualAddressSpace> vas_;
 };

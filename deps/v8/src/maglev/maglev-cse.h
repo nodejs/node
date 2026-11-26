@@ -11,6 +11,7 @@
 
 #include "src/base/hashing.h"
 #include "src/maglev/maglev-ir.h"
+#include "src/maglev/maglev-range.h"
 
 namespace v8 {
 namespace internal {
@@ -50,6 +51,12 @@ inline size_t gvn_hash_value(const PolymorphicAccessInfo& access_info) {
 
 inline size_t gvn_hash_value(const PropertyKey& key) {
   return base::hash_value(key.data());
+}
+
+inline size_t gvn_hash_value(const Range& range) {
+  return fast_hash_combine(
+      base::hash_value(range.min().value_or(Range::kInfMin)),
+      base::hash_value(range.max().value_or(Range::kInfMax)));
 }
 
 template <typename T>

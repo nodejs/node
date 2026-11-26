@@ -1,0 +1,7 @@
+Tests regress-617882.
+{
+    result : {
+        type : string
+        value : (function() {})()
+    }
+}

@@ -11,12 +11,17 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/normal-page-inl.h"
 #include "src/objects/instance-type-inl.h"
+#include "src/objects/map-inl.h"
+#include "src/sandbox/check.h"
 
 namespace v8::internal {
 
-LiveObjectRange::iterator::iterator() : cage_base_(kNullAddress) {}
+template <ConcurrencyMode kConcurrencyMode>
+LiveObjectRange<kConcurrencyMode>::iterator::iterator()
+    : cage_base_(kNullAddress) {}
 
-LiveObjectRange::iterator::iterator(const NormalPage* page)
+template <ConcurrencyMode kConcurrencyMode>
+LiveObjectRange<kConcurrencyMode>::iterator::iterator(const NormalPage* page)
     : page_(page),
       cells_(page->marking_bitmap()->cells()),
       cage_base_(page->heap()->isolate()),
@@ -26,31 +31,37 @@ LiveObjectRange::iterator::iterator(const NormalPage* page)
   AdvanceToNextValidObject();
 }
 
-LiveObjectRange::iterator& LiveObjectRange::iterator::operator++() {
+template <ConcurrencyMode kConcurrencyMode>
+typename LiveObjectRange<kConcurrencyMode>::iterator&
+LiveObjectRange<kConcurrencyMode>::iterator::operator++() {
   AdvanceToNextValidObject();
   return *this;
 }
 
-LiveObjectRange::iterator LiveObjectRange::iterator::operator++(int) {
+template <ConcurrencyMode kConcurrencyMode>
+typename LiveObjectRange<kConcurrencyMode>::iterator
+LiveObjectRange<kConcurrencyMode>::iterator::operator++(int) {
   iterator retval = *this;
   ++(*this);
   return retval;
 }
 
-void LiveObjectRange::iterator::AdvanceToNextValidObject() {
+template <ConcurrencyMode kConcurrencyMode>
+void LiveObjectRange<kConcurrencyMode>::iterator::AdvanceToNextValidObject() {
   // If we found a regular object we are done. In case of free space, we
   // need to continue.
   //
   // Reading the instance type of the map is safe here even in the presence
   // of the mutator writing a new Map because Map objects are published with
-  // release stores (or are otherwise read-only) and the map is retrieved  in
-  // `AdvanceToNextMarkedObject()` using an acquire load.
+  // release stores (or are otherwise read-only) and in concurrent mode the map
+  // is retrieved in `ReadMapAndSize()` using an acquire load.
   while (AdvanceToNextMarkedObject() &&
          InstanceTypeChecker::IsFreeSpaceOrFiller(current_map_)) {
   }
 }
 
-bool LiveObjectRange::iterator::AdvanceToNextMarkedObject() {
+template <ConcurrencyMode kConcurrencyMode>
+bool LiveObjectRange<kConcurrencyMode>::iterator::AdvanceToNextMarkedObject() {
   // The following block moves the iterator to the next cell from the current
   // object. This means skipping all possibly set mark bits (in case of black
   // allocation).
@@ -88,10 +99,9 @@ bool LiveObjectRange::iterator::AdvanceToNextMarkedObject() {
       Address object_address = current_cell_base + trailing_zeros * kTaggedSize;
       // The object may be a filler which we want to skip.
       current_object_ = HeapObject::FromAddress(object_address);
-      current_map_ = current_object_->map(kAcquireLoad);
-      DCHECK(MapWord::IsMapOrForwarded(current_map_));
-      current_size_ = ALIGN_TO_ALLOCATION_ALIGNMENT(
-          current_object_->SafeSizeFromMap(current_map_).value());
+      const auto [map, size] = ReadMapAndSize(current_object_);
+      current_map_ = map;
+      current_size_ = ALIGN_TO_ALLOCATION_ALIGNMENT(size.value());
       CHECK(page_->ContainsLimit(object_address + current_size_));
       return true;
     }
@@ -101,9 +111,51 @@ bool LiveObjectRange::iterator::AdvanceToNextMarkedObject() {
   return false;
 }
 
-LiveObjectRange::iterator LiveObjectRange::begin() { return iterator(page_); }
+// static
+template <ConcurrencyMode kConcurrencyMode>
+std::pair<Tagged<Map>, SafeHeapObjectSize>
+LiveObjectRange<kConcurrencyMode>::iterator::ReadMapAndSize(
+    Tagged<HeapObject> object) {
+  if constexpr (kConcurrencyMode == ConcurrencyMode::kSynchronous) {
+    Tagged<Map> map = object->map();
+    DCHECK(MapWord::IsMapOrForwarded(map));
+    return {map, object->SafeSizeFromMap(map)};
+  } else {
+    Tagged<Map> map = object->map(kAcquireLoad);
+    while (true) {
+      DCHECK(MapWord::IsMapOrForwarded(map));
+      if (!IsJSObjectMap(map)) {
+        return {map, object->SafeSizeFromMap(map)};
+      }
+      const int raw_size = map->instance_size(kAcquireLoad);
+      SBXCHECK_NE(raw_size, kVariableSizeSentinel);
+      // Between loading `map` above and reading its `instance_size` here,
+      // `object` may have migrated to a different map that keeps the full size
+      // while in-object slack tracking shrank `map` in-place. Because slack
+      // tracking updates `instance_size` with a release store and `raw_size`
+      // was read with an acquire load, a relaxed reload of `object->map` here
+      // is guaranteed to observe any migration that happened before `map`
+      // shrank.
+      Tagged<Map> confirmed_map = object->map(kAcquireLoad);
+      if (V8_LIKELY(confirmed_map == map)) {
+        return {map, SafeHeapObjectSize(static_cast<uint32_t>(raw_size))};
+      }
+      map = confirmed_map;
+    }
+  }
+}
 
-LiveObjectRange::iterator LiveObjectRange::end() { return iterator(); }
+template <ConcurrencyMode kConcurrencyMode>
+typename LiveObjectRange<kConcurrencyMode>::iterator
+LiveObjectRange<kConcurrencyMode>::begin() {
+  return iterator(page_);
+}
+
+template <ConcurrencyMode kConcurrencyMode>
+typename LiveObjectRange<kConcurrencyMode>::iterator
+LiveObjectRange<kConcurrencyMode>::end() {
+  return iterator();
+}
 
 }  // namespace v8::internal
 

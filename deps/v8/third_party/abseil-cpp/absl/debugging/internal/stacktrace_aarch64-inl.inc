@@ -193,12 +193,12 @@ static void **NextStackFrame(void **old_frame_pointer, const void *uc,
 }
 
 template <bool IS_STACK_FRAMES, bool IS_WITH_CONTEXT>
-// We count on the bottom frame being this one. See the comment
-// at prev_return_address
-ABSL_ATTRIBUTE_NOINLINE
 ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS  // May read random elements from stack.
 ABSL_ATTRIBUTE_NO_SANITIZE_MEMORY   // May read random elements from stack.
 ABSL_ATTRIBUTE_NO_SANITIZE_THREAD   // May read random elements from stack.
+// We count on the bottom frame being this one. See the comment
+// at prev_return_address
+ABSL_ATTRIBUTE_NOINLINE
 static int UnwindImpl(void **result, uintptr_t *frames, int *sizes,
                       int max_depth, int skip_count, const void *ucp,
                       int *min_dropped_frames) {

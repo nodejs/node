@@ -184,6 +184,59 @@ static int makedir(const char *newdir) {
   return 1;
 }
 
+/* Copy to out a version of the path name that can only be created under the
+   extraction directory. Both '/' and '\\' are taken as separators. Empty and
+   "." path components are removed, and a ".." component is removed along with
+   the component before it, if any. On Windows, drive specifiers at the start
+   and components of only dots and spaces are also removed. The result is
+   always a relative path, and is no longer than name. out must have room for
+   strlen(name) + 1 characters. */
+static void safe_path(char* out, const char* name) {
+    char* start = out;
+    while (*name != '\0')
+    {
+        const char* comp = name;
+        size_t len;
+        while (*name != '\0' && *name != '/' && *name != '\\')
+            name++;
+        len = (size_t)(name - comp);
+#ifdef _WIN32
+        while (out == start && len >= 2 && comp[1] == ':')
+        {
+            comp += 2;          /* remove drive specifiers, e.g. "C:" */
+            len -= 2;
+        }
+        {
+            /* Windows drops trailing dots and spaces from a name, so remove
+               any other component made of only those, such as "..." */
+            size_t i = 0;
+            while (i < len && (comp[i] == '.' || comp[i] == ' '))
+                i++;
+            if (i == len && !(len == 2 && comp[0] == '.' && comp[1] == '.'))
+                len = 0;
+        }
+#endif
+        if (len == 2 && comp[0] == '.' && comp[1] == '.')
+        {
+            /* remove the previous component and its separator, if any */
+            if (out > start)
+                out--;
+            while (out > start && out[-1] != '/' && out[-1] != '\\')
+                out--;
+        }
+        else if (len != 0 && !(len == 1 && comp[0] == '.'))
+        {
+            memcpy(out, comp, len);
+            out += len;
+            if (*name != '\0')
+                *out++ = *name;     /* keep the separator */
+        }
+        if (*name != '\0')
+            name++;
+    }
+    *out = '\0';
+}
+
 static void do_banner(void) {
     printf("MiniUnz 1.1, demo of zLib + Unz package written by Gilles Vollant\n");
     printf("more info at https://www.winimage.com/zLibDll/unzip.html\n\n");
@@ -267,7 +320,7 @@ static int do_list(unzFile uf) {
               string_method="Defl:N";
             else if (iLevel==1)
               string_method="Defl:X";
-            else if ((iLevel==2) || (iLevel==3))
+            else        /* iLevel==2 || iLevel==3 */
               string_method="Defl:F"; /* 2:fast , 3 : extra fast*/
         }
         else
@@ -305,6 +358,7 @@ static int do_list(unzFile uf) {
 
 static int do_extract_currentfile(unzFile uf, const int* popt_extract_without_path, int* popt_overwrite, const char* password) {
     char filename_inzip[65536+1];
+    char write_name[65536+1];
     char* filename_withoutpath;
     char* p;
     int err=UNZ_OK;
@@ -339,35 +393,27 @@ static int do_extract_currentfile(unzFile uf, const int* popt_extract_without_pa
 
     if ((*filename_withoutpath)=='\0')
     {
-        if ((*popt_extract_without_path)==0)
+        safe_path(write_name, filename_inzip);
+        if (((*popt_extract_without_path)==0) && (write_name[0]!='\0'))
         {
-            printf("creating directory: %s\n",filename_inzip);
-            mymkdir(filename_inzip);
+            printf("creating directory: %s\n",write_name);
+            mymkdir(write_name);
         }
     }
     else
     {
-        const char* write_filename;
+        const char* write_filename = write_name;
         int skip=0;
 
         if ((*popt_extract_without_path)==0)
-            write_filename = filename_inzip;
+            safe_path(write_name, filename_inzip);
         else
-            write_filename = filename_withoutpath;
-
-        if (write_filename[0]!='\0')
+            safe_path(write_name, filename_withoutpath);
+        if (write_name[0]=='\0')
         {
-            const char* relative_check = write_filename;
-            while (relative_check[1]!='\0')
-            {
-                if (relative_check[0]=='.' && relative_check[1]=='.')
-                    write_filename = relative_check;
-                relative_check++;
-            }
+            printf("skipping %s: no name left to extract to\n",filename_inzip);
+            skip = 1;
         }
-
-        while (write_filename[0]=='/' || write_filename[0]=='.')
-            write_filename++;
 
         err = unzOpenCurrentFilePassword(uf,password);
         if (err!=UNZ_OK)
@@ -412,14 +458,22 @@ static int do_extract_currentfile(unzFile uf, const int* popt_extract_without_pa
         {
             fout=FOPEN_FUNC(write_filename,"wb");
             /* some zipfile don't contain directory alone before file */
-            if ((fout==NULL) && ((*popt_extract_without_path)==0) &&
-                                (filename_withoutpath!=(char*)filename_inzip))
+            if ((fout==NULL) && ((*popt_extract_without_path)==0))
             {
-                char c=*(filename_withoutpath-1);
-                *(filename_withoutpath-1)='\0';
-                makedir(write_filename);
-                *(filename_withoutpath-1)=c;
-                fout=FOPEN_FUNC(write_filename,"wb");
+                /* make the directories leading up to the file */
+                char* sep = NULL;
+                char* q;
+                for (q = write_name; *q != '\0'; q++)
+                    if (*q == '/' || *q == '\\')
+                        sep = q;
+                if (sep != NULL)
+                {
+                    char c = *sep;
+                    *sep = '\0';
+                    makedir(write_name);
+                    *sep = c;
+                    fout=FOPEN_FUNC(write_filename,"wb");
+                }
             }
 
             if (fout==NULL)

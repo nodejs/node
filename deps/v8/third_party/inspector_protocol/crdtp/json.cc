@@ -606,74 +606,26 @@ class JsonParser {
     return false;
   }
 
-  static bool SkipComment(const Char* start,
-                          const Char* end,
-                          const Char** comment_end) {
-    if (start == end)
-      return false;
-
-    if (*start != '/' || start + 1 >= end)
-      return false;
-    ++start;
-
-    if (*start == '/') {
-      // Single line comment, read to newline.
-      for (++start; start < end; ++start) {
-        if (*start == '\n' || *start == '\r') {
-          *comment_end = start + 1;
-          return true;
-        }
-      }
-      *comment_end = end;
-      // Comment reaches end-of-input, which is fine.
-      return true;
-    }
-
-    if (*start == '*') {
-      Char previous = '\0';
-      // Block comment, read until end marker.
-      for (++start; start < end; previous = *start++) {
-        if (previous == '*' && *start == '/') {
-          *comment_end = start + 1;
-          return true;
-        }
-      }
-      // Block comment must close before end-of-input.
-      return false;
-    }
-
-    return false;
-  }
-
   static bool IsSpaceOrNewLine(Char c) {
     // \v = vertial tab; \f = form feed page break.
     return c == ' ' || c == '\n' || c == '\v' || c == '\f' || c == '\r' ||
            c == '\t';
   }
 
-  static void SkipWhitespaceAndComments(const Char* start,
-                                        const Char* end,
-                                        const Char** whitespace_end) {
-    while (start < end) {
-      if (IsSpaceOrNewLine(*start)) {
-        ++start;
-      } else if (*start == '/') {
-        const Char* comment_end = nullptr;
-        if (!SkipComment(start, end, &comment_end))
-          break;
-        start = comment_end;
-      } else {
-        break;
-      }
+  static void SkipWhitespace(const Char* start,
+                             const Char* end,
+                             const Char** whitespace_end) {
+    while (start < end && IsSpaceOrNewLine(*start)) {
+      ++start;
     }
     *whitespace_end = start;
   }
 
-  static Token ParseToken(const Char* start,
-                          const Char* end,
-                          const Char** tokenStart,
-                          const Char** token_end) {
-    SkipWhitespaceAndComments(start, end, tokenStart);
+  Token ParseToken(const Char* start,
+                   const Char* end,
+                   const Char** tokenStart,
+                   const Char** token_end) {
+    SkipWhitespace(start, end, tokenStart);
     start = *tokenStart;
 
     if (start == end)
@@ -999,7 +951,7 @@ class JsonParser {
         return;
     }
 
-    SkipWhitespaceAndComments(token_end, end, value_token_end);
+    SkipWhitespace(token_end, end, value_token_end);
   }
 
   void HandleError(Error error, const Char* pos) {

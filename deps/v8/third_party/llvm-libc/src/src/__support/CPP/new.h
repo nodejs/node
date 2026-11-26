@@ -40,9 +40,9 @@ template <class T> [[nodiscard]] constexpr T *launder(T *p) {
 } // namespace cpp
 } // namespace LIBC_NAMESPACE_DECL
 
-LIBC_INLINE void *operator new(size_t, void *p) { return p; }
+LIBC_INLINE void *operator new(size_t, void *p) noexcept { return p; }
 
-LIBC_INLINE void *operator new[](size_t, void *p) { return p; }
+LIBC_INLINE void *operator new[](size_t, void *p) noexcept { return p; }
 
 // The ideal situation would be to define the various flavors of operator delete
 // inline like we do with operator new above. However, since we need operator

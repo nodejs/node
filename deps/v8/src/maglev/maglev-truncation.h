@@ -41,7 +41,7 @@ constexpr int64_t kMaxExactlyRepresentableValue =
 constexpr int64_t kMaxSaturatedValue = kMaxExactlyRepresentableValue + 1;
 
 inline Range RefinedInputRange(ValueNode* node) {
-  node = node->UnwrapIdentities();
+  node = node->UnwrapAliases();
   Range refined = Range::All();
   switch (node->opcode()) {
     case Opcode::kInt32BitwiseAnd:
@@ -200,6 +200,8 @@ class PropagateTruncationProcessor {
     return ProcessSingleInputSpecialNode(node);
   }
 
+  ProcessResult Process(AssumeType* node) { return ProcessResult::kContinue; }
+
   ProcessResult Process(Dead* node) { return ProcessResult::kContinue; }
 
   // TODO(victorgomes): We can only truncate CheckedHoleyFloat64ToInt32
@@ -229,9 +231,9 @@ class PropagateTruncationProcessor {
   ZoneAbslFlatHashMap<ValueNode*, int64_t> max_exact_value_;
 
   static ValueNode* UnwrapForTruncation(ValueNode* node) {
-    node = node->UnwrapIdentities();
+    node = node->UnwrapAliases();
     if (node->Is<ChangeInt32ToFloat64>()) {
-      return node->input_node(0)->UnwrapIdentities();
+      return node->input_node(0)->UnwrapAliases();
     }
     return node;
   }
@@ -240,8 +242,8 @@ class PropagateTruncationProcessor {
     return node->can_truncate_to_int32() && IsAdditiveOperation(node->opcode());
   }
 
-  // Largest absolute value an input can hold, as an operand of `user_opcode`.
-  static int64_t GetMaxExactInputValue(Opcode user_opcode, ValueNode* node) {
+  // Largest absolute value an input can hold, as an operand of `user`.
+  static int64_t GetMaxExactInputValue(ValueNode* user, ValueNode* node) {
     node = UnwrapForTruncation(node);
     if (auto constant = node->TryCast<Float64Constant>()) {
       return GetMaxExactValueOfRange(constant->GetStaticRange());
@@ -262,10 +264,14 @@ class PropagateTruncationProcessor {
     // either, since refusing a node also refuses everything it is computed
     // from, so its static range still describes the value it holds.
     int64_t max_abs_value = GetMaxExactValueOfRange(node->GetStaticRange());
-    if (user_opcode == Opcode::kFloat64SpeculateSafeAdd) {
+    if (auto* safe_add = user->TryCast<Float64SpeculateSafeAdd>();
+        safe_add && !safe_add->range().IsSafeInt()) {
       // Speculative truncation reaches a Float64 operand through a conversion
       // that range checks it against the additive safe integer feedback range,
-      // so that check bounds it too.
+      // so that check bounds it too. Non-speculating safe additions (whose
+      // static range is already a safe integer) emit no range check, and
+      // additions that abandon speculation clear `can_truncate_to_int32` so
+      // any speculating user range-checks their result.
       max_abs_value = std::min(max_abs_value, -kMinAdditiveSafeIntegerFeedback);
     }
     return max_abs_value;
@@ -312,10 +318,10 @@ class PropagateTruncationProcessor {
       int64_t max_abs_value = 0;
       for (int i = 0; i < node->input_count(); i++) {
         ValueNode* input = UnwrapForTruncation(node->input_node(i));
-        max_abs_value = add_saturated(
-            max_abs_value, IsTruncatableAdditiveOperation(input)
-                               ? max_exact_value_.at(input)
-                               : GetMaxExactInputValue(node->opcode(), input));
+        max_abs_value = add_saturated(max_abs_value,
+                                      IsTruncatableAdditiveOperation(input)
+                                          ? max_exact_value_.at(input)
+                                          : GetMaxExactInputValue(node, input));
       }
       stack.pop_back();
       max_exact_value_.emplace(node, max_abs_value);
@@ -518,6 +524,10 @@ class TruncationProcessor {
     ValueNode* input = node->input_node(index);
     if (input->Is<Phi>()) return true;
     if (input->is_conversion()) return IsSafeIntInputOrPhi(input, 0);
+    // A truncatable Float64 operation that stayed Float64 after partial
+    // truncation holds its value modulo 2^32, so it must be consumed truncated
+    // even if its cached range was reset.
+    if (input->is_float64() && input->can_truncate_to_int32()) return true;
     return input->GetStaticRange().IsSafeInt();
   }
 
@@ -529,15 +539,19 @@ class TruncationProcessor {
     }
     DCHECK(!IsUnsafeIntConstant(node, 0) && !IsUnsafeIntConstant(node, 1));
     if (node->range().IsSafeInt()) {
-      // Non-speculating truncation.
-      ProcessFloat64BinaryOp<Int32Add>(node);
+      // Non-speculating truncation. Lower to Float64Add first in case not all
+      // inputs are Int32.
+      ProcessFloat64BinaryOp<Int32Add>(node->OverwriteWith<Float64Add>());
       return;
     }
     // Checking both inputs are usually expensive, so we only speculate if one
     // of the inputs is already a safe int. However since truncation happens
     // before phi representation selector, we also speculate if we see a phi.
     if (!IsSafeIntInputOrPhi(node, 0) && !IsSafeIntInputOrPhi(node, 1)) {
-      // Don't truncate this node.
+      // Don't truncate this node. Neither operand is truncated, so this is an
+      // exact Float64Add; clear `can_truncate_to_int32` so speculating users
+      // still range-check it.
+      node->set_can_truncate_to_int32(false);
       node->OverwriteWith<Float64Add>();
       return;
     }

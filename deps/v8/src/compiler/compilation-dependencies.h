@@ -68,10 +68,6 @@ class V8_EXPORT CompilationDependencies : public ZoneObject {
                                                   ObjectRef constant,
                                                   PropertyKind kind);
 
-  // Return the pretenure mode of {site} and record the assumption that it does
-  // not change.
-  AllocationType DependOnPretenureMode(AllocationSiteRef site);
-
   // Return a field's constness and, if kConst, record the assumption that it
   // remains kConst. The field is identified by the arguments.
   //
@@ -112,6 +108,7 @@ class V8_EXPORT CompilationDependencies : public ZoneObject {
   bool DependOnPromiseHookProtector();
   bool DependOnPromiseSpeciesProtector();
   bool DependOnPromiseThenProtector();
+  bool DependOnRegExpSpeciesProtector();
   bool DependOnMegaDOMProtector();
   bool DependOnNoProfilingProtector();
   bool DependOnNoUndetectableObjectsProtector();

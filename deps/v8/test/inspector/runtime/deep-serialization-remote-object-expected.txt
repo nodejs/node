@@ -1,0 +1,217 @@
+Tests that deep serialization reports the result value only in RemoteObject.deepSerializedValue.
+
+Running test: testEvaluate
+undefined
+{
+    deepSerializedValue : {
+        type : undefined
+    }
+    type : undefined
+}
+null
+{
+    deepSerializedValue : {
+        type : null
+    }
+    subtype : null
+    type : object
+}
+'foo'
+{
+    deepSerializedValue : {
+        type : string
+        value : foo
+    }
+    type : string
+}
+true
+{
+    deepSerializedValue : {
+        type : boolean
+        value : true
+    }
+    type : boolean
+}
+42
+{
+    deepSerializedValue : {
+        type : number
+        value : 42
+    }
+    description : 42
+    type : number
+}
+-0
+{
+    deepSerializedValue : {
+        type : number
+        value : -0
+    }
+    description : -0
+    type : number
+}
+NaN
+{
+    deepSerializedValue : {
+        type : number
+        value : NaN
+    }
+    description : NaN
+    type : number
+}
+123n
+{
+    deepSerializedValue : {
+        type : bigint
+        value : 123
+    }
+    description : 123n
+    type : bigint
+}
+Symbol('foo')
+{
+    deepSerializedValue : {
+        type : symbol
+    }
+    description : Symbol(foo)
+    objectId : <objectId>
+    type : symbol
+}
+({a: 'foo'})
+{
+    className : Object
+    deepSerializedValue : {
+        type : object
+        value : [
+            [0] : [
+                [0] : a
+                [1] : {
+                    type : string
+                    value : foo
+                }
+            ]
+        ]
+    }
+    description : Object
+    objectId : <objectId>
+    type : object
+}
+
+Running test: testCallFunctionOn
+undefined
+{
+    deepSerializedValue : {
+        type : undefined
+    }
+    type : undefined
+}
+null
+{
+    deepSerializedValue : {
+        type : null
+    }
+    subtype : null
+    type : object
+}
+'foo'
+{
+    deepSerializedValue : {
+        type : string
+        value : foo
+    }
+    type : string
+}
+true
+{
+    deepSerializedValue : {
+        type : boolean
+        value : true
+    }
+    type : boolean
+}
+42
+{
+    deepSerializedValue : {
+        type : number
+        value : 42
+    }
+    description : 42
+    type : number
+}
+-0
+{
+    deepSerializedValue : {
+        type : number
+        value : -0
+    }
+    description : -0
+    type : number
+}
+NaN
+{
+    deepSerializedValue : {
+        type : number
+        value : NaN
+    }
+    description : NaN
+    type : number
+}
+123n
+{
+    deepSerializedValue : {
+        type : bigint
+        value : 123
+    }
+    description : 123n
+    type : bigint
+}
+Symbol('foo')
+{
+    deepSerializedValue : {
+        type : symbol
+    }
+    description : Symbol(foo)
+    objectId : <objectId>
+    type : symbol
+}
+({a: 'foo'})
+{
+    className : Object
+    deepSerializedValue : {
+        type : object
+        value : [
+            [0] : [
+                [0] : a
+                [1] : {
+                    type : string
+                    value : foo
+                }
+            ]
+        ]
+    }
+    description : Object
+    objectId : <objectId>
+    type : object
+}
+
+Running test: testAwaitPromise
+Promise.resolve('foo')
+{
+    deepSerializedValue : {
+        type : string
+        value : foo
+    }
+    type : string
+}
+Promise.reject('foo')
+{
+    deepSerializedValue : {
+        type : string
+        value : foo
+    }
+    type : string
+}
+{
+    type : string
+    value : foo
+}

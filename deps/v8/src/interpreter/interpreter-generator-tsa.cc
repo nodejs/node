@@ -271,10 +271,9 @@ class BytecodeHandlerReducer : public Next {
     data_.implicit_register_use = data_.implicit_register_use | use;
   }
 
-  Isolate* isolate_ = __ data() -> isolate();
-  ZoneWithName<compiler::kGraphZoneName>& graph_zone_ =
-      __ data() -> graph_zone();
-  BytecodeHandlerData& data_ = *__ data() -> bytecode_handler_data();
+  Isolate* isolate_ = __ data()->isolate();
+  ZoneWithName<compiler::kGraphZoneName>& graph_zone_ = __ data()->graph_zone();
+  BytecodeHandlerData& data_ = *__ data()->bytecode_handler_data();
   // TODO(nicohartmann): Replace with Var<T>s.
   OpIndex bytecode_offset_parameter_;
   OpIndex dispatch_table_parameter_;

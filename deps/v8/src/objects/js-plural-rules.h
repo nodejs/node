@@ -15,6 +15,7 @@
 #include "src/base/bit-field.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
+#include "src/objects/bit-field-group.h"
 #include "src/objects/intl-objects.h"
 #include "src/objects/managed.h"
 #include "src/objects/objects.h"
@@ -55,18 +56,23 @@ V8_OBJECT class JSPluralRules : public JSObject {
   Handle<String> TypeAsString(Isolate* isolate) const;
 
   DECL_PRINTER(JSPluralRules)
-  // Bit positions in |flags|.
-  using TypeBit = base::BitField<JSPluralRules::Type, 0, 1, uint32_t>;
+  struct Flags : BitFieldGroup<Flags, uint32_t> {
+    using BitFieldGroup::BitFieldGroup;
 
-  static_assert(TypeBit::is_valid(Type::CARDINAL));
-  static_assert(TypeBit::is_valid(Type::ORDINAL));
+    using TypeBit = First<JSPluralRules::Type, 1>;
+
+    BIT_FIELD_GROUP_ACCESSORS(type, TypeBit)
+  };
+
+  static_assert(Flags::TypeBit::is_valid(Type::CARDINAL));
+  static_assert(Flags::TypeBit::is_valid(Type::ORDINAL));
 
   inline Tagged<String> locale() const;
   inline void set_locale(Tagged<String> value,
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline int flags() const;
-  inline void set_flags(int value);
+  inline Flags flags() const;
+  inline void set_flags(Flags value);
 
   inline Tagged<CppGCManaged<PluralRulesInternal>> internal() const;
   inline void set_internal(Tagged<CppGCManaged<PluralRulesInternal>> value,
@@ -78,7 +84,7 @@ V8_OBJECT class JSPluralRules : public JSObject {
 
  public:
   TaggedMember<String> locale_;
-  TaggedMember<Smi> flags_ V8_TQ_TYPE(SmiTagged<JSPluralRulesFlags>);
+  SmiBitFieldMember<Flags> flags_;
   TaggedMember<CppGCManaged<PluralRulesInternal>> internal_;
 } V8_OBJECT_END;
 

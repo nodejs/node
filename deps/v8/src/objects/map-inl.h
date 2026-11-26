@@ -396,21 +396,43 @@ int Map::instance_size_in_words() const {
   return instance_size_in_words_.load(std::memory_order_relaxed);
 }
 
+int Map::instance_size_in_words(AcquireLoadTag) const {
+  return instance_size_in_words_.load(std::memory_order_acquire);
+}
+
 void Map::set_instance_size_in_words(int value) {
   instance_size_in_words_.store(static_cast<uint8_t>(value),
                                 std::memory_order_relaxed);
+}
+
+void Map::set_instance_size_in_words(int value, ReleaseStoreTag) {
+  instance_size_in_words_.store(static_cast<uint8_t>(value),
+                                std::memory_order_release);
 }
 
 int Map::instance_size() const {
   return instance_size_in_words() << kTaggedSizeLog2;
 }
 
-void Map::set_instance_size(int size_in_bytes) {
+int Map::instance_size(AcquireLoadTag tag) const {
+  return instance_size_in_words(tag) << kTaggedSizeLog2;
+}
+
+// static
+int Map::InstanceSizeInWordsFromBytes(int size_in_bytes) {
   CHECK(IsAligned(size_in_bytes, kTaggedSize));
   DCHECK_LE(static_cast<unsigned>(size_in_bytes), JSObject::kMaxInstanceSize);
-  int size_in_words = size_in_bytes >>= kTaggedSizeLog2;
+  int size_in_words = size_in_bytes >> kTaggedSizeLog2;
   CHECK_LE(static_cast<unsigned>(size_in_words), kMaxUInt8);
-  set_instance_size_in_words(size_in_words);
+  return size_in_words;
+}
+
+void Map::set_instance_size(int size_in_bytes) {
+  set_instance_size_in_words(InstanceSizeInWordsFromBytes(size_in_bytes));
+}
+
+void Map::set_instance_size(int size_in_bytes, ReleaseStoreTag tag) {
+  set_instance_size_in_words(InstanceSizeInWordsFromBytes(size_in_bytes), tag);
 }
 
 uint8_t Map::inobject_properties_start_or_constructor_function_index() const {
@@ -470,7 +492,8 @@ int Map::GetConstructorFunctionIndex() const {
 
 void Map::SetConstructorFunctionIndex(int value) {
   CHECK(IsPrimitiveMap(this));
-  set_inobject_properties_start_or_constructor_function_index(value);
+  set_inobject_properties_start_or_constructor_function_index(
+      base::checked_cast<uint8_t>(value));
 }
 
 int Map::GetInObjectPropertyOffset(int index) const {
@@ -851,10 +874,6 @@ bool Map::has_frozen_elements() const {
   return IsFrozenElementsKind(elements_kind());
 }
 
-bool Map::has_shared_array_elements() const {
-  return IsSharedArrayElementsKind(elements_kind());
-}
-
 void Map::set_is_dictionary_map(bool value) {
   set_bit_field3(
       bit_field3().with_is_dictionary_map(value).with_is_unstable(value));
@@ -899,13 +918,8 @@ bool Map::CanTransition() const {
   // read only sapce.
   DCHECK_IMPLIES(InstanceTypeChecker::IsMaybeReadOnlyJSObject(type),
                  HeapLayout::InReadOnlySpace(this));
-  // Shared JS objects have fixed shapes and do not transition. Their maps are
-  // either in shared space or RO space.
-  DCHECK_IMPLIES(InstanceTypeChecker::IsAlwaysSharedSpaceJSObject(type),
-                 HeapLayout::InAnySharedSpace(this));
   return InstanceTypeChecker::IsJSObject(type) &&
-         !InstanceTypeChecker::IsMaybeReadOnlyJSObject(type) &&
-         !InstanceTypeChecker::IsAlwaysSharedSpaceJSObject(type);
+         !InstanceTypeChecker::IsMaybeReadOnlyJSObject(type);
 }
 
 bool IsBooleanMap(Tagged<Map> map) {

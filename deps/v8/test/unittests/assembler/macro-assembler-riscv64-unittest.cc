@@ -34,6 +34,7 @@
 #include "src/codegen/macro-assembler.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/simulator.h"
+#include "src/numbers/conversions-inl.h"
 #include "src/objects/objects-inl.h"
 #include "test/common/assembler-tester.h"
 #include "test/common/value-helper.h"
@@ -136,6 +137,47 @@ TEST_F(MacroAssemblerTest, TestCheck) {
   f.Call(18);
   ASSERT_DEATH_IF_SUPPORTED(
       { f.Call(17); }, v8_flags.debug_code ? "abort: no reason" : "");
+}
+
+// The outer range check treats -1 MiB as out of range, but the long-call
+// helper accepts it as a JAL displacement. Exercise that exact boundary.
+TEST_F(MacroAssemblerTest, BranchAndLinkLongBackwardJalBoundary) {
+  constexpr int kJalBackwardRange = 1 << (Assembler::kJumpOffsetBits - 1);
+  auto f = AssembleCode<int()>(isolate(), [](MacroAssembler& masm) {
+    Label target;
+    Label entry;
+    masm.j(&entry);
+    masm.bind(&target);
+    masm.Ret();
+    masm.bind(&entry);
+    masm.li(a0, 1);
+    masm.Mv(t0, ra);
+
+    const int padding = kJalBackwardRange - (masm.pc_offset() - target.pos());
+    CHECK_GE(padding, 0);
+    CHECK_EQ(0, padding % kInstrSize);
+    for (int i = 0; i < padding / kInstrSize; ++i) {
+      masm.addi(zero_reg, zero_reg, 0);  // addi x0, x0, 0
+    }
+    CHECK_EQ(target.pos() + kJalBackwardRange, masm.pc_offset());
+
+    masm.Call(&target);
+    masm.Mv(ra, t0);
+    masm.li(a0, 42);
+    masm.Ret();
+  });
+  EXPECT_EQ(42, f.Call());
+}
+
+TEST_F(MacroAssemblerTest, ComputeCodeStartAddressAtNonzeroOffset) {
+  auto f = AssembleCode<int()>(isolate(), [](MacroAssembler& masm) {
+    masm.ComputeCodeStartAddress(t0);
+    masm.addi(zero_reg, zero_reg, 0);
+    masm.ComputeCodeStartAddress(t1);
+    masm.SubWord(a0, t1, t0);
+    masm.Ret();
+  });
+  EXPECT_EQ(0, f.Call());
 }
 
 TEST_F(MacroAssemblerTest, LoadConstants) {
@@ -352,6 +394,188 @@ TEST_F(MacroAssemblerTest, jump_tables6) {
     // ::printf("f(%d) = %" PRId64 "\n", i, res);
     CHECK_EQ(values[i], res);
   }
+}
+
+// Emits an always-taken branch to a label bound more than a branch's reach
+// away, which forces the trampoline pool out.
+static void EmitTrampolinePool(MacroAssembler& masm) {
+  Label pending;
+  __ Branch(&pending, eq, a0, Operand(a0));
+  for (int i = 0; i < Assembler::kMaxBranchOffset / kInstrSize; ++i) {
+    __ addi(a1, a1, 1);
+  }
+  __ bind(&pending);
+}
+
+TEST_F(MacroAssemblerTest, far_jump_pool) {
+  // Past the trampoline pool, a branch to a label not bound yet is a jal, and
+  // a far-jump pool keeps it in reach of a label bound further away than a
+  // jal reaches.
+  Isolate* isolate = i_isolate();
+  HandleScope scope(isolate);
+  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired{true});
+
+  const int kFillInstr = Assembler::kMaxJumpOffset / kInstrSize + 1024;
+  Label far, far_cond, done;
+
+  __ mv(a1, zero_reg);
+  EmitTrampolinePool(masm);
+
+  // The conditional branch skips a jal, and the unconditional one is one.
+  int cond_pos = masm.pc_offset();
+  __ Branch(&far_cond, eq, a0, Operand(zero_reg));
+  CHECK(Assembler::IsJal(masm.instr_at(cond_pos + kInstrSize)));
+  int jump_pos = masm.pc_offset();
+  __ Branch(&far);
+  CHECK(Assembler::IsJal(masm.instr_at(jump_pos)));
+
+  for (int i = 0; i < kFillInstr; ++i) {
+    __ addi(a1, a1, 1);
+  }
+  __ bind(&far);
+  __ li(a0, Operand(1));
+  __ Branch(&done);
+  __ bind(&far_cond);
+  __ li(a0, Operand(2));
+  __ bind(&done);
+  // a1 counts any filler that ran, which none should.
+  __ add(a0, a0, a1);
+  __ jr(ra);
+
+  CodeDesc desc;
+  masm.GetCode(isolate, &desc);
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
+  auto f = GeneratedCode<F1>::FromCode(isolate, *code);
+  CHECK_EQ(2, reinterpret_cast<int64_t>(f.Call(0, 0, 0, 0, 0)));
+  CHECK_EQ(1, reinterpret_cast<int64_t>(f.Call(1, 0, 0, 0, 0)));
+}
+
+TEST_F(MacroAssemblerTest, far_jump_pool_waits_for_short_branch) {
+  // A far-jump pool must not be inserted between a short branch and the label
+  // it branches to: the branch reaches only kMaxBranchOffset bytes and, unlike
+  // a jump, has no pool slot to fall back on. The pool waits for the branch to
+  // be bound. Sweep back-to-back short-branch blocks across the whole window
+  // where the pool could come due, so it is due inside some block wherever
+  // exactly the deadline falls; a single block could miss it (on main the
+  // pool lands past the block, splitting nothing).
+  Isolate* isolate = i_isolate();
+  HandleScope scope(isolate);
+  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired{true});
+
+  // Enough pending jumps that the pool they need is larger than a short
+  // branch reaches, so the pool cannot be placed inside a branch's span.
+  const int kPendingJumps = 600;
+  // Body each branch skips. Well inside a branch's reach on its own, so only
+  // a pool inserted here could put the label out of reach.
+  const int kBodyInstr = 250;
+
+  Label far, body;
+  __ mv(a1, zero_reg);
+  EmitTrampolinePool(masm);
+
+  // Skip the block of pending jumps on the path this test runs; both of its
+  // calls take the branch. The jump to `body` is the first pending jump, so
+  // it sets the start the far-jump check is measured from.
+  int far_start = masm.pc_offset();
+  __ Branch(&body, eq, a0, Operand(a0));
+
+  for (int i = 0; i < kPendingJumps; ++i) {
+    __ Branch(&far);
+    CHECK(Assembler::IsJal(masm.instr_at(masm.pc_offset() - kInstrSize)));
+  }
+  __ bind(&body);
+
+  // The pool is due somewhere within kMaxJumpOffset of the first pending
+  // jump, earlier by its size, the room reserved for a pending short branch
+  // (see Assembler::UpdateFarJumpCheck) and a BlockPoolsScope's kGap. Start
+  // before the last possible point by the whole reserve and sweep past it,
+  // covering the deadline without repeating its formula.
+  int pool_size = Assembler::kTrampolinePoolOverhead +
+                  kPendingJumps * Assembler::kTrampolineSlotsSize;
+  int sweep_start = far_start + Assembler::kMaxJumpOffset - pool_size -
+                    Assembler::kShortBranchWaitReserve -
+                    Assembler::BlockPoolsScope::kGap;
+  int sweep_end = far_start + Assembler::kMaxJumpOffset;
+  while (masm.pc_offset() + 2 * kInstrSize < sweep_start) {
+    __ addi(a2, a2, 1);
+  }
+
+  int blocks = 0;
+  while (masm.pc_offset() < sweep_end) {
+    Label near;
+    __ BranchShort(&near, ne, a0, Operand(zero_reg));
+    // Capture after emission: BranchShort's own BlockPoolsScope may emit the
+    // pool before the branch, which is legal.
+    int branch_pos = masm.pc_offset() - kInstrSize;
+    CHECK(Assembler::IsBranch(masm.instr_at(branch_pos)));
+    for (int i = 0; i < kBodyInstr; ++i) {
+      __ addi(a1, a1, 1);
+    }
+    int near_pos = masm.pc_offset();
+    __ bind(&near);
+
+    // Nothing was inserted in the branch's span: the body is still the
+    // sequence of addis emitted for it, and the branch still points at its
+    // own label. A pool here would be one it cannot jump over.
+    for (int pos = branch_pos + kInstrSize; pos < near_pos; pos += kInstrSize) {
+      CHECK(Assembler::IsAddi(masm.instr_at(pos)));
+    }
+    CHECK_EQ(Assembler::BranchOffset(masm.instr_at(branch_pos)),
+             near_pos - branch_pos);
+    ++blocks;
+  }
+  __ bind(&far);
+
+  __ mv(a0, a1);
+  __ jr(ra);
+
+  CodeDesc desc;
+  masm.GetCode(isolate, &desc);
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
+  auto f = GeneratedCode<F1>::FromCode(isolate, *code);
+  // The first call has a0 == 0, so it runs every body the branches skip; the
+  // second one branches over them. Neither runs the block of pending jumps.
+  CHECK_EQ(blocks * kBodyInstr,
+           reinterpret_cast<int64_t>(f.Call(0, 0, 0, 0, 0)));
+  CHECK_EQ(0, reinterpret_cast<int64_t>(f.Call(1, 0, 0, 0, 0)));
+}
+
+TEST_F(MacroAssemblerTest, far_jump_chain) {
+  // A jal to a label not bound yet also holds the link to the label's
+  // previous use. Where that use is beyond a jal's reach, the branch is
+  // auipc+jr instead.
+  Isolate* isolate = i_isolate();
+  HandleScope scope(isolate);
+  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired{true});
+
+  const int kFillInstr = Assembler::kMaxJumpOffset / kInstrSize + 1024;
+  Label target;
+
+  __ mv(a1, zero_reg);
+  EmitTrampolinePool(masm);
+
+  int first_pos = masm.pc_offset();
+  __ Branch(&target, eq, a0, Operand(zero_reg));
+  CHECK(Assembler::IsJal(masm.instr_at(first_pos + kInstrSize)));
+  for (int i = 0; i < kFillInstr; ++i) {
+    __ addi(a1, a1, 1);
+  }
+  int second_pos = masm.pc_offset();
+  __ Branch(&target);
+  CHECK(Assembler::IsAuipc(masm.instr_at(second_pos)));
+  __ bind(&target);
+  __ mv(a0, a1);
+  __ jr(ra);
+
+  CodeDesc desc;
+  masm.GetCode(isolate, &desc);
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
+  auto f = GeneratedCode<F1>::FromCode(isolate, *code);
+  CHECK_EQ(0, reinterpret_cast<int64_t>(f.Call(0, 0, 0, 0, 0)));
+  CHECK_EQ(kFillInstr, reinterpret_cast<int64_t>(f.Call(1, 0, 0, 0, 0)));
 }
 
 TEST_F(MacroAssemblerTest, CalcScaledAddress) {
@@ -631,6 +855,171 @@ TEST_F(MacroAssemblerTest, OverflowInstructions) {
         CHECK_EQ(expected_mul, t.output_mul);
         CHECK_EQ(expected_mul, t.output_mul2);
       }
+    }
+  }
+}
+
+// The right operand as an immediate, which is how Maglev's SmiAddConstant
+// and SmiSubConstant call these: li puts it in the scratch register that the
+// overflow computation also writes.
+TEST_F(MacroAssemblerTest, OverflowImmediate) {
+  Isolate* isolate = i_isolate();
+  HandleScope handles(isolate);
+
+  struct T {
+    int64_t lhs;
+    int64_t output_add;
+    int64_t output_add2;
+    int64_t output_sub;
+    int64_t output_sub2;
+    int64_t overflow_add;
+    int64_t overflow_add2;
+    int64_t overflow_sub;
+    int64_t overflow_sub2;
+  } t;
+
+  // Small immediates, and Smis as they are without pointer compression.
+  static const int64_t kImmediates[] = {1,
+                                        -1,
+                                        2047,
+                                        -2048,
+                                        int64_t{1} << 32,
+                                        -(int64_t{1} << 32),
+                                        int64_t{0x7FFFFFFF} << 32,
+                                        std::numeric_limits<int64_t>::min()};
+  std::vector<int64_t> lhs_values = overflow_int64_test_values();
+  lhs_values.push_back(std::numeric_limits<int64_t>::max());
+  lhs_values.push_back(std::numeric_limits<int64_t>::min());
+  lhs_values.push_back(int64_t{0x7FFFFFFF} << 32);
+  lhs_values.push_back(0);
+
+  for (int64_t imm : kImmediates) {
+    auto fn = [imm](MacroAssembler& masm) {
+      __ Ld(t0, MemOperand(a0, offsetof(T, lhs)));
+      __ AddOverflowWord(t2, t0, Operand(imm), a1);
+      __ Sd(t2, MemOperand(a0, offsetof(T, output_add)));
+      __ Sd(a1, MemOperand(a0, offsetof(T, overflow_add)));
+      __ mv(a1, zero_reg);
+      __ AddOverflowWord(t0, t0, Operand(imm), a1);
+      __ Sd(t0, MemOperand(a0, offsetof(T, output_add2)));
+      __ Sd(a1, MemOperand(a0, offsetof(T, overflow_add2)));
+
+      __ Ld(t0, MemOperand(a0, offsetof(T, lhs)));
+      __ SubOverflowWord(t2, t0, Operand(imm), a1);
+      __ Sd(t2, MemOperand(a0, offsetof(T, output_sub)));
+      __ Sd(a1, MemOperand(a0, offsetof(T, overflow_sub)));
+      __ mv(a1, zero_reg);
+      __ SubOverflowWord(t0, t0, Operand(imm), a1);
+      __ Sd(t0, MemOperand(a0, offsetof(T, output_sub2)));
+      __ Sd(a1, MemOperand(a0, offsetof(T, overflow_sub2)));
+    };
+    auto f = AssembleCode<F3>(isolate, fn);
+
+    for (int64_t lhs : lhs_values) {
+      t.lhs = lhs;
+      f.Call(&t, 0, 0, 0, 0);
+
+      int64_t expected_add, expected_sub;
+      bool expected_add_ovf =
+          base::bits::SignedAddOverflow64(lhs, imm, &expected_add);
+      bool expected_sub_ovf =
+          base::bits::SignedSubOverflow64(lhs, imm, &expected_sub);
+
+      CHECK_EQ(expected_add_ovf, t.overflow_add < 0);
+      CHECK_EQ(expected_add_ovf, t.overflow_add2 < 0);
+      CHECK_EQ(expected_sub_ovf, t.overflow_sub < 0);
+      CHECK_EQ(expected_sub_ovf, t.overflow_sub2 < 0);
+      CHECK_EQ(expected_add, t.output_add);
+      CHECK_EQ(expected_add, t.output_add2);
+      CHECK_EQ(expected_sub, t.output_sub);
+      CHECK_EQ(expected_sub, t.output_sub2);
+    }
+  }
+}
+
+TEST_F(MacroAssemblerTest, Overflow32Instructions) {
+  Isolate* isolate = i_isolate();
+  HandleScope handles(isolate);
+
+  struct T {
+    int64_t lhs;
+    int64_t rhs;
+    int64_t output_add;   // dst aliases neither input
+    int64_t output_add2;  // dst == left
+    int64_t output_add3;  // dst == right
+    int64_t output_sub;
+    int64_t output_sub2;
+    int64_t output_sub3;
+    int64_t overflow_add;
+    int64_t overflow_add2;
+    int64_t overflow_add3;
+    int64_t overflow_sub;
+    int64_t overflow_sub2;
+    int64_t overflow_sub3;
+  } t;
+
+  auto fn = [](MacroAssembler& masm) {
+    __ Lw(t0, MemOperand(a0, offsetof(T, lhs)));
+    __ Lw(t1, MemOperand(a0, offsetof(T, rhs)));
+    __ AddOverflow32(t2, t0, Operand(t1), a1);
+    __ Sd(t2, MemOperand(a0, offsetof(T, output_add)));
+    __ Sd(a1, MemOperand(a0, offsetof(T, overflow_add)));
+    __ AddOverflow32(t0, t0, Operand(t1), a1);
+    __ Sd(t0, MemOperand(a0, offsetof(T, output_add2)));
+    __ Sd(a1, MemOperand(a0, offsetof(T, overflow_add2)));
+    __ Lw(t0, MemOperand(a0, offsetof(T, lhs)));
+    __ AddOverflow32(t1, t0, Operand(t1), a1);
+    __ Sd(t1, MemOperand(a0, offsetof(T, output_add3)));
+    __ Sd(a1, MemOperand(a0, offsetof(T, overflow_add3)));
+
+    __ Lw(t0, MemOperand(a0, offsetof(T, lhs)));
+    __ Lw(t1, MemOperand(a0, offsetof(T, rhs)));
+    __ SubOverflow32(t2, t0, Operand(t1), a1);
+    __ Sd(t2, MemOperand(a0, offsetof(T, output_sub)));
+    __ Sd(a1, MemOperand(a0, offsetof(T, overflow_sub)));
+    __ SubOverflow32(t0, t0, Operand(t1), a1);
+    __ Sd(t0, MemOperand(a0, offsetof(T, output_sub2)));
+    __ Sd(a1, MemOperand(a0, offsetof(T, overflow_sub2)));
+    __ Lw(t0, MemOperand(a0, offsetof(T, lhs)));
+    __ SubOverflow32(t1, t0, Operand(t1), a1);
+    __ Sd(t1, MemOperand(a0, offsetof(T, output_sub3)));
+    __ Sd(a1, MemOperand(a0, offsetof(T, overflow_sub3)));
+  };
+  auto f = AssembleCode<F3>(isolate, fn);
+
+  static const int32_t kValues[] = {0,
+                                    1,
+                                    -1,
+                                    12345,
+                                    0x40000000,
+                                    -0x40000000,
+                                    0x7FFFFFFE,
+                                    std::numeric_limits<int32_t>::max(),
+                                    std::numeric_limits<int32_t>::min()};
+  for (int32_t lhs : kValues) {
+    for (int32_t rhs : kValues) {
+      t.lhs = lhs;
+      t.rhs = rhs;
+      f.Call(&t, 0, 0, 0, 0);
+
+      int32_t expected_add, expected_sub;
+      bool expected_add_ovf =
+          base::bits::SignedAddOverflow32(lhs, rhs, &expected_add);
+      bool expected_sub_ovf =
+          base::bits::SignedSubOverflow32(lhs, rhs, &expected_sub);
+
+      CHECK_EQ(expected_add_ovf, t.overflow_add < 0);
+      CHECK_EQ(expected_add_ovf, t.overflow_add2 < 0);
+      CHECK_EQ(expected_add_ovf, t.overflow_add3 < 0);
+      CHECK_EQ(expected_sub_ovf, t.overflow_sub < 0);
+      CHECK_EQ(expected_sub_ovf, t.overflow_sub2 < 0);
+      CHECK_EQ(expected_sub_ovf, t.overflow_sub3 < 0);
+      CHECK_EQ(expected_add, t.output_add);
+      CHECK_EQ(expected_add, t.output_add2);
+      CHECK_EQ(expected_add, t.output_add3);
+      CHECK_EQ(expected_sub, t.output_sub);
+      CHECK_EQ(expected_sub, t.output_sub2);
+      CHECK_EQ(expected_sub, t.output_sub3);
     }
   }
 }
@@ -1577,6 +1966,33 @@ TEST_F(MacroAssemblerTest, LoadFPRImmediate_Double_NonEncodable_Fallback) {
     int64_t res = GenAndRunTest(fn);
     CHECK_EQ(bits, base::bit_cast<uint64_t>(res));
   }
+}
+
+TEST_F(MacroAssemblerTest, HeapNumberRequestNotDeduplicatedWithEmbeddedObject) {
+  Isolate* isolate = i_isolate();
+  HandleScope handles(isolate);
+
+  // A heap number request carries the raw bits of the double it materializes.
+  // Those bits must not be mistaken for the location of an object's handle,
+  // because constant-pool entries are deduplicated by handle location. Use the
+  // location of a real handle as the double's bit pattern so that a buggy
+  // implementation deterministically merges both constants into one entry.
+  Handle<HeapObject> object = isolate->factory()->NewFixedArray(1);
+  int smi_value;
+  double value =
+      base::bit_cast<double>(static_cast<uint64_t>(object.address()));
+  CHECK(!DoubleToSmiInteger(value, &smi_value));
+
+  auto fn = [&](MacroAssembler& masm) {
+    __ li(a0, Operand(object, RelocInfo::FULL_EMBEDDED_OBJECT));
+    __ li(a1, Operand::EmbeddedNumber(value));
+  };
+  int64_t result = GenAndRunTest(fn);
+
+  // Loading the embedded object must still yield `object`; if the heap number
+  // request was deduplicated with it, the request would overwrite the shared
+  // constant-pool slot and this would be the heap number instead.
+  CHECK_EQ(object->ptr(), static_cast<Address>(result));
 }
 
 #undef __

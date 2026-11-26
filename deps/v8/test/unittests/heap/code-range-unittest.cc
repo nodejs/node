@@ -111,4 +111,30 @@ TEST_F(RedZoneTest, SplitAll) {
   }
 }
 
+using CodeRangeTest = TestWithIsolate;
+
+TEST_F(CodeRangeTest, ImmutableCodeRangeRemapAndFree) {
+  // In production, RemapEmbeddedBuiltins is only called from
+  // Isolate::MaybeRemapEmbeddedBuiltinsIntoCodeRange, which returns early
+  // unless is_short_builtin_calls_enabled() && RequiresCodeRange(). Gate
+  // this test the same way so it only exercises the function on
+  // configurations where production does.
+  if (!i_isolate()->is_short_builtin_calls_enabled() ||
+      !i_isolate()->RequiresCodeRange())
+    return;
+
+  CodeRange code_range;
+  ASSERT_TRUE(code_range.InitReservation(GetPlatformPageAllocator(),
+                                         kMinimumCodeRangeSize,
+                                         /*immutable=*/true));
+  ASSERT_NE(nullptr, i_isolate()->embedded_blob_code());
+  uint8_t* copy = code_range.RemapEmbeddedBuiltins(
+      i_isolate(), i_isolate()->embedded_blob_code(),
+      i_isolate()->embedded_blob_code_size());
+  ASSERT_NE(nullptr, copy);
+  EXPECT_EQ(0, memcmp(copy, i_isolate()->embedded_blob_code(),
+                      i_isolate()->embedded_blob_code_size()));
+  code_range.Free();
+}
+
 }  // namespace v8::internal

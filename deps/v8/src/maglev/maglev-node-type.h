@@ -44,30 +44,34 @@ namespace v8::internal::maglev {
 static constexpr int kNumberOfLeafNodeTypes = 0 LEAF_NODE_TYPE_LIST(COUNT);
 #undef COUNT
 
-#define COMBINED_NODE_TYPE_LIST(V)                                       \
-  /* A value which has all the above bits set */                         \
-  V(Unknown, ((1 << kNumberOfLeafNodeTypes) - 1))                        \
-  /* All bits cleared, useful as initial value when combining types. */  \
-  V(None, 0)                                                             \
-  V(Callable, kJSFunction | kOtherCallable)                              \
-  V(NullOrUndefined, kNull | kUndefined)                                 \
-  V(Oddball, kNullOrUndefined | kBoolean)                                \
-  V(Number, kSmi | kHeapNumber)                                          \
-  V(Numeric, kNumber | kBigInt)                                          \
-  V(NumberOrBoolean, kNumber | kBoolean)                                 \
-  V(NumberOrUndefined, kNumber | kUndefined)                             \
-  V(NumberOrOddball, kNumber | kOddball)                                 \
-  V(String, kInternalizedString | kOtherString)                          \
-  V(StringOrStringWrapper, kString | kStringWrapper)                     \
-  V(StringOrOddball, kString | kOddball)                                 \
-  V(Name, kString | kSymbol)                                             \
-  V(JSPrimitive,                                                         \
-    kNumber | kString | kBoolean | kNullOrUndefined | kSymbol | kBigInt) \
-  V(JSReceiver, kJSArray | kCallable | kStringWrapper | kJSDataView |    \
-                    kJSGeneratorObject | kOtherJSReceiver)               \
-  V(JSReceiverOrNull, kJSReceiver | kNull)                               \
-  V(JSReceiverOrNullOrUndefined, kJSReceiver | kNullOrUndefined)         \
-  V(NotUndetectable, kNumeric | kName | kBoolean)                        \
+#define COMBINED_NODE_TYPE_LIST(V)                                        \
+  /* A value which has all the above bits set */                          \
+  V(Unknown, ((1 << kNumberOfLeafNodeTypes) - 1))                         \
+  /* All bits cleared, useful as initial value when combining types. */   \
+  V(None, 0)                                                              \
+  V(Callable, kJSFunction | kOtherCallable)                               \
+  V(NullOrUndefined, kNull | kUndefined)                                  \
+  V(Oddball, kNullOrUndefined | kBoolean)                                 \
+  V(Number, kSmi | kHeapNumber)                                           \
+  V(Numeric, kNumber | kBigInt)                                           \
+  V(NumberOrBoolean, kNumber | kBoolean)                                  \
+  V(NumberOrUndefined, kNumber | kUndefined)                              \
+  V(NumberOrOddball, kNumber | kOddball)                                  \
+  V(String, kInternalizedString | kOtherString)                           \
+  V(StringOrStringWrapper, kString | kStringWrapper)                      \
+  V(StringOrOddball, kString | kOddball)                                  \
+  V(Name, kString | kSymbol)                                              \
+  V(JSPrimitive,                                                          \
+    kNumber | kString | kBoolean | kNullOrUndefined | kSymbol | kBigInt)  \
+  /* Undetectable receivers are always callable and never JSFunctions */  \
+  /* (CHECKed in ApiNatives::CreateApiFunction). */                       \
+  V(DetectableJSReceiver, kJSArray | kJSFunction | kStringWrapper |       \
+                              kJSDataView | kJSGeneratorObject |          \
+                              kOtherJSReceiver)                           \
+  V(JSReceiver, kDetectableJSReceiver | kOtherCallable)                   \
+  V(JSReceiverOrNull, kJSReceiver | kNull)                                \
+  V(JSReceiverOrNullOrUndefined, kJSReceiver | kNullOrUndefined)          \
+  V(NotUndetectable, kNumeric | kName | kBoolean | kDetectableJSReceiver) \
   V(AnyHeapObject, kUnknown - kSmi)
 
 #define NODE_TYPE_LIST(V) \

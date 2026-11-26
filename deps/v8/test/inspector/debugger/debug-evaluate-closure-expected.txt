@@ -1,0 +1,10 @@
+Tests Debugger.evaluateOnCallFrame with closures and with-scopes.
+frame(0) goo: goo
+frame(0).scope(1) goo: goo
+frame(0).scope(1) w: Exception: ReferenceError
+frame(0) bar(): bar return
+frame(0) inner: inner bar
+frame(0) outer: outer bar
+frame(0) baz: baz inner
+frame(1) baz: baz outer
+After foo(): outer foo, baz outer foo

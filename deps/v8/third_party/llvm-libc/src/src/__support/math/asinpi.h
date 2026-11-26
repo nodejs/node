@@ -9,17 +9,22 @@
 #ifndef LLVM_LIBC_SRC___SUPPORT_MATH_ASINPI_H
 #define LLVM_LIBC_SRC___SUPPORT_MATH_ASINPI_H
 
-#include "asin_utils.h"
+#include "hdr/errno_macros.h"
+#include "hdr/fenv_macros.h"
 #include "src/__support/FPUtil/FEnvImpl.h"
 #include "src/__support/FPUtil/FPBits.h"
 #include "src/__support/FPUtil/double_double.h"
 #include "src/__support/FPUtil/dyadic_float.h"
 #include "src/__support/FPUtil/multiply_add.h"
+#include "src/__support/FPUtil/nearest_integer.h"
+#include "src/__support/FPUtil/rounding_mode.h"
 #include "src/__support/FPUtil/sqrt.h"
+#include "src/__support/macros/attributes.h"
 #include "src/__support/macros/config.h"
 #include "src/__support/macros/optimization.h"            // LIBC_UNLIKELY
 #include "src/__support/macros/properties/cpu_features.h" // LIBC_TARGET_CPU_HAS_FMA
 #include "src/__support/math/asin_utils.h"
+#include "src/__support/sign.h"
 
 namespace LIBC_NAMESPACE_DECL {
 
@@ -110,7 +115,7 @@ LIBC_INLINE double asinpi(double x) {
           }
         }
         if (raise_underflow)
-          fputil::raise_except_if_required(FE_UNDERFLOW | FE_INEXACT);
+          fputil::raise_underflow_except_if_required<double>();
       }
       return result;
     }
@@ -142,7 +147,7 @@ LIBC_INLINE double asinpi(double x) {
 
 #ifdef LIBC_TARGET_CPU_HAS_FMA_DOUBLE
     DFloat128 u_hi(
-        fputil::multiply_add(static_cast<double>(idx), -0x1.0p-6, x_sq.hi));
+        fputil::sub_multiply(x_sq.hi, static_cast<double>(idx), 0x1.0p-6));
     DFloat128 u = fputil::quick_add(u_hi, DFloat128(x_sq.lo));
 #else
     DFloat128 x_sq_f128 = fputil::quick_mul(x_f128, x_f128);
@@ -195,7 +200,7 @@ LIBC_INLINE double asinpi(double x) {
   // where u = (1 - |x|) / 2.
 
   // u = (1 - |x|)/2
-  double u = fputil::multiply_add(x_abs, -0.5, 0.5);
+  double u = fputil::sub_multiply(0.5, x_abs, 0.5);
   // v_hi ~ sqrt(u).
   double v_hi = fputil::sqrt<double>(u);
 
@@ -210,7 +215,7 @@ LIBC_INLINE double asinpi(double x) {
   using DoubleDouble = fputil::DoubleDouble;
 
 #ifdef LIBC_TARGET_CPU_HAS_FMA_DOUBLE
-  double h = fputil::multiply_add(v_hi, -v_hi, u);
+  double h = fputil::sub_multiply(u, v_hi, v_hi);
 #else
   DoubleDouble v_hi_sq = fputil::exact_mult(v_hi, v_hi);
   double h = (u - v_hi_sq.hi) - v_hi_sq.lo;
@@ -242,7 +247,7 @@ LIBC_INLINE double asinpi(double x) {
   double r_upper = fputil::multiply_add(
       r.hi, x_sign, fputil::multiply_add(r_lo, x_sign, err));
   double r_lower = fputil::multiply_add(
-      r.hi, x_sign, fputil::multiply_add(r_lo, x_sign, -err));
+      r.hi, x_sign, fputil::multiply_sub(r_lo, x_sign, err));
 #else
   r_lo *= x_sign;
   r.hi *= x_sign;
@@ -265,7 +270,7 @@ LIBC_INLINE double asinpi(double x) {
 
   // Get the rounding error of vl = 2 * v_lo ~ h / vh
 #ifdef LIBC_TARGET_CPU_HAS_FMA_DOUBLE
-  double vl_lo = fputil::multiply_add(-v_hi, vl, h) / v_hi;
+  double vl_lo = fputil::sub_multiply(h, v_hi, vl) / v_hi;
 #else
   DoubleDouble vh_vl = fputil::exact_mult(v_hi, vl);
   double vl_lo = ((h - vh_vl.hi) - vh_vl.lo) / v_hi;
@@ -280,8 +285,7 @@ LIBC_INLINE double asinpi(double x) {
 
   // Perform computations in DFloat128:
   //   asinpi(x) = 0.5 - (v_hi + v_lo + vll) * P_pi(u).
-  DFloat128 y_f128(
-      fputil::multiply_add(static_cast<double>(idx), -0x1.0p-6, u));
+  DFloat128 y_f128(fputil::sub_multiply(u, static_cast<double>(idx), 0x1.0p-6));
 
   DFloat128 p_f128 = asinpi_eval(y_f128, idx);
   DFloat128 r0_f128 = fputil::quick_mul(m_v, p_f128);

@@ -214,7 +214,7 @@ TorqueCompilerResult CompileTorqueForKythe(
   LanguageServerData::Scope server_data_scope;
   KytheData::Scope kythe_scope;
 
-  KytheData::Get().SetConsumer(consumer);
+  KytheData::SetConsumer(consumer);
 
   TorqueCompilerResult result;
   try {

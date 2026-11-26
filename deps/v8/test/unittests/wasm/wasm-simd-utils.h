@@ -9,8 +9,6 @@
 #include <stdint.h>
 
 #include "src/base/macros.h"
-#include "src/compiler/node-observer.h"
-#include "src/compiler/opcodes.h"
 #include "src/wasm/compilation-environment.h"
 #include "src/wasm/wasm-opcodes.h"
 #include "test/common/wasm/wasm-macro-gen.h"
@@ -96,42 +94,6 @@ class TSSimd256VerifyScope {
   ExpectedResult expected_ = ExpectedResult::kPass;
   Isolate* isolate_ = nullptr;
   std::unique_ptr<compiler::turboshaft::WasmRevecVerifier> verifier_;
-};
-
-class SIMD256NodeObserver : public compiler::NodeObserver {
- public:
-  explicit SIMD256NodeObserver(
-      std::function<void(const compiler::Node*)> handler)
-      : handler_(handler) {
-    DCHECK(handler_);
-  }
-
-  Observation OnNodeCreated(const compiler::Node* node) override {
-    handler_(node);
-    return Observation::kContinue;
-  }
-
- private:
-  std::function<void(const compiler::Node*)> handler_;
-};
-
-class ObserveSIMD256Scope {
- public:
-  explicit ObserveSIMD256Scope(Isolate* isolate,
-                               compiler::NodeObserver* node_observer)
-      : isolate_(isolate), node_observer_(node_observer) {
-    DCHECK_NOT_NULL(isolate_);
-    DCHECK_NULL(isolate_->node_observer());
-    isolate_->set_node_observer(node_observer_);
-  }
-
-  ~ObserveSIMD256Scope() {
-    DCHECK_NOT_NULL(isolate_->node_observer());
-    isolate_->set_node_observer(nullptr);
-  }
-
-  Isolate* isolate_;
-  compiler::NodeObserver* node_observer_;
 };
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 

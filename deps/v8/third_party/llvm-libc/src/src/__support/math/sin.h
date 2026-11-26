@@ -14,6 +14,7 @@
 #ifndef LLVM_LIBC_SRC___SUPPORT_MATH_SIN_H
 #define LLVM_LIBC_SRC___SUPPORT_MATH_SIN_H
 
+#include "hdr/errno_macros.h"
 #include "range_reduction_double_common.h"
 #include "sincos_eval.h"
 #include "src/__support/FPUtil/FEnvImpl.h"
@@ -96,7 +97,7 @@ LIBC_INLINE double sin(double x) {
           return x + x; // Make sure it works with FTZ/DAZ.
 
 #ifdef LIBC_TARGET_CPU_HAS_FMA_DOUBLE
-        return fputil::multiply_add(x, -0x1.0p-54, x);
+        return fputil::sub_multiply(x, x, 0x1.0p-54);
 #else
         if (LIBC_UNLIKELY(x_e < 4)) {
 #ifndef LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
@@ -107,7 +108,7 @@ LIBC_INLINE double sin(double x) {
             return FPBits(xbits.uintval() - 1).get_val();
 #endif // !LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
         }
-        return fputil::multiply_add(x, -0x1.0p-54, x);
+        return fputil::sub_multiply(x, x, 0x1.0p-54);
 #endif // LIBC_TARGET_CPU_HAS_FMA_DOUBLE
       }
       // No range reduction needed.
@@ -135,7 +136,7 @@ LIBC_INLINE double sin(double x) {
       // Overall errors <= ulp(x^3) + |x| * 2^-68.
       double err = fputil::multiply_add(x_sq, 0x1.0p-52, 0x1.0p-68);
       double r_lo_u = fputil::multiply_add(x, err, r_lo);
-      double r_lo_l = fputil::multiply_add(-x, err, r_lo);
+      double r_lo_l = fputil::sub_multiply(r_lo, x, err);
       double r_upper = x + r_lo_u;
       double r_lower = x + r_lo_l;
 

@@ -42,6 +42,17 @@ ElementsKind GetTypedArrayElementsKind(CTypeInfo::Type type);
 
 bool CanOptimizeFastSignature(const CFunctionInfo* c_signature);
 
+inline bool NeedsEagerFrameState(const CFunctionInfo* signature) {
+  for (unsigned i = 0; i < signature->ArgumentCount(); ++i) {
+    CTypeInfo::Type type = signature->ArgumentInfo(i).GetType();
+    if (type == CTypeInfo::Type::kPointer ||
+        type == CTypeInfo::Type::kSeqOneByteString) {
+      return true;
+    }
+  }
+  return false;
+}
+
 using GetParameter = std::function<Node*(int, GraphAssemblerLabel<0>*)>;
 using ConvertReturnValue = std::function<Node*(const CFunctionInfo*, Node*)>;
 using InitializeOptions = std::function<void(Node*)>;

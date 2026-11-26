@@ -58,9 +58,13 @@ LIBC_INLINE float tanpif(float x) {
     return x + FPBits::quiet_nan().get_val();
   }
 
-  // Handle signed zeros.
-  if (LIBC_UNLIKELY(x_abs == 0U))
-    return x;
+  // tanpi(x) underflows for 0 < |x| <= 0x1.45f3p-128.
+  if (LIBC_UNLIKELY(x_abs <= 0x0028'be60U)) {
+    // Handle signed zeros.
+    if (x_abs == 0U)
+      return x;
+    fputil::set_errno_if_required(ERANGE);
+  }
 
   if (LIBC_UNLIKELY(fputil::is_integer(x))) {
     // Preserve the input sign for even integers and flip it for odd integers.
@@ -68,6 +72,12 @@ LIBC_INLINE float tanpif(float x) {
         fputil::is_odd_integer(x) ? xbits.sign().negate() : xbits.sign();
     return FPBits::zero(sign).get_val();
   }
+
+  // Odd multiples of 1/4 have exact results of +1 or -1.
+  double xd = static_cast<double>(x);
+  if (LIBC_UNLIKELY(fputil::is_odd_integer(4.0 * xd)))
+    return fputil::is_odd_integer(fputil::multiply_sub(2.0, xd, 0.5)) ? -1.0f
+                                                                      : 1.0f;
 
 #ifndef LIBC_MATH_HAS_SKIP_ACCURATE_PASS
   // Handle exceptional values.
@@ -95,12 +105,11 @@ LIBC_INLINE float tanpif(float x) {
   // Once k and y are computed, we then deduce the answer by the formula:
   // tan(x) = sin(x) / cos(x)
   //        = (sin_y * cos_k + cos_y * sin_k) / (cos_y * cos_k - sin_y * sin_k)
-  double xd = static_cast<double>(x);
   double sin_k, cos_k, sin_y, cosm1_y;
   sincospif_eval(xd, sin_k, cos_k, sin_y, cosm1_y);
 
   if (LIBC_UNLIKELY(sin_y == 0 && cos_k == 0)) {
-    fputil::set_errno_if_required(EDOM);
+    fputil::set_errno_if_required(ERANGE);
     fputil::raise_except_if_required(FE_DIVBYZERO);
 
     int32_t x_mp5_i = static_cast<int32_t>(xd - 0.5);
@@ -110,7 +119,7 @@ LIBC_INLINE float tanpif(float x) {
   using fputil::multiply_add;
   return fputil::cast<float>(
       multiply_add(sin_y, cos_k, multiply_add(cosm1_y, sin_k, sin_k)) /
-      multiply_add(sin_y, -sin_k, multiply_add(cosm1_y, cos_k, cos_k)));
+      fputil::sub_multiply(multiply_add(cosm1_y, cos_k, cos_k), sin_y, sin_k));
 }
 
 } // namespace math

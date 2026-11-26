@@ -40,6 +40,7 @@ class TieringManager {
       Isolate* isolate, Tagged<JSFunction> function,
       std::optional<CodeKind> override_active_tier = {});
 
+  void MarkForMaglevOptimization(Tagged<JSFunction> function);
   void MarkForTurboFanOptimization(Tagged<JSFunction> function);
 
  private:

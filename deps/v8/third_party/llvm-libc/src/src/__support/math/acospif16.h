@@ -15,9 +15,9 @@
 
 #include "src/__support/FPUtil/FEnvImpl.h"
 #include "src/__support/FPUtil/FPBits.h"
-#include "src/__support/FPUtil/PolyEval.h"
 #include "src/__support/FPUtil/cast.h"
 #include "src/__support/FPUtil/multiply_add.h"
+#include "src/__support/FPUtil/polyeval.h"
 #include "src/__support/FPUtil/sqrt.h"
 #include "src/__support/macros/optimization.h"
 
@@ -79,7 +79,7 @@ LIBC_INLINE constexpr float16 acospif16(float16 x) {
         fputil::polyeval(xsq, POLY_COEFFS[0], POLY_COEFFS[1], POLY_COEFFS[2],
                          POLY_COEFFS[3], POLY_COEFFS[4]);
 
-    return fputil::cast<float16>(fputil::multiply_add(-xf, interm, 0.5f));
+    return fputil::cast<float16>(fputil::sub_multiply(0.5f, xf, interm));
   }
 
   // When |x| > 0.5, assume that 0.5 < |x| <= 1
@@ -125,7 +125,7 @@ LIBC_INLINE constexpr float16 acospif16(float16 x) {
   // with a positive x value instead (rhs).
 
   float xf_abs = (xf < 0 ? -xf : xf);
-  float u = fputil::multiply_add(-0.5f, xf_abs, 0.5f);
+  float u = fputil::sub_multiply(0.5f, 0.5f, xf_abs);
   float sqrt_u = fputil::sqrt<float>(u);
 
   float asin_sqrt_u =
@@ -134,7 +134,7 @@ LIBC_INLINE constexpr float16 acospif16(float16 x) {
 
   // Same as acos(x), but devided the expression with pi
   return fputil::cast<float16>(
-      x_sign ? fputil::multiply_add(-2.0f, asin_sqrt_u, 1.0f)
+      x_sign ? fputil::sub_multiply(1.0f, 2.0f, asin_sqrt_u)
              : 2.0f * asin_sqrt_u);
 }
 

@@ -1,0 +1,5 @@
+Tests tiering down wasm code when debugger is enabled (streaming)
+Testing sync instantiation and debug mode
+Testing async instantiation: enable debugger after compiling
+Testing async instantiation: enable debugger while compiling
+Finished

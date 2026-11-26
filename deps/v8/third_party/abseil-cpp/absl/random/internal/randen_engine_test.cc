@@ -22,6 +22,7 @@
 #include <random>
 #include <sstream>
 #include <type_traits>
+#include <utility>
 
 #include "gtest/gtest.h"
 #include "absl/log/log.h"
@@ -232,6 +233,26 @@ TYPED_TEST(RandenEngineTypedTest, RandomNumberEngineInterface) {
 
   static_assert(std::is_same_v<decltype(x != y), bool>,
                 "return type of operator== must be bool");
+}
+
+TYPED_TEST(RandenEngineTypedTest, SelfAssignmentPreservesState) {
+  using randen = typename absl::random_internal::randen_engine<TypeParam>;
+
+  ExplicitSeedSeq seed_sequence{12, 34, 56};
+  randen engine(seed_sequence);
+  engine.discard(5);
+  randen expected = engine;
+
+  randen* self_ptr = &engine;
+  engine = *self_ptr;
+  EXPECT_TRUE(engine == expected);
+
+  engine = std::move(*self_ptr);
+  EXPECT_TRUE(engine == expected);
+
+  for (int i = 0; i < 16; ++i) {
+    EXPECT_EQ(engine(), expected());
+  }
 }
 
 TYPED_TEST(RandenEngineTypedTest, RandenEngineSFINAETest) {

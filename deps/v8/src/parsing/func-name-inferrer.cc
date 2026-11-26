@@ -7,6 +7,7 @@
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/ast.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/string.h"
 
 namespace v8 {
 namespace internal {
@@ -50,6 +51,8 @@ AstConsString* FuncNameInferrer::MakeNameFromStack() {
     return ast_value_factory_->empty_cons_string();
   }
   AstConsString* result = ast_value_factory_->NewConsString();
+  Zone* zone = ast_value_factory_->single_parse_zone();
+  uint64_t length = 0;
   auto it = names_stack_.begin();
   while (it != names_stack_.end()) {
     // Advance the iterator to be able to peek the next value.
@@ -60,7 +63,13 @@ AstConsString* FuncNameInferrer::MakeNameFromStack() {
       continue;
     }
     // Add name. Separate names with ".".
-    Zone* zone = ast_value_factory_->single_parse_zone();
+    const uint64_t add_length =
+        (result->IsEmpty() ? uint64_t{0} : uint64_t{1}) +
+        static_cast<uint64_t>(current->name()->length());
+    if (V8_UNLIKELY(length + add_length > String::kMaxLength)) {
+      return ast_value_factory_->empty_cons_string();
+    }
+    length += add_length;
     if (!result->IsEmpty()) {
       result->AddString(zone, ast_value_factory_->dot_string());
     }

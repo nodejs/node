@@ -30,7 +30,7 @@ struct Execution {
   // Wall time spent waiting for the target, in microseconds.
   uint64_t exec_time_us = 0;
   // Output produced by the target during this execution. The "fuzzout"
-  // channel is what fuzzilli('FUZZILLI_PRINT', ...) writes to; stdout and
+  // channel is what redline('REDLINE_PRINT', ...) writes to. stdout and
   // stderr are only captured when enabled on the ReprlChild.
   std::string fuzzout;
   std::string stdout_output;
@@ -52,6 +52,23 @@ struct Execution {
   // comes with "    at ..." frames.) Needs the output to be captured.
   bool IsParseError() const;
 };
+
+// 1-based program line numbers of an uncaught exception in `fuzzcode.js` after
+// subtracting the prelude line count. 0 means an absent line.
+struct ExceptionLines {
+  int innermost = 0;  // throw site or innermost program frame
+  int outermost = 0;  // outermost top-level program frame
+
+  bool empty() const { return innermost <= 0; }
+};
+
+// Extracts the innermost and outermost 1-based program line numbers from an
+// uncaught exception in `execution`. Scans `stdout_output` first, then
+// `stderr_output`. Returns an empty result when `execution` is not `kFailed`,
+// for parse-time `SyntaxError`s, or when no `fuzzcode.js` frame appears after
+// `prelude_lines`.
+ExceptionLines ExtractExceptionLines(const Execution& execution,
+                                     int prelude_lines = 0);
 
 }  // namespace redline
 

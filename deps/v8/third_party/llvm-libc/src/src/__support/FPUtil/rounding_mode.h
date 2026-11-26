@@ -13,6 +13,7 @@
 #include "src/__support/CPP/type_traits.h"   // is_constant_evaluated
 #include "src/__support/macros/attributes.h" // LIBC_INLINE
 #include "src/__support/macros/config.h"
+#include "src/__support/macros/optimization.h"
 
 namespace LIBC_NAMESPACE_DECL {
 namespace fputil {

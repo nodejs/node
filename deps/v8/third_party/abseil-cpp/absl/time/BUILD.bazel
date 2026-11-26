@@ -92,6 +92,23 @@ cc_library(
 )
 
 cc_library(
+    name = "mock_clock",
+    testonly = True,
+    hdrs = ["mock_clock.h"],
+    copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = ["//visibility:public"],
+    deps = [
+        ":clock_interface",
+        ":time",
+        "//absl/base:config",
+        "//absl/base:core_headers",
+        "//absl/synchronization",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_library(
     name = "simulated_clock",
     testonly = True,
     srcs = [
@@ -168,6 +185,24 @@ cc_test(
         ":clock_interface",
         ":time",
         "//absl/functional:bind_front",
+        "//absl/synchronization",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "mock_clock_test",
+    srcs = [
+        "mock_clock_test.cc",
+    ],
+    copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        ":clock_interface",
+        ":mock_clock",
+        ":time",
+        "//absl/base:core_headers",
         "//absl/synchronization",
         "@googletest//:gtest",
         "@googletest//:gtest_main",

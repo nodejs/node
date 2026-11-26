@@ -1,4 +1,6 @@
 include_rules = [
+  # See `include_dirs` from Chromium's `//third_party/rust/icu_capi`.
+  "+icu4x",
   # See `include_dirs` from Chromium's `//third_party/rust/temporal_capi`.
   "+temporal",
   "+temporal_rs",

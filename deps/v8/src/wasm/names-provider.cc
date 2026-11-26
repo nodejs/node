@@ -516,24 +516,13 @@ void CanonicalTypeNamesProvider::PrintTypeName(
 
 void CanonicalTypeNamesProvider::PrintValueType(StringBuilder& out,
                                                 CanonicalValueType type) {
-  switch (type.kind()) {
-    case kRef:
-    case kRefNull:
-      if (type.encoding_needs_heap_type()) {
-        out << (type.kind() == kRef ? "(ref " : "(ref null ");
-        if (type.is_exact()) out << "exact ";
-        if (type.has_index()) {
-          PrintTypeName(out, type.ref_index());
-        } else {
-          out << type.name();
-        }
-        out << ')';
-      } else {
-        out << type.name();
-      }
-      break;
-    default:
-      out << wasm::name(type.kind());
+  if (type.has_index()) {
+    out << (type.is_nullable() ? "(ref null " : "(ref ");
+    if (type.is_exact()) out << "exact ";
+    PrintTypeName(out, type.ref_index());
+    out << ')';
+  } else {
+    out << type.name();
   }
 }
 

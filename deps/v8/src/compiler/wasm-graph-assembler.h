@@ -83,10 +83,6 @@ class WasmGraphAssembler : public GraphAssembler {
                : Int64Constant(static_cast<int64_t>(tagged_value));
   }
 
-  void MergeControlToEnd(Node* control) {
-    NodeProperties::MergeControlToEnd(graph(), common(), control);
-  }
-
   // Numeric conversions
   Node* BuildTruncateIntPtrToInt32(Node* value);
 

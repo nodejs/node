@@ -190,7 +190,7 @@ MaybeLocal<Module> ResolveCallbackWithImportAttributes(
 
 TEST_F(ModuleTest, ModuleInstantiationWithImportAttributes) {
   bool prev_import_attributes = i::v8_flags.harmony_import_attributes;
-  i::v8_flags.harmony_import_attributes = true;
+  i::v8_flags.harmony_import_attributes.Set(true);
   HandleScope scope(isolate());
   v8::TryCatch try_catch(isolate());
 
@@ -281,7 +281,7 @@ TEST_F(ModuleTest, ModuleInstantiationWithImportAttributes) {
     CHECK_EQ(42, res->Int32Value(context()).FromJust());
   }
   CHECK(!try_catch.HasCaught());
-  i::v8_flags.harmony_import_attributes = prev_import_attributes;
+  i::v8_flags.harmony_import_attributes.Set(prev_import_attributes);
 
   fooModule_global.Reset();
   barModule_global.Reset();
@@ -1542,7 +1542,7 @@ static MaybeLocal<Module> ResolveModuleByIndexUnreachableCallback(
 
 TEST_F(ModuleTest, ModuleInstantiationByIndexWithSourceFaliure) {
   bool prev_import_attributes = i::v8_flags.js_source_phase_imports;
-  i::v8_flags.js_source_phase_imports = true;
+  i::v8_flags.js_source_phase_imports.Set(true);
   HandleScope scope(isolate());
   v8::TryCatch try_catch(isolate());
 
@@ -1576,7 +1576,7 @@ TEST_F(ModuleTest, ModuleInstantiationByIndexWithSourceFaliure) {
 
   // Should not leak to the outer try-catch.
   CHECK(!try_catch.HasCaught());
-  i::v8_flags.js_source_phase_imports = prev_import_attributes;
+  i::v8_flags.js_source_phase_imports.Set(prev_import_attributes);
 }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -1598,7 +1598,7 @@ MaybeLocal<v8::Object> ResolveSourceByIndexCallback(Local<Context> context,
 
 TEST_F(ModuleTest, ModuleInstantiationByIndexWithSource) {
   bool prev_import_attributes = i::v8_flags.js_source_phase_imports;
-  i::v8_flags.js_source_phase_imports = true;
+  i::v8_flags.js_source_phase_imports.Set(true);
   HandleScope scope(isolate());
   v8::TryCatch try_catch(isolate());
 
@@ -1650,7 +1650,7 @@ TEST_F(ModuleTest, ModuleInstantiationByIndexWithSource) {
                          .ToLocalChecked();
   CHECK(mod->StrictEquals(wasm_module_global.Get(isolate())));
 
-  i::v8_flags.js_source_phase_imports = prev_import_attributes;
+  i::v8_flags.js_source_phase_imports.Set(prev_import_attributes);
   wasm_module_global.Reset();
 }
 

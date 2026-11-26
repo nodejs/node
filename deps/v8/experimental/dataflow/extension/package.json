@@ -1,0 +1,132 @@
+{
+  "name": "vscode-dataflow",
+  "displayName": "C++ Data Flow Analyzer",
+  "description": "Analyze data flow in C++ using LLVM",
+  "version": "0.1.2",
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "activationEvents": [
+    "onLanguage:cpp"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "vscode-dataflow-explorer",
+          "title": "C++ Data Flow",
+          "icon": "$(graph)"
+        }
+      ]
+    },
+    "views": {
+      "vscode-dataflow-explorer": [
+        {
+          "id": "vscode-dataflow.views.flowTree",
+          "name": "Data Flow Paths"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "vscode-dataflow.analyzeIncoming",
+        "title": "Analyze Data Flow to Here",
+        "category": "C++ Data Flow"
+      },
+      {
+        "command": "vscode-dataflow.analyzeOutgoing",
+        "title": "Analyze Data Flow from Here",
+        "category": "C++ Data Flow"
+      },
+      {
+        "command": "vscode-dataflow.analyzeFromLeaves",
+        "title": "Trace Forward from Allocations/Leaves",
+        "category": "C++ Data Flow"
+      },
+      {
+        "command": "vscode-dataflow.toggleFlowDirection",
+        "title": "Flip Flow Direction",
+        "category": "C++ Data Flow"
+      },
+      {
+        "command": "vscode-dataflow.toggleCyclePruning",
+        "title": "Toggle Cycle Pruning",
+        "category": "C++ Data Flow"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "when": "resourceLangId == cpp",
+          "command": "vscode-dataflow.analyzeIncoming",
+          "group": "navigation"
+        },
+        {
+          "when": "resourceLangId == cpp",
+          "command": "vscode-dataflow.analyzeOutgoing",
+          "group": "navigation"
+        },
+        {
+          "when": "resourceLangId == cpp",
+          "command": "vscode-dataflow.analyzeFromLeaves",
+          "group": "navigation"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "vscode-dataflow.toggleFlowDirection",
+          "when": "view == vscode-dataflow.views.flowTree && !cppDataFlow.isFlipped",
+          "group": "navigation",
+          "icon": "$(fold-down)"
+        },
+        {
+          "command": "vscode-dataflow.toggleFlowDirection",
+          "when": "view == vscode-dataflow.views.flowTree && cppDataFlow.isFlipped",
+          "group": "navigation",
+          "icon": "$(fold-up)"
+        },
+        {
+          "command": "vscode-dataflow.toggleCyclePruning",
+          "when": "view == vscode-dataflow.views.flowTree && !cppDataFlow.pruneCycles",
+          "group": "navigation",
+          "icon": "$(circle-slash)"
+        },
+        {
+          "command": "vscode-dataflow.toggleCyclePruning",
+          "when": "view == vscode-dataflow.views.flowTree && cppDataFlow.pruneCycles",
+          "group": "navigation",
+          "icon": "$(sync)"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "C++ Data Flow Analyzer",
+      "properties": {
+        "cppDataFlow.analyzerPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the compiled C++ analyzer binary (e.g., /path/to/build/analyzer)."
+        },
+        "cppDataFlow.concurrency": {
+          "type": "integer",
+          "default": 0,
+          "description": "Number of parallel indexing threads. Set to 0 to automatically detect and cap to 16 threads to prevent OOM."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/node": "^16.x.x",
+    "@types/vscode": "^1.75.0",
+    "typescript": "^4.9.5"
+  }
+}

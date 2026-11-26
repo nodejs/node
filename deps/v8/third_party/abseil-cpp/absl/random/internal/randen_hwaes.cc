@@ -134,12 +134,14 @@ using absl::random_internal::RandenTraits;
 using Vector128 = __vector unsigned long long;  // NOLINT(runtime/int)
 
 namespace {
+#if defined(ABSL_IS_LITTLE_ENDIAN)
 ABSL_TARGET_CRYPTO inline Vector128 ReverseBytes(const Vector128& v) {
   // Reverses the bytes of the vector.
   const __vector unsigned char perm = {15, 14, 13, 12, 11, 10, 9, 8,
                                        7,  6,  5,  4,  3,  2,  1, 0};
   return vec_perm(v, v, perm);
 }
+#endif
 
 // WARNING: these load/store in native byte order. It is OK to load and then
 // store an unchanged vector, but interpreting the bits as a number or input
@@ -159,11 +161,17 @@ ABSL_TARGET_CRYPTO inline Vector128 AesRound(const Vector128& state,
   return Vector128(__builtin_crypto_vcipher(state, round_key));
 }
 
-// Enables native loads in the round loop by pre-swapping.
+// Enables native loads in the round loop by pre-swapping on little-endian PPC.
+// On big-endian PPC, vec_vsx_ld already loads bytes in the big-endian order
+// expected by __builtin_crypto_vcipher.
 ABSL_TARGET_CRYPTO inline void SwapEndian(absl::uint128* state) {
+#if defined(ABSL_IS_LITTLE_ENDIAN)
   for (uint32_t block = 0; block < RandenTraits::kFeistelBlocks; ++block) {
     Vector128Store(ReverseBytes(Vector128Load(state + block)), state + block);
   }
+#else
+  (void)state;
+#endif
 }
 
 }  // namespace
@@ -418,7 +426,7 @@ bool HasRandenHwAesImplementation() { return true; }
 ABSL_TARGET_CRYPTO const void* RandenHwAes::GetKeys() {
   // Round keys for one AES per Feistel round and branch.
   // The canonical implementation uses first digits of Pi.
-#if defined(ABSL_ARCH_PPC)
+#if defined(ABSL_ARCH_PPC) && defined(ABSL_IS_LITTLE_ENDIAN)
   return kRandenRoundKeysBE;
 #else
   return kRandenRoundKeys;

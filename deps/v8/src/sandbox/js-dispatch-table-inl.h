@@ -10,9 +10,9 @@
 
 #include <atomic>
 
+#include "src/base/synchronization-point-support.h"
 #include "src/builtins/builtins-inl.h"
 #include "src/common/code-memory-access-inl.h"
-#include "src/common/synchronization-point-support.h"
 #include "src/execution/isolate.h"
 #include "src/objects/objects-inl.h"
 #include "src/sandbox/external-entity-table-inl.h"
@@ -35,7 +35,6 @@ void JSDispatchEntry::MakeJSDispatchEntry(Address object, Address entrypoint,
   DCHECK_EQ(parameter_count & ~kParameterCountMask, 0);
   Address payload = parameter_count;
 #else   // !(V8_TARGET_ARCH_X64 && V8_SUPPORT_LA57)
-#if !defined(__illumos__) || !defined(V8_TARGET_ARCH_64_BIT)
   DCHECK_EQ((((object - kObjectPointerOffset) << kObjectPointerShift) >>
              kObjectPointerShift) +
                 kObjectPointerOffset,
@@ -43,7 +42,6 @@ void JSDispatchEntry::MakeJSDispatchEntry(Address object, Address entrypoint,
   DCHECK_EQ((object - kObjectPointerOffset) + kObjectPointerOffset, object);
   DCHECK_LT((object - kObjectPointerOffset),
             1ULL << ((sizeof(encoded_word_) * 8) - kObjectPointerShift));
-#endif /* __illumos__ & 64-bit */
 
   Address payload = ((object - kObjectPointerOffset) << kObjectPointerShift) |
                     (parameter_count & kParameterCountMask);
@@ -100,17 +98,8 @@ Address JSDispatchEntry::GetCodePointer() const {
   // and so may be 0 or 1 here. As the return value is a tagged pointer, the
   // bit must be 1 when returned, so we need to set it here.
   Address payload = encoded_word_.load(std::memory_order_acquire);
-#if defined(__illumos__) && defined(V8_TARGET_ARCH_64_BIT)
-  // Unsigned types won't sign-extend on shift-right, but we need to do
-  // this with illumos VA48 addressing.
-  DCHECK_EQ(kObjectPointerOffset, 0);
-  return (Address)(static_cast<intptr_t>(payload) >>
-                   static_cast<int>(kObjectPointerShift)) |
-         kHeapObjectTag;
-#else
   return ((payload >> kObjectPointerShift) + kObjectPointerOffset) |
          kHeapObjectTag;
-#endif  /* __illumos__ & 64-bit */
 #endif  // V8_TARGET_ARCH_X64 && V8_SUPPORT_LA57
 }
 
@@ -347,12 +336,7 @@ void JSDispatchEntry::MakeFreelistEntry(uint32_t next_entry_index) {
 
 #ifdef V8_TARGET_ARCH_64_BIT
 bool JSDispatchEntry::IsFreelistEntry(Address entrypoint) const {
-#ifdef __illumos__
-  // See the illumos definition of kFreeEntryTag for why we have to do this.
-  return (entrypoint & 0xffff000000000000ull) == kFreeEntryTag;
-#else
   return (entrypoint & kFreeEntryTag) == kFreeEntryTag;
-#endif /* __illumos__ */
 }
 #endif
 
@@ -512,10 +496,10 @@ bool JSDispatchTable::IsCompatibleCode(Tagged<Code> code,
 
   // Signature mismatch. This is mostly not safe, except for certain varargs
   // builtins which are able to correctly handle such a mismatch. Examples
-  // include builtins like the InterpreterEntryTrampoline or the JSToWasm and
-  // JSToJS wrappers which determine their actual parameter count at runtime
-  // (see CodeStubAssembler::SetSupportsDynamicParameterCount()), or internal
-  // builtins that end up tailcalling into other code such as CompileLazy.
+  // include builtins like the InterpreterEntryTrampoline or the JSToWasm
+  // wrappers which determine their actual parameter count at runtime (see
+  // CodeStubAssembler::EmitBuiltinProlog()), or internal builtins that end up
+  // tailcalling into other code such as CompileLazy.
   //
   // Currently, we also allow this for testing code (from our test suites).
   // TODO(saelo): maybe we should also forbid this just to be sure.

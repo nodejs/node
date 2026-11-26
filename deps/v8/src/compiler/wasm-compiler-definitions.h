@@ -146,6 +146,14 @@ LocationSignature* BuildLocations(Zone* zone, const Signature<T>* sig,
                              nullptr /* untagged_return_slots */, return_slots);
   return locations.Get();
 }
+
+class V8_EXPORT_PRIVATE V8_NODISCARD WasmDetailedTraceScope {
+ public:
+  explicit WasmDetailedTraceScope(const char* name);
+  ~WasmDetailedTraceScope();
+  WasmDetailedTraceScope(const WasmDetailedTraceScope&) = delete;
+  WasmDetailedTraceScope& operator=(const WasmDetailedTraceScope&) = delete;
+};
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

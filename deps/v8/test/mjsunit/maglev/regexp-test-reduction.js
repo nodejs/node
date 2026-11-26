@@ -107,11 +107,12 @@ function test(re, s) {
   assertTrue(f(re, "a"));
   %OptimizeFunctionOnNextCall(f);
   assertTrue(f(re, "a"));
+  const originalExec = RegExp.prototype.exec;
   let called = 0;
   RegExp.prototype.exec = function (s) { called++; return null; };
   assertFalse(f(re, "a"));
   assertEquals(1, called);
-  delete RegExp.prototype.exec;
+  RegExp.prototype.exec = originalExec;
 })();
 
 (function testSubclassWithOwnExec() {

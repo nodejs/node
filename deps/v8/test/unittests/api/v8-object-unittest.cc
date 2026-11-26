@@ -63,7 +63,7 @@ TEST_F(LapContextTest, CurrentContextInLazyAccessorOnPrototype) {
       [](const FunctionCallbackInfo<Value>& info) {
         ++call_count;
         Local<Context> prototype_context = *reinterpret_cast<Local<Context>*>(
-            info.DataV2().As<External>()->Value(kContextTag));
+            info.Data().As<External>()->Value(kContextTag));
         EXPECT_EQ(prototype_context, info.GetIsolate()->GetCurrentContext());
       },
       External::New(isolate(), &prototype_context, kContextTag), signature);
@@ -106,7 +106,7 @@ TEST_F(LapContextTest, CurrentContextInLazyAccessorOnPrototype) {
       "%OptimizeFunctionOnNextCall(f); "
       "f();";
   Context::Scope scope(caller_context);
-  internal::v8_flags.allow_natives_syntax = true;
+  internal::v8_flags.allow_natives_syntax.Set(true);
   Script::Compile(caller_context, String::NewFromUtf8Literal(isolate(), script))
       .ToLocalChecked()
       ->Run(caller_context)
@@ -130,7 +130,7 @@ TEST_F(LapContextTest, CurrentContextInLazyAccessorOnPlatformObject) {
       [](const FunctionCallbackInfo<Value>& info) {
         ++call_count;
         Local<Context> receiver_context = *reinterpret_cast<Local<Context>*>(
-            info.DataV2().As<External>()->Value(kContextTag));
+            info.Data().As<External>()->Value(kContextTag));
         EXPECT_EQ(receiver_context, info.GetIsolate()->GetCurrentContext());
       },
       External::New(isolate(), &receiver_context, kContextTag), signature);
@@ -158,7 +158,7 @@ TEST_F(LapContextTest, CurrentContextInLazyAccessorOnPlatformObject) {
       "%OptimizeFunctionOnNextCall(f); "
       "f();";
   Context::Scope scope(caller_context);
-  internal::v8_flags.allow_natives_syntax = true;
+  internal::v8_flags.allow_natives_syntax.Set(true);
   Script::Compile(caller_context, String::NewFromUtf8Literal(isolate(), script))
       .ToLocalChecked()
       ->Run(caller_context)
@@ -181,7 +181,7 @@ TEST_F(LapContextTest, CurrentContextInLazyAccessorOnInterface) {
       [](const FunctionCallbackInfo<Value>& info) {
         ++call_count;
         Local<Context> interface_context = *reinterpret_cast<Local<Context>*>(
-            info.DataV2().As<External>()->Value(kContextTag));
+            info.Data().As<External>()->Value(kContextTag));
         EXPECT_EQ(interface_context, info.GetIsolate()->GetCurrentContext());
       },
       External::New(isolate(), &interface_context, kContextTag),
@@ -210,7 +210,7 @@ TEST_F(LapContextTest, CurrentContextInLazyAccessorOnInterface) {
       "%OptimizeFunctionOnNextCall(f); "
       "f();";
   Context::Scope scope(caller_context);
-  internal::v8_flags.allow_natives_syntax = true;
+  internal::v8_flags.allow_natives_syntax.Set(true);
   Script::Compile(caller_context, String::NewFromUtf8Literal(isolate(), script))
       .ToLocalChecked()
       ->Run(caller_context)

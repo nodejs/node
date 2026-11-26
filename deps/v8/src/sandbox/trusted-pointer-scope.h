@@ -20,7 +20,7 @@ struct TrustedPointerTableEntry;
 // ability to neuter them afterwards, e.g. if their initialization as a
 // group failed in such a way that they should not be made accessible to
 // untrusted code (not even via existing in-sandbox corruption).
-class TrustedPointerPublishingScope {
+class V8_EXPORT_PRIVATE TrustedPointerPublishingScope {
  public:
   TrustedPointerPublishingScope(Isolate* isolate,
                                 const DisallowJavascriptExecution& no_js);
@@ -47,7 +47,7 @@ class TrustedPointerPublishingScope {
 };
 
 // Temporarily disables a TrustedPointerPublishingScope.
-class DisableTrustedPointerPublishingScope {
+class V8_EXPORT_PRIVATE DisableTrustedPointerPublishingScope {
  public:
   explicit DisableTrustedPointerPublishingScope(Isolate* isolate);
   ~DisableTrustedPointerPublishingScope();

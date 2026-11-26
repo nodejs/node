@@ -13,10 +13,10 @@
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/strong-alias.h"
+#include "src/base/synchronization-point-support.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/common/globals.h"
-#include "src/common/synchronization-point-support.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/abstract-code.h"
@@ -377,14 +377,9 @@ bool SharedFunctionInfo::HasSharedName() const {
 }
 
 Tagged<String> SharedFunctionInfo::Name() const {
-  if (!HasSharedName()) return GetReadOnlyRoots().empty_string();
   Tagged<Object> value = name_or_scope_info(kAcquireLoad);
-  if (IsScopeInfo(value)) {
-    if (Cast<ScopeInfo>(value)->HasFunctionName()) {
-      return Cast<String>(Cast<ScopeInfo>(value)->FunctionName());
-    }
-    return GetReadOnlyRoots().empty_string();
-  }
+  if (IsScopeInfo(value)) value = Cast<ScopeInfo>(value)->FunctionName();
+  if (value == kNoSharedNameSentinel) return GetReadOnlyRoots().empty_string();
   return Cast<String>(value);
 }
 
@@ -758,15 +753,40 @@ Tagged<ScopeInfo> SharedFunctionInfo::GetOuterScopeInfo() const {
   return Cast<ScopeInfo>(outer_scope_info());
 }
 
+uint32_t SharedFunctionInfo::context_extension_count() const {
+  DCHECK(is_wrapped());
+  if (!HasOuterScopeInfo()) return 0;
+  uint32_t count = 0;
+  Tagged<ScopeInfo> scope_info = GetOuterScopeInfo();
+  while (true) {
+    DCHECK_EQ(scope_info->scope_type(), WITH_SCOPE);
+    count++;
+    if (!scope_info->HasOuterScopeInfo()) break;
+    scope_info = scope_info->OuterScopeInfo();
+  }
+  return count;
+}
+
 Tagged<ScopeInfo> SharedFunctionInfo::TryGetScopeInfoForMerge() const {
   Tagged<Object> maybe_scope_info = name_or_scope_info(kAcquireLoad);
   if (IsScopeInfo(maybe_scope_info)) {
     return Cast<ScopeInfo>(maybe_scope_info);
   }
+  SYNCHRONIZATION_POINT_TEST_ONLY("BeforeGetScopeInfoForMerge");
   Tagged<Object> maybe_outer_scope_info_or_feedback =
       raw_outer_scope_info_or_feedback_metadata(kAcquireLoad);
   if (IsScopeInfo(maybe_outer_scope_info_or_feedback)) {
     return Cast<ScopeInfo>(maybe_outer_scope_info_or_feedback);
+  }
+  // If `raw_outer_scope_info_or_feedback_metadata` transitioned to
+  // `FeedbackMetadata` due to concurrent compilation on the main thread,
+  // `SetScopeInfo(kReleaseStore)` has already completed before
+  // `set_feedback_metadata(kReleaseStore)`. Re-reading `name_or_scope_info`
+  // with `kAcquireLoad` is therefore guaranteed to observe the installed
+  // `ScopeInfo`.
+  maybe_scope_info = name_or_scope_info(kAcquireLoad);
+  if (IsScopeInfo(maybe_scope_info)) {
+    return Cast<ScopeInfo>(maybe_scope_info);
   }
   return GetReadOnlyRoots().empty_scope_info();
 }
@@ -784,6 +804,12 @@ Tagged<ScopeInfo> SharedFunctionInfo::TryGetOuterScopeInfo() const {
       TryCast(raw_outer_scope_info_or_feedback_metadata(kAcquireLoad),
               &outer_scope_info)) {
     return outer_scope_info;
+  }
+  if (Tagged<ScopeInfo> scope_info;
+      TryCast(name_or_scope_info(kAcquireLoad), &scope_info)) {
+    if (scope_info->HasOuterScopeInfo()) {
+      return scope_info->OuterScopeInfo();
+    }
   }
   return GetReadOnlyRoots().empty_scope_info();
 }

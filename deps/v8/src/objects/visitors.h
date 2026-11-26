@@ -35,7 +35,6 @@ class Code;
   V(kRelocatable, "(Relocatable)")                             \
   V(kRetainMaps, "(Retain maps)")                              \
   V(kSharedHeapObjectCache, "(Shareable object cache)")        \
-  V(kSharedStructTypeRegistry, "(SharedStruct type registry)") \
   V(kSmiRootList, "(Smi roots)")                               \
   V(kStackRoots, "(Stack roots)")                              \
   V(kStartupObjectCache, "(Startup object cache)")             \

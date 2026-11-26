@@ -80,33 +80,51 @@ using LIBC_NAMESPACE::fputil::Float128;
 // and relative errors bounded by:
 //   |(atan(u) - P(u)) / P(u)| < 2^-114.
 
+namespace atan2f128_internal {
+
+using DFloat128 = fputil::DyadicFloat<128>;
+
+LIBC_INLINE_VAR constexpr DFloat128 ZERO = {Sign::POS, 0, 0_u128};
+LIBC_INLINE_VAR constexpr DFloat128 MZERO = {Sign::NEG, 0, 0_u128};
+LIBC_INLINE_VAR constexpr DFloat128 PI = {
+    Sign::POS, -126, 0xc90fdaa2'2168c234'c4c6628b'80dc1cd1_u128};
+LIBC_INLINE_VAR constexpr DFloat128 MPI = {
+    Sign::NEG, -126, 0xc90fdaa2'2168c234'c4c6628b'80dc1cd1_u128};
+LIBC_INLINE_VAR constexpr DFloat128 PI_OVER_2 = {
+    Sign::POS, -127, 0xc90fdaa2'2168c234'c4c6628b'80dc1cd1_u128};
+LIBC_INLINE_VAR constexpr DFloat128 MPI_OVER_2 = {
+    Sign::NEG, -127, 0xc90fdaa2'2168c234'c4c6628b'80dc1cd1_u128};
+LIBC_INLINE_VAR constexpr DFloat128 PI_OVER_4 = {
+    Sign::POS, -128, 0xc90fdaa2'2168c234'c4c6628b'80dc1cd1_u128};
+LIBC_INLINE_VAR constexpr DFloat128 THREE_PI_OVER_4 = {
+    Sign::POS, -126, 0x96cbe3f9'990e91a7'9394c9e8'a0a5159d_u128};
+
+// Adjustment for constant term:
+//   CONST_ADJ[x_sign][y_sign][recip]
+LIBC_INLINE_VAR constexpr DFloat128 CONST_ADJ[2][2][2] = {
+    {{ZERO, MPI_OVER_2}, {MZERO, MPI_OVER_2}},
+    {{MPI, PI_OVER_2}, {MPI, PI_OVER_2}}};
+
+// Exceptional cases:
+//   EXCEPT[y_except][x_except][x_is_neg]
+// with x_except & y_except:
+//   0: zero
+//   1: finite, non-zero
+//   2: infinity
+LIBC_INLINE_VAR constexpr DFloat128 EXCEPTS[3][3][2] = {
+    {{ZERO, PI}, {ZERO, PI}, {ZERO, PI}},
+    {{PI_OVER_2, PI_OVER_2}, {ZERO, ZERO}, {ZERO, PI}},
+    {{PI_OVER_2, PI_OVER_2},
+     {PI_OVER_2, PI_OVER_2},
+     {PI_OVER_4, THREE_PI_OVER_4}},
+};
+
+} // namespace atan2f128_internal
+
 LIBC_INLINE Float128 atan2f128(Float128 y, Float128 x) {
-  using DFloat128 = fputil::DyadicFloat<128>;
-
-  constexpr DFloat128 ZERO = {Sign::POS, 0, 0_u128};
-  constexpr DFloat128 MZERO = {Sign::NEG, 0, 0_u128};
-  constexpr DFloat128 PI = {Sign::POS, -126,
-                            0xc90fdaa2'2168c234'c4c6628b'80dc1cd1_u128};
-  constexpr DFloat128 MPI = {Sign::NEG, -126,
-                             0xc90fdaa2'2168c234'c4c6628b'80dc1cd1_u128};
-  constexpr DFloat128 PI_OVER_2 = {Sign::POS, -127,
-                                   0xc90fdaa2'2168c234'c4c6628b'80dc1cd1_u128};
-  constexpr DFloat128 MPI_OVER_2 = {Sign::NEG, -127,
-                                    0xc90fdaa2'2168c234'c4c6628b'80dc1cd1_u128};
-  constexpr DFloat128 PI_OVER_4 = {Sign::POS, -128,
-                                   0xc90fdaa2'2168c234'c4c6628b'80dc1cd1_u128};
-  constexpr DFloat128 THREE_PI_OVER_4 = {
-      Sign::POS, -126, 0x96cbe3f9'990e91a7'9394c9e8'a0a5159d_u128};
-
-  // Adjustment for constant term:
-  //   CONST_ADJ[x_sign][y_sign][recip]
-  constexpr DFloat128 CONST_ADJ[2][2][2] = {
-      {{ZERO, MPI_OVER_2}, {MZERO, MPI_OVER_2}},
-      {{MPI, PI_OVER_2}, {MPI, PI_OVER_2}}};
-
   using namespace atan_internal;
+  using namespace atan2f128_internal;
   using FPBits = fputil::FPBits<Float128>;
-  using DFloat128 = fputil::DyadicFloat<128>;
 
   FPBits x_bits(x), y_bits(y);
   bool x_sign = x_bits.sign().is_neg();
@@ -131,20 +149,6 @@ LIBC_INLINE Float128 atan2f128(Float128 y, Float128 x) {
       return FPBits::quiet_nan().get_val();
     unsigned x_except = x == Float128(0) ? 0 : (FPBits(x_abs).is_inf() ? 2 : 1);
     unsigned y_except = y == Float128(0) ? 0 : (FPBits(y_abs).is_inf() ? 2 : 1);
-
-    // Exceptional cases:
-    //   EXCEPT[y_except][x_except][x_is_neg]
-    // with x_except & y_except:
-    //   0: zero
-    //   1: finite, non-zero
-    //   2: infinity
-    constexpr DFloat128 EXCEPTS[3][3][2] = {
-        {{ZERO, PI}, {ZERO, PI}, {ZERO, PI}},
-        {{PI_OVER_2, PI_OVER_2}, {ZERO, ZERO}, {ZERO, PI}},
-        {{PI_OVER_2, PI_OVER_2},
-         {PI_OVER_2, PI_OVER_2},
-         {PI_OVER_4, THREE_PI_OVER_4}},
-    };
 
     if ((x_except != 1) || (y_except != 1)) {
       DFloat128 r = EXCEPTS[y_except][x_except][x_sign];
@@ -187,7 +191,7 @@ LIBC_INLINE Float128 atan2f128(Float128 y, Float128 x) {
   // atan(n/d) - atan(k) = atan((n/d - k/64) / (1 + (n/d) * (k/64)))
   //                     = atan((n - d * k/64)) / (d + n * k/64))
   // num_f128 = n - d * k/64
-  DFloat128 num_f128 = fputil::multiply_add(den, -k_f128, num);
+  DFloat128 num_f128 = fputil::sub_multiply(num, den, k_f128);
   // den_f128 = d + n * k/64
   DFloat128 den_f128 = fputil::multiply_add(num, k_f128, den);
 

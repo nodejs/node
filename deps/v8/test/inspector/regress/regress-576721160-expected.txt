@@ -1,0 +1,37 @@
+Regression test for b/576721160.
+Testing lexicalArguments...
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : 1
+            type : number
+            value : 1
+        }
+    }
+}
+Returned: 42
+Testing tdzArguments...
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : 1
+            type : number
+            value : 1
+        }
+    }
+}
+Returned: threw: Cannot access 'arguments' before initialization
+Testing parameterArguments...
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : 1
+            type : number
+            value : 1
+        }
+    }
+}
+Returned: 7

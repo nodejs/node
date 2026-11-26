@@ -31,8 +31,7 @@ namespace internal {
 
 DirectHandle<AccessorInfo> Accessors::MakeAccessor(
     Isolate* isolate, DirectHandle<Name> name_for_cpu_profiler,
-    AccessorNameGetterCallback getter,
-    AccessorNameBooleanSetterCallback setter) {
+    AccessorNameGetterCallback getter, AccessorNameSetterCallback setter) {
   Factory* factory = isolate->factory();
   name_for_cpu_profiler = factory->InternalizeName(name_for_cpu_profiler);
   DirectHandle<AccessorInfo> info = factory->NewAccessorInfo();
@@ -209,10 +208,8 @@ void Accessors::ArrayLengthSetter(
   }
 
   if (JSArray::SetLength(isolate, array, length).IsNothing()) {
-    // TODO(victorgomes): AccessorNameBooleanSetterCallback does not handle
-    // exceptions.
-    FATAL("Fatal JavaScript invalid array length %u", length);
-    UNREACHABLE();
+    DCHECK(isolate->has_exception());
+    return;
   }
 
   uint32_t actual_new_len = 0;
@@ -833,10 +830,20 @@ void Accessors::ValueUnavailableGetter(
       Utils::OpenDirectHandle(*name)));
 }
 
+void Accessors::ValueUnavailableSetter(
+    v8::Local<v8::Name> name, v8::Local<v8::Value> val,
+    const v8::PropertyCallbackInfo<v8::Boolean>& info) {
+  Isolate* isolate = reinterpret_cast<Isolate*>(info.GetIsolate());
+  HandleScope scope(isolate);
+  isolate->Throw(*isolate->factory()->NewReferenceError(
+      MessageTemplate::kAccessedUnavailableVariable,
+      Utils::OpenDirectHandle(*name)));
+}
+
 DirectHandle<AccessorInfo> Accessors::MakeValueUnavailableInfo(
     Isolate* isolate) {
   return MakeAccessor(isolate, isolate->factory()->empty_string(),
-                      &ValueUnavailableGetter, &ReconfigureToDataProperty);
+                      &ValueUnavailableGetter, &ValueUnavailableSetter);
 }
 
 //

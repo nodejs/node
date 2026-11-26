@@ -121,6 +121,19 @@ SpreadElement* Spread(Tree* t, Expression* argument) {
   return s;
 }
 
+RestElement* Rest(Tree* t, Expression* argument) {
+  RestElement* r = t->New<RestElement>();
+  r->argument = argument;
+  return r;
+}
+
+AssignmentPattern* WithDefault(Tree* t, Expression* left, Expression* right) {
+  AssignmentPattern* p = t->New<AssignmentPattern>();
+  p->left = left;
+  p->right = right;
+  return p;
+}
+
 UnaryExpression* Unary(Tree* t, UnaryOp op, Expression* argument) {
   UnaryExpression* u = t->New<UnaryExpression>();
   u->op = op;

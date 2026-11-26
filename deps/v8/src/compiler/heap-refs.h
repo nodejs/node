@@ -13,6 +13,7 @@
 #include "src/objects/elements-kind.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/instance-type.h"
+#include "src/objects/module.h"
 #include "src/objects/object-list-macros.h"
 #include "src/objects/property-details.h"
 #include "src/objects/shared-function-info.h"
@@ -135,6 +136,8 @@ enum class RefSerializationKind {
   BACKGROUND_SERIALIZED(ScriptContextTable)                                   \
   /* Subtypes of String */                                                    \
   NEVER_SERIALIZED(InternalizedString)                                        \
+  /* Subtypes of Module */                                                    \
+  NEVER_SERIALIZED(SourceTextModule)                                          \
   /* Subtypes of FixedArrayBase */                                            \
   BACKGROUND_SERIALIZED(FixedArray)                                           \
   NEVER_SERIALIZED(FixedDoubleArray)                                          \
@@ -168,8 +171,8 @@ enum class RefSerializationKind {
   BACKGROUND_SERIALIZED(PropertyCell)                                         \
   NEVER_SERIALIZED(RegExpBoilerplateDescription)                              \
   NEVER_SERIALIZED(ScopeInfo)                                                 \
+  NEVER_SERIALIZED(Module)                                                    \
   NEVER_SERIALIZED(SharedFunctionInfo)                                        \
-  NEVER_SERIALIZED(SourceTextModule)                                          \
   NEVER_SERIALIZED(TemplateObjectDescription)                                 \
   NEVER_SERIALIZED(Tuple2)                                                    \
   NEVER_SERIALIZED(WeakHomomorphicFixedArray)                                 \
@@ -683,7 +686,6 @@ class JSObjectRef : public JSReceiverRef {
   // background-serialized) elements.
   OptionalFixedArrayBaseRef elements(JSHeapBroker* broker,
                                      RelaxedLoadTag) const;
-  bool IsElementsTenured(FixedArrayBaseRef elements);
 
   OptionalMapRef GetObjectCreateMap(JSHeapBroker* broker) const;
 
@@ -809,7 +811,7 @@ class ContextCellRef : public HeapObjectRef {
   OptionalObjectRef tagged_value(JSHeapBroker* broker) const;
 };
 
-class ContextRef : public HeapObjectRef {
+class V8_EXPORT_PRIVATE ContextRef : public HeapObjectRef {
  public:
   DEFINE_REF_CONSTRUCTOR(Context, HeapObjectRef)
 
@@ -837,6 +839,7 @@ class ContextRef : public HeapObjectRef {
   V(JSFunction, promise_then)                    \
   V(JSFunction, regexp_exec_function)            \
   V(JSFunction, regexp_function)                 \
+  V(JSFunction, regexp_match_function)           \
   V(JSFunction, string_function)                 \
   V(JSFunction, symbol_function)                 \
   V(JSGlobalObject, global_object)               \
@@ -865,6 +868,7 @@ class ContextRef : public HeapObjectRef {
   V(Map, map_key_value_iterator_map)             \
   V(Map, map_value_iterator_map)                 \
   V(Map, meta_map)                               \
+  V(Map, regexp_prototype_map)                   \
   V(Map, set_key_value_iterator_map)             \
   V(Map, set_value_iterator_map)                 \
   V(Map, sloppy_arguments_map)                   \
@@ -873,7 +877,7 @@ class ContextRef : public HeapObjectRef {
   V(Map, with_context_map)                       \
   V(ScriptContextTable, script_context_table)
 
-class NativeContextRef : public ContextRef {
+class V8_EXPORT_PRIVATE NativeContextRef : public ContextRef {
  public:
   DEFINE_REF_CONSTRUCTOR(NativeContext, ContextRef)
 
@@ -941,8 +945,6 @@ class FeedbackVectorRef : public HeapObjectRef {
 
   FeedbackCellRef GetClosureFeedbackCell(JSHeapBroker* broker, int index) const;
 
-  bool was_once_deoptimized() const;
-
   HeapObjectRef GetClosureFeedbackCellArrayRef(JSHeapBroker* broker);
 };
 
@@ -960,7 +962,6 @@ class AllocationSiteRef : public HeapObjectRef {
   IndirectHandle<AllocationSite> object() const;
 
   bool PointsToLiteral() const;
-  AllocationType GetAllocationType() const;
   ObjectRef nested_site(JSHeapBroker* broker) const;
 
   OptionalJSObjectRef boilerplate(JSHeapBroker* broker) const;
@@ -1039,6 +1040,16 @@ class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
   OptionalHeapObjectRef GetBackPointer(JSHeapBroker* broker) const;
 
   HeapObjectRef prototype(JSHeapBroker* broker) const;
+
+  // For the map of a (deferred) module namespace, returns the namespace's
+  // module, found through the PrototypeInfo back pointer. Returns nullopt if
+  // this map is not a namespace map, or no longer holds the PrototypeInfo
+  // because the namespace migrated to a newer map after private fields were
+  // added to it.
+  // TODO(caiolima): Once --js-nonextensible-applies-to-private ships, we might
+  // be able to assume that namespace maps never migrate. If so, drop the
+  // migrated map case and CHECK that the PrototypeInfo is there instead.
+  OptionalModuleRef GetNamespaceModule(JSHeapBroker* broker) const;
 
   bool PrototypesElementsDoNotHaveAccessorsOrThrow(
       JSHeapBroker* broker, ZoneVector<MapRef>* prototype_maps);
@@ -1290,7 +1301,7 @@ class V8_EXPORT_PRIVATE SharedFunctionInfoRef : public HeapObjectRef {
   }
 };
 
-class StringRef : public NameRef {
+class V8_EXPORT_PRIVATE StringRef : public NameRef {
  public:
   DEFINE_REF_CONSTRUCTOR(String, NameRef)
 
@@ -1313,11 +1324,11 @@ class StringRef : public NameRef {
   std::optional<double> ToNumber(JSHeapBroker* broker);
   std::optional<double> ToInt(JSHeapBroker* broker, int radix);
 
-  V8_EXPORT_PRIVATE bool IsSeqString() const;
+  bool IsSeqString() const;
   bool IsExternalString() const;
 
   bool IsContentAccessible() const;
-  V8_EXPORT_PRIVATE bool IsOneByteRepresentation() const;
+  bool IsOneByteRepresentation() const;
 
  private:
   // With concurrent inlining on, we currently support reading directly
@@ -1361,9 +1372,23 @@ class JSPrimitiveWrapperRef : public JSObjectRef {
   IndirectHandle<JSPrimitiveWrapper> object() const;
 };
 
-class SourceTextModuleRef : public HeapObjectRef {
+class V8_EXPORT_PRIVATE ModuleRef : public HeapObjectRef {
  public:
-  DEFINE_REF_CONSTRUCTOR(SourceTextModule, HeapObjectRef)
+  DEFINE_REF_CONSTRUCTOR(Module, HeapObjectRef)
+
+  IndirectHandle<Module> object() const;
+
+  Module::Status status() const;
+
+  // Returns the cell for the export [name], or nullopt if there is no such
+  // export, it is not resolved to a cell, or the module's exports are not
+  // finalized yet (no namespace has been created for it).
+  OptionalCellRef LookupExportCell(JSHeapBroker* broker, NameRef name) const;
+};
+
+class SourceTextModuleRef : public ModuleRef {
+ public:
+  DEFINE_REF_CONSTRUCTOR(SourceTextModule, ModuleRef)
 
   IndirectHandle<SourceTextModule> object() const;
 
@@ -1388,7 +1413,7 @@ class Tuple2Ref : public HeapObjectRef {
   OptionalObjectRef value2(JSHeapBroker* broker) const;
 };
 
-class CellRef : public HeapObjectRef {
+class V8_EXPORT_PRIVATE CellRef : public HeapObjectRef {
  public:
   DEFINE_REF_CONSTRUCTOR(Cell, HeapObjectRef)
 
@@ -1404,8 +1429,8 @@ class JSGlobalObjectRef : public JSObjectRef {
   bool IsDetachedFrom(JSGlobalProxyRef proxy) const;
 
   // Can be called even when there is no property cell for the given name.
-  OptionalPropertyCellRef GetPropertyCell(JSHeapBroker* broker,
-                                          NameRef name) const;
+  OptionalPropertyCellRef GetPropertyCell(JSHeapBroker* broker, NameRef name,
+                                          AccessMode access_mode) const;
 };
 
 class JSGlobalProxyRef : public JSObjectRef {

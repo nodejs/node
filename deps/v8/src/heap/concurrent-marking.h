@@ -63,8 +63,6 @@ class V8_EXPORT_PRIVATE ConcurrentMarking {
   void FlushNativeContexts(NativeContextStats* main_stats);
   // Flushes memory chunk data.
   void FlushMemoryChunkData();
-  // Flushes pretenuring feedback.
-  void FlushPretenuringFeedback();
 
   // Checks if all threads are stopped.
   bool IsStopped();
@@ -99,7 +97,7 @@ class V8_EXPORT_PRIVATE ConcurrentMarking {
 
   void RunMinor(JobDelegate* delegate);
   template <YoungGenerationMarkingVisitationMode marking_mode>
-  size_t RunMinorImpl(JobDelegate* delegate, TaskState* task_state);
+  size_t RunMinorImpl(JobDelegate* delegate);
   void RunMajor(JobDelegate* delegate,
                 base::EnumSet<CodeFlushMode> code_flush_mode,
                 unsigned mark_compact_epoch, bool should_keep_ages_unchanged);

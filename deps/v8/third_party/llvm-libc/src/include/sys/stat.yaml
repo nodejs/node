@@ -17,6 +17,7 @@ types:
   - type_name: struct_timespec
   - type_name: ino_t
   - type_name: mode_t
+  - type_name: struct_statx
 enums: []
 objects: []
 functions:
@@ -94,6 +95,16 @@ functions:
     arguments:
       - type: const char *__restrict
       - type: struct stat *__restrict
+  - name: statx
+    standards:
+      - linux
+    return_type: int
+    arguments:
+      - type: int
+      - type: const char *__restrict
+      - type: int
+      - type: unsigned int
+      - type: struct statx *__restrict
   - name: umask
     return_type: mode_t
     arguments:

@@ -35,12 +35,6 @@ class NormalPage final : public MutablePage {
   // [page_addr + area_start_ .. page_addr + kPageSize + kTaggedSize].
   V8_INLINE static NormalPage* FromAllocationAreaAddress(Address address);
 
-  // Checks if address1 and address2 are on the same new space page.
-  static bool OnSamePage(Address address1, Address address2) {
-    return MemoryChunk::FromAddress(address1) ==
-           MemoryChunk::FromAddress(address2);
-  }
-
   // Checks whether an address is page aligned.
   static bool IsAlignedToPageSize(Address addr) {
     return MemoryChunk::IsAligned(addr);

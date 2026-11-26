@@ -9,6 +9,7 @@
 #include "include/cppgc/allocation.h"
 #include "include/cppgc/platform.h"
 #include "include/v8-platform.h"
+#include "src/base/page-allocator.h"
 #include "src/heap/cppgc-internal/globals.h"
 #include "src/heap/cppgc-internal/heap-object-header.h"
 #include "src/heap/cppgc-internal/heap-page.h"
@@ -68,26 +69,28 @@ class ConcurrentSweeperTest : public testing::TestWithHeap {
  public:
   ConcurrentSweeperTest() { g_destructor_callcount = 0; }
 
-  void StartSweeping() {
-    Heap* heap = Heap::From(GetHeap());
-    ResetLinearAllocationBuffers();
-    // Pretend do finish marking as StatsCollector verifies that Notify*
+  void StartSweeping() { StartSweeping(Heap::From(GetHeap())); }
+
+  static void StartSweeping(Heap* heap) {
+    heap->object_allocator().ResetLinearAllocationBuffers();
+    // Pretend to finish marking as StatsCollector verifies that Notify*
     // methods are called in the right order.
     heap->stats_collector()->NotifyMarkingStarted(
         CollectionType::kMajor, GCConfig::MarkingType::kAtomic,
         GCConfig::IsForcedGC::kNotForced);
     heap->stats_collector()->NotifyMarkingCompleted(0);
-    Sweeper& sweeper = heap->sweeper();
     const SweepingConfig sweeping_config{
         SweepingConfig::SweepingType::kIncrementalAndConcurrent,
         SweepingConfig::CompactableSpaceHandling::kSweep};
-    sweeper.Start(sweeping_config);
+    heap->sweeper().Start(sweeping_config);
   }
 
   void WaitForConcurrentSweeping() {
-    Heap* heap = Heap::From(GetHeap());
-    Sweeper& sweeper = heap->sweeper();
-    sweeper.WaitForConcurrentSweepingForTesting();
+    WaitForConcurrentSweeping(Heap::From(GetHeap()));
+  }
+
+  static void WaitForConcurrentSweeping(Heap* heap) {
+    heap->sweeper().WaitForConcurrentSweepingForTesting();
   }
 
   void FinishSweeping() {
@@ -410,6 +413,113 @@ TEST_F(ConcurrentSweeperTest, SweepOnAllocationReturnEmptyPage) {
   EXPECT_EQ(finalizable_page,
             NormalPage::FromInnerAddress(&HeapBase::From(GetHeapHandle()),
                                          allocated_after_sweeping));
+}
+
+namespace {
+
+// Platform that defers foreground tasks and background jobs so tests can
+// inspect and run them explicitly.
+class ControlledExecutionPlatform final : public cppgc::Platform {
+ public:
+  // Captures the posted immediate and delayed non-nestable tasks.
+  struct RecordingTaskRunner final : public cppgc::TaskRunner {
+    bool IdleTasksEnabled() override { return false; }
+    bool NonNestableTasksEnabled() const override { return true; }
+    bool NonNestableDelayedTasksEnabled() const override { return true; }
+
+    std::unique_ptr<cppgc::Task> immediate_task;
+    std::unique_ptr<cppgc::Task> delayed_task;
+
+   protected:
+    void PostTaskImpl(std::unique_ptr<cppgc::Task>,
+                      const SourceLocation&) override {
+      UNREACHABLE();
+    }
+    void PostDelayedTaskImpl(std::unique_ptr<cppgc::Task>, double,
+                             const SourceLocation&) override {
+      UNREACHABLE();
+    }
+    void PostNonNestableTaskImpl(std::unique_ptr<cppgc::Task> task,
+                                 const SourceLocation&) override {
+      EXPECT_EQ(nullptr, immediate_task);
+      immediate_task = std::move(task);
+    }
+    void PostNonNestableDelayedTaskImpl(std::unique_ptr<cppgc::Task> task,
+                                        double delay_in_seconds,
+                                        const SourceLocation&) override {
+      EXPECT_EQ(nullptr, delayed_task);
+      EXPECT_GT(delay_in_seconds, 0.0);
+      delayed_task = std::move(task);
+    }
+  };
+
+  PageAllocator* GetPageAllocator() override { return &page_allocator_; }
+  double MonotonicallyIncreasingTime() override { return 0.0; }
+  std::shared_ptr<TaskRunner> GetForegroundTaskRunner(TaskPriority) override {
+    return task_runner_;
+  }
+  std::unique_ptr<JobHandle> PostJob(TaskPriority,
+                                     std::unique_ptr<JobTask>) override {
+    return std::make_unique<DeferredJobHandle>();
+  }
+
+  RecordingTaskRunner& task_runner() { return *task_runner_; }
+
+ private:
+  // Stays active until joined or canceled, without running the background job.
+  struct DeferredJobHandle final : public cppgc::JobHandle {
+    void NotifyConcurrencyIncrease() override { UNREACHABLE(); }
+    void Join() override { active = false; }
+    void Cancel() override { active = false; }
+    void CancelAndDetach() override { UNREACHABLE(); }
+    bool IsActive() override { return active; }
+    bool IsValid() override { return active; }
+
+    bool active = true;
+  };
+
+  v8::base::PageAllocator page_allocator_;
+  std::shared_ptr<RecordingTaskRunner> task_runner_ =
+      std::make_shared<RecordingTaskRunner>();
+};
+
+}  // namespace
+
+TEST_F(ConcurrentSweeperTest,
+       LowPriorityIncrementalSweepingDelaysWhileConcurrentActive) {
+  auto platform = std::make_shared<ControlledExecutionPlatform>();
+  auto heap = cppgc::Heap::Create(platform);
+  Heap* internal_heap = Heap::From(heap.get());
+
+  MakeGarbageCollected<NormalFinalizable>(heap->GetAllocationHandle());
+  StartSweeping(internal_heap);
+
+  auto& runner = platform->task_runner();
+  ASSERT_NE(nullptr, runner.immediate_task);
+  ASSERT_NE(nullptr, runner.delayed_task);
+
+  // Clear the regular-priority fallback task posted by StartSweeping(), then
+  // run the low-priority task while concurrent sweeping is still active and no
+  // swept-unfinalized pages are ready yet. It must back off with a delayed task
+  // rather than reposting a zero-delay task.
+  runner.delayed_task.reset();
+  auto task = std::move(runner.immediate_task);
+  task->Run();
+
+  EXPECT_TRUE(internal_heap->sweeper().IsSweepingInProgress());
+  EXPECT_EQ(0u, g_destructor_callcount);
+  EXPECT_EQ(nullptr, runner.immediate_task);
+  ASSERT_NE(nullptr, runner.delayed_task);
+
+  // Once concurrent sweeping completes, the rescheduled task finishes sweeping.
+  WaitForConcurrentSweeping(internal_heap);
+  task = std::move(runner.delayed_task);
+  task->Run();
+
+  EXPECT_FALSE(internal_heap->sweeper().IsSweepingInProgress());
+  EXPECT_EQ(1u, g_destructor_callcount);
+  EXPECT_EQ(nullptr, runner.immediate_task);
+  EXPECT_EQ(nullptr, runner.delayed_task);
 }
 
 }  // namespace internal

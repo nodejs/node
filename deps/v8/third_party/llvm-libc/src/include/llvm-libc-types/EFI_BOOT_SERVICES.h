@@ -31,6 +31,7 @@
 #include "EFI_TPL.h"
 #include "char16_t.h"
 #include "size_t.h"
+#include <stdbool.h>
 
 #define EFI_BOOT_SERVICES_SIGNATURE 0x56524553544f4f42
 #define EFI_BOOT_SERVICES_REVISION EFI_SPECIFICATION_VERSION

@@ -80,7 +80,6 @@ load(":bazel/v8-generators.bzl", "v8_torque_files")
 # v8_enable_precise_zone_stats
 # v8_enable_swiss_name_dictionary
 # v8_generate_external_defines_header
-# v8_dict_property_const_tracking
 # v8_enable_map_packing
 # v8_enable_javascript_promise_hooks
 # v8_enable_allocation_folding
@@ -167,6 +166,11 @@ v8_flag(name = "v8_wasm_random_fuzzers")
 
 v8_flag(
     name = "v8_enable_maglev",
+    default = True,
+)
+
+v8_flag(
+    name = "v8_enable_maglev_kna_btree",
     default = True,
 )
 
@@ -283,6 +287,50 @@ v8_flag(
     default = False,
 )
 
+v8_flag(
+    name = "v8_add_descriptor_array_lookup_table",
+    default = True,
+)
+
+v8_flag(
+    name = "v8_enable_descriptor_array_lookup_table",
+    default = True,
+)
+
+v8_flag(
+    name = "v8_dict_property_const_tracking",
+    default = False,
+)
+
+v8_flag(
+    name = "v8_dict_prototypes",
+    default = False,
+)
+
+v8_flag(
+    name = "v8_use_openssl",
+    default = True,
+)
+
+selects.config_setting_group(
+    name = "boringssl_supported_cpu",
+    match_any = [
+        "@v8//bazel/config:is_x64",
+        "@v8//bazel/config:is_ia32",
+        "@v8//bazel/config:is_arm64",
+        "@v8//bazel/config:is_arm",
+        "@v8//bazel/config:is_riscv64",
+    ],
+)
+
+selects.config_setting_group(
+    name = "enable_openssl",
+    match_all = [
+        ":is_v8_use_openssl",
+        ":boringssl_supported_cpu",
+    ],
+)
+
 selects.config_setting_group(
     name = "enable_drumbrake_x64",
     match_all = [
@@ -343,6 +391,24 @@ selects.config_setting_group(
 v8_flag(
     name = "v8_jitless",
     default = False,
+)
+
+# Mirrors GN: v8_enable_sparkplug = !v8_jitless, and
+# v8_enable_sparkplug_plus = v8_enable_sparkplug && (x64 || arm64).
+selects.config_setting_group(
+    name = "enable_sparkplug_plus_x64",
+    match_all = [
+        ":is_not_v8_jitless",
+        "@v8//bazel/config:v8_target_x64",
+    ],
+)
+
+selects.config_setting_group(
+    name = "enable_sparkplug_plus_arm64",
+    match_all = [
+        ":is_not_v8_jitless",
+        "@v8//bazel/config:v8_target_arm64",
+    ],
 )
 
 v8_int(
@@ -514,7 +580,7 @@ selects.config_setting_group(
     match_all = [
         ":v8_enable_short_builtin_calls_is_none",
         "@v8//bazel/config:v8_target_arm64",
-        "@v8//bazel/config:is_not_android",
+        "@v8//bazel/config:v8_target_is_not_android",
     ],
 )
 
@@ -574,23 +640,39 @@ v8_config(
         "v8_jitless": "V8_JITLESS",
         "v8_enable_vtunejit": "ENABLE_VTUNE_JIT_INTERFACE",
         "v8_enable_undefined_double": "V8_ENABLE_UNDEFINED_DOUBLE",
+        "v8_enable_maglev_kna_btree": "V8_ENABLE_MAGLEV_KNA_BTREE",
         "v8_use_host_cpu_arm_features": "V8_USE_HOST_CPU_ARM_FEATURES",
         "v8_x64_16byte_stack_alignment": "V8_X64_16BYTE_STACK_ALIGNMENT",
         "v8_support_la57": "V8_SUPPORT_LA57",
         "v8_enable_ecma402_icu4x": "V8_ENABLE_ECMA402_ICU4X",
+        "v8_add_descriptor_array_lookup_table": "V8_ADD_DESCRIPTOR_ARRAY_LOOKUP_TABLE",
+        "v8_enable_descriptor_array_lookup_table": "V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE",
+        "v8_dict_property_const_tracking": "V8_DICT_PROPERTY_CONST_TRACKING",
+        "v8_dict_prototypes": "V8_DICT_PROTOTYPES",
     },
     defines = [
         "GOOGLE3",
         "V8_ADVANCED_BIGINT_ALGORITHMS",
         "V8_ALLOCATION_SITE_TRACKING",
         "V8_CONCURRENT_MARKING",
-        "V8_ENABLE_SPARKPLUG",
         "V8_ENABLE_EXTENSIBLE_RO_SNAPSHOT",
         "V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA",
         "V8_TLS_USED_IN_LIBRARY",
     ] + select({
+        ":is_v8_jitless": [],
+        "//conditions:default": ["V8_ENABLE_SPARKPLUG"],
+    }) + select({
+        ":enable_sparkplug_plus_x64": ["V8_ENABLE_SPARKPLUG_PLUS"],
+        ":enable_sparkplug_plus_arm64": ["V8_ENABLE_SPARKPLUG_PLUS"],
+        "//conditions:default": [],
+    }) + select({
         ":is_not_v8_use_metagen": [
             "V8_USE_METAGEN=0",
+        ],
+        "//conditions:default": [],
+    }) + select({
+        ":enable_openssl": [
+            "V8_USE_OPENSSL",
         ],
         "//conditions:default": [],
     }) + select({
@@ -614,19 +696,13 @@ v8_config(
     }) + select(
         {
             "@v8//bazel/config:v8_target_ia32": ["V8_TARGET_ARCH_IA32"],
-            "@v8//bazel/config:v8_target_x64": [
-                "V8_TARGET_ARCH_X64",
-                "V8_ENABLE_SPARKPLUG_PLUS",
-            ],
+            "@v8//bazel/config:v8_target_x64": ["V8_TARGET_ARCH_X64"],
             "@v8//bazel/config:v8_target_arm": [
                 "V8_TARGET_ARCH_ARM",
                 "CAN_USE_ARMV7_INSTRUCTIONS",
                 "CAN_USE_VFP3_INSTRUCTIONS",
             ],
-            "@v8//bazel/config:v8_target_arm64": [
-                "V8_TARGET_ARCH_ARM64",
-                "V8_ENABLE_SPARKPLUG_PLUS",
-            ],
+            "@v8//bazel/config:v8_target_arm64": ["V8_TARGET_ARCH_ARM64"],
             "@v8//bazel/config:v8_target_s390x": [
                 "V8_TARGET_ARCH_S390X",
             ],
@@ -641,27 +717,34 @@ v8_config(
             ],
         },
         no_match_error = "Please specify a target cpu supported by v8",
+    ) + select(
+        {
+            "@v8//bazel/config:v8_target_android": [
+                "V8_HAVE_TARGET_OS",
+                "V8_TARGET_OS_ANDROID",
+            ],
+            "@v8//bazel/config:v8_target_linux": [
+                "V8_HAVE_TARGET_OS",
+                "V8_TARGET_OS_LINUX",
+            ],
+            "@v8//bazel/config:v8_target_macos": [
+                "V8_HAVE_TARGET_OS",
+                "V8_TARGET_OS_MACOS",
+            ],
+            "@v8//bazel/config:v8_target_windows": [
+                "V8_HAVE_TARGET_OS",
+                "V8_TARGET_OS_WIN",
+            ],
+        },
+        no_match_error = "Please specify a target os supported by v8",
     ) + select({
-        "@v8//bazel/config:is_android": [
-            "V8_HAVE_TARGET_OS",
-            "V8_TARGET_OS_ANDROID",
-        ],
-        "@v8//bazel/config:is_linux": [
-            "V8_HAVE_TARGET_OS",
-            "V8_TARGET_OS_LINUX",
-        ],
-        "@v8//bazel/config:is_macos": [
-            "V8_HAVE_TARGET_OS",
-            "V8_TARGET_OS_MACOS",
-        ],
         "@v8//bazel/config:is_windows": [
-            "V8_HAVE_TARGET_OS",
-            "V8_TARGET_OS_WIN",
             "UNICODE",
             "_UNICODE",
             "_CRT_RAND_S",
             "_WIN32_WINNT=0x0A00",
         ],
+        "//conditions:default": [],
     }) + select({
         ":is_v8_enable_pointer_compression": [
             "V8_COMPRESS_POINTERS",
@@ -956,8 +1039,6 @@ filegroup(
         "src/base/numbers/fast-dtoa.h",
         "src/base/numbers/fixed-dtoa.cc",
         "src/base/numbers/fixed-dtoa.h",
-        "src/base/numbers/strtod.cc",
-        "src/base/numbers/strtod.h",
         "src/base/numerics/angle_conversions.h",
         "src/base/numerics/basic_ops_impl.h",
         "src/base/numerics/byte_conversions.h",
@@ -1009,6 +1090,8 @@ filegroup(
         "src/base/strings.cc",
         "src/base/strings.h",
         "src/base/strong-alias.h",
+        "src/base/synchronization-point-support.cc",
+        "src/base/synchronization-point-support.h",
         "src/base/sys-info.cc",
         "src/base/sys-info.h",
         "src/base/template-meta-programming/common.h",
@@ -1016,6 +1099,8 @@ filegroup(
         "src/base/template-meta-programming/list.h",
         "src/base/template-meta-programming/string-literal.h",
         "src/base/template-utils.h",
+        "src/base/thread-id.cc",
+        "src/base/thread-id.h",
         "src/base/threaded-list.h",
         "src/base/timezone-cache.h",
         "src/base/types/is-instantiation.h",
@@ -1300,7 +1385,6 @@ filegroup(
         "src/objects/data-handler.tq",
         "src/objects/debug-objects.tq",
         "src/objects/descriptor-array.tq",
-        "src/objects/embedder-data-array.tq",
         "src/objects/feedback-cell.tq",
         "src/objects/feedback-vector.tq",
         "src/objects/fixed-array-base.tq",
@@ -1326,8 +1410,6 @@ filegroup(
         "src/objects/js-regexp.tq",
         "src/objects/js-regexp-string-iterator.tq",
         "src/objects/js-shadow-realm.tq",
-        "src/objects/js-shared-array.tq",
-        "src/objects/js-struct.tq",
         # Temporal is currently gn-only
         # "src/objects/js-temporal-objects.tq",
         "src/objects/js-weak-refs.tq",
@@ -1519,9 +1601,7 @@ filegroup(
         "src/baseline/baseline.h",
         "src/baseline/baseline-assembler.h",
         "src/baseline/baseline-assembler-inl.h",
-        "src/baseline/baseline-batch-compiler.cc",
         "src/baseline/baseline-batch-compiler.h",
-        "src/baseline/baseline-compiler.cc",
         "src/baseline/baseline-compiler.h",
         "src/baseline/bytecode-offset-iterator.cc",
         "src/baseline/bytecode-offset-iterator.h",
@@ -1565,10 +1645,8 @@ filegroup(
         "src/builtins/builtins-reflect.cc",
         "src/builtins/builtins-regexp.cc",
         "src/builtins/builtins-shadow-realm.cc",
-        "src/builtins/builtins-shared-array.cc",
         "src/builtins/builtins-sharedarraybuffer.cc",
         "src/builtins/builtins-string.cc",
-        "src/builtins/builtins-struct.cc",
         "src/builtins/builtins-symbol.cc",
         # Temporal is currently gn-only
         # "src/builtins/builtins-temporal.cc",
@@ -1679,13 +1757,15 @@ filegroup(
         "src/common/thread-local-storage.h",
         "src/common/scoped-modification.h",
         "src/common/simd128.h",
-        "src/common/synchronization-point-support.cc",
-        "src/common/synchronization-point-support.h",
         "src/compiler-dispatcher/lazy-compile-dispatcher.cc",
         "src/compiler-dispatcher/lazy-compile-dispatcher.h",
         "src/compiler-dispatcher/optimizing-compile-dispatcher.cc",
         "src/compiler-dispatcher/optimizing-compile-dispatcher.h",
+        "src/compiler/pipeline-statistics.cc",
+        "src/compiler/pipeline-statistics.h",
         "src/compiler/turbofan.h",
+        "src/compiler/zone-stats.cc",
+        "src/compiler/zone-stats.h",
         "src/date/date.cc",
         "src/date/date.h",
         "src/date/dateparser.cc",
@@ -1790,8 +1870,6 @@ filegroup(
         "src/execution/simulator-base.h",
         "src/execution/stack-guard.cc",
         "src/execution/stack-guard.h",
-        "src/execution/thread-id.cc",
-        "src/execution/thread-id.h",
         "src/execution/thread-local-top.cc",
         "src/execution/thread-local-top.h",
         "src/execution/tiering-manager.cc",
@@ -2008,9 +2086,6 @@ filegroup(
         "src/heap/parked-scope.h",
         "src/heap/pending-allocations.cc",
         "src/heap/pending-allocations.h",
-        "src/heap/pretenuring-handler.cc",
-        "src/heap/pretenuring-handler.h",
-        "src/heap/pretenuring-handler-inl.h",
         "src/heap/read-only-heap.cc",
         "src/heap/read-only-heap.h",
         "src/heap/read-only-heap-inl.h",
@@ -2153,8 +2228,6 @@ filegroup(
         "src/objects/all-objects.h",
         "src/objects/allocation-site.h",
         "src/objects/allocation-site-inl.h",
-        "src/objects/allocation-site-scopes.h",
-        "src/objects/allocation-site-scopes-inl.h",
         "src/objects/api-callbacks.h",
         "src/objects/api-callbacks-inl.h",
         "src/objects/arguments.h",
@@ -2210,9 +2283,6 @@ filegroup(
         "src/objects/elements-inl.h",
         "src/objects/elements-kind.cc",
         "src/objects/elements-kind.h",
-        "src/objects/embedder-data-array.cc",
-        "src/objects/embedder-data-array.h",
-        "src/objects/embedder-data-array-inl.h",
         "src/objects/embedder-data-slot.h",
         "src/objects/embedder-data-slot-inl.h",
         "src/objects/feedback-cell.h",
@@ -2297,9 +2367,6 @@ filegroup(
         "src/objects/js-regexp-string-iterator-inl.h",
         "src/objects/js-shadow-realm.h",
         "src/objects/js-shadow-realm-inl.h",
-        "src/objects/js-shared-array.h",
-        "src/objects/js-struct.cc",
-        "src/objects/js-struct.h",
         # Temporal is currently gn-only
         # "src/objects/js-temporal-objects.cc",
         # "src/objects/js-temporal-objects.h",
@@ -2320,6 +2387,8 @@ filegroup(
         "src/objects/lookup-cache.h",
         "src/objects/lookup-cache-inl.h",
         "src/objects/lookup-inl.h",
+        "src/objects/lookup-table.h",
+        "src/objects/lookup-table-inl.h",
         "src/objects/managed.cc",
         "src/objects/managed.h",
         "src/objects/managed-inl.h",
@@ -2421,9 +2490,6 @@ filegroup(
         "src/objects/string.h",
         "src/objects/string-comparator.cc",
         "src/objects/string-comparator.h",
-        "src/objects/string-forwarding-table.cc",
-        "src/objects/string-forwarding-table.h",
-        "src/objects/string-forwarding-table-inl.h",
         "src/objects/string-inl.h",
         "src/objects/string-set.h",
         "src/objects/string-set-inl.h",
@@ -2832,6 +2898,13 @@ filegroup(
         ":v8_bigint",
         ":v8_heap_base_files",
     ] + select({
+        # Sparkplug is not available in jitless builds (see BUILD.gn).
+        ":is_v8_jitless": [],
+        "//conditions:default": [
+            "src/baseline/baseline-batch-compiler.cc",
+            "src/baseline/baseline-compiler.cc",
+        ],
+    }) + select({
         "@v8//bazel/config:v8_target_ia32": [
             "src/baseline/ia32/baseline-assembler-ia32-inl.h",
             "src/baseline/ia32/baseline-compiler-ia32-inl.h",
@@ -3593,8 +3666,6 @@ filegroup(
         "src/compiler/pipeline.cc",
         "src/compiler/pipeline.h",
         "src/compiler/pipeline-data-inl.h",
-        "src/compiler/pipeline-statistics.cc",
-        "src/compiler/pipeline-statistics.h",
         "src/compiler/processed-feedback.h",
         "src/compiler/property-access-builder.cc",
         "src/compiler/property-access-builder.h",
@@ -3735,8 +3806,6 @@ filegroup(
         "src/compiler/turboshaft/phase.h",
         "src/compiler/turboshaft/pipelines.cc",
         "src/compiler/turboshaft/pipelines.h",
-        "src/compiler/turboshaft/pretenuring-propagation-reducer.cc",
-        "src/compiler/turboshaft/pretenuring-propagation-reducer.h",
         "src/compiler/turboshaft/reducer-traits.h",
         "src/compiler/turboshaft/register-allocation-phase.h",
         "src/compiler/turboshaft/representations.cc",
@@ -3796,8 +3865,6 @@ filegroup(
         "src/compiler/verifier.cc",
         "src/compiler/verifier.h",
         "src/compiler/write-barrier-kind.h",
-        "src/compiler/zone-stats.cc",
-        "src/compiler/zone-stats.h",
     ] + select({
         "@v8//bazel/config:v8_target_ia32": [
             "src/compiler/backend/ia32/code-generator-ia32.cc",
@@ -4936,7 +5003,7 @@ cc_library(
     strip_include_prefix = "third_party/simdutf",
     copts = select({
         "@v8//bazel/config:is_clang": ["-std=c++20"],
-        "@v8//bazel/config:is_gcc": ["-std=gnu++2a"],
+        "@v8//bazel/config:is_gcc": ["-std=c++20"],
         "@v8//bazel/config:is_windows": ["/std:c++20"],
         "//conditions:default": [],
     }),
@@ -4996,7 +5063,10 @@ v8_library(
         "@abseil-cpp//absl/container:flat_hash_set",
         "@abseil-cpp//absl/functional:overload",
         "@highway//:hwy",
-    ],
+    ] + select({
+        ":enable_openssl": ["@boringssl//:crypto"],
+        "//conditions:default": [],
+    }),
 )
 
 v8_library(

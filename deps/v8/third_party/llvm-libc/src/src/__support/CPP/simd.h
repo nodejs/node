@@ -15,6 +15,7 @@
 
 #include "hdr/stdint_proxy.h"
 #include "src/__support/CPP/algorithm.h"
+#include "src/__support/CPP/bit.h"
 #include "src/__support/CPP/limits.h"
 #include "src/__support/CPP/tuple.h"
 #include "src/__support/CPP/type_traits.h"
@@ -49,6 +50,9 @@ LIBC_INLINE_VAR constexpr size_t native_vector_size = 16 / sizeof(T);
 template <typename T> LIBC_INLINE constexpr size_t native_vector_size = 1;
 #endif
 
+template <typename T>
+using get_as_integer_type_t = unsigned _BitInt(sizeof(T) * CHAR_BIT);
+
 } // namespace internal
 
 // Type aliases.
@@ -58,6 +62,8 @@ template <typename T, size_t N = internal::native_vector_size<T>>
 using simd = T [[clang::ext_vector_type(N)]];
 template <typename T>
 using simd_mask = simd<bool, internal::native_vector_size<T>>;
+template <typename T, size_t N = internal::native_vector_size<T>>
+using simd_bitmask = internal::get_as_integer_type_t<simd<bool, N>>;
 
 // Type trait helpers.
 template <typename T>
@@ -83,9 +89,6 @@ template <typename T, size_t N> struct simd_element_type<simd<T, N>> {
 template <typename T>
 using simd_element_type_t = typename simd_element_type<T>::type;
 namespace internal {
-
-template <typename T>
-using get_as_integer_type_t = unsigned _BitInt(sizeof(T) * CHAR_BIT);
 
 template <typename T> LIBC_INLINE constexpr T poison() {
   return __builtin_nondeterministic_value(T());
@@ -192,6 +195,18 @@ template <typename T, size_t N, internal::enable_if_integral_t<T> = 0>
 LIBC_INLINE constexpr static int find_last_set(simd<T, N> v) {
   constexpr size_t size = simd_size_v<simd<T, N>>;
   return size - 1 - __builtin_clzg(simd_cast<bool>(v));
+}
+template <size_t N>
+LIBC_INLINE constexpr static auto to_bitmask(const simd<bool, N> &m) {
+  using bitmask_t = internal::get_as_integer_type_t<simd<bool, N>>;
+  if constexpr (N % CHAR_BIT == 0) {
+    return cpp::bit_cast<bitmask_t>(m);
+  } else {
+    bitmask_t res = 0;
+    for (size_t i = 0; i < N; ++i)
+      res |= static_cast<bitmask_t>(m[i]) << i;
+    return res;
+  }
 }
 
 // Elementwise operations.

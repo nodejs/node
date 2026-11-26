@@ -65,8 +65,21 @@ V8_OBJECT class TemplateInfo : public HeapObject {
 
   inline uint32_t GetHash() const;
 
-  inline uint32_t template_info_flags() const;
-  inline void set_template_info_flags(uint32_t value);
+  struct Flags : BitFieldGroup<Flags, uint32_t> {
+    using BitFieldGroup::BitFieldGroup;
+
+    using IsCacheableBit = First<bool, 1>;
+    using ShouldPromoteToReadOnlyBit = IsCacheableBit::Next<bool, 1>;
+    using SerialNumberBits = ShouldPromoteToReadOnlyBit::Next<uint32_t, 29>;
+
+    BIT_FIELD_GROUP_ACCESSORS(is_cacheable, IsCacheableBit)
+    BIT_FIELD_GROUP_ACCESSORS(should_promote_to_read_only,
+                              ShouldPromoteToReadOnlyBit)
+    BIT_FIELD_GROUP_ACCESSORS(serial_number, SerialNumberBits)
+  };
+
+  inline Flags template_info_flags() const;
+  inline void set_template_info_flags(Flags value);
 
   // Whether or not to cache every instance: when we materialize a getter or
   // setter from an lazy AccessorPair, we rely on this cache to be able to
@@ -97,14 +110,7 @@ V8_OBJECT class TemplateInfo : public HeapObject {
       Isolate* isolate, DirectHandle<NativeContext> native_context,
       DirectHandle<TemplateInfo> info, CachingMode caching_mode);
 
-  // Bit position in the template_info_base_flags, from least significant bit
-  // position.
-  using IsCacheableBit = base::BitField<bool, 0, 1, uint32_t>;
-  using ShouldPromoteToReadOnlyBit = IsCacheableBit::Next<bool, 1>;
-  using SerialNumberBits = ShouldPromoteToReadOnlyBit::Next<uint32_t, 29>;
-
-  TaggedMember<Smi> template_info_flags_
-      V8_TQ_TYPE(SmiTagged<TemplateInfoFlags>);
+  SmiBitFieldMember<Flags> template_info_flags_;
 } V8_OBJECT_END;
 
 V8_OBJECT class TemplateInfoWithProperties : public TemplateInfo {
@@ -498,17 +504,23 @@ V8_OBJECT class ObjectTemplateInfo : public TemplateInfoWithProperties {
       Tagged<UnionOf<FunctionTemplateInfo, Undefined>> value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline int data() const;
-  inline void set_data(int value);
+  struct Flags : BitFieldGroup<Flags, uint32_t> {
+    using BitFieldGroup::BitFieldGroup;
+
+    using IsImmutablePrototypeBit = First<bool, 1>;
+    using IsCodeKindBit = IsImmutablePrototypeBit::Next<bool, 1>;
+    using EmbedderFieldCountBits = IsCodeKindBit::Next<int32_t, 28>;
+
+    BIT_FIELD_GROUP_ACCESSORS(is_immutable_prototype, IsImmutablePrototypeBit)
+    BIT_FIELD_GROUP_ACCESSORS(is_code_kind, IsCodeKindBit)
+    BIT_FIELD_GROUP_ACCESSORS(embedder_field_count, EmbedderFieldCountBits)
+  };
+
+  inline Flags data() const;
+  inline void set_data(Flags value);
 
   TaggedMember<UnionOf<FunctionTemplateInfo, Undefined>> constructor_;
-  TaggedMember<Smi> data_ V8_TQ_TYPE(SmiTagged<ObjectTemplateInfoFlags>);
-
- private:
-  using IsImmutablePrototypeBit = base::BitField<bool, 0, 1, uint32_t>;
-  using IsCodeKindBit = IsImmutablePrototypeBit::Next<bool, 1>;
-  using EmbedderFieldCountBits = IsCodeKindBit::Next<int32_t, 28>;
-  friend class TorqueGeneratedBitFieldAsserts;
+  SmiBitFieldMember<Flags> data_;
 } V8_OBJECT_END;
 
 V8_OBJECT class DictionaryTemplateInfo : public TemplateInfo {

@@ -92,7 +92,7 @@ void Flag::set_string_value(const char* new_value, bool owns_new_value,
   if (change_flag) {
     DCHECK(!IsReadOnly());
     if (owns_ptr_) DeleteArray(old_value);
-    *reinterpret_cast<FlagValue<const char*>*>(valptr_) = new_value;
+    reinterpret_cast<FlagValue<const char*>*>(valptr_)->Overwrite(new_value);
     owns_ptr_ = owns_new_value;
   } else {
     if (owns_new_value) DeleteArray(new_value);
@@ -122,7 +122,7 @@ FlagProcessingMode FlagList::GetFlagProcessingMode() {
     } else {
       base::FatalNoSecurityImpact(
           "Invalid value for --flag-processing-mode: %s\n",
-          v8_flags.flag_processing_mode);
+          v8_flags.flag_processing_mode.value());
     }
   }
 
@@ -213,6 +213,12 @@ bool Flag::CheckFlagChange(SetBy new_set_by, bool change_flag,
             FlagError{} << "Flag " << FlagName{name()} << ": value implied by "
                         << FlagName{implied_by}
                         << " conflicts with explicit specification";
+          } else if (FlagHelpers::EqualNameWithSuffix(name(), implied_by)) {
+            // Self-implication from DEFINE_{MIN,MAX}_VALUE_IMPLICATION: print
+            // the normalized flag name followed by the " < min" / " > max"
+            // suffix.
+            FlagError{} << "Invalid value for flag: " << FlagName{name()}
+                        << (implied_by + strlen(name()));
           } else {
             FlagError{} << "Flag " << FlagName{name()} << " is implied by "
                         << FlagName{implied_by}
@@ -239,17 +245,11 @@ bool Flag::CheckFlagChange(SetBy new_set_by, bool change_flag,
     DCHECK_NOT_NULL(implied_by);
     implied_by_ = implied_by;
 #ifdef DEBUG
-    // This only works when implied_by is a flag_name or !flag_name, but it
-    // can also be a condition e.g. flag_name < 3. Since this is only used for
-    // checks in DEBUG mode, we will just ignore the more complex conditions
-    // for now - that will just lead to a nullptr which won't be followed.
-    if (strchr(implied_by, '<') != nullptr) {
-      implied_by_ptr_ = nullptr;
-    } else {
-      implied_by_ptr_ = static_cast<Flag*>(FindImplicationFlagByName(
-          implied_by[0] == '!' ? implied_by + 1 : implied_by));
-    }
-    DCHECK_NE(implied_by_ptr_, this);
+    implied_by_ptr_ = FindImplicationFlagByName(
+        implied_by[0] == '!' ? implied_by + 1 : implied_by);
+    // DEFINE_{MIN,MAX}_VALUE_IMPLICATION implies a flag from itself; don't
+    // record a self-edge.
+    if (implied_by_ptr_ == this) implied_by_ptr_ = nullptr;
 #endif
   }
   return change_flag;
@@ -299,30 +299,34 @@ void Flag::Reset() {
   if (IsReadOnly()) return;
   switch (type_) {
     case TYPE_BOOL:
-      *reinterpret_cast<FlagValue<bool>*>(valptr_) = bool_default();
+      reinterpret_cast<FlagValue<bool>*>(valptr_)->Overwrite(bool_default());
       break;
     case TYPE_MAYBE_BOOL:
-      *reinterpret_cast<FlagValue<std::optional<bool>>*>(valptr_) =
-          std::nullopt;
+      reinterpret_cast<FlagValue<std::optional<bool>>*>(valptr_)->Overwrite(
+          std::nullopt);
       break;
     case TYPE_INT:
-      *reinterpret_cast<FlagValue<int>*>(valptr_) = int_default();
+      reinterpret_cast<FlagValue<int>*>(valptr_)->Overwrite(int_default());
       break;
     case TYPE_UINT:
-      *reinterpret_cast<FlagValue<unsigned int>*>(valptr_) = uint_default();
+      reinterpret_cast<FlagValue<unsigned int>*>(valptr_)->Overwrite(
+          uint_default());
       break;
     case TYPE_UINT64:
-      *reinterpret_cast<FlagValue<uint64_t>*>(valptr_) = uint64_default();
+      reinterpret_cast<FlagValue<uint64_t>*>(valptr_)->Overwrite(
+          uint64_default());
       break;
     case TYPE_FLOAT:
-      *reinterpret_cast<FlagValue<double>*>(valptr_) = float_default();
+      reinterpret_cast<FlagValue<double>*>(valptr_)->Overwrite(float_default());
       break;
     case TYPE_SIZE_T:
-      *reinterpret_cast<FlagValue<size_t>*>(valptr_) = size_t_default();
+      reinterpret_cast<FlagValue<size_t>*>(valptr_)->Overwrite(
+          size_t_default());
       break;
     case TYPE_STRING:
       ReleaseDynamicAllocations();
-      *reinterpret_cast<FlagValue<const char*>*>(valptr_) = string_default();
+      reinterpret_cast<FlagValue<const char*>*>(valptr_)->Overwrite(
+          string_default());
       break;
   }
 }
@@ -510,27 +514,49 @@ Flag* FindFlagByPointer(const void* ptr) {
   return flag;
 }
 
-template <>
-EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-void FlagValue<bool>::Set(bool new_value) {
-  FindFlagByPointer(this)->set_bool_variable(new_value,
-                                             Flag::SetBy::kCommandLine);
+template <typename T>
+void FlagValue<T>::Set(T new_value) {
+  Flag* flag = FindFlagByPointer(this);
+  // {size_t} may alias {unsigned int} or {uint64_t} depending on the platform,
+  // so check the runtime {Flag::FlagType} first.
+  if constexpr (std::is_same_v<T, size_t>) {
+    if (flag->type() == Flag::TYPE_SIZE_T) {
+      flag->set_size_t_variable(new_value, Flag::SetBy::kCommandLine);
+      return;
+    }
+  }
+  if constexpr (std::is_same_v<T, bool>) {
+    flag->set_bool_variable(new_value, Flag::SetBy::kCommandLine);
+  } else if constexpr (std::is_same_v<T, std::optional<bool>>) {
+    flag->set_maybe_bool_variable(new_value, Flag::SetBy::kCommandLine);
+  } else if constexpr (std::is_same_v<T, int>) {
+    flag->set_int_variable(new_value, Flag::SetBy::kCommandLine);
+  } else if constexpr (std::is_same_v<T, unsigned int>) {
+    flag->set_uint_variable(new_value, Flag::SetBy::kCommandLine);
+  } else if constexpr (std::is_same_v<T, uint64_t>) {
+    flag->set_uint64_variable(new_value, Flag::SetBy::kCommandLine);
+  } else if constexpr (std::is_same_v<T, double>) {
+    flag->set_float_variable(new_value, Flag::SetBy::kCommandLine);
+  } else if constexpr (std::is_same_v<T, const char*>) {
+    flag->set_string_value(new_value ? StrDup(new_value) : nullptr,
+                           new_value != nullptr, Flag::SetBy::kCommandLine);
+  } else {
+    UNREACHABLE();
+  }
 }
 
-template <>
-EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-void FlagValue<int>::Set(int new_value) {
-  FindFlagByPointer(this)->set_int_variable(new_value,
-                                            Flag::SetBy::kCommandLine);
-}
-
-template <>
-EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-void FlagValue<const char*>::Set(const char* new_value) {
-  FindFlagByPointer(this)->set_string_value(
-      new_value ? StrDup(new_value) : nullptr, new_value != nullptr,
-      Flag::SetBy::kCommandLine);
-}
+#define INSTANTIATE_FLAG_VALUE_SET(type) \
+  template EXPORT_TEMPLATE_DEFINE(       \
+      V8_EXPORT_PRIVATE) void FlagValue<type>::Set(type);
+INSTANTIATE_FLAG_VALUE_SET(bool)
+INSTANTIATE_FLAG_VALUE_SET(std::optional<bool>)
+INSTANTIATE_FLAG_VALUE_SET(int)
+INSTANTIATE_FLAG_VALUE_SET(unsigned int)
+INSTANTIATE_FLAG_VALUE_SET(unsigned long)       // NOLINT(runtime/int)
+INSTANTIATE_FLAG_VALUE_SET(unsigned long long)  // NOLINT(runtime/int)
+INSTANTIATE_FLAG_VALUE_SET(double)
+INSTANTIATE_FLAG_VALUE_SET(const char*)
+#undef INSTANTIATE_FLAG_VALUE_SET
 
 static const char* Type2String(Flag::FlagType type) {
   switch (type) {
@@ -1291,7 +1317,7 @@ class ImplicationProcessor {
           conclusion_flag->owns_ptr_ = false;
         }
       }
-      *conclusion_value = value;
+      conclusion_value->Overwrite(value);
       // Any implications by the conclusion flag are now invalid. Reset the
       // flags previously implied by the conclusion flag. If they were also
       // implied by some other flag, they will be reimplied in the next
@@ -1303,16 +1329,17 @@ class ImplicationProcessor {
   }
 
   // Called from {DEFINE_*_IMPLICATION} in flag-definitions.h, when the
-  // conclusion flag is read-only (note this is the const overload of the
-  // function just above).
-  template <class T>
+  // conclusion flag is read-only.
+  template <class ReadOnlyFlag>
+    requires requires { typename ReadOnlyFlag::is_readonly_flag; }
   bool TriggerImplication(bool premise, const char* premise_name,
-                          const FlagValue<T>* conclusion_value,
-                          const char* conclusion_name, T value,
+                          const ReadOnlyFlag* conclusion_value,
+                          const char* conclusion_name,
+                          typename ReadOnlyFlag::underlying_type value,
                           ImplicationStrength strength) {
     if (!premise) return false;
     Flag* conclusion_flag = FindImplicationFlagByName(conclusion_name);
-    // Because this is the `const FlagValue*` overload:
+    // Because this is the read-only flag overload:
     DCHECK(conclusion_flag->IsReadOnly());
     if (!conclusion_flag->CheckFlagChange(
             strength == kWeakImplication ? Flag::SetBy::kWeakImplication
@@ -1322,7 +1349,10 @@ class ImplicationProcessor {
     }
     // Must equal the default value, otherwise CheckFlagChange should've
     // returned false.
-    DCHECK(FlagValueEquals(value, conclusion_flag->GetDefaultValue<T>()));
+    DCHECK(FlagValueEquals(
+        value,
+        conclusion_flag
+            ->GetDefaultValue<typename ReadOnlyFlag::underlying_type>()));
     return true;
   }
 
@@ -1406,7 +1436,6 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
   CONTRADICTION(disable_optimizing_compilers, wasm_in_js_inlining_body);
   CONTRADICTION(disable_optimizing_compilers, turbolev_future);
   CONTRADICTION(disable_optimizing_compilers, wasm_in_js_inlining_wrapper);
-  CONTRADICTION(empty_shared_heap, harmony_struct)
   CONTRADICTION(empty_shared_heap, shared_strings)
   CONTRADICTION(empty_shared_heap, shared_string_table)
 #if V8_ENABLE_WEBASSEMBLY
@@ -1443,6 +1472,10 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
   CONTRADICTION(optimize_for_size, predictable_gc_schedule);
   CONTRADICTION(predictable, stress_concurrent_inlining_attach_code);
   CONTRADICTION(predictable_gc_schedule, stress_compaction);
+  CONTRADICTION(stress_scavenger_conservative_object_pinning,
+                predictable_gc_schedule);
+  CONTRADICTION(stress_scavenger_conservative_object_pinning_random,
+                predictable_gc_schedule);
   CONTRADICTION(single_threaded, stress_concurrent_inlining_attach_code);
 #if V8_ENABLE_WEBASSEMBLY
   CONTRADICTION(wasm_test_streaming, predictable);
@@ -1461,6 +1494,11 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
   CONTRADICTION(stress_lazy_source_positions, sandbox_testing);
   CONTRADICTION(stress_lazy, sandbox_fuzzing);
   CONTRADICTION(stress_lazy, sandbox_testing);
+
+  // --hole-fuzzing intentionally leaks Hole values into JS expressions,
+  // violating TurboFan's Type::NonInternal() invariant checked by
+  // --assert-types.
+  CONTRADICTION(assert_types, hole_fuzzing);
 
   // List of flags that shouldn't be used when --fuzzing or
   // --correctness-fuzzer-suppressions is passed. These flags will be reset
@@ -1497,29 +1535,11 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
   // https://crbug.com/369974230
   RESET_WHEN_FUZZING(expose_async_hooks);
 
-  // https://crbug.com/371061101
-  RESET_WHEN_FUZZING(parallel_compile_tasks_for_lazy);
-
   // https://crbug.com/366671002
   RESET_WHEN_FUZZING(stress_snapshot);
 
   // https://crbug.com/393401455
   RESET_WHEN_FUZZING(turboshaft);
-
-#if V8_ENABLE_WEBASSEMBLY
-  if (v8_flags.wasm_max_code_space_size_mb > kDefaultMaxWasmCodeSpaceSizeMb) {
-    // Skip the warning on correctness (differential) fuzzing to prevent false
-    // positives.
-    if (!v8_flags.correctness_fuzzer_suppressions) {
-      std::cerr << "Warning: lowering flag --wasm-max-code-space-size-mb="
-                << v8_flags.wasm_max_code_space_size_mb
-                << " to --wasm-max-code-space-size-mb="
-                << kDefaultMaxWasmCodeSpaceSizeMb
-                << ", larger values are unsupported";
-    }
-    v8_flags.wasm_max_code_space_size_mb = kDefaultMaxWasmCodeSpaceSizeMb;
-  }
-#endif
 
   for (auto [flag1, flag2] : contradictions) {
     if (!flag1 || !flag2) continue;
@@ -1530,6 +1550,7 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
     CHECK(!flag1->PointsTo(&v8_flags.correctness_fuzzer_suppressions));
     CHECK(
         !flag1->PointsTo(&v8_flags.correctness_fuzzer_cross_arch_suppressions));
+    CHECK(!flag1->PointsTo(&v8_flags.hole_fuzzing));
     CHECK(!flag1->PointsTo(&v8_flags.sandbox_fuzzing));
     CHECK(!flag1->PointsTo(&v8_flags.sandbox_testing));
     CHECK(!flag1->PointsTo(&v8_flags.run_as_security_poc));

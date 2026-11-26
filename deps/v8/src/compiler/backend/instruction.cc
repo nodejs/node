@@ -9,7 +9,6 @@
 
 #include "src/base/iterator.h"
 #include "src/base/logging.h"
-#include "src/codegen/aligned-slot-allocator.h"
 #include "src/codegen/interface-descriptors.h"
 #include "src/codegen/machine-type.h"
 #include "src/codegen/register-configuration.h"
@@ -90,55 +89,34 @@ FlagsCondition CommuteFlagsCondition(FlagsCondition condition) {
   UNREACHABLE();
 }
 
-bool InstructionOperand::InterferesWith(const InstructionOperand& other) const {
-  const bool combine_fp_aliasing = kFPAliasing == AliasingKind::kCombine &&
-                                   this->IsFPLocationOperand() &&
-                                   other.IsFPLocationOperand();
-  const bool stack_slots = this->IsAnyStackSlot() && other.IsAnyStackSlot();
-  if (!combine_fp_aliasing && !stack_slots) {
-    return EqualsCanonicalized(other);
-  }
-  const LocationOperand& loc = *LocationOperand::cast(this);
-  const LocationOperand& other_loc = LocationOperand::cast(other);
-  MachineRepresentation rep = loc.representation();
-  MachineRepresentation other_rep = other_loc.representation();
-  LocationOperand::LocationKind kind = loc.location_kind();
-  LocationOperand::LocationKind other_kind = other_loc.location_kind();
-  if (kind != other_kind) return false;
-
-  if (combine_fp_aliasing && !stack_slots) {
+bool InstructionOperand::InterferesWithSlow(
+    const InstructionOperand& other) const {
+  DCHECK(HasComplexAliasing() || other.HasComplexAliasing());
+  if (kFPAliasing == AliasingKind::kCombine && IsFPRegister() &&
+      other.IsFPRegister()) {
+    const LocationOperand& loc = *LocationOperand::cast(this);
+    const LocationOperand& other_loc = LocationOperand::cast(other);
+    MachineRepresentation rep = loc.representation();
+    MachineRepresentation other_rep = other_loc.representation();
     if (rep == other_rep) return EqualsCanonicalized(other);
-    DCHECK_EQ(kind, LocationOperand::REGISTER);
     // FP register-register interference.
     return GetRegConfig()->AreAliases(rep, loc.register_code(), other_rep,
                                       other_loc.register_code());
   }
-
-  DCHECK(stack_slots);
-  int num_slots =
-      AlignedSlotAllocator::NumSlotsForWidth(ElementSizeInBytes(rep));
-  int num_slots_other =
-      AlignedSlotAllocator::NumSlotsForWidth(ElementSizeInBytes(other_rep));
-  const bool complex_stack_slot_interference =
-      (num_slots > 1 || num_slots_other > 1);
-  if (!complex_stack_slot_interference) {
-    return EqualsCanonicalized(other);
+  if (IsAnyStackSlot() && other.IsAnyStackSlot()) {
+    // Complex multi-slot operand interference:
+    // - slots of different FP reps can alias because the gap resolver may break
+    //   a move into 2 or 4 equivalent smaller moves,
+    // - stack layout can be rearranged for tail calls.
+    const LocationOperand& loc = *LocationOperand::cast(this);
+    const LocationOperand& other_loc = LocationOperand::cast(other);
+    int index_hi = loc.index();
+    int index_lo = index_hi - loc.NumStackSlots() + 1;
+    int other_index_hi = other_loc.index();
+    int other_index_lo = other_index_hi - other_loc.NumStackSlots() + 1;
+    return other_index_hi >= index_lo && index_hi >= other_index_lo;
   }
-
-  // Complex multi-slot operand interference:
-  // - slots of different FP reps can alias because the gap resolver may break a
-  // move into 2 or 4 equivalent smaller moves,
-  // - stack layout can be rearranged for tail calls
-  DCHECK_EQ(LocationOperand::STACK_SLOT, kind);
-  int index_hi = loc.index();
-  int index_lo =
-      index_hi -
-      AlignedSlotAllocator::NumSlotsForWidth(ElementSizeInBytes(rep)) + 1;
-  int other_index_hi = other_loc.index();
-  int other_index_lo =
-      other_index_hi -
-      AlignedSlotAllocator::NumSlotsForWidth(ElementSizeInBytes(other_rep)) + 1;
-  return other_index_hi >= index_lo && index_hi >= other_index_lo;
+  return false;
 }
 
 bool LocationOperand::IsCompatible(LocationOperand* op) {
@@ -337,8 +315,8 @@ bool ParallelMove::IsRedundant() const {
 
 void ParallelMove::PrepareInsertAfter(
     MoveOperands* move, ZoneVector<MoveOperands*>* to_eliminate) const {
-  bool no_aliasing = kFPAliasing != AliasingKind::kCombine ||
-                     !move->destination().IsFPLocationOperand();
+  if (move->IsRedundant()) return;
+  bool no_aliasing = !move->destination().HasComplexAliasing();
   MoveOperands* replacement = nullptr;
   MoveOperands* eliminated = nullptr;
   for (MoveOperands* curr : *this) {
@@ -349,7 +327,11 @@ void ParallelMove::PrepareInsertAfter(
       DCHECK(!replacement);
       replacement = curr;
       if (no_aliasing && eliminated != nullptr) break;
-    } else if (curr->destination().InterferesWith(move->destination())) {
+    }
+    // Not `else if`: a multi-slot stack operand can both match `move`'s source
+    // and interfere with `move`'s destination if `move` shifts it by a partial
+    // width (e.g., `[fp_stack:2|s128] = [fp_stack:1|s128]` overlaps on slot 1).
+    if (curr->destination().InterferesWith(move->destination())) {
       // We can eliminate curr, since move overwrites at least a part of its
       // destination, implying its value is no longer live.
       eliminated = curr;

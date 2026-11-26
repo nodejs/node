@@ -1,13 +1,20 @@
-//===-- Standalone implementation of iterator -------------------*- C++ -*-===//
+//===----------------------------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
+///
+/// \file
+/// Standalone implementation of iterator utilities.
+///
+//===----------------------------------------------------------------------===//
 
 #ifndef LLVM_LIBC_SRC___SUPPORT_CPP_ITERATOR_H
 #define LLVM_LIBC_SRC___SUPPORT_CPP_ITERATOR_H
+
+#include <stddef.h> // For ptrdiff_t
 
 #include "hdr/types/size_t.h"
 #include "src/__support/CPP/type_traits/enable_if.h"
@@ -24,21 +31,32 @@ struct random_access_iterator_tag : input_iterator_tag {};
 
 template <typename T> struct iterator_traits;
 template <typename T> struct iterator_traits<T *> {
+  using difference_type = ptrdiff_t;
+  using value_type = T;
+  using pointer = T *;
   using reference = T &;
   using iterator_category = random_access_iterator_tag;
-  using value_type = T;
 };
 
 template <typename Iter> class reverse_iterator {
   Iter current;
 
 public:
-  using reference = typename iterator_traits<Iter>::reference;
-  using value_type = typename iterator_traits<Iter>::value_type;
   using iterator_type = Iter;
+  using difference_type = typename iterator_traits<Iter>::difference_type;
+  using value_type = typename iterator_traits<Iter>::value_type;
+  using pointer = typename iterator_traits<Iter>::pointer;
+  using reference = typename iterator_traits<Iter>::reference;
 
-  LIBC_INLINE reverse_iterator() : current() {}
+  LIBC_INLINE constexpr reverse_iterator() : current() {}
   LIBC_INLINE constexpr explicit reverse_iterator(Iter it) : current(it) {}
+
+  template <typename Other,
+            cpp::enable_if_t<!cpp::is_same_v<Iter, Other> &&
+                                 cpp::is_convertible_v<const Other &, Iter>,
+                             int> = 0>
+  LIBC_INLINE constexpr reverse_iterator(const reverse_iterator<Other> &other)
+      : current(other.base()) {}
 
   template <typename Other,
             cpp::enable_if_t<!cpp::is_same_v<Iter, Other> &&
@@ -83,18 +101,59 @@ public:
     Iter tmp = current;
     return *--tmp;
   }
-  LIBC_INLINE constexpr reverse_iterator operator--() {
+
+  LIBC_INLINE constexpr pointer operator->() const {
+    Iter tmp = current;
+    return --tmp;
+  }
+
+  LIBC_INLINE constexpr reference operator[](difference_type n) const {
+    return *(*this + n);
+  }
+
+  LIBC_INLINE constexpr reverse_iterator &operator--() {
     ++current;
     return *this;
   }
+
+  LIBC_INLINE constexpr reverse_iterator operator--(int) {
+    reverse_iterator tmp(*this);
+    ++current;
+    return tmp;
+  }
+
   LIBC_INLINE constexpr reverse_iterator &operator++() {
     --current;
     return *this;
   }
+
   LIBC_INLINE constexpr reverse_iterator operator++(int) {
     reverse_iterator tmp(*this);
     --current;
     return tmp;
+  }
+
+  LIBC_INLINE constexpr reverse_iterator operator+(difference_type n) const {
+    return reverse_iterator(current - n);
+  }
+
+  LIBC_INLINE constexpr reverse_iterator &operator+=(difference_type n) {
+    current -= n;
+    return *this;
+  }
+
+  LIBC_INLINE constexpr reverse_iterator operator-(difference_type n) const {
+    return reverse_iterator(current + n);
+  }
+
+  LIBC_INLINE constexpr reverse_iterator &operator-=(difference_type n) {
+    current += n;
+    return *this;
+  }
+
+  LIBC_INLINE friend constexpr difference_type
+  operator-(const reverse_iterator &lhs, const reverse_iterator &rhs) {
+    return rhs.base() - lhs.base();
   }
 };
 
@@ -109,9 +168,8 @@ LIBC_INLINE constexpr size_t distance(It first, It last,
 template <typename It>
 LIBC_INLINE constexpr auto distance(It first, It last, input_iterator_tag) {
   size_t n = 0;
-  for (; first != last; ++first) {
+  for (; first != last; ++first)
     ++n;
-  }
   return n;
 }
 

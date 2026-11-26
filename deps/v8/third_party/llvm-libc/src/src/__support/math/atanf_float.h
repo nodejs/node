@@ -70,12 +70,12 @@ LIBC_INLINE float atanf_eval(float u, float k_over_16) {
   // (k/16)^2
   float c2 = k_over_16 * k_over_16;
   // -(k/16)^3
-  float c3 = fputil::multiply_add(-k_over_16, c2, k_over_16);
+  float c3 = fputil::sub_multiply(k_over_16, k_over_16, c2);
   float u2 = u * u;
   // (k^2/256 - 1/3) + u * (k/16 - (k/16)^3)
   float a0 = fputil::multiply_add(c3, u, c2 - 0x1.555556p-2f);
   // -k/16 + u*(k^2/256 - 1/3) + u^2 * (k/16 - (k/16)^3)
-  float a1 = fputil::multiply_add(u, a0, -k_over_16);
+  float a1 = fputil::multiply_sub(u, a0, k_over_16);
   // u - u^2 * k/16 + u^3 * ((k^2/256 - 1/3) + u^4 * (k/16 - (k/16)^3))
   return fputil::multiply_add(u2, a1, u);
 }
@@ -115,7 +115,7 @@ LIBC_INLINE float atanf(float x) {
     // atan(x) = sign(x) * pi/2 - atan(1/x)
     //         ~ sign(x) * pi/2 - 1/x
     if (LIBC_UNLIKELY(x_abs >= 0x4200'0000))
-      return fputil::multiply_add(sign, PI_OVER_2.hi, -1.0f / x);
+      return fputil::multiply_sub(sign, PI_OVER_2.hi, 1.0f / x);
     // x <= 2^-11:
     // atan(x) ~ x
     return x;

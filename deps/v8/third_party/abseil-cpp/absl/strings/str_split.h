@@ -452,7 +452,8 @@ using EnableSplitIfString =
 // behavior works for:
 //
 // 1) All standard STL containers including `std::vector`, `std::list`,
-//    `std::deque`, `std::set`,`std::multiset`, 'std::map`, and `std::multimap`.
+//    `std::deque`, `std::set`, `std::multiset`, `std::map`, and
+//    `std::multimap`.
 // 2) `std::pair` (which is not actually a container). See below.
 // 3) `std::array`, which is a container but has different behavior due to its
 //    fixed size. See below.

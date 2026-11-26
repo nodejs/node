@@ -69,8 +69,7 @@ MemoryChunk::MainThreadFlags MutablePage::OldGenerationPageFlags(
 
   if (marking_mode == MarkingMode::kMajorMarking) {
     flags_to_set |= MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING |
-                    MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING |
-                    MemoryChunk::INCREMENTAL_MARKING;
+                    MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING;
 #if V8_ENABLE_STICKY_MARK_BITS_BOOL
     flags_to_set |= MemoryChunk::STICKY_MARK_BIT_IS_MAJOR_GC_IN_PROGRESS;
 #endif
@@ -79,9 +78,6 @@ MemoryChunk::MainThreadFlags MutablePage::OldGenerationPageFlags(
     flags_to_set |= MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING;
   } else {
     flags_to_set |= MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING;
-    if (marking_mode == MarkingMode::kMinorMarking) {
-      flags_to_set |= MemoryChunk::INCREMENTAL_MARKING;
-    }
   }
 
   return flags_to_set;
@@ -94,7 +90,6 @@ MemoryChunk::MainThreadFlags MutablePage::YoungGenerationPageFlags(
       MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING;
   if (marking_mode != MarkingMode::kNoMarking) {
     flags |= MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING;
-    flags |= MemoryChunk::INCREMENTAL_MARKING;
 #if V8_ENABLE_STICKY_MARK_BITS_BOOL
     if (marking_mode == MarkingMode::kMajorMarking) {
       flags |= MemoryChunk::STICKY_MARK_BIT_IS_MAJOR_GC_IN_PROGRESS;
@@ -148,13 +143,9 @@ void MutablePage::SetOldGenerationPageFlags(MarkingMode marking_mode) {
   if (marking_mode != MarkingMode::kMajorMarking) {
     if (IsAnyWritableSharedSpace(owner)) {
       // No need to track OLD_TO_NEW or OLD_TO_SHARED within the shared space.
-      flags_to_clear |= MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING |
-                        MemoryChunk::INCREMENTAL_MARKING;
+      flags_to_clear |= MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING;
     } else {
       flags_to_clear |= MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING;
-      if (marking_mode != MarkingMode::kMinorMarking) {
-        flags_to_clear |= MemoryChunk::INCREMENTAL_MARKING;
-      }
     }
   }
 
@@ -168,7 +159,6 @@ void MutablePage::SetYoungGenerationPageFlags(MarkingMode marking_mode) {
   MemoryChunk::MainThreadFlags flags_to_clear = MemoryChunk::NO_FLAGS;
   if (marking_mode == MarkingMode::kNoMarking) {
     flags_to_clear |= MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING;
-    flags_to_clear |= MemoryChunk::INCREMENTAL_MARKING;
   }
 
   SetFlagsNonExecutable(flags_to_set, flags_to_set);
@@ -259,8 +249,7 @@ bool MutablePage::ContainsAnySlots() const {
 
 int MutablePage::ComputeFreeListsLength() {
   int length = 0;
-  for (int cat = kFirstCategory; cat <= owner()->free_list()->last_category();
-       cat++) {
+  for (int cat = kFirstCategory; cat <= FreeList::kLastCategory; cat++) {
     length += categories_[cat].FreeListLength();
   }
   return length;

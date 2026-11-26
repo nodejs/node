@@ -88,6 +88,10 @@ class BasicBlock {
   // all subsequent nodes.
   void TruncateAt(Node* node);
 
+  // Removes |node| if it is among the last |max_lookback| nodes of the block,
+  // clearing its owner. Returns whether |node| was found and removed.
+  bool TryRemoveFromEnd(Node* node, size_t max_lookback = 16);
+
   void OverwriteControlWithAbort(AbortReason reason);
 
   bool has_phi() const { return has_state() && state_->has_phi(); }
@@ -140,7 +144,15 @@ class BasicBlock {
 
   bool is_dead() const { return is_dead_; }
 
-  void mark_dead() { is_dead_ = true; }
+  void mark_dead() {
+    is_dead_ = true;
+    if (has_state()) {
+      if (state_->is_loop()) {
+        state_->AsLoopHeader()->ClearBackedgeKnownNodeAspects();
+      }
+      state_->ClearKnownNodeAspects();
+    }
+  }
 
   Phi::List* phis() const {
     DCHECK(has_phi());

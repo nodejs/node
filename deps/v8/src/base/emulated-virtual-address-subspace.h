@@ -83,6 +83,12 @@ class V8_BASE_EXPORT EmulatedVirtualAddressSubspace final
 
   bool DecommitPages(Address address, size_t size) override;
 
+#if V8_OS_FUCHSIA
+  uint32_t GetVmarHandle() const override {
+    return parent_space_->GetVmarHandle();
+  }
+#endif  // V8_OS_FUCHSIA
+
  private:
   size_t mapped_size() const { return mapped_size_; }
   size_t unmapped_size() const { return size() - mapped_size_; }

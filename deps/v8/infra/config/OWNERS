@@ -1,0 +1,7 @@
+alexschulze@chromium.org
+machenbach@chromium.org
+vahl@chromium.org
+jkummerow@chromium.org
+
+# Enable the auto-roller to automatically land branch CLs.
+v8-ci-autoroll-builder@chops-service-accounts.iam.gserviceaccount.com

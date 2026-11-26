@@ -94,7 +94,7 @@ LIBC_INLINE constexpr float16 cosf16(float16 x) {
   //          = cos_k * (cos_y - 1 + 1) - sin_k * sin_y
   //          = cos_k * cosm1_y - sin_k * sin_y + cos_k
   return fputil::cast<float16>(fputil::multiply_add(
-      cos_k, cosm1_y, fputil::multiply_add(-sin_k, sin_y, cos_k)));
+      cos_k, cosm1_y, fputil::sub_multiply(cos_k, sin_k, sin_y)));
 }
 
 } // namespace math

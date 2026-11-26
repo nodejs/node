@@ -1079,8 +1079,8 @@ std::optional<int> Intl::StringLocaleCompare(Isolate* isolate,
       CompareStringsOptionsFor(isolate, locales, options);
   if (can_cache) {
     // Both locales and options are undefined, check the cache.
-    icu::Collator* cached_icu_collator =
-        static_cast<icu::Collator*>(isolate->get_cached_icu_object(
+    std::shared_ptr<icu::Collator> cached_icu_collator =
+        std::static_pointer_cast<icu::Collator>(isolate->get_cached_icu_object(
             Isolate::ICUObjectCacheType::kDefaultCollator, locales));
     // We may use the cached icu::Collator for a fast path.
     if (cached_icu_collator != nullptr) {
@@ -1587,16 +1587,18 @@ MaybeDirectHandle<String> Intl::NumberToLocaleString(
   bool can_cache =
       (IsString(*locales) || IsUndefined(*locales)) && IsUndefined(*options);
   if (can_cache) {
-    icu::number::LocalizedNumberFormatter* cached_number_format =
-        static_cast<icu::number::LocalizedNumberFormatter*>(
-            isolate->get_cached_icu_object(
-                Isolate::ICUObjectCacheType::kDefaultNumberFormat, locales));
-    // We may use the cached icu::NumberFormat for a fast path.
+    std::shared_ptr<icu::number::LocalizedNumberFormatter>
+        cached_number_format =
+            std::static_pointer_cast<icu::number::LocalizedNumberFormatter>(
+                isolate->get_cached_icu_object(
+                    Isolate::ICUObjectCacheType::kDefaultNumberFormat,
+                    locales));
+    // We may use the cached formatter for a fast path. Do not copy it. ICU
+    // builds an optimized formatter inside it after a few calls, and the
+    // copy constructor drops that optimized formatter.
     if (cached_number_format != nullptr) {
-      std::shared_ptr<icu::number::LocalizedNumberFormatter> lfmt =
-          std::make_shared<icu::number::LocalizedNumberFormatter>(
-              *cached_number_format);
-      return JSNumberFormat::FormatNumeric(isolate, lfmt.get(), numeric_obj);
+      return JSNumberFormat::FormatNumeric(isolate, cached_number_format.get(),
+                                           numeric_obj);
     }
   }
 
@@ -1931,10 +1933,8 @@ namespace {
 
 // https://tc39.es/ecma402/#sec-bestavailablelocale
 std::string BestAvailableLocale(const std::set<std::string>& available_locales,
-                                const std::string& locale) {
-  // 1. Let candidate be locale.
-  std::string candidate = locale;
-
+                                std::string candidate) {
+  // 1. Let candidate be locale (passed by value).
   // 2. Repeat,
   while (true) {
     // 2.a. If availableLocales contains an element equal to candidate, return
@@ -1959,13 +1959,13 @@ std::string BestAvailableLocale(const std::set<std::string>& available_locales,
 
     // 2.d. Let candidate be the substring of candidate from position 0,
     //      inclusive, to position pos, exclusive.
-    candidate = candidate.substr(0, pos);
+    candidate.erase(pos);
   }
 }
 
 struct ParsedLocale {
   std::string no_extensions_locale;
-  std::string extension;
+  std::string_view extension;
 };
 
 // Returns a struct containing a bcp47 tag without unicode extensions
@@ -1973,7 +1973,7 @@ struct ParsedLocale {
 //
 // For example, given 'en-US-u-co-emoji' returns 'en-US' and
 // 'u-co-emoji'.
-ParsedLocale ParseBCP47Locale(const std::string& locale) {
+ParsedLocale ParseBCP47Locale(std::string_view locale V8_LIFETIME_BOUND) {
   size_t length = locale.length();
   ParsedLocale parsed_locale;
 
@@ -1990,7 +1990,7 @@ ParsedLocale ParseBCP47Locale(const std::string& locale) {
   size_t unicode_extension_start = locale.find("-u-");
 
   // No unicode extensions found.
-  if (unicode_extension_start == std::string::npos) {
+  if (unicode_extension_start == std::string_view::npos) {
     parsed_locale.no_extensions_locale = locale;
     return parsed_locale;
   }
@@ -1998,13 +1998,12 @@ ParsedLocale ParseBCP47Locale(const std::string& locale) {
   size_t private_extension_start = locale.find("-x-");
 
   // Unicode extensions found within privateuse subtags don't count.
-  if (private_extension_start != std::string::npos &&
+  if (private_extension_start != std::string_view::npos &&
       private_extension_start < unicode_extension_start) {
     parsed_locale.no_extensions_locale = locale;
     return parsed_locale;
   }
 
-  const std::string beginning = locale.substr(0, unicode_extension_start);
   size_t unicode_extension_end = length;
   DCHECK_GT(length, 2);
 
@@ -2021,8 +2020,11 @@ ParsedLocale ParseBCP47Locale(const std::string& locale) {
     i += 2;
   }
 
-  const std::string end = locale.substr(unicode_extension_end);
-  parsed_locale.no_extensions_locale = beginning + end;
+  std::string_view beginning = locale.substr(0, unicode_extension_start);
+  std::string_view end = locale.substr(unicode_extension_end);
+  parsed_locale.no_extensions_locale.reserve(beginning.length() + end.length());
+  parsed_locale.no_extensions_locale.assign(beginning);
+  parsed_locale.no_extensions_locale.append(end);
   parsed_locale.extension = locale.substr(
       unicode_extension_start, unicode_extension_end - unicode_extension_start);
   return parsed_locale;
@@ -2045,7 +2047,7 @@ std::vector<std::string> LookupSupportedLocales(
     // 2. b. Let availableLocale be
     //       BestAvailableLocale(availableLocales, noExtensionsLocale).
     std::string available_locale =
-        BestAvailableLocale(available_locales, no_extension_locale);
+        BestAvailableLocale(available_locales, std::move(no_extension_locale));
 
     // 2. c. If availableLocale is not undefined, append locale to the
     //       end of subset.
@@ -2598,20 +2600,20 @@ std::map<std::string, std::string> LookupAndValidateUnicodeExtensions(
 std::string LookupMatcher(Isolate* isolate,
                           const std::set<std::string>& available_locales,
                           const std::vector<std::string>& requested_locales) {
+  // The lookup matcher omits materializing the result record.
+
   // 1. Let result be a new Record.
-  std::string result;
 
   // 2. For each element locale of requestedLocales in List order, do
   for (const std::string& locale : requested_locales) {
     // 2. a. Let noExtensionsLocale be the String value that is locale
     //       with all Unicode locale extension sequences removed.
     ParsedLocale parsed_locale = ParseBCP47Locale(locale);
-    std::string no_extensions_locale = parsed_locale.no_extensions_locale;
 
     // 2. b. Let availableLocale be
     //       BestAvailableLocale(availableLocales, noExtensionsLocale).
-    std::string available_locale =
-        BestAvailableLocale(available_locales, no_extensions_locale);
+    std::string available_locale = BestAvailableLocale(
+        available_locales, std::move(parsed_locale.no_extensions_locale));
 
     // 2. c. If availableLocale is not undefined, append locale to the
     //       end of subset.
@@ -2632,7 +2634,8 @@ std::string LookupMatcher(Isolate* isolate,
       // extension sequence.
       // 2. c. ii. 2. Set result.[[extension]] to extension.
       // 2. c. iii. Return result.
-      return available_locale + parsed_locale.extension;
+      available_locale.append(parsed_locale.extension);
+      return available_locale;
     }
   }
 
@@ -2655,15 +2658,20 @@ std::string LookupMatcher(Isolate* isolate,
 //
 // https://tc39.es/ecma402/#sec-resolvelocale
 Maybe<Intl::ResolvedLocale> Intl::ResolveLocale(
-    Isolate* isolate, const std::set<std::string>& available_locales,
+    Isolate* isolate, AvailableLocalesGetter get_available_locales,
     const std::vector<std::string>& requested_locales, MatcherOption matcher,
     const std::set<std::string>& relevant_extension_keys) {
+  DCHECK_NOT_NULL(get_available_locales);
   std::string locale;
   if (matcher == Intl::MatcherOption::kBestFit &&
       v8_flags.harmony_intl_best_fit_matcher) {
-    locale = BestFitMatcher(isolate, available_locales, requested_locales);
+    locale =
+        BestFitMatcher(isolate, get_available_locales(), requested_locales);
+  } else if (requested_locales.empty()) {
+    // LookupMatcher returns DefaultLocale() for an empty list.
+    locale = isolate->DefaultLocale();
   } else {
-    locale = LookupMatcher(isolate, available_locales, requested_locales);
+    locale = LookupMatcher(isolate, get_available_locales(), requested_locales);
   }
 
   Maybe<icu::Locale> maybe_icu_locale = CreateICULocale(locale);

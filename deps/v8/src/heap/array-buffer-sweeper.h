@@ -86,6 +86,11 @@ class ArrayBufferSweeper final {
 
   uint64_t GetTraceIdForFlowEvent() const;
 
+  // Called when an extension transitions from unmarked to marked. Thread-safe.
+  void AccountMarkedExtension(size_t bytes) {
+    marked_bytes_.fetch_add(bytes, std::memory_order_relaxed);
+  }
+
  private:
   class SweepingState;
 
@@ -107,6 +112,11 @@ class ArrayBufferSweeper final {
 
   void ReleaseAll(ArrayBufferList* extension);
 
+  // Adjusts `marked_bytes_` when the accounting length of an extension that
+  // was already marked in the current marking cycle changes.
+  void AdjustMarkedBytes(ArrayBufferExtension::AccountingState previous_state,
+                         int64_t delta);
+
   static void FinalizeAndDelete(ArrayBufferExtension* extension);
 
   Heap* const heap_;
@@ -119,6 +129,10 @@ class ArrayBufferSweeper final {
   int64_t young_bytes_adjustment_while_sweeping_{0};
   int64_t old_bytes_adjustment_while_sweeping_{0};
   uint64_t total_bytes_{0};
+  // Accounting bytes of extensions marked live during the current marking
+  // cycle. Updates may transiently wrap around as marking and resizing race,
+  // but the value is consistent once marking finished.
+  std::atomic<uint64_t> marked_bytes_{0};
   V8_NO_UNIQUE_ADDRESS ExternalMemoryAccounter external_memory_accounter_;
 };
 

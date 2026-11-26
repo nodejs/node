@@ -1,0 +1,17 @@
+Regression test for crbug.com/583832157 case 4 (restartFrame invariants).
+
+Running test: testSubcaseA
+Subcase A: restartFrame mid-first-statement top frame:
+Paused in: helper
+Paused in: target
+Restarting target() frame:
+Paused after restart in: target
+At line: 9
+
+Running test: testSubcaseB
+Subcase B: restartFrame on JS caller from Wasm pause:
+Paused in: $wasmFn
+Restarting caller frame:
+Paused after restart in: caller
+Stepping over wasm call in caller:
+Paused after stepOver in: caller

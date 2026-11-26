@@ -142,12 +142,12 @@ LIBC_INLINE void sincosf(float x, float *sinp, float *cosp) {
     // double for intermediate results as it is more efficient than using an
     // emulated version of FMA.
 #if defined(LIBC_TARGET_CPU_HAS_FMA_FLOAT)
-    *sinp = fputil::multiply_add(x, -0x1.0p-25f, x);
-    *cosp = fputil::multiply_add(FPBits(x_abs).get_val(), -0x1.0p-25f, 1.0f);
+    *sinp = fputil::sub_multiply(x, x, 0x1.0p-25f);
+    *cosp = fputil::sub_multiply(1.0f, FPBits(x_abs).get_val(), 0x1.0p-25f);
 #else
-    *sinp = static_cast<float>(fputil::multiply_add(xd, -0x1.0p-25, xd));
-    *cosp = static_cast<float>(fputil::multiply_add(
-        static_cast<double>(FPBits(x_abs).get_val()), -0x1.0p-25, 1.0));
+    *sinp = static_cast<float>(fputil::sub_multiply(xd, xd, 0x1.0p-25));
+    *cosp = static_cast<float>(fputil::sub_multiply(
+        1.0, static_cast<double>(FPBits(x_abs).get_val()), 0x1.0p-25));
 #endif // LIBC_TARGET_CPU_HAS_FMA_FLOAT
     return;
   }
@@ -221,8 +221,8 @@ LIBC_INLINE void sincosf(float x, float *sinp, float *cosp) {
 
   *sinp = static_cast<float>(fputil::multiply_add(
       sin_y, cos_k, fputil::multiply_add(cosm1_y, sin_k, sin_k)));
-  *cosp = static_cast<float>(fputil::multiply_add(
-      sin_y, -sin_k, fputil::multiply_add(cosm1_y, cos_k, cos_k)));
+  *cosp = static_cast<float>(fputil::sub_multiply(
+      fputil::multiply_add(cosm1_y, cos_k, cos_k), sin_y, sin_k));
 }
 
 } // namespace math

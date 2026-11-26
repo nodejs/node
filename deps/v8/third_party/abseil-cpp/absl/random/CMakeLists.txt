@@ -44,6 +44,7 @@ absl_cc_library(
   DEPS
     absl::config
     absl::core_headers
+    absl::fast_type_id
     absl::random_internal_fast_uniform_bits
     absl::random_internal_traits
     absl::random_mocking_access
@@ -649,7 +650,7 @@ absl_cc_library(
   NAME
     random_internal_explicit_seed_seq
   HDRS
-      "internal/random_internal_explicit_seed_seq.h"
+    "internal/explicit_seed_seq.h"
   COPTS
     ${ABSL_DEFAULT_COPTS}
   LINKOPTS
@@ -923,6 +924,7 @@ absl_cc_library(
     absl::str_format
     absl::string_view
     absl::strings
+  TESTONLY
 )
 
 # Internal-only target, do not depend on directly.
@@ -969,6 +971,7 @@ absl_cc_test(
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
     absl::random_internal_distribution_test_util
+    GTest::gmock
     GTest::gtest_main
 )
 
@@ -1033,6 +1036,7 @@ absl_cc_test(
   DEPS
     absl::core_headers
     absl::random_internal_distribution_test_util
+    GTest::gmock
     GTest::gtest_main
 )
 

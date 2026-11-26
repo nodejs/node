@@ -55,13 +55,12 @@
 // Resetting --vmodule will override all previous modifications to `--vmodule`,
 // including via SetVLogLevel.
 
+// SKIP_ABSL_INLINE_NAMESPACE_CHECK
+
 #ifndef ABSL_LOG_ABSL_VLOG_IS_ON_H_
 #define ABSL_LOG_ABSL_VLOG_IS_ON_H_
 
-#include "absl/base/attributes.h"
-#include "absl/base/config.h"
 #include "absl/log/internal/vlog_config.h"  // IWYU pragma: export
-#include "absl/strings/string_view.h"
 
 // This is expanded at the callsite to allow the compiler to optimize
 // always-false cases out of the build.
@@ -74,20 +73,17 @@
 #define ABSL_LOG_INTERNAL_MAX_LOG_VERBOSITY_CHECK(x)
 #endif
 
-// Each ABSL_VLOG_IS_ON call site gets its own VLogSite that registers with the
-// global linked list of sites to asynchronously update its verbosity level on
-// changes to --v or --vmodule. The verbosity can also be set by manually
-// calling SetVLogLevel.
+// Each source file's ABSL_VLOG_IS_ON call sites share a single VLogSite that
+// registers with the global linked list of sites to asynchronously update its
+// verbosity level on changes to --v or --vmodule. The verbosity can also be set
+// by manually calling SetVLogLevel.
 //
 // ABSL_VLOG_IS_ON is not async signal safe, but it is guaranteed not to
 // allocate new memory.
-#define ABSL_VLOG_IS_ON(verbose_level)                                     \
-  (ABSL_LOG_INTERNAL_MAX_LOG_VERBOSITY_CHECK(verbose_level)[]()            \
-       ->::absl::log_internal::VLogSite *                                  \
-   {                                                                       \
-     ABSL_CONST_INIT static ::absl::log_internal::VLogSite site(__FILE__); \
-     return &site;                                                         \
-   }()                                                                     \
-       ->IsEnabled(verbose_level))
+#define ABSL_VLOG_IS_ON(verbose_level)                            \
+  (ABSL_LOG_INTERNAL_MAX_LOG_VERBOSITY_CHECK(                     \
+       verbose_level)::absl::log_internal::GetVLogSiteHolder([] { \
+     return __FILE__;                                             \
+   }).site.IsEnabled(verbose_level))
 
 #endif  // ABSL_LOG_ABSL_VLOG_IS_ON_H_

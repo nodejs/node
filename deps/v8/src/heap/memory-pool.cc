@@ -7,6 +7,7 @@
 #include <algorithm>
 
 #include "src/base/platform/mutex.h"
+#include "src/common/code-memory-access-inl.h"
 #include "src/common/ptr-compr-inl.h"
 #include "src/execution/isolate.h"
 #include "src/heap/large-page.h"

@@ -354,6 +354,8 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerARM64
       int bounds_check_offset, Label* scalar_fallback,
       base::FunctionRef<void(Register, Register)> on_match);
 
+  void PatchBacktrackFixups(Label* label);
+
   Isolate* isolate() const { return masm_->isolate(); }
 
   const std::unique_ptr<MacroAssembler> masm_;
@@ -375,6 +377,12 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerARM64
   Label check_preempt_label_;
   Label stack_overflow_label_;
   Label fallback_label_;
+
+  // PushBacktrack reserves a movz/movk pair for an unbound label's offset.
+  static constexpr int kBacktrackFixupInstructions = 2;
+  // Buffer offsets of the reserved pairs, by label. BindJumpTarget patches
+  // them at once because some labels live on the stack and die after binding.
+  ZoneMultimap<Label*, int> backtrack_fixups_;
 };
 
 }  // namespace regexp

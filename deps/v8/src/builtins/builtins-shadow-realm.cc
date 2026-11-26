@@ -4,6 +4,7 @@
 
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/codegen/compiler.h"
+#include "src/execution/messages.h"
 #include "src/logging/counters.h"
 #include "src/objects/js-shadow-realm-inl.h"
 
@@ -198,12 +199,8 @@ BUILTIN(ShadowRealmPrototypeEvaluate) {
     // 22. If result.[[Type]] is not NORMAL, then
     // 22a. Let copiedError be CreateTypeErrorCopy(callerRealm,
     // result.[[Value]]). 22b. Return ThrowCompletion(copiedError).
-    DirectHandle<String> string =
-        Object::NoSideEffectsToString(isolate, exception);
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate,
-        ShadowRealmNewTypeErrorCopy(
-            exception, MessageTemplate::kCallShadowRealmEvaluateThrew, string));
+    return ErrorUtils::ThrowShadowRealmTypeErrorCopy(
+        isolate, exception, MessageTemplate::kCallShadowRealmEvaluateThrew);
   }
   // 23. Return ? GetWrappedValue(callerRealm, result.[[Value]]).
   DirectHandle<Object> wrapped_result;

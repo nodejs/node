@@ -18,6 +18,11 @@
 
 #include "unistd_overlay.h"
 
+// In case the host system libc headers do not define POSIX_CLOSE_RESTART.
+#ifndef POSIX_CLOSE_RESTART
+#define POSIX_CLOSE_RESTART 0
+#endif
+
 #endif // LIBC_FULL_BUILD
 
 #endif // LLVM_LIBC_HDR_UNISTD_MACROS_H

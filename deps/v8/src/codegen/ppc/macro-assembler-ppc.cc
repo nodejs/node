@@ -2052,10 +2052,7 @@ void MacroAssembler::AssertUnreachable(AbortReason reason) {
 void MacroAssembler::AssertZeroExtended(Register int32_register) {
   if (!v8_flags.debug_code) return;
   ASM_CODE_COMMENT(this);
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  mov(scratch, Operand(kMaxUInt32));
-  CmpS64(int32_register, scratch);
+  CmpU64(int32_register, Operand(kMaxUInt32));
   Check(le, AbortReason::k32BitValueInRegisterIsNotZeroExtended);
 }
 
@@ -2396,6 +2393,16 @@ void MacroAssembler::CheckPageFlag(
   if (cc == eq) {
     beq(condition_met, cr0);
   }
+}
+
+void MacroAssembler::JumpIfMarking(Label* is_marking) {
+  DCHECK(root_array_available());
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  LoadU8(scratch,
+         MemOperand(kRootRegister, IsolateData::is_marking_flag_offset()));
+  CmpU64(scratch, Operand(0));
+  bne(is_marking);
 }
 
 void MacroAssembler::SetRoundingMode(FPRoundingMode RN) { mtfsfi(7, RN); }
@@ -4771,6 +4778,57 @@ void MacroAssembler::LoadEntrypointFromJSDispatchTable(
   ShiftLeftU64(index, index, Operand(kJSDispatchTableEntrySizeLog2));
   AddS64(scratch, scratch, index);
   LoadU64(destination, MemOperand(scratch, JSDispatchEntry::kEntrypointOffset));
+}
+
+void MacroAssembler::LoadExternalPointerField(Register destination,
+                                              MemOperand field_operand,
+                                              ExternalPointerTagRange tag_range,
+                                              Register isolate_root) {
+  DCHECK(!AreAliased(destination, isolate_root));
+  ASM_CODE_COMMENT(this);
+#ifdef V8_COMPRESS_POINTERS
+  DCHECK(!tag_range.IsEmpty());
+  DCHECK(!IsSharedExternalPointerType(tag_range));
+  {
+    UseScratchRegisterScope temps(this);
+    Register external_table = temps.Acquire();
+    if (isolate_root == no_reg) {
+      DCHECK(root_array_available_);
+      isolate_root = kRootRegister;
+    }
+    LoadU64(external_table,
+            MemOperand(isolate_root,
+                       IsolateData::external_pointer_table_offset() +
+                           Internals::kExternalEntityTableBasePointerOffset));
+    LoadU32(destination, field_operand);
+    ShiftRightU64(destination, destination,
+                  Operand(kExternalPointerIndexShift));
+    ShiftLeftU64(destination, destination,
+                 Operand(kExternalPointerTableEntrySizeLog2));
+    LoadU64(destination, MemOperand(external_table, destination));
+  }
+
+  // We don't expect to see empty fields here. If this is ever needed, consider
+  // using an dedicated empty value entry for those tags instead (i.e. an entry
+  // with the right tag and nullptr payload).
+  // Although interceptor callbacks can be empty in general, once we decide
+  // to generate a code loading a callback value it's guaranteed that the
+  // external pointer handle is not empty.
+  DCHECK(!ExternalPointerCanBeEmpty(tag_range) ||
+         kAnyInterceptorInfoExternalPointerTagRange.Contains(tag_range));
+
+  if (tag_range.Size() == 1) {
+    // The common and simple case: we expect exactly one tag.
+    static_assert(!V8_ENABLE_SANDBOX_BOOL);
+    AndU64(destination, destination, Operand(kExternalPointerPayloadMask));
+  } else {
+    // Not currently supported. Implement once needed.
+    DCHECK_NE(tag_range, kAnyExternalPointerTagRange);
+    UNREACHABLE();
+  }
+#else
+  LoadU64(destination, field_operand);
+#endif  // V8_COMPRESS_POINTERS
 }
 
 void MacroAssembler::LoadCodeInstructionStart(Register destination,

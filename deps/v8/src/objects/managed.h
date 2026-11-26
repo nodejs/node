@@ -232,11 +232,11 @@ struct TagForManaged {
 
 // Implements a doubly-linked lists of destructors for the isolate.
 struct ManagedPtrDestructor
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
     : public ExternalPointerTable::ManagedResource {
 #else
     : public Malloced {
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
 
   // Estimated size of external memory associated with the managed object.
   // This is used to adjust the garbage collector's heuristics upon

@@ -321,17 +321,16 @@ Convert<PositiveSmi, intptr>(i: intptr): PositiveSmi {
 }
 Convert<PositiveSmi, uintptr>(ui: uintptr): PositiveSmi labels IfOverflow {
   if (ui > kSmiMaxValue) deferred {
-      goto IfOverflow;
-    }
+    goto IfOverflow;
+  }
   return %RawDownCast<PositiveSmi>(SmiTag(Signed(ui)));
 }
 Convert<PositiveSmi, intptr>(i: intptr): PositiveSmi labels IfOverflow {
   if (IsValidPositiveSmi(i)) {
     return %RawDownCast<PositiveSmi>(SmiTag(i));
-  } else
-    deferred {
-      goto IfOverflow;
-    }
+  } else deferred {
+    goto IfOverflow;
+  }
 }
 Convert<PositiveSmi, uint32>(ui: uint32): PositiveSmi labels IfOverflow {
   return Convert<PositiveSmi>(Convert<uintptr>(ui)) otherwise IfOverflow;

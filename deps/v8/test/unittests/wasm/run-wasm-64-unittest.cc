@@ -133,7 +133,7 @@ WASM_EXEC_TEST(I64MulUseOnlyLowWord) {
 
 #if V8_TARGET_ARCH_X64
 WASM_EXEC_TEST(I64MulWideS) {
-  i::v8_flags.wasm_wide_arithmetic = true;
+  i::v8_flags.wasm_wide_arithmetic.Set(true);
   WasmRunner<int64_t, int64_t, int64_t> r(execution_tier);
   const WasmGlobal* global = r.builder().AddGlobal(kWasmI64);
   r.Build({WASM_LOCAL_GET(0), WASM_LOCAL_GET(1),
@@ -153,7 +153,7 @@ WASM_EXEC_TEST(I64MulWideS) {
 }
 
 WASM_EXEC_TEST(I64MulWideU) {
-  i::v8_flags.wasm_wide_arithmetic = true;
+  i::v8_flags.wasm_wide_arithmetic.Set(true);
   WasmRunner<int64_t, int64_t, int64_t> r(execution_tier);
   const WasmGlobal* global = r.builder().AddGlobal(kWasmI64);
   r.Build({WASM_LOCAL_GET(0), WASM_LOCAL_GET(1),
@@ -1205,8 +1205,7 @@ WASM_EXEC_TEST(I64WasmRunner) {
 WASM_EXEC_TEST(Call_Int64Sub) {
   WasmRunner<int64_t, int64_t, int64_t> r(execution_tier);
   // Build the target function.
-  TestSignatures sigs;
-  WasmFunctionCompiler& t = r.NewFunction(sigs.l_ll());
+  WasmFunctionCompiler& t = r.NewFunction(TestSignatures::l_ll());
   t.Build({WASM_I64_SUB(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1))});
 
   // Build the caller function.
@@ -1445,6 +1444,39 @@ WASM_EXEC_TEST(I64Rol) {
   }
 }
 
+WASM_EXEC_TEST(I64RolConst) {
+  // Include int32_t::min()..int32_t::min()+64 to exercise Liftoff immediate
+  // i64.rotl lowering without signed integer overflow.
+  constexpr int64_t kAmounts[] = {
+      0,
+      1,
+      31,
+      32,
+      33,
+      63,
+      64,
+      -1,
+      -64,
+      std::numeric_limits<int32_t>::min(),
+      std::numeric_limits<int32_t>::min() + 1,
+      std::numeric_limits<int32_t>::min() + 63,
+      std::numeric_limits<int32_t>::min() + 64,
+      std::numeric_limits<int32_t>::max(),
+      std::numeric_limits<int64_t>::min(),
+      std::numeric_limits<int64_t>::max(),
+  };
+  for (int64_t amount : kAmounts) {
+    WasmRunner<uint64_t, uint64_t> r(execution_tier);
+    r.Build({WASM_I64_ROL(WASM_LOCAL_GET(0), WASM_I64V(amount))});
+
+    FOR_UINT64_INPUTS(i) {
+      uint64_t expected =
+          base::bits::RotateLeft64(i, static_cast<uint64_t>(amount) & 0x3F);
+      CHECK_EQ(expected, r.Call(i));
+    }
+  }
+}
+
 WASM_EXEC_TEST(StoreMem_offset_oob_i64) {
   static const MachineType machineTypes[] = {
       MachineType::Int8(),   MachineType::Uint8(),  MachineType::Int16(),
@@ -1523,10 +1555,10 @@ WASM_EXEC_TEST(UnalignedInt64Store) {
 static void CompileCallIndirectMany(TestExecutionTier tier, ValueType param) {
   // Make sure we don't run out of registers when compiling indirect calls
   // with many many parameters.
-  TestSignatures sigs;
   for (uint8_t num_params = 0; num_params < 40; num_params++) {
     WasmRunner<void> r(tier);
-    FunctionSig* sig = sigs.many(r.zone(), kWasmVoid, param, num_params);
+    FunctionSig* sig =
+        TestSignatures::many(r.zone(), kWasmVoid, param, num_params);
 
     r.builder().AddSignature(sig);
     r.builder().AddSignature(sig);

@@ -651,12 +651,12 @@ std::unique_ptr<Coverage> Coverage::CollectWasmData(Isolate* isolate) {
       const wasm::WasmModule* wasm_module = native_module->module();
       const wasm::WasmModuleCoverageData* coverage_data =
           native_module->coverage_data().get();
-      for (int declared_function_index = 0;
-           declared_function_index <
+      for (int defined_function_index = 0;
+           defined_function_index <
            static_cast<int>(coverage_data->function_count());
-           declared_function_index++) {
+           defined_function_index++) {
         const int function_index =
-            declared_function_index + wasm_module->num_imported_functions;
+            defined_function_index + wasm_module->num_imported_functions;
         wasm::StringBuilder sb;
         wasm::NamesProvider names_provider(wasm_module,
                                            native_module->wire_bytes());
@@ -665,7 +665,7 @@ std::unique_ptr<Coverage> Coverage::CollectWasmData(Isolate* isolate) {
         function_names.emplace_back(sb.start(), sb.length());
         CoverageFunction function(0, 0, 0, isolate->factory()->empty_string());
         const wasm::WasmFunctionCoverageData* function_coverage =
-            coverage_data->GetFunctionCoverageData(declared_function_index);
+            coverage_data->GetFunctionCoverageData(defined_function_index);
         if (function_coverage) {
           const base::Vector<const wasm::WasmCodeRange> code_ranges =
               function_coverage->code_ranges();

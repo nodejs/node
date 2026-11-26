@@ -561,10 +561,6 @@ class ChangeTrackingSnapshotTable : public SnapshotTable<Value, KeyData> {
     }
   }
 
-  void SetNoNotify(Key key, Value new_value) {
-    Super::Set(key, std::move(new_value));
-  }
-
   Key NewKey(KeyData data, Value initial_value = Value{}) {
     Key key = Super::NewKey(std::move(data), std::move(initial_value));
     static_cast<Derived*>(this)->OnNewKey(key, Super::Get(key));

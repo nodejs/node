@@ -54,11 +54,12 @@ class VariableMap : public ZoneHashMap {
   explicit VariableMap(Zone* zone);
   VariableMap(const VariableMap& other, Zone* zone);
 
-  VariableMap(VariableMap&& other) V8_NOEXCEPT : ZoneHashMap(std::move(other)) {
-  }
+  VariableMap(VariableMap&& other) V8_NOEXCEPT : ZoneHashMap(std::move(other)),
+                                                 filter_(other.filter_) {}
 
   VariableMap& operator=(VariableMap&& other) V8_NOEXCEPT {
     static_cast<ZoneHashMap&>(*this) = std::move(other);
+    filter_ = other.filter_;
     return *this;
   }
 
@@ -74,6 +75,22 @@ class VariableMap : public ZoneHashMap {
   void Add(Variable* var);
 
   Zone* zone() const { return allocator().zone(); }
+
+ private:
+  // Bloom filter over the names in the map, letting lookups of absent names
+  // (frequent when walking the scope chain) skip the probe. Removal does not
+  // clear bits.
+  static uint64_t FilterMask(const AstRawString* name) {
+    uint32_t hash = name->Hash();
+    return (uint64_t{1} << (hash & 63)) | (uint64_t{1} << ((hash >> 6) & 63));
+  }
+  void AddToFilter(const AstRawString* name) { filter_ |= FilterMask(name); }
+  bool MayContain(const AstRawString* name) const {
+    uint64_t mask = FilterMask(name);
+    return (filter_ & mask) == mask;
+  }
+
+  uint64_t filter_ = 0;
 };
 
 // Global invariants after AST construction: Each reference (i.e. identifier)
@@ -282,6 +299,10 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // Inform the scope and outer scopes that the corresponding code contains an
   // eval call.
   inline void RecordEvalCall();
+
+  // Inform the receiver scope (and any enclosing arrow scopes) that the
+  // corresponding code uses "super".
+  void RecordSuperPropertyUsage(DeclarationScope* receiver_scope = nullptr);
 
   void RecordInnerScopeEvalCall() {
     set_inner_scope_calls_eval(true);
@@ -548,6 +569,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
 
   // Determine if we can parse a function literal in this scope lazily without
   // caring about the unresolved variables within.
+  // TODO(victorgomes): Rename to e.g. CanPreparseWithoutVariableResolution()
+  // since nested functions still preparse lazily with variable resolution.
   bool AllowsLazyParsingWithoutUnresolvedVariables(const Scope* outer) const;
 
   // The number of contexts between this and scope; zero if this == scope.
@@ -967,16 +990,6 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
 
   FunctionKind function_kind() const { return function_kind_; }
 
-  // Inform the scope that the corresponding code uses "super".
-  void RecordSuperPropertyUsage() {
-    DCHECK(IsConciseMethod(function_kind()) ||
-           IsAccessorFunction(function_kind()) ||
-           IsClassConstructor(function_kind()));
-    set_uses_super_property(true);
-    DCHECK_IMPLIES(!from_scope_info(), outer_scope_->is_home_object_scope());
-    outer_scope_->set_needs_home_object();
-  }
-
   bool uses_super_property() const {
     return UsesSuperPropertyField::decode(flags_);
   }
@@ -1076,9 +1089,6 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   Declaration* CheckConflictingVarDeclarations(
       bool* allowed_catch_binding_var_redeclaration);
 
-  bool HasConflictingArgumentsVarDeclaration(
-      AstValueFactory* ast_value_factory);
-
   void set_has_checked_syntax(bool value) {
     flags_ = HasCheckedSyntaxField::update(flags_, value);
   }
@@ -1109,13 +1119,6 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   bool has_rest() const { return HasRestField::decode(flags_); }
   void set_has_rest(bool value) {
     flags_ = HasRestField::update(flags_, value);
-  }
-
-  bool has_arguments_parameter() const {
-    return HasArgumentsParameterField::decode(flags_);
-  }
-  void set_has_arguments_parameter(bool value) {
-    flags_ = HasArgumentsParameterField::update(flags_, value);
   }
 
   void SetScriptScopeInfo(Handle<ScopeInfo> scope_info) {
@@ -1156,8 +1159,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   // parameters the rightmost one 'wins'.  However, the implementation
   // expects all parameters to be declared and from left to right.
   Variable* DeclareParameter(const AstRawString* name, VariableMode mode,
-                             bool is_optional, bool is_rest,
-                             AstValueFactory* ast_value_factory, int position);
+                             bool is_optional, bool is_rest, int position);
 
   // Makes sure that num_parameters_ and has_rest is correct for the preparser.
   void RecordParameter(bool is_rest);
@@ -1425,10 +1427,8 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   using ForceEagerCompilationField = HasSimpleParametersField::Next<bool, 1>;
   // This function scope has a rest parameter.
   using HasRestField = ForceEagerCompilationField::Next<bool, 1>;
-  // This scope has a parameter called "arguments".
-  using HasArgumentsParameterField = HasRestField::Next<bool, 1>;
   // This scope uses "super" property ('super.foo').
-  using UsesSuperPropertyField = HasArgumentsParameterField::Next<bool, 1>;
+  using UsesSuperPropertyField = HasRestField::Next<bool, 1>;
   using ShouldEagerCompileField = UsesSuperPropertyField::Next<bool, 1>;
   // Set to true after we have finished lazy parsing the scope.
   using WasLazilyParsedField = ShouldEagerCompileField::Next<bool, 1>;
@@ -1523,7 +1523,7 @@ void Scope::RecordEvalCall() {
   DCHECK(!receiver_scope->is_arrow_scope());
   FunctionKind function_kind = receiver_scope->function_kind();
   if (BindsSuper(function_kind)) {
-    receiver_scope->RecordSuperPropertyUsage();
+    RecordSuperPropertyUsage(receiver_scope);
   }
 }
 

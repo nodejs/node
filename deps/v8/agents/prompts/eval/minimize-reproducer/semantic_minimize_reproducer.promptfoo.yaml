@@ -1,0 +1,26 @@
+description: >-
+  Verify minimize-reproducer combines minimize_dd.py for dead-code stripping
+  with smart semantic simplification of wrappers, loops, and obfuscated names.
+owner: leszeks@chromium.org
+prompts:
+  - 'file://semantic_minimize_prompt.md'
+providers:
+  - id: python:../../../testing/gemini_provider.py
+    config:
+      timeoutSeconds: 300
+      skills:
+        - minimize-reproducer
+tests:
+  - assert:
+      - type: python
+        value: >-
+          file://../../../testing/asserts/check_tool_calls.py:check_tool_used_with_args_match
+        config:
+          tool_name: run_command
+          args_pattern: 'minimize_dd\.py'
+    metadata:
+      category: smart-semantic-minimization
+      tags:
+        - debugging
+        - efficiency
+        - minimize-reproducer

@@ -27,10 +27,8 @@ void JSPluralRules::set_locale(Tagged<String> value, WriteBarrierMode mode) {
   locale_.store(this, value, mode);
 }
 
-int JSPluralRules::flags() const { return flags_.load().value(); }
-void JSPluralRules::set_flags(int value) {
-  flags_.store(this, Smi::FromInt(value));
-}
+JSPluralRules::Flags JSPluralRules::flags() const { return flags_.load(); }
+void JSPluralRules::set_flags(Flags value) { flags_.store(value); }
 
 Tagged<CppGCManaged<PluralRulesInternal>> JSPluralRules::internal() const {
   return Cast<CppGCManaged<PluralRulesInternal>>(internal_.load());
@@ -41,14 +39,12 @@ void JSPluralRules::set_internal(
 }
 
 inline void JSPluralRules::set_type(Type type) {
-  DCHECK(TypeBit::is_valid(type));
-  int hints = flags();
-  hints = TypeBit::update(hints, type);
-  set_flags(hints);
+  DCHECK(Flags::TypeBit::is_valid(type));
+  set_flags(flags().with_type(type));
 }
 
 inline JSPluralRules::Type JSPluralRules::type() const {
-  return TypeBit::decode(flags());
+  return flags().type();
 }
 
 }  // namespace internal

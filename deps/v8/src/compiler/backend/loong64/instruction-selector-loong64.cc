@@ -47,6 +47,9 @@ class Loong64OperandGenerator final : public OperandGenerator {
       if (constant->IsIntegral()) {
         return constant->integral() == 0;
       }
+      if (constant->kind == ConstantOp::Kind::kSmi) {
+        return constant->smi().value() == 0;
+      }
       if (constant->kind == ConstantOp::Kind::kFloat32) {
         return constant->float32().get_bits() == 0;
       }
@@ -829,7 +832,9 @@ void InstructionSelector::VisitStore(OpIndex node) {
   // TODO(loong64): I guess this could be done in a better way.
   if (write_barrier_kind != kNoWriteBarrier &&
       !v8_flags.disable_write_barriers) {
-    DCHECK(CanBeTaggedOrCompressedOrTrustedPointer(rep));
+    DCHECK(CanBeTaggedOrCompressedOrTrustedPointer(rep) ||
+           (write_barrier_kind == kSkippedWriteBarrier &&
+            rep == MachineRepresentation::kTaggedSigned));
     AddressingMode addressing_mode;
     InstructionOperand inputs[4];
     size_t input_count = 0;
@@ -858,6 +863,8 @@ void InstructionSelector::VisitStore(OpIndex node) {
       inputs[input_count++] = g.UseImmediate64(static_cast<int64_t>(tag));
     } else if (write_barrier_kind == kSkippedWriteBarrier) {
       code = kArchStoreSkippedWriteBarrier;
+      code |=
+          CheckSmiField::encode(rep == MachineRepresentation::kTaggedSigned);
     } else {
       code = kArchStoreWithWriteBarrier;
       const RecordWriteMode record_write_mode =
@@ -1370,13 +1377,21 @@ void InstructionSelector::VisitWord64Clz(OpIndex node) {
   VisitRR(this, kLoong64Clz_d, node);
 }
 
-void InstructionSelector::VisitWord32Ctz(OpIndex node) { UNREACHABLE(); }
+void InstructionSelector::VisitWord32Ctz(OpIndex node) {
+  VisitRR(this, kLoong64Ctz_w, node);
+}
 
-void InstructionSelector::VisitWord64Ctz(OpIndex node) { UNREACHABLE(); }
+void InstructionSelector::VisitWord64Ctz(OpIndex node) {
+  VisitRR(this, kLoong64Ctz_d, node);
+}
 
-void InstructionSelector::VisitWord32Popcnt(OpIndex node) { UNREACHABLE(); }
+void InstructionSelector::VisitWord32Popcnt(OpIndex node) {
+  VisitRR(this, kLoong64Popcnt_w, node);
+}
 
-void InstructionSelector::VisitWord64Popcnt(OpIndex node) { UNREACHABLE(); }
+void InstructionSelector::VisitWord64Popcnt(OpIndex node) {
+  VisitRR(this, kLoong64Popcnt_d, node);
+}
 
 void InstructionSelector::VisitInt32Add(OpIndex node) {
   Loong64OperandGenerator g(this);
@@ -1906,12 +1921,6 @@ void InstructionSelector::VisitTryTruncateFloat64ToUint32(OpIndex node) {
   Emit(kLoong64Float64ToUint32, output_count, outputs, 1, inputs);
 }
 
-void InstructionSelector::VisitBitcastWord32ToWord64(OpIndex node) {
-  DCHECK(SmiValuesAre31Bits());
-  DCHECK(COMPRESS_POINTERS_BOOL);
-  EmitIdentity(node);
-}
-
 void InstructionSelector::VisitChangeInt32ToInt64(OpIndex node) {
   Loong64OperandGenerator g(this);
   const ChangeOp& change_op = this->Get(node).template Cast<ChangeOp>();
@@ -2235,6 +2244,16 @@ void InstructionSelector::EmitPrepareArguments(
     OpIndex node) {
   Loong64OperandGenerator g(this);
 
+  // Zero-valued constants (e.g. Smi zero) can be stored through the zero
+  // register, but only for non-FP parameters: the code generator dispatches
+  // FP pokes on the operand being an FP register.
+  auto poke_value = [&](const PushParameter& input) {
+    if (IsFloatingPoint(input.location.GetType().representation())) {
+      return g.UseRegister(input.node);
+    }
+    return g.UseRegisterOrImmediateZero(input.node);
+  };
+
   // Prepare for C function call.
   if (call_descriptor->IsCFunctionCall()) {
     int gp_param_count = static_cast<int>(call_descriptor->GPParameterCount());
@@ -2244,11 +2263,11 @@ void InstructionSelector::EmitPrepareArguments(
     Emit(kArchPrepareCallCFunction, g.NoOutput(), g.TempImmediate(param_count));
 
     // Poke any stack arguments.
-    int slot = 0;
-    for (PushParameter input : (*arguments)) {
-      Emit(kLoong64Poke, g.NoOutput(), g.UseRegister(input.node),
-           g.TempImmediate(slot << kSystemPointerSizeLog2));
-      ++slot;
+    for (size_t n = 0; n < arguments->size(); ++n) {
+      PushParameter input = (*arguments)[n];
+      if (!input.node.valid()) continue;
+      Emit(kLoong64Poke, g.NoOutput(), poke_value(input),
+           g.TempImmediate(static_cast<int>(n << kSystemPointerSizeLog2)));
     }
   } else {
     int push_count = static_cast<int>(call_descriptor->ParameterSlotCount());
@@ -2266,7 +2285,7 @@ void InstructionSelector::EmitPrepareArguments(
     for (size_t n = 0; n < arguments->size(); ++n) {
       PushParameter input = (*arguments)[n];
       if (input.node.valid()) {
-        Emit(kLoong64Poke, g.NoOutput(), g.UseRegister(input.node),
+        Emit(kLoong64Poke, g.NoOutput(), poke_value(input),
              g.TempImmediate(static_cast<int>(n << kSystemPointerSizeLog2)));
       }
     }
@@ -2279,7 +2298,21 @@ void InstructionSelector::EmitPrepareResults(
   Loong64OperandGenerator g(this);
 
   for (PushParameter output : *results) {
+#if V8_ENABLE_WEBASSEMBLY && V8_ENABLE_SANDBOX
+    if (!output.location.IsCallerFrameSlot()) {
+      if (!output.op.IsInvalid()) {
+        DCHECK(output.node.valid());
+        InstructionOperand result_op = g.DefineAsRegister(output.node);
+        InstructionCode opcode = output.needs_decompression
+                                     ? kLoong64LoadDecompressTagged
+                                     : kLoong64Mov32;
+        Emit(opcode, 1, &result_op, 1, &output.op);
+      }
+      continue;
+    }
+#else
     if (!output.location.IsCallerFrameSlot()) continue;
+#endif  // V8_ENABLE_WEBASSEMBLY && V8_ENABLE_SANDBOX
     // Skip any alignment holes in nodes.
     if (output.node.valid()) {
       DCHECK(!call_descriptor->IsCFunctionCall());
@@ -2292,6 +2325,21 @@ void InstructionSelector::EmitPrepareResults(
       }
       int offset = call_descriptor->GetOffsetToReturns();
       int reverse_slot = -output.location.GetLocation() - offset;
+#if V8_ENABLE_WEBASSEMBLY && V8_ENABLE_SANDBOX
+      if (call_descriptor->IsAnyWasmFunctionCall() &&
+          output.location.GetType() == MachineType::AnyTagged() &&
+          IsReallyUsed(output.node)) {
+        InstructionOperand temp = g.TempRegister();
+        MarkAsRepresentation(MachineRepresentation::kTagged, temp);
+        Emit(kLoong64Peek, temp, g.UseImmediate(reverse_slot));
+        InstructionOperand result_op = g.DefineAsRegister(output.node);
+        InstructionCode opcode = output.needs_decompression
+                                     ? kLoong64LoadDecompressTagged
+                                     : kLoong64Mov32;
+        Emit(opcode, 1, &result_op, 1, &temp);
+        continue;
+      }
+#endif  // V8_ENABLE_WEBASSEMBLY && V8_ENABLE_SANDBOX
       Emit(kLoong64Peek, g.DefineAsRegister(output.node),
            g.UseImmediate(reverse_slot));
     }
@@ -2520,7 +2568,8 @@ void VisitAtomicLoad(InstructionSelector* selector, OpIndex node,
   OpIndex base = load.base();
   OpIndex index = load.index();
 
-  // The memory order is ignored.
+  // Atomic loads carry no memory order, so they all use the seq_cst barrier
+  // (DBAR 0x10), which also covers acquire.
   LoadRepresentation load_rep = load.loaded_rep();
   InstructionCode code;
   switch (load_rep.representation()) {
@@ -2599,7 +2648,6 @@ void VisitAtomicStore(InstructionSelector* selector, OpIndex node,
   OpIndex value = store.value();
   DCHECK_EQ(store.displacement(), 0);
 
-  // The memory order is ignored.
   AtomicStoreParameters store_params = AtomicStoreParametersOf(selector, node);
   WriteBarrierKind write_barrier_kind = store_params.write_barrier_kind();
   MachineRepresentation rep = store_params.representation();
@@ -2609,20 +2657,22 @@ void VisitAtomicStore(InstructionSelector* selector, OpIndex node,
     write_barrier_kind = kFullWriteBarrier;
   }
 
-  InstructionOperand inputs[] = {g.UseRegister(base), g.UseRegister(index),
-                                 g.UseRegisterOrImmediateZero(value)};
-  InstructionOperand temps[2] = {};
-  size_t temp_count = 0;
   InstructionCode code;
+
+  InstructionOperand temps[1] = {};
+  size_t temp_count = 0;
 
   if (write_barrier_kind != kNoWriteBarrier &&
       !v8_flags.disable_write_barriers) {
-    DCHECK(CanBeTaggedPointer(rep));
+    DCHECK(CanBeTaggedOrCompressedPointer(rep) ||
+           (write_barrier_kind == kSkippedWriteBarrier &&
+            rep == MachineRepresentation::kTaggedSigned));
     DCHECK_EQ(AtomicWidthSize(width), kTaggedSize);
 
     if (write_barrier_kind == kSkippedWriteBarrier) {
       code = kArchAtomicStoreSkippedWriteBarrier;
-      temps[temp_count++] = g.TempRegister();
+      code |=
+          CheckSmiField::encode(rep == MachineRepresentation::kTaggedSigned);
       temps[temp_count++] = g.TempRegister();
     } else {
       RecordWriteMode record_write_mode =
@@ -2665,13 +2715,19 @@ void VisitAtomicStore(InstructionSelector* selector, OpIndex node,
   if (store_params.kind() == MemoryAccessKind::kTrapping) {
     code |= AccessModeField::encode(kMemoryAccessTrapping);
   }
+  code |= AtomicMemoryOrderField::encode(store.memory_order().value());
 
   if (g.CanBeImmediate(index, code)) {
-    inputs[1] = g.UseImmediate(index);
+    InstructionOperand inputs[] = {g.UseUniqueRegister(base),
+                                   g.UseImmediate(index),
+                                   g.UseRegisterAtEndOrImmediateZero(value)};
     selector->Emit(code | AddressingModeField::encode(kMode_MRI) |
                        AtomicWidthField::encode(width),
                    0, nullptr, arraysize(inputs), inputs, temp_count, temps);
   } else {
+    InstructionOperand inputs[] = {g.UseUniqueRegister(base),
+                                   g.UseUniqueRegister(index),
+                                   g.UseRegisterAtEndOrImmediateZero(value)};
     selector->Emit(code | AddressingModeField::encode(kMode_MRR) |
                        AtomicWidthField::encode(width),
                    0, nullptr, arraysize(inputs), inputs, temp_count, temps);
@@ -2704,16 +2760,21 @@ void VisitAtomicExchange(InstructionSelector* selector, OpIndex node,
   InstructionOperand outputs[1];
   outputs[0] = g.DefineAsRegister(node);
   InstructionOperand temps[3];
-  temps[0] = g.TempRegister();
-  temps[1] = g.TempRegister();
-  temps[2] = g.TempRegister();
+  size_t temp_count = 0;
+  if (opcode != kAtomicExchangeWord32 &&
+      opcode != kLoong64Word64AtomicExchangeUint64 &&
+      opcode != kAtomicExchangeWithWriteBarrier) {
+    temps[temp_count++] = g.TempRegister();
+    temps[temp_count++] = g.TempRegister();
+    temps[temp_count++] = g.TempRegister();
+  }
   InstructionCode code = opcode | AddressingModeField::encode(addressing_mode) |
                          AtomicWidthField::encode(width);
   if (access_kind == MemoryAccessKind::kTrapping) {
     code |= AccessModeField::encode(kMemoryAccessTrapping);
   }
   selector->Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
-                 arraysize(temps), temps);
+                 temp_count, temps);
 }
 
 void VisitAtomicCompareExchange(InstructionSelector* selector, OpIndex node,
@@ -2758,25 +2819,26 @@ void VisitAtomicBinop(InstructionSelector* selector, OpIndex node,
   OpIndex index = atomic_op.index();
   OpIndex value = atomic_op.value();
 
-  AddressingMode addressing_mode = kMode_MRI;
   InstructionOperand inputs[3];
   size_t input_count = 0;
   inputs[input_count++] = g.UseRegister(base);
-  inputs[input_count++] = g.UseRegister(index);
+  inputs[input_count++] = g.UseOperand(index, opcode);
   inputs[input_count++] = g.UseUniqueRegister(value);
   InstructionOperand outputs[1];
   outputs[0] = g.DefineAsRegister(node);
   InstructionOperand temps[4];
-  temps[0] = g.TempRegister();
-  temps[1] = g.TempRegister();
-  temps[2] = g.TempRegister();
-  temps[3] = g.TempRegister();
-  InstructionCode code = opcode | AddressingModeField::encode(addressing_mode) |
-                         AtomicWidthField::encode(width);
+  size_t temp_count = 0;
+  temps[temp_count++] = g.TempRegister();
+  if (atomic_op.memory_rep.SizeInBytes() < 4) {
+    temps[temp_count++] = g.TempRegister();
+    temps[temp_count++] = g.TempRegister();
+    temps[temp_count++] = g.TempRegister();
+  }
+  InstructionCode code = opcode | AtomicWidthField::encode(width);
   if (access_kind == MemoryAccessKind::kTrapping) {
     code |= AccessModeField::encode(kMemoryAccessTrapping);
   }
-  selector->Emit(code, 1, outputs, input_count, inputs, 4, temps);
+  selector->Emit(code, 1, outputs, input_count, inputs, temp_count, temps);
 }
 
 }  // namespace
@@ -3674,6 +3736,22 @@ SIMD_VISIT_EXTRACT_LANE(I8x16, S)
 SIMD_TYPE_LIST(SIMD_VISIT_REPLACE_LANE)
 #undef SIMD_VISIT_REPLACE_LANE
 
+#define SIMD_VISIT_MOVE_LANE(Type)                                     \
+  void InstructionSelector::Visit##Type##MoveLane(OpIndex node) {      \
+    Loong64OperandGenerator g(this);                                   \
+    const Simd128MoveLaneOp& op = Get(node).Cast<Simd128MoveLaneOp>(); \
+    Emit(kLoong64##Type##MoveLane, g.DefineSameAsFirst(node),          \
+         g.UseRegister(op.into()), g.UseRegister(op.from()),           \
+         g.UseImmediate(op.from_lane), g.UseImmediate(op.into_lane));  \
+  }
+SIMD_VISIT_MOVE_LANE(F64x2)
+SIMD_VISIT_MOVE_LANE(F32x4)
+SIMD_VISIT_MOVE_LANE(I64x2)
+SIMD_VISIT_MOVE_LANE(I32x4)
+SIMD_VISIT_MOVE_LANE(I16x8)
+SIMD_VISIT_MOVE_LANE(I8x16)
+#undef SIMD_VISIT_MOVE_LANE
+
 #define SIMD_VISIT_UNOP(Name, instruction)              \
   void InstructionSelector::Visit##Name(OpIndex node) { \
     VisitRR(this, instruction, node);                   \
@@ -4026,6 +4104,10 @@ InstructionSelector::SupportedMachineOperatorFlags() {
          MachineOperatorBuilder::kFloat32RoundTruncate |
          MachineOperatorBuilder::kFloat64RoundTiesEven |
          MachineOperatorBuilder::kFloat32RoundTiesEven |
+         MachineOperatorBuilder::kWord32Ctz |
+         MachineOperatorBuilder::kWord64Ctz |
+         MachineOperatorBuilder::kWord32Popcnt |
+         MachineOperatorBuilder::kWord64Popcnt |
          MachineOperatorBuilder::kWord64Select;
 }
 
@@ -4038,7 +4120,13 @@ InstructionSelector::AlignmentRequirements() {
 
 void InstructionSelector::EmitDecompressTaggedParam(
     OpIndex node, InstructionOperand temp_op) {
-  UNREACHABLE();
+  Loong64OperandGenerator g(this);
+  InstructionOperand result_op = g.DefineAsRegister(node);
+  InstructionCode opcode =
+      Cast<ParameterOp>(node).rep == RegisterRepresentation::Compressed()
+          ? kLoong64Mov32
+          : kLoong64LoadDecompressTagged;
+  Emit(opcode, 1, &result_op, 1, &temp_op);
 }
 
 #undef SIMD_BINOP_LIST

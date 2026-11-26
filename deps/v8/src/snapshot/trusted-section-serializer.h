@@ -5,6 +5,7 @@
 #ifndef V8_SNAPSHOT_TRUSTED_SECTION_SERIALIZER_H_
 #define V8_SNAPSHOT_TRUSTED_SECTION_SERIALIZER_H_
 
+#include <unordered_map>
 #include <vector>
 
 #include "src/snapshot/serializer.h"
@@ -16,9 +17,10 @@ namespace internal {
 // - The untrusted section holds the objects inside the sandbox. It is written
 //   by |untrusted_serializer| and deserialized in a mode that can't write
 //   outside the sandbox. It refers to the trusted section only by index, see
-//   Export and AddExternalReference.
+//   Export, AddExternalReference, AddCppHeapPointer and AddJSDispatchEntry.
 // - The trusted section holds the objects outside the sandbox and the table of
-//   external references. It is written by this class.
+//   external references, CppHeap pointers and JS dispatch entries. It is
+//   written by this class.
 class TrustedSectionSerializer final : public Serializer {
  public:
   TrustedSectionSerializer(Isolate* isolate, Serializer* untrusted_serializer);
@@ -31,9 +33,15 @@ class TrustedSectionSerializer final : public Serializer {
   // Adds an entry to the table of external references and returns its index.
   uint32_t AddExternalReference(ExternalReferenceEncoder::Value reference,
                                 ExternalPointerTag tag);
+  // Adds an entry for a CppHeap pointer to |reference| and returns its index.
+  uint32_t AddCppHeapPointer(ExternalReferenceEncoder::Value reference,
+                             CppHeapPointerTag tag);
+  // Returns the index of the dispatch entry |handle| in the table, adding it if
+  // it is new.
+  uint32_t AddJSDispatchEntry(JSDispatchHandle handle);
 
   void SerializeExports();
-  void FinishSection();
+  void FinishSection(const SnapshotByteSink& trailing_data = {});
   const std::vector<uint8_t>* ExternalReferencesPayload() const {
     return external_references_sink_.data();
   }
@@ -47,7 +55,11 @@ class TrustedSectionSerializer final : public Serializer {
   ObjectCacheIndexMap exports_;
   GlobalHandleCircularQueue<HeapObject> export_queue_;
   std::vector<EncodedExternalReference> external_references_;
+  std::unordered_map<JSDispatchHandle, uint32_t> dispatch_entry_indices_;
   SnapshotByteSink external_references_sink_;
+#ifdef DEBUG
+  bool exports_serialized_ = false;
+#endif
 };
 
 }  // namespace internal

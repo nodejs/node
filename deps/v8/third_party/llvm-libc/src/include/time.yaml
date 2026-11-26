@@ -124,6 +124,22 @@ functions:
     return_type: time_t
     arguments:
       - type: struct tm *
+  - name: timegm
+    standards:
+      - stdc
+      - posix
+    return_type: time_t
+    arguments:
+      - type: struct tm *
+  - name: clock_nanosleep
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: clockid_t
+      - type: int
+      - type: const struct timespec *
+      - type: struct timespec *
   - name: nanosleep
     standards:
       - posix

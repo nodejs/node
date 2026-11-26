@@ -5,12 +5,14 @@
 #ifndef V8_COMPILER_TURBOSHAFT_MACHINE_LOWERING_REDUCER_INL_H_
 #define V8_COMPILER_TURBOSHAFT_MACHINE_LOWERING_REDUCER_INL_H_
 
+#include <bit>
 #include <optional>
 
 #include "src/base/logging.h"
 #include "src/base/strong-alias.h"
 #include "src/codegen/external-reference.h"
 #include "src/codegen/machine-type.h"
+#include "src/codegen/signature.h"
 #include "src/common/globals.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/compilation-dependencies.h"
@@ -163,14 +165,21 @@ class MachineLoweringReducer : public Next {
       }
       case ChangeOrDeoptOp::Kind::kFloat64ToAdditiveSafeInteger: {
         V<Float64> f64_input = V<Float64>::Cast(input);
-        V<Word64> i64 = __ TruncateFloat64ToInt64OverflowToMin(f64_input);
+        V<Word64> i64 = __ TruncateFloat64ToInt64OverflowUndefined(f64_input);
+        // Sign-extend using kAdditiveSafeIntegerFeedbackShift so that
+        // converting back to Float64 and comparing equal to {f64_input} checks
+        // both exact integer truncation and the AdditiveSafeInteger range in a
+        // single branch without materializing a 64-bit constant.
+        V<Word64> sign_extended = __ Word64ShiftRightArithmetic(
+            __ Word64ShiftLeft(i64, kAdditiveSafeIntegerFeedbackShift),
+            kAdditiveSafeIntegerFeedbackShift);
         __ DeoptimizeIfNot(
-            __ Float64Equal(__ ChangeInt64ToFloat64(i64), f64_input),
-            frame_state, DeoptimizeReason::kLostPrecisionOrNaN, feedback);
+            __ Float64Equal(__ ChangeInt64ToFloat64(sign_extended), f64_input),
+            frame_state, DeoptimizeReason::kNotAdditiveSafeInteger, feedback);
 
         if (minus_zero_mode == CheckForMinusZeroMode::kCheckForMinusZero) {
           // Check if {value} is -0.
-          IF (UNLIKELY(__ Word64Equal(i64, 0))) {
+          IF (UNLIKELY(__ Word64Equal(sign_extended, 0))) {
             // In case of 0, we need to check the high bits for the IEEE -0
             // pattern.
             V<Word32> check_negative =
@@ -180,17 +189,7 @@ class MachineLoweringReducer : public Next {
           }
         }
 
-        // Check the value actually fits in AdditiveSafeIntegerFeedback.
-        // (value - kMinAdditiveSafeIntegerFeedback) >> 51 == 0.
-        V<Word32> check_is_zero = __ Word64Equal(
-            __ Word64ShiftRightArithmetic(
-                __ Word64Sub(i64, kMinAdditiveSafeIntegerFeedback),
-                kAdditiveSafeIntegerFeedbackBitLength),
-            0);
-        __ DeoptimizeIfNot(check_is_zero, frame_state,
-                           DeoptimizeReason::kNotAdditiveSafeInteger, feedback);
-
-        return i64;
+        return sign_extended;
       }
       case ChangeOrDeoptOp::Kind::kFloat64ToInt64: {
         V<Float64> f64_input = V<Float64>::Cast(input);
@@ -898,6 +897,15 @@ class MachineLoweringReducer : public Next {
         GOTO(done, __ TagSmi(__ ReversibleFloat64ToInt32(value)));
 
         BIND(done, result);
+        return result;
+      }
+      case ConvertOp::Kind::kHeapObject: {
+        DCHECK_EQ(from, ConvertOp::Kind::kObject);
+        ScopedVar<HeapObject> result(this, V<HeapObject>::Cast(input));
+        IF (UNLIKELY(__ ObjectIsSmi(input))) {
+          result =
+              __ ConvertInt32ToHeapNumber(__ UntagSmi(V<Smi>::Cast(input)));
+        }
         return result;
       }
       default:
@@ -1634,21 +1642,13 @@ class MachineLoweringReducer : public Next {
             __ DeoptimizeIfNot(is_string_map, frame_state,
                                DeoptimizeReason::kNotAString, feedback);
 
-            // TODO(nicohartmann@): We might introduce a Turboshaft way for
-            // constructing call descriptors.
-            MachineSignature::Builder builder(__ graph_zone(), 1, 1);
-            builder.AddReturn(MachineType::Int32());
-            builder.AddParam(MachineType::TaggedPointer());
-            auto desc = Linkage::GetSimplifiedCDescriptor(__ graph_zone(),
-                                                          builder.Get());
-            auto ts_desc = TSCallDescriptor::Create(desc, CanThrow{false},
-                                                    LazyDeoptOnThrow{false},
-                                                    __ graph_zone());
-            OpIndex callee = __ ExternalConstant(
-                ExternalReference::string_to_array_index_function());
+            auto sig =
+                FixedSizeSignature<MachineType>::Returns(MachineType::Int32())
+                    .Params(MachineType::TaggedPointer());
             // NOTE: String::ToArrayIndex() currently returns int32_t.
-            V<WordPtr> index = __ ChangeInt32ToIntPtr(
-                V<Word32>::Cast(__ Call(callee, {object}, ts_desc)));
+            V<WordPtr> index = __ ChangeInt32ToIntPtr(__ template CallC<Word32>(
+                &sig, ExternalReference::string_to_array_index_function(),
+                object));
             __ DeoptimizeIf(__ WordPtrEqual(index, -1), frame_state,
                             DeoptimizeReason::kNotAnArrayIndex, feedback);
             GOTO(done, index);
@@ -1993,8 +1993,7 @@ class MachineLoweringReducer : public Next {
 
     // Allocate the resulting ConsString.
     auto string = __ template Allocate<ConsString>(
-        __ IntPtrConstant(sizeof(ConsString)), AllocationType::kYoung,
-        kTaggedAligned);
+        sizeof(ConsString), AllocationType::kYoung, kTaggedAligned);
     __ InitializeField(string, AccessBuilder::ForMap(), map);
     __ InitializeField(string, AccessBuilder::ForNameRawHashField(),
                        __ Word32Constant(Name::kEmptyHashField));
@@ -2517,7 +2516,8 @@ class MachineLoweringReducer : public Next {
   }
 
   V<BigInt> REDUCE(BigIntBinop)(V<BigInt> left, V<BigInt> right,
-                                V<EagerFrameState> frame_state,
+                                V<EagerFrameState> eager_frame_state,
+                                OptionalV<LazyFrameState> lazy_frame_state,
                                 BigIntBinopOp::Kind kind) {
     const Builtin builtin = GetBuiltinForBigIntBinop(kind);
     switch (kind) {
@@ -2531,7 +2531,7 @@ class MachineLoweringReducer : public Next {
 
         // Check for exception sentinel: Smi 0 is returned to signal
         // BigIntTooBig.
-        __ DeoptimizeIf(__ ObjectIsSmi(result), frame_state,
+        __ DeoptimizeIf(__ ObjectIsSmi(result), eager_frame_state,
                         DeoptimizeReason::kBigIntTooBig, FeedbackSource{});
         return V<BigInt>::Cast(result);
       }
@@ -2543,19 +2543,16 @@ class MachineLoweringReducer : public Next {
         // Check for exception sentinel: Smi 1 is returned to signal
         // TerminationRequested.
         IF (UNLIKELY(__ TaggedEqual(result, __ TagSmi(1)))) {
-          // This FrameState will only be used for stack walking (to print the
-          // stack trace or during interrupts) and we never resume execution
-          // here, so only the Function and Receiver fields matter. It is
-          // therefore safe to cast the EagerFrameState to a LazyFrameState.
-          auto lazy_fs = V<LazyFrameState>::Cast(OpIndex(frame_state));
           __ template CallRuntime<runtime::TerminateExecution>(
-              lazy_fs, __ NoContextConstant(), {}, LazyDeoptOnThrow{false});
+              lazy_frame_state.value(),
+              __ HeapConstant(broker_->target_native_context().object()), {},
+              LazyDeoptOnThrow{false});
           __ Unreachable();
         }
 
         // Check for exception sentinel: Smi 0 is returned to signal
         // BigIntTooBig or DivisionByZero.
-        __ DeoptimizeIf(__ ObjectIsSmi(result), frame_state,
+        __ DeoptimizeIf(__ ObjectIsSmi(result), eager_frame_state,
                         kind == BigIntBinopOp::Kind::kMul
                             ? DeoptimizeReason::kBigIntTooBig
                             : DeoptimizeReason::kDivisionByZero,
@@ -2875,19 +2872,17 @@ class MachineLoweringReducer : public Next {
       // Calculate the allocation size: Header + Length * 1 (kOneByteSize),
       // aligned to kObjectAlignment.
       V<WordPtr> size = __ WordPtrAdd(
-          __ IntPtrConstant(ObjectTraits<SeqOneByteString>::kHeaderSize),
-          length_ptr);
+          ObjectTraits<SeqOneByteString>::kHeaderSize, length_ptr);
       // Align: (size + kObjectAlignmentMask) & ~kObjectAlignmentMask
-      size = __ WordPtrBitwiseAnd(
-          __ WordPtrAdd(size, __ IntPtrConstant(kObjectAlignment - 1)),
-          __ IntPtrConstant(~(kObjectAlignment - 1)));
+      size = __ WordPtrBitwiseAnd(__ WordPtrAdd(size, kObjectAlignment - 1),
+                                  ~(kObjectAlignment - 1));
 
       auto new_string = __ template Allocate<SeqOneByteString>(
           size, AllocationType::kYoung, kTaggedAligned);
       __ InitializeField(new_string, AccessBuilderTS::ForMap(),
                          __ SeqOneByteStringMapConstant());
       __ InitializeField(new_string, AccessBuilderTS::ForNameRawHashField(),
-                         __ Word32Constant(Name::kEmptyHashField));
+                         Name::kEmptyHashField);
       __ InitializeField(new_string, AccessBuilderTS::ForStringLength(),
                          length);
 
@@ -2905,8 +2900,7 @@ class MachineLoweringReducer : public Next {
       }
 
       // Padding must be zeroed.
-      V<WordPtr> payload_size =
-          __ WordPtrSub(size, __ IntPtrConstant(access.header_size));
+      V<WordPtr> payload_size = __ WordPtrSub(size, access.header_size);
       WHILE(__ UintPtrLessThan(index, payload_size)) {
         __ InitializeElement(new_string, access, index, __ Word32Constant(0));
         index = __ WordPtrAdd(index, 1);
@@ -3036,6 +3030,122 @@ class MachineLoweringReducer : public Next {
     return result;
   }
 
+  void TryGenerateShortConstantStringEqual(V<String> left, V<String> right,
+                                           Label<Boolean>* done) {
+    uint32_t max_inline_length =
+        v8_flags.turboshaft_max_inline_string_equal_length;
+    if (max_inline_length == 0) return;
+    const ConstantOp* left_cst =
+        __ Get(left).template TryCast<Opmask::kHeapConstant>();
+    const ConstantOp* right_cst =
+        __ Get(right).template TryCast<Opmask::kHeapConstant>();
+    if ((left_cst != nullptr) == (right_cst != nullptr)) return;
+
+    const ConstantOp* cst = left_cst != nullptr ? left_cst : right_cst;
+    V<String> other = left_cst != nullptr ? right : left;
+
+    UnparkedScopeIfNeeded unpark(broker_);
+    HeapObjectRef ref = MakeRef(broker_, cst->handle());
+    // Only InternalizedStrings are safe to read on a background thread:
+    // non-internalized strings can be converted in-place to ThinStrings or
+    // externalized on the main thread without holding
+    // internalized_string_access.
+    if (!ref.IsInternalizedString()) return;
+    StringRef str = ref.AsString();
+    if (!str.IsOneByteRepresentation()) return;
+    uint32_t length = str.length();
+    if (length == 0 || length > max_inline_length) return;
+
+    // If {other} is not a SeqOneByteString, fall through to the StringEqual
+    // builtin call in the caller.
+    IF (LIKELY(IsSeqOneByteStringMap(__ LoadMapField(other)))) {
+      uint32_t chunk_size =
+          std::min<uint32_t>(kSystemPointerSize, std::bit_floor(length));
+      MemoryRepresentation mem_rep;
+      switch (chunk_size) {
+        case 1:
+          mem_rep = MemoryRepresentation::Uint8();
+          break;
+        case 2:
+          mem_rep = MemoryRepresentation::Uint16();
+          break;
+        case 4:
+          mem_rep = MemoryRepresentation::Uint32();
+          break;
+        case 8:
+          mem_rep = MemoryRepresentation::Uint64();
+          break;
+        default:
+          UNREACHABLE();
+      }
+      WordRepresentation word_rep(mem_rep.ToRegisterRepresentation());
+      constexpr int32_t kHeaderSize = OFFSET_OF_DATA_START(SeqOneByteString);
+
+      DisallowGarbageCollection no_gc;
+      SharedStringAccessGuardIfNeeded access_guard(*str.object(),
+                                                   broker_->local_isolate());
+      base::Vector<const uint8_t> chars =
+          str.object()->GetFlatContent(no_gc, access_guard).ToOneByteVector();
+
+      auto load_chunk = [&](uint32_t offset) -> V<Word> {
+        LoadOp::Kind load_kind = LoadOp::Kind::TaggedBase();
+        // Load address may be misaligned due to overlapping trailing chunks or
+        // unaligned string header offsets.
+        if (mem_rep != MemoryRepresentation::Uint8() &&
+            !SupportedOperations::IsUnalignedLoadSupported(mem_rep)) {
+          load_kind.maybe_unaligned = true;
+        }
+        return __ Load(other, load_kind, mem_rep,
+                       kHeaderSize + static_cast<int32_t>(offset));
+      };
+      auto expected_chunk = [&](uint32_t offset) -> V<Word> {
+        uint64_t val = 0;
+        switch (chunk_size) {
+          case 1:
+            val = chars[offset];
+            break;
+          case 2:
+            val = base::ReadUnalignedValue<uint16_t>(&chars[offset]);
+            break;
+          case 4:
+            val = base::ReadUnalignedValue<uint32_t>(&chars[offset]);
+            break;
+          case 8:
+            val = base::ReadUnalignedValue<uint64_t>(&chars[offset]);
+            break;
+          default:
+            UNREACHABLE();
+        }
+        return __ WordConstant(val, word_rep);
+      };
+      auto difference = [&](uint32_t offset) -> V<Word> {
+        return __ WordBitwiseXor(load_chunk(offset), expected_chunk(offset),
+                                 word_rep);
+      };
+
+      V<Word32> is_equal;
+      if (length == chunk_size) {
+        is_equal = __ Equal(load_chunk(0), expected_chunk(0), word_rep);
+      } else {
+        // The final load overlaps the previous one when length is not a
+        // multiple of chunk_size.
+        V<Word> diff = difference(0);
+        for (uint32_t offset = chunk_size; offset + chunk_size < length;
+             offset += chunk_size) {
+          diff = __ WordBitwiseOr(diff, difference(offset), word_rep);
+        }
+        diff =
+            __ WordBitwiseOr(diff, difference(length - chunk_size), word_rep);
+        is_equal = __ Equal(diff, __ WordConstant(0, word_rep), word_rep);
+      }
+      IF (is_equal) {
+        GOTO(*done, __ HeapConstant(factory_->true_value()));
+      } ELSE {
+        GOTO(*done, __ HeapConstant(factory_->false_value()));
+      }
+    }
+  }
+
   void GenerateStringEqualBuiltinCall(V<String> left, V<String> right,
                                       Label<Boolean>* done) {
     V<Word32> left_length =
@@ -3043,6 +3153,7 @@ class MachineLoweringReducer : public Next {
     V<Word32> right_length =
         __ template LoadField<Word32>(right, AccessBuilder::ForStringLength());
     IF (__ Word32Equal(left_length, right_length)) {
+      TryGenerateShortConstantStringEqual(left, right, done);
       GOTO(*done, __ template CallBuiltin<builtin::StringEqual>(
                       {.left = left,
                        .right = right,
@@ -3057,8 +3168,8 @@ class MachineLoweringReducer : public Next {
   //   1. Bail unless both inputs are SeqOneByteString.
   //   2. Pointer-eq receiver/arg -> 0 (after the type guards, so
   //      localeCompare.call(null, null) still throws TypeError).
-  //   3. Byte-equality prefix loop, restricted to ASCII (<128); min length
-  //      capped at Intl::kInlineLocaleCompareMaxMinLength.
+  //   3. ASCII (<128) prefix loop (4 bytes at a time, then byte-by-byte);
+  //      min length capped at Intl::kInlineLocaleCompareMaxMinLength.
   //   4. At first differing byte: lookup L1 collation weight; bail if
   //      either weight is 0 or weights tie; else return sign(left - right).
   //   5. Equal prefix with equal lengths -> 0; with unequal lengths -> bail.
@@ -3139,8 +3250,52 @@ class MachineLoweringReducer : public Next {
         bailout);
 
     V<WordPtr> min_length_ptr = __ ChangeInt32ToIntPtr(min_length);
-    {
+    if (!__ generating_unreachable_operations()) {
       ScopedVar<WordPtr> i(this, 0);
+      // Skip the 4-byte loop when either operand has a constant length < 4
+      // (folded by MachineOptimizationReducer).
+      auto is_short_const = [&](V<Word32> len) {
+        uint32_t c;
+        return __ matcher().MatchIntegralWord32Constant(len, &c) && c < 4;
+      };
+      if (!is_short_const(left_length) && !is_short_const(right_length)) {
+        static_assert(
+            OFFSET_OF_DATA_START(SeqOneByteString) % sizeof(uint32_t) == 0);
+        V<WordPtr> chunk_end = __ WordPtrSub(min_length_ptr, 4);
+        WHILE(__ IntPtrLessThanOrEqual(i, chunk_end)) {
+          V<Word32> lw = __ Load(left, i, LoadOp::Kind::TaggedBase(),
+                                 MemoryRepresentation::Uint32(),
+                                 OFFSET_OF_DATA_START(SeqOneByteString));
+          V<Word32> rw = __ Load(right, i, LoadOp::Kind::TaggedBase(),
+                                 MemoryRepresentation::Uint32(),
+                                 OFFSET_OF_DATA_START(SeqOneByteString));
+          GOTO_IF_NOT(
+              __ Word32Equal(
+                  __ Word32BitwiseAnd(__ Word32BitwiseOr(lw, rw), 0x80808080u),
+                  0),
+              bailout);
+          IF_NOT (__ Word32Equal(lw, rw)) {
+            V<Word32> diff = __ Word32BitwiseXor(lw, rw);
+#if V8_TARGET_LITTLE_ENDIAN
+            V<Word32> bit =
+                SupportedOperations::word32_ctz()
+                    ? __ Word32CountTrailingZeros(diff)
+                    : __ Word32CountLeadingZeros(__ Word32ReverseBytes(diff));
+            V<Word32> shift = __ Word32BitwiseAnd(bit, ~7);
+#else
+            V<Word32> leading =
+                __ Word32BitwiseAnd(__ Word32CountLeadingZeros(diff), ~7);
+            V<Word32> shift = __ Word32Sub(24, leading);
+#endif
+            GOTO(weight_compare,
+                 __ Word32BitwiseAnd(__ Word32ShiftRightLogical(lw, shift),
+                                     0xFF),
+                 __ Word32BitwiseAnd(__ Word32ShiftRightLogical(rw, shift),
+                                     0xFF));
+          }
+          i = __ WordPtrAdd(i, 4);
+        }
+      }
       WHILE(__ IntPtrLessThan(i, min_length_ptr)) {
         V<Word32> lc = LoadFromSeqOneByteString(left, i);
         V<Word32> rc = LoadFromSeqOneByteString(right, i);
@@ -3609,8 +3764,7 @@ class MachineLoweringReducer : public Next {
     V<WordPtr> map_word = __ BitcastTaggedToWordPtr(map);
     V<WordPtr> cache_index = __ WordPtrBitwiseAnd(
         __ WordPtrShiftRightLogical(map_word, kTaggedSizeLog2),
-        __ WordPtrConstant(
-            static_cast<uint32_t>(v8_flags.homomorphic_ic_count) - 1));
+        static_cast<uint32_t>(v8_flags.homomorphic_ic_count) - 1);
     V<HeapObject> array =
         __ HeapConstant(homomorphic_array.HeapObjectRef::object());
     V<WordPtr> weak_map = __ WordPtrBitwiseOr(map_word, kWeakHeapObjectMask);
@@ -3979,19 +4133,14 @@ class MachineLoweringReducer : public Next {
           frame_state, DeoptimizeReason::kWrongName, FeedbackSource{});
 
       // Try to find the {value} in the string table.
-      MachineSignature::Builder builder(__ graph_zone(), 1, 2);
-      builder.AddReturn(MachineType::AnyTagged());
-      builder.AddParam(MachineType::Pointer());
-      builder.AddParam(MachineType::AnyTagged());
-      OpIndex try_string_to_index_or_lookup_existing = __ ExternalConstant(
-          ExternalReference::try_string_to_index_or_lookup_existing());
+      auto sig =
+          FixedSizeSignature<MachineType>::Returns(MachineType::AnyTagged())
+              .Params(MachineType::Pointer(), MachineType::AnyTagged());
       OpIndex isolate_ptr =
           __ ExternalConstant(ExternalReference::isolate_address());
-      V<String> value_internalized = V<String>::Cast(__ Call(
-          try_string_to_index_or_lookup_existing, {isolate_ptr, value},
-          TSCallDescriptor::Create(
-              Linkage::GetSimplifiedCDescriptor(__ graph_zone(), builder.Get()),
-              CanThrow{false}, LazyDeoptOnThrow{false}, __ graph_zone())));
+      V<String> value_internalized = __ template CallC<String>(
+          &sig, ExternalReference::try_string_to_index_or_lookup_existing(),
+          {isolate_ptr, value});
 
       // Now see if the results match.
       __ DeoptimizeIfNot(__ TaggedEqual(expected, value_internalized),
@@ -4082,6 +4231,9 @@ class MachineLoweringReducer : public Next {
     GOTO(done, copy);
 
     BIND(done, result);
+    // The copy is never COW, so {result} has the FixedArray map either way.
+    __ AssumeMap(V<HeapObject>::Cast(result),
+                 ZoneRefSet<Map>(broker_->fixed_array_map()));
     return result;
   }
 
@@ -4128,10 +4280,13 @@ class MachineLoweringReducer : public Next {
     // Check if {map} is the same as {source_map}.
     IF (UNLIKELY(__ TaggedEqual(map, source_map))) {
       switch (transition.mode()) {
-        case ElementsTransition::kFastTransition:
+        case ElementsTransition::kFastTransition: {
           // In-place migration of {object}, just store the {target_map}.
-          __ StoreField(object, AccessBuilder::ForMap(), target_map);
+          FieldAccess access = AccessBuilder::ForMap();
+          access.maybe_initializing_or_transitioning_store = true;
+          __ StoreField(object, access, target_map);
           break;
+        }
         case ElementsTransition::kSlowTransition:
           // Instance migration, call out to the runtime for {object}.
           __ template CallRuntime<runtime::TransitionElementsKind>(
@@ -4164,7 +4319,9 @@ class MachineLoweringReducer : public Next {
       IF (__ TaggedEqual(map, __ HeapConstant(transition_source.object()))) {
         if (is_simple) {
           // In-place migration of {object}, just store the {target_map}.
-          __ StoreField(object, AccessBuilder::ForMap(), target_map);
+          FieldAccess access = AccessBuilder::ForMap();
+          access.maybe_initializing_or_transitioning_store = true;
+          __ StoreField(object, access, target_map);
         } else {
           // Instance migration, call out to the runtime for {object}.
           __ template CallRuntime<runtime::TransitionElementsKind>(
@@ -4370,11 +4527,11 @@ class MachineLoweringReducer : public Next {
         break;
       case UnicodeEncoding::UTF32: {
         // Convert UTF32 to UTF16 code units and store as a 32 bit word.
-        V<Word32> lead_offset = __ Word32Constant(0xD800 - (0x10000 >> 10));
+        constexpr uint32_t kLeadOffset = 0xD800 - (0x10000 >> 10);
 
         // lead = (codepoint >> 10) + LEAD_OFFSET
         V<Word32> lead = __ Word32Add(__ Word32ShiftRightLogical(codepoint, 10),
-                                      lead_offset);
+                                      kLeadOffset);
 
         // trail = (codepoint & 0x3FF) + 0xDC00
         V<Word32> trail =
@@ -4486,8 +4643,8 @@ class MachineLoweringReducer : public Next {
 
     V<Map> map = __ HeapConstant(factory_->bigint_map());
     auto bigint = __ template Allocate<FreshlyAllocatedBigInt>(
-        __ IntPtrConstant(BigInt::SizeFor(digit.valid() ? 1 : 0)),
-        AllocationType::kYoung, kTaggedAligned);
+        BigInt::SizeFor(digit.valid() ? 1 : 0), AllocationType::kYoung,
+        kTaggedAligned);
     __ InitializeField(bigint, AccessBuilder::ForMap(), map);
     __ InitializeField(
         bigint, AccessBuilder::ForBigIntBitfield(),
@@ -4777,10 +4934,8 @@ class MachineLoweringReducer : public Next {
     // integer instruction selection, so we keep Wang's 32-bit mixer.
 #if V8_TARGET_ARCH_64_BIT
     V<Word64> key = __ ChangeUint32ToUint64(value);
-    V<Word64> a =
-        __ Word64BitwiseXor(key, __ Word64Constant(base::kRapidhashSecret1));
-    V<Word64> b =
-        __ Word64BitwiseXor(key, __ Word64Constant(base::kRapidhashSecret2));
+    V<Word64> a = __ Word64BitwiseXor(key, base::kRapidhashSecret1);
+    V<Word64> b = __ Word64BitwiseXor(key, base::kRapidhashSecret2);
     V<Word64> lo = __ Word64Mul(a, b);
     V<Word64> hi = __ Uint64MulOverflownBits(a, b);
     V<Word32> hash = __ TruncateWord64ToWord32(__ Word64BitwiseXor(lo, hi));
@@ -4844,9 +4999,9 @@ class MachineLoweringReducer : public Next {
     return *undetectable_objects_protector_;
   }
 
-  Isolate* isolate_ = __ data() -> isolate();
+  Isolate* isolate_ = __ data()->isolate();
   Factory* factory_ = isolate_ ? isolate_->factory() : nullptr;
-  JSHeapBroker* broker_ = __ data() -> broker();
+  JSHeapBroker* broker_ = __ data()->broker();
   std::optional<bool> undetectable_objects_protector_ = {};
 };
 

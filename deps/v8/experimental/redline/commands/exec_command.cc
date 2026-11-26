@@ -4,7 +4,8 @@
 
 // "redline exec": runs one or more JavaScript files through the target and
 // reports outcome, timing and coverage for each. The simplest way to check
-// what the fuzzer sees for a given program.
+// what the fuzzer sees for a given program. With --prelude, each file runs
+// behind the prelude, as a program of a session does.
 
 #include <algorithm>
 #include <cstdio>
@@ -16,6 +17,8 @@
 #include "experimental/redline/base/json.h"
 #include "experimental/redline/base/log.h"
 #include "experimental/redline/commands/command.h"
+#include "experimental/redline/core/tunable.h"
+#include "experimental/redline/engine/prelude.h"
 #include "experimental/redline/exec/runner.h"
 
 namespace redline {
@@ -43,6 +46,25 @@ int RunExec(const Flags& flags) {
   bool print_output = flags.GetBool("print-output", false);
   bool print_edges = flags.GetBool("print-edges", false);
   std::string events_path = flags.GetString("events");
+  std::string prelude;
+  const std::string prelude_flag = flags.GetString("prelude", "none");
+  if (prelude_flag == "default") {
+    prelude = std::string(DefaultPrelude());
+  } else if (prelude_flag != "none" &&
+             !ReadFileToString(prelude_flag, &prelude, &error)) {
+    REDLINE_ERROR(kLog, "%s", error.c_str());
+    return kExitFailure;
+  }
+  if (flags.Has("tunable") && !TunableRegistry::Instance().SetFromList(
+                                  flags.GetString("tunable"), &error)) {
+    REDLINE_ERROR(kLog, "%s", error.c_str());
+    return kExitUsage;
+  }
+  // With the tunable `prelude.on_demand`, a file gets the same part of the
+  // prelude as a program with the same text gets in a session. The comment
+  // lines at the start of a crash file are a part of this text.
+  const std::unique_ptr<OnDemandPrelude> on_demand =
+      MakeOnDemandPrelude(prelude);
 
   if (flags.positional().empty()) {
     REDLINE_ERROR(kLog, "No JavaScript files given");
@@ -65,12 +87,15 @@ int RunExec(const Flags& flags) {
 
   int exit_code = kExitOk;
   for (const std::string& path : flags.positional()) {
-    std::string script;
-    if (!ReadFileToString(path, &script, &error)) {
+    std::string program;
+    if (!ReadFileToString(path, &program, &error)) {
       REDLINE_ERROR(kLog, "%s", error.c_str());
       exit_code = kExitFailure;
       continue;
     }
+    OnDemandPrelude::Selection selection;
+    const std::string script =
+        ScriptWithPrelude(prelude, on_demand.get(), program, &selection);
     // For --repeat we track which edges were hit in every run vs. in any
     // run, which is what the fuzzer's determinism check looks at.
     std::vector<uint32_t> edges_in_all_runs;
@@ -133,6 +158,14 @@ int RunExec(const Flags& flags) {
             .Add("edges_hit", result.edges_hit)
             .Add("new_edges", static_cast<uint64_t>(result.new_edges.size()))
             .Add("found_edges", runner->coverage().found_edges());
+        if (execution.outcome == Outcome::kFailed) {
+          event.Add("error", execution.ExceptionSignature());
+        }
+        if (on_demand != nullptr) {
+          event
+              .Add("prelude_statements", static_cast<uint64_t>(selection.count))
+              .Add("prelude_whole", PreludeFallbackName(selection.fallback));
+        }
         if (print_edges) {
           event.AddArray("new_edge_list", result.new_edges);
         }
@@ -172,6 +205,9 @@ const Command kExecCommand = {
     "would) and prints outcome, execution time and the number of new edges.\n"
     "\n"
     "options:\n"
+    "  --prelude=default|FILE|none  JS in front of each file (default: none;\n"
+    "                     `default` is the prelude of a session)\n"
+    "  --tunable=NAME=V,. set tunables, for example prelude.on_demand=1\n"
     "  --repeat=N         run each file N times and report edge stability\n"
     "  --print-output     dump the target's stdout, stderr and fuzzout\n"
     "  --print-edges      list the indices of newly found edges\n"

@@ -322,7 +322,7 @@ void RegExpMacroAssemblerMIPS::CheckNotBackReferenceIgnoreCase(
     __ Branch(&fail, eq, a3, Operand(247 - 224));
 
     __ bind(&loop_check);
-    __ Branch(&loop, lt, a0, Operand(a1));
+    __ Branch(&loop, Uless, a0, Operand(a1));
     __ jmp(&success);
 
     __ bind(&fail);
@@ -437,7 +437,7 @@ void RegExpMacroAssemblerMIPS::CheckNotBackReference(int start_reg,
     __ daddiu(a2, a2, char_size());
   }
   BranchOrBacktrack(on_no_match, ne, a3, Operand(a4));
-  __ Branch(&loop, lt, a0, Operand(a1));
+  __ Branch(&loop, Uless, a0, Operand(a1));
 
   // Move current character position to position after match.
   __ Dsubu(current_input_offset(), a2, end_of_input_address());

@@ -5,7 +5,7 @@
 #include "src/objects/js-array-buffer.h"
 
 #include "src/api/api-inl.h"
-#include "src/common/synchronization-point-support.h"
+#include "src/base/synchronization-point-support.h"
 #include "src/execution/protectors-inl.h"
 #include "src/logging/counters.h"
 #include "src/objects/cpp-heap-object-wrapper-inl.h"
@@ -81,9 +81,9 @@ void JSArrayBuffer::Setup(SharedFlag shared, ResizableFlag resizable,
     return;
   }
   // Rest of the code here deals with attaching the BackingStore.
-  DCHECK_EQ(is_shared(), backing_store->is_shared());
-  DCHECK((is_resizable_by_js() == backing_store->is_resizable_by_js()) ||
-         (backing_store->is_wasm_memory() && is_shared()));
+  DCHECK_EQ(shared, backing_store->is_shared());
+  DCHECK((resizable == backing_store->is_resizable_by_js()) ||
+         (backing_store->is_wasm_memory() && shared));
   DCHECK_IMPLIES(
       !backing_store->is_wasm_memory() && !backing_store->is_resizable_by_js(),
       backing_store->byte_length() == backing_store->max_byte_length());
@@ -102,26 +102,32 @@ void JSArrayBuffer::Setup(SharedFlag shared, ResizableFlag resizable,
   DCHECK_IMPLIES(V8_ENABLE_SANDBOX_BOOL, backing_store_buffer != nullptr);
   set_backing_store(isolate, backing_store_buffer);
 
+  // For shared backing stores (such as shared Wasm memories), read the byte
+  // length once with seq_cst so concurrent growth cannot cause byte_length
+  // and max_byte_length to disagree.
+  size_t backing_store_byte_length =
+      shared ? backing_store->byte_length(std::memory_order_seq_cst)
+             : backing_store->byte_length();
+
   // GSABs need to read their byte_length from the BackingStore. Maintain the
   // invariant that their byte_length field is always 0.
-  auto byte_len =
-      (is_shared() && is_resizable_by_js()) ? 0 : backing_store->byte_length();
-  CHECK_LE(backing_store->byte_length(), kMaxByteLength);
+  auto byte_len = (shared && resizable) ? 0 : backing_store_byte_length;
+  CHECK_LE(backing_store_byte_length, kMaxByteLength);
   set_byte_length(byte_len);
 
   // For Wasm memories, it is possible for the backing store maximum to be
   // different from the JSArrayBuffer maximum. The maximum pages allowed on a
   // Wasm memory are tracked on the Wasm memory object, and not the
   // JSArrayBuffer associated with it.
-  auto max_byte_len = is_resizable_by_js() ? backing_store->max_byte_length()
-                                           : backing_store->byte_length();
+  auto max_byte_len =
+      resizable ? backing_store->max_byte_length() : backing_store_byte_length;
   set_max_byte_length(max_byte_len);
 
   if (backing_store->is_wasm_memory()) {
     set_is_detachable(false);
   }
 
-  CreateExtension(isolate, std::move(backing_store));
+  CreateExtension(isolate, std::move(backing_store), shared, resizable);
   finish_setup();
 }
 
@@ -336,7 +342,8 @@ JSArrayBuffer::GetResizableBackingStorePageConfigurationImpl(
 }
 
 ArrayBufferExtension* JSArrayBuffer::CreateExtension(
-    Isolate* isolate, std::shared_ptr<BackingStore> backing_store) {
+    Isolate* isolate, std::shared_ptr<BackingStore> backing_store,
+    SharedFlag shared, ResizableFlag resizable) {
   // `Heap::InYoungGeneration` during full GC with sticky markbits is generally
   // inaccurate. However, a full GC will sweep both lists and promote all to
   // old, so it doesn't matter which list initially holds the extension in this
@@ -345,10 +352,12 @@ ArrayBufferExtension* JSArrayBuffer::CreateExtension(
       TrustedHeapLayout::InYoungGeneration(Tagged<JSArrayBuffer>(this))
           ? ArrayBufferExtension::Age::kYoung
           : ArrayBufferExtension::Age::kOld;
+  DCHECK_EQ(shared, is_shared());
+  DCHECK_EQ(resizable, is_resizable_by_js());
   ArrayBufferExtension* extension = new ArrayBufferExtension(
-      std::move(backing_store), age, is_shared(), is_resizable_by_js());
+      isolate->heap(), std::move(backing_store), age, shared, resizable);
   SYNCHRONIZATION_POINT_TEST_ONLY("JSArrayBuffer::CreateExtension");
-  set_extension(extension);
+  set_extension(isolate, extension);
   isolate->heap()->AppendArrayBufferExtension(extension);
   return extension;
 }

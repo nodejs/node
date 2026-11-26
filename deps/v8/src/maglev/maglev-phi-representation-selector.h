@@ -226,8 +226,13 @@ class MaglevPhiRepresentationSelector {
     for (int i = 0; i < node->input_count(); i++) {
       ValueNode* input = node->NodeBase::input(i).node();
       if (input->Is<Identity>()) {
-        // Bypassing the identity
-        node->change_input(i, input->NodeBase::input(0).node());
+        // Only bypass Identity here, not single-input Phis (UnwrapAliases): if
+        // a single-input Phi was untagged, we must reach the Phi branch below
+        // so UpdateNodePhiInput inserts the required retagging conversion.
+        while (input->Is<Identity>()) {
+          input = input->NodeBase::input(0).node();
+        }
+        node->change_input(i, input);
       } else if (Phi* phi = input->TryCast<Phi>()) {
         // If the input is a Phi and it was used without any untagging, then
         // we need to retag it (with some additional checks/changes for some
@@ -266,6 +271,11 @@ class MaglevPhiRepresentationSelector {
                                    const ProcessingState* state);
 
   void EnsurePhiInputsTagged(Phi* phi);
+
+  // Tries to move {phi}'s {input_index}th input, a single-use non-deopting
+  // tagging, from the branching block into the edge-split block so the other
+  // branch skips it.
+  void TrySinkInputTaggingToEdgeSplitBlock(Phi* phi, int input_index);
 
   template <typename NodeT>
   ProcessResult UpdateNodePhiInputForToBoolean(NodeT* node, Phi* phi,

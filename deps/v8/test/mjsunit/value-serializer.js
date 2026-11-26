@@ -108,3 +108,28 @@ for (var o of objects) {
   assertFalse(deserialized.has('foo'));
   assertEquals(6, deserialized.size);
 }
+
+// Crafted wire payloads encoding -0.0 (kDouble) directly as a Map or Set key
+// should fail deserialization rather than CHECK-failing.
+{
+  const serializedMinusZero = new Uint8Array(d8.serializer.serialize(-0.0));
+  const header = serializedMinusZero.slice(0, 2);
+  const minusZeroDouble = serializedMinusZero.slice(2);
+
+  const setBytes = new Uint8Array([
+    ...header,
+    0x27,  // SerializationTag::kBeginJSSet ("'")
+    ...minusZeroDouble,
+    0x2c, 1,  // SerializationTag::kEndJSSet (","), length 1
+  ]);
+  assertThrows(() => d8.serializer.deserialize(setBytes.buffer), Error);
+
+  const mapBytes = new Uint8Array([
+    ...header,
+    0x3b,  // SerializationTag::kBeginJSMap (";")
+    ...minusZeroDouble,
+    0x54,  // SerializationTag::kTrue ("T")
+    0x3a, 2,  // SerializationTag::kEndJSMap (":"), length 2
+  ]);
+  assertThrows(() => d8.serializer.deserialize(mapBytes.buffer), Error);
+}

@@ -13,7 +13,8 @@ import re
 import types
 from typing import Optional
 
-from .format import format_frame_location, format_frame_trailer
+from .format import (format_frame_location, format_frame_trailer,
+                     is_js_identifier)
 from .inspect import (
     PROPERTY_KIND_ARRAY_OF_KNOWN_SIZE,
     decode_c_str,
@@ -95,6 +96,7 @@ def _make_types(ptr_size):
         ("any_heap_pointer", c_uintptr),
         ("metadata_pointer_table", c_uintptr),
         ("isolate_heap_member_offset", c_uintptr),
+        ("isolate", c_uintptr),
     ]
 
   MemoryAccessor = ctypes.CFUNCTYPE(ctypes.c_int, c_uintptr, ctypes.c_void_p,
@@ -187,6 +189,7 @@ class DebuggerBridge:
         int(hints.any_heap_pointer) & self._t.uintptr_max,
         int(hints.metadata_pointer_table) & self._t.uintptr_max,
         int(hints.isolate_heap_member_offset) & self._t.uintptr_max,
+        int(hints.isolate) & self._t.uintptr_max,
     )
 
   @property
@@ -260,11 +263,24 @@ class DebuggerBridge:
     prop = props.get(prop_name)
     if prop is None or not prop.address or not prop.size:
       return ""
+    return self._resolve_string_slot(
+        prop.address,
+        prop.size,
+        read_memory,
+        allow_brief_fallback=allow_brief_fallback,
+        max_chars=max_chars)
 
+  def _resolve_string_slot(self,
+                           address,
+                           size,
+                           read_memory,
+                           allow_brief_fallback=True,
+                           max_chars: Optional[int] = _MAX_PROP_STRING_CHARS):
+    """Resolve the String referenced by one tagged slot into a Python string."""
     raw_value = int.from_bytes(
-        read_memory(prop.address, prop.size), byteorder="little", signed=False)
+        read_memory(address, size), byteorder="little", signed=False)
 
-    hints = HeapHints(any_heap_pointer=int(prop.address))
+    hints = HeapHints(any_heap_pointer=int(address))
     result = self.inspect(raw_value, hints, read_memory)
     if result is None:
       return ""
@@ -430,9 +446,57 @@ class DebuggerBridge:
           "receiver": self._read_slot_value(props.get("receiver"), read_memory),
           "argc": argc,
           "arguments": arguments,
+          "param_names": self._decode_parameter_names(props, argc, read_memory),
       }
     finally:
       library._v8_debug_helper_Free_StackFrameResult(result_ptr)
+
+  def _decode_parameter_names(self, props, argc, read_memory):
+    """Map argument indices to the parameter names recovered from ScopeInfo.
+
+    Only names of parameters that are allocated in a context (i.e. captured
+    in a closure) can be recovered, so the result is usually partial.
+    """
+    if not argc:
+      return {}
+    names = props.get("context_local_names")
+    infos = props.get("context_local_infos")
+    if names is None or infos is None:
+      return {}
+    fields = {f.name: f for f in infos.struct_fields}
+    is_parameter = fields.get("is_parameter")
+    number = fields.get("parameter_number_or_position")
+    if is_parameter is None or number is None:
+      return {}
+
+    # The names array is empty when the names are not inlined for a large scope.
+    count = min(names.num_values, infos.num_values)
+    try:
+      data = read_memory(infos.address, count * infos.size)
+    except Exception:
+      return {}
+    if len(data) != count * infos.size:
+      return {}
+
+    result = {}
+    for i in range(count):
+      raw = int.from_bytes(data[i * infos.size:(i + 1) * infos.size], "little")
+      if not (raw >> is_parameter.shift_bits) & 1:
+        continue
+      index = (raw >> number.shift_bits) & ((1 << number.num_bits) - 1)
+      if index >= argc:
+        continue
+      # Skip the brief fallback so that an unreadable slot does not produce a
+      # plausible-looking name e.g. "UndefinedValue".
+      name = self._resolve_string_slot(
+          names.address + i * names.size,
+          names.size,
+          read_memory,
+          allow_brief_fallback=False)
+      # Truncated names end with "...", so is_js_identifier rejects them.
+      if is_js_identifier(name):
+        result[index] = name
+    return result
 
   def argument_previews(self, annotation, read_memory, cap=None, hints=None):
     """Render compact per-argument previews for a describe_js_frame result.
@@ -451,10 +515,13 @@ class DebuggerBridge:
                             arguments.size, hints) for i in range(count)
     ]
 
-  def frame_suffix(self, frame_pointer, read_memory):
+  def frame_suffix(self, frame_pointer, read_memory, hints):
     """Format the JS annotation suffix for a debugger frame:
 
     [<function_name> @ <script_name>:<line>:<column>] (this=..., [0]=..., ...)
+
+    If the parameter name can be recovered, it is used to label the argument.
+    Otherwise, the argument is labeled with `[N]`.
 
     If source text cannot be recovered but the script name still can, the
     annotation degrades to:
@@ -470,10 +537,10 @@ class DebuggerBridge:
     if not annotation:
       return ""
     previews = self.argument_previews(
-        annotation, read_memory, cap=_MAX_BT_ARG_PREVIEWS)
+        annotation, read_memory, cap=_MAX_BT_ARG_PREVIEWS, hints=hints)
     location = format_frame_location(annotation)
     trailer = format_frame_trailer(annotation["receiver"], annotation["argc"],
-                                   previews)
+                                   previews, annotation["param_names"])
     return f" [{location}]{trailer}"
 
 

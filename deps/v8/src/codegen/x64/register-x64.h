@@ -28,6 +28,9 @@ namespace internal {
   V(r14)                     \
   V(r15)
 
+// The register allocator breaks ties in this order. R12 comes last because
+// a memory operand with R12 as its base and no index needs a SIB byte (R12
+// shares RSP's r/m encoding), which no other allocatable register does.
 #define ALWAYS_ALLOCATABLE_GENERAL_REGISTERS(V) \
   V(rax)                                        \
   V(rbx)                                        \
@@ -38,8 +41,8 @@ namespace internal {
   V(r8)                                         \
   V(r9)                                         \
   V(r11)                                        \
-  V(r12)                                        \
-  V(r15)
+  V(r15)                                        \
+  V(r12)
 
 #ifdef V8_COMPRESS_POINTERS
 #define MAYBE_ALLOCATABLE_GENERAL_REGISTERS(V)

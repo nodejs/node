@@ -841,6 +841,18 @@ void RawMachineAssembler::SetInitialDebugInformation(
 
 bool RawMachineAssembler::InsideBlock() { return current_block_ != nullptr; }
 
+bool RawMachineAssembler::IsAtStart() const {
+  if (current_block_ != schedule_->start()) return false;
+  for (Node* node : *current_block_) {
+    if (node->opcode() == IrOpcode::kCall ||
+        node->opcode() == IrOpcode::kAllocate ||
+        node->opcode() == IrOpcode::kAllocateRaw) {
+      return false;
+    }
+  }
+  return true;
+}
+
 BasicBlock* RawMachineAssembler::CurrentBlock() {
   DCHECK(current_block_);
   return current_block_;

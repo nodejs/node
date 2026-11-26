@@ -120,8 +120,7 @@ Reduction WasmGCLowering::ReduceWasmTypeCheck(Node* node) {
   Node* control_input = NodeProperties::GetControlInput(node);
   auto config = OpParameter<WasmTypeCheckConfig>(node->op());
   int rtt_depth = wasm::GetSubtypingDepth(module_, config.to.ref_index());
-  bool object_can_be_i31 =
-      wasm::IsSubtypeOf(wasm::kWasmI31Ref.AsNonNull(), config.from, module_);
+  bool object_can_be_i31 = config.from.can_be_i31();
 
   gasm_.InitializeEffectControl(effect_input, control_input);
 
@@ -141,11 +140,25 @@ Reduction WasmGCLowering::ReduceWasmTypeCheck(Node* node) {
   Node* map = gasm_.LoadMap(object);
 
   DCHECK_IMPLIES(module_->type(config.to.ref_index()).is_final,
-                 config.exactness == kExactMatchOnly);
+                 config.exactness != kMayBeSubtype);
 
   if (config.exactness == kExactMatchOnly) {
     gasm_.Goto(&end_label, gasm_.TaggedEqual(map, rtt));
+  } else if (config.exactness == kExactMatchLastSupertype) {
+    DCHECK_EQ(config.to.ref_type_kind(), wasm::RefTypeKind::kStruct);
+    DCHECK(module_->type(config.to.ref_index()).has_descriptor());
+    // Check if map instance type identifies a wasm object.
+    if (is_cast_from_any) {
+      Node* is_wasm_obj = gasm_.IsDataRefMap(map);
+      gasm_.GotoIfNot(is_wasm_obj, &end_label, BranchHint::kTrue,
+                      gasm_.Int32Constant(0));
+    }
+    Node* maybe_match = gasm_.LoadImmutableFromObject(
+        MachineType::TaggedPointer(), map,
+        offsetof(Map, dependent_code_) - kHeapObjectTag);
+    gasm_.Goto(&end_label, gasm_.TaggedEqual(maybe_match, rtt));
   } else {
+    DCHECK_EQ(config.exactness, kMayBeSubtype);
     // First, check if types happen to be equal. This has been shown to give
     // large speedups.
     gasm_.GotoIf(gasm_.TaggedEqual(map, rtt), &end_label, BranchHint::kTrue,
@@ -196,7 +209,7 @@ Reduction WasmGCLowering::ReduceWasmTypeCheckAbstract(Node* node) {
   Node* control_input = NodeProperties::GetControlInput(node);
   WasmTypeCheckConfig config = OpParameter<WasmTypeCheckConfig>(node->op());
   const bool object_can_be_i31 =
-      wasm::IsSubtypeOf(wasm::kWasmI31Ref.AsNonNull(), config.from, module_) ||
+      config.from.can_be_i31() ||
       config.from.is_reference_to(wasm::GenericKind::kExtern);
 
   gasm_.InitializeEffectControl(effect_input, control_input);
@@ -280,8 +293,7 @@ Reduction WasmGCLowering::ReduceWasmTypeCast(Node* node) {
   Node* control_input = NodeProperties::GetControlInput(node);
   auto config = OpParameter<WasmTypeCheckConfig>(node->op());
   int rtt_depth = wasm::GetSubtypingDepth(module_, config.to.ref_index());
-  bool object_can_be_i31 =
-      wasm::IsSubtypeOf(wasm::kWasmI31Ref.AsNonNull(), config.from, module_);
+  bool object_can_be_i31 = config.from.can_be_i31();
 
   gasm_.InitializeEffectControl(effect_input, control_input);
 
@@ -306,13 +318,30 @@ Reduction WasmGCLowering::ReduceWasmTypeCast(Node* node) {
   Node* map = gasm_.LoadMap(object);
 
   DCHECK_IMPLIES(module_->type(config.to.ref_index()).is_final,
-                 config.exactness == kExactMatchOnly);
+                 config.exactness != kMayBeSubtype);
 
   if (config.exactness == kExactMatchOnly) {
     gasm_.TrapUnless(gasm_.TaggedEqual(map, rtt), TrapId::kTrapIllegalCast);
     UpdateSourcePosition(gasm_.effect(), node);
     gasm_.Goto(&end_label);
+  } else if (config.exactness == kExactMatchLastSupertype) {
+    DCHECK_EQ(config.to.ref_type_kind(), wasm::RefTypeKind::kStruct);
+    DCHECK(module_->type(config.to.ref_index()).has_descriptor());
+    // Check if map instance type identifies a wasm object.
+    if (is_cast_from_any) {
+      Node* is_wasm_obj = gasm_.IsDataRefMap(map);
+      gasm_.TrapUnless(is_wasm_obj, TrapId::kTrapIllegalCast);
+      UpdateSourcePosition(gasm_.effect(), node);
+    }
+    Node* maybe_match = gasm_.LoadImmutableFromObject(
+        MachineType::TaggedPointer(), map,
+        offsetof(Map, dependent_code_) - kHeapObjectTag);
+    gasm_.TrapUnless(gasm_.TaggedEqual(maybe_match, rtt),
+                     TrapId::kTrapIllegalCast);
+    UpdateSourcePosition(gasm_.effect(), node);
+    gasm_.Goto(&end_label);
   } else {
+    DCHECK_EQ(config.exactness, kMayBeSubtype);
     // First, check if types happen to be equal. This has been shown to give
     // large speedups.
     gasm_.GotoIf(gasm_.TaggedEqual(map, rtt), &end_label, BranchHint::kTrue);
@@ -366,7 +395,7 @@ Reduction WasmGCLowering::ReduceWasmTypeCastAbstract(Node* node) {
   Node* control_input = NodeProperties::GetControlInput(node);
   WasmTypeCheckConfig config = OpParameter<WasmTypeCheckConfig>(node->op());
   const bool object_can_be_i31 =
-      wasm::IsSubtypeOf(wasm::kWasmI31Ref.AsNonNull(), config.from, module_) ||
+      config.from.can_be_i31() ||
       config.from.is_reference_to(wasm::GenericKind::kExtern);
 
   gasm_.InitializeEffectControl(effect_input, control_input);
@@ -471,8 +500,7 @@ Reduction WasmGCLowering::ReduceAssertNotNull(Node* node) {
       // for null.
       // Exnrefs can hold any JS value, so do not use the trapping null check.
       if (null_check_strategy_ == NullCheckStrategy::kExplicit ||
-          wasm::IsSubtypeOf(wasm::kWasmI31Ref.AsNonNull(), op_parameter.type,
-                            module_) ||
+          op_parameter.type.can_be_i31() ||
           wasm::IsSubtypeOf(wasm::kWasmExnRef.AsNonNull(), op_parameter.type,
                             module_) ||
           !op_parameter.type.use_wasm_null()) {

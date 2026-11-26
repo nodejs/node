@@ -6,6 +6,7 @@
 #define V8_OBJECTS_PROTOTYPE_INFO_H_
 
 #include "src/base/bit-field.h"
+#include "src/objects/bit-field-group.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/objects.h"
 #include "src/objects/struct.h"
@@ -25,8 +26,12 @@ V8_OBJECT class PrototypeInfo : public Struct {
 
   // Accessors
   inline Tagged<UnionOf<JSModuleNamespace, Undefined>> module_namespace() const;
+  // Background compiler threads follow the map -> PrototypeInfo -> namespace
+  // back pointer, so the namespace is published with a release store.
+  inline Tagged<UnionOf<JSModuleNamespace, Undefined>> module_namespace(
+      AcquireLoadTag) const;
   inline void set_module_namespace(
-      Tagged<UnionOf<JSModuleNamespace, Undefined>> value,
+      Tagged<UnionOf<JSModuleNamespace, Undefined>> value, ReleaseStoreTag,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline Tagged<UnionOf<WeakArrayList, Zero>> prototype_users() const;
@@ -42,8 +47,16 @@ V8_OBJECT class PrototypeInfo : public Struct {
   inline int registry_slot() const;
   inline void set_registry_slot(int value);
 
-  inline int bit_field() const;
-  inline void set_bit_field(int value);
+  struct Flags : BitFieldGroup<Flags, uint32_t> {
+    using BitFieldGroup::BitFieldGroup;
+
+    using ShouldBeFastBit = First<bool, 1>;
+
+    BIT_FIELD_GROUP_ACCESSORS(should_be_fast, ShouldBeFastBit)
+  };
+
+  inline Flags bit_field() const;
+  inline void set_bit_field(Flags value);
 
   // For caching derived maps for Object.create, Reflect.construct and proxies.
   inline Tagged<UnionOf<WeakArrayList, Undefined>> derived_maps() const;
@@ -98,9 +111,6 @@ V8_OBJECT class PrototypeInfo : public Struct {
   DECL_PRINTER(PrototypeInfo)
   DECL_VERIFIER(PrototypeInfo)
 
-  // Bit field usage.
-  using ShouldBeFastBit = base::BitField<bool, 0, 1, uint32_t>;
-
   class BodyDescriptor;
 
  public:
@@ -109,7 +119,7 @@ V8_OBJECT class PrototypeInfo : public Struct {
   TaggedMember<UnionOf<FixedArray, Zero, Undefined>>
       prototype_chain_enum_cache_;
   TaggedMember<Smi> registry_slot_;
-  TaggedMember<Smi> bit_field_ V8_TQ_TYPE(SmiTagged<PrototypeInfoFlags>);
+  SmiBitFieldMember<Flags> bit_field_;
   TaggedMember<UnionOf<WeakArrayList, Undefined>> derived_maps_;
   TaggedMember<UnionOf<PrototypeSharedClosureInfo, Undefined>>
       prototype_shared_closure_info_;

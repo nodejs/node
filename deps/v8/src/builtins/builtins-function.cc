@@ -81,7 +81,7 @@ MaybeDirectHandle<Object> CreateDynamicFunction(Isolate* isolate,
 
   // Use an embedder-provided source string when available; otherwise, fall
   // back to ToString().
-  DirectHandleVector<String> parameter_strings(isolate);
+  DirectHandleSmallVector<String, 8> parameter_strings(isolate);
   if (argc > 1) parameter_strings.reserve(argc - 1);
 
   // A call with no arguments has nothing trustworthy to base "code-like"
@@ -243,7 +243,8 @@ Tagged<Object> DoFunctionBind(Isolate* isolate, BuiltinArguments args,
   // Allocate the bound function with the given {this_arg} and {args}.
   DirectHandle<JSReceiver> target = args.at<JSReceiver>(0);
   DirectHandle<JSAny> this_arg = isolate->factory()->undefined_value();
-  DirectHandleVector<Object> argv(isolate, std::max(0, args.length() - 2));
+  DirectHandleSmallVector<Object, 8> argv(isolate,
+                                          std::max(0, args.length() - 2));
   if (args.length() > 1) {
     this_arg = args.at<JSAny>(1);
     for (int i = 2; i < args.length(); ++i) {
@@ -296,7 +297,8 @@ BUILTIN(FunctionPrototypeToString) {
     return *JSBoundFunction::ToString(isolate, Cast<JSBoundFunction>(receiver));
   }
   if (IsJSFunction(*receiver)) {
-    return *JSFunction::ToString(isolate, Cast<JSFunction>(receiver));
+    RETURN_RESULT_OR_FAILURE(
+        isolate, JSFunction::ToString(isolate, Cast<JSFunction>(receiver)));
   }
   // With the revised toString behavior, all callable objects are valid
   // receivers for this method.

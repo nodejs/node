@@ -10,7 +10,6 @@
 #include <memory>
 #include <optional>
 
-#include "absl/container/flat_hash_map.h"
 #include "src/codegen/arm64/constants-arm64.h"
 #include "src/codegen/arm64/instructions-arm64.h"
 #include "src/codegen/arm64/register-arm64.h"
@@ -18,6 +17,7 @@
 #include "src/codegen/constant-pool.h"
 #include "src/codegen/jump-table-info.h"
 #include "src/common/globals.h"
+#include "src/utils/bit-vector.h"
 #include "src/utils/utils.h"
 #include "src/zone/zone-containers.h"
 
@@ -189,6 +189,140 @@ class AssemblerZone {
 // -----------------------------------------------------------------------------
 // Assembler.
 
+// The link chain of an unbound label is singly linked from newer to older
+// links through the code. This maps a link to the next newer link in its
+// chain, for the chains of tracked labels only. Links are identified by their
+// pc offset.
+//
+// The owner starts tracking a label when it first has to unlink a link other
+// than the newest, and keeps the map in sync with the chain until the label is
+// bound.
+class NewerLinkMap final {
+ public:
+  explicit NewerLinkMap(Zone* zone) : newer_link_(zone), labels_(zone) {}
+
+  bool Tracks(Label* label) const {
+    return V8_UNLIKELY(!labels_.empty()) && labels_.contains(label);
+  }
+  // Returns false if {label} is tracked already. Otherwise, the caller must
+  // Set the newer link of each link in the chain of {label}.
+  bool StartTracking(Label* label) { return labels_.insert(label).second; }
+  // Returns whether {label} was tracked. The caller must Erase the links in
+  // the chain of {label}.
+  bool StopTracking(Label* label) {
+    return V8_UNLIKELY(!labels_.empty()) && labels_.erase(label) != 0;
+  }
+
+  void Set(int link, int newer_link) {
+    DCHECK_LT(link, newer_link);
+    newer_link_.insert_or_assign(link, newer_link);
+  }
+  void Erase(int link) {
+    if (newer_link_.empty()) return;
+    newer_link_.erase(link);
+  }
+  int Get(int link) const { return newer_link_.at(link); }
+
+  void Clear() {
+    newer_link_.clear();
+    labels_.clear();
+  }
+
+ private:
+  ZoneAbslFlatHashMap<int, int> newer_link_;
+  ZoneAbslFlatHashSet<Label*> labels_;
+};
+
+// Tracks forward branches to unbound labels that may need a veneer: TB[N]Z,
+// and B.cond/BC.cond/CB[N]Z which share a range.
+//
+// Each range class has a vector of branches in emission order, which is also
+// ascending max_reachable_pc order. Resolving a branch only clears its bit;
+// resolved entries are skipped lazily and compacted away once they outnumber
+// the unresolved ones.
+class UnresolvedBranches final {
+ public:
+  struct Info {
+    int max_reachable_pc;
+    int pc_offset;
+    Label* label;
+  };
+
+  explicit UnresolvedBranches(Zone* zone) : test_(zone), cond_(zone) {}
+
+  size_t size() const {
+    return test_.entries.size() + cond_.entries.size() - resolved_count_;
+  }
+  bool empty() const { return size() == 0; }
+
+  template <ImmBranchType branch_type>
+  V8_INLINE void Record(int pc_offset, int max_reachable_pc, Label* label) {
+    if (V8_UNLIKELY(resolved_count_ >= kMinCompactThreshold &&
+                    resolved_count_ > size())) {
+      Compact();
+    }
+    Queue& queue = branch_type == TestBranchType ? test_ : cond_;
+    DCHECK(queue.entries.empty() ||
+           queue.entries.back().max_reachable_pc < max_reachable_pc);
+    queue.entries.push_back({max_reachable_pc, pc_offset, label});
+    unresolved_bits_.Add(BitIndex(pc_offset), queue.entries.zone());
+  }
+
+  // Marks the branch at {pc_offset} resolved if it is tracked.
+  V8_INLINE void Resolve(int pc_offset) {
+    const int index = BitIndex(pc_offset);
+    if (!unresolved_bits_.Contains(index)) return;
+    unresolved_bits_.Remove(index);
+    ++resolved_count_;
+  }
+
+  // Returns the unresolved branch with the lowest max_reachable_pc, or nullptr
+  // if there is none. The result is invalidated by Record.
+  V8_INLINE const Info* First() const {
+    const Info* test = FirstIn(test_);
+    const Info* cond = FirstIn(cond_);
+    if (test == nullptr) return cond;
+    if (cond == nullptr) return test;
+    return cond->max_reachable_pc <= test->max_reachable_pc ? cond : test;
+  }
+
+  V8_EXPORT_PRIVATE void Clear();
+
+ private:
+  struct Queue {
+    explicit Queue(Zone* zone) : entries(zone) {}
+
+    ZoneVector<Info> entries;
+    // All entries before {head} are resolved.
+    mutable size_t head = 0;
+  };
+
+  static int BitIndex(int pc_offset) { return pc_offset >> kInstrSizeLog2; }
+
+  bool IsResolved(const Info& info) const {
+    return !unresolved_bits_.Contains(BitIndex(info.pc_offset));
+  }
+
+  V8_INLINE const Info* FirstIn(const Queue& queue) const {
+    const size_t size = queue.entries.size();
+    size_t head = queue.head;
+    while (head < size && IsResolved(queue.entries[head])) ++head;
+    queue.head = head;
+    return head < size ? &queue.entries[head] : nullptr;
+  }
+
+  V8_EXPORT_PRIVATE V8_NOINLINE void Compact();
+
+  static constexpr size_t kMinCompactThreshold = 64;
+
+  Queue test_;
+  Queue cond_;
+  // One bit per instruction, set while the branch there is unresolved.
+  GrowableBitVector unresolved_bits_;
+  // The number of resolved entries in {test_} and {cond_}.
+  size_t resolved_count_ = 0;
+};
+
 class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
  public:
   // Create an assembler. Instructions and relocation information are emitted
@@ -209,7 +343,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   Zone* zone() const { return zone_.get(); }
 
-  void AbortedCodeGeneration() override;
+  void AbortedCodeGeneration() override { ClearInternalState(); }
 
   // System functions ---------------------------------------------------------
   // Start generating code from the beginning of the buffer, discarding any code
@@ -257,7 +391,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Bind a label to the current pc. Note that labels can only be bound once,
   // and if labels are linked to other instructions, they _must_ be bound
   // before they go out of scope.
-  void bind(Label* label);
+  void bind(V8_ASM_BIND Label* label);
 
   // RelocInfo and pools ------------------------------------------------------
 
@@ -270,14 +404,15 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // 'offset' is the immediate to encode in the B instruction (so it is the
   // difference between the target and the PC of the instruction, divided by
   // the instruction size).
-  void near_jump(int offset, RelocInfo::Mode rmode);
+  V8_ASM_NO_FALLTHROUGH void near_jump(int offset, RelocInfo::Mode rmode);
   // Generate a BL immediate instruction with the corresponding relocation info.
   // As for near_jump, 'offset' is the immediate to encode in the BL
   // instruction.
-  void near_call(int offset, RelocInfo::Mode rmode);
+  V8_REG_CLOBBERS_CALLER_SAVED void near_call(int offset,
+                                              RelocInfo::Mode rmode);
   // Generate a BL immediate instruction with the corresponding relocation info
   // for the input HeapNumberRequest.
-  void near_call(HeapNumberRequest request);
+  V8_REG_CLOBBERS_CALLER_SAVED void near_call(HeapNumberRequest request);
 
   // Return the address in the constant pool of the code target address used by
   // the branch/call instruction at pc.
@@ -355,10 +490,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     return SizeOfCodeGeneratedSince(label) / kInstrSize;
   }
 
-  static bool IsConstantPoolAt(Instruction* instr);
+  static bool IsConstantPoolAt(const Instruction* instr);
   static int ConstantPoolSizeAt(Instruction* instr);
-  // See Assembler::CheckConstPool for more info.
-  void EmitPoolGuard();
 
   // Prevent veneer pool emission until EndBlockVeneerPool is called.
   // Call to this function can be nested but must be followed by an equal
@@ -404,116 +537,128 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Branch / Jump instructions.
   // For branches offsets are scaled, i.e. in instructions not in bytes.
   // Branch to register.
-  void br(const Register& xn);
+  V8_ASM_NO_FALLTHROUGH void br(const Register& xn);
 
   // Branch-link to register.
-  void blr(const Register& xn);
+  V8_REG_CLOBBERS_CALLER_SAVED void blr(const Register& xn);
 
   // Branch to register with return hint.
-  void ret(const Register& xn = lr);
+  V8_ASM_NO_FALLTHROUGH void ret(const Register& xn = lr);
 
   // Unconditional branch to label.
-  void b(Label* label);
+  V8_ASM_NO_FALLTHROUGH void b(V8_ASM_BRANCH Label* label);
 
   // Conditional branch to label.
-  void b(Label* label, Condition cond);
+  void b(V8_ASM_BRANCH Label* label, Condition cond);
 
   // Unconditional branch to PC offset.
-  void b(int imm26);
+  V8_ASM_NO_FALLTHROUGH void b(int imm26);
 
   // Conditional branch to PC offset.
   void b(int imm19, Condition cond);
 
   // Conditional branch consistent to label.
-  void bc(Label* label, Condition cond);
+  void bc(V8_ASM_BRANCH Label* label, Condition cond);
 
   // Conditional branch consistent to PC offset.
   void bc(int imm19, Condition cond);
 
   // Branch-link to label / pc offset.
-  void bl(Label* label);
-  void bl(int imm26);
+  V8_REG_CLOBBERS_CALLER_SAVED void bl(Label* label);
+  V8_REG_CLOBBERS_CALLER_SAVED void bl(int imm26);
 
   // Compare and branch to label / pc offset if zero.
-  void cbz(const Register& rt, Label* label);
+  void cbz(const Register& rt, V8_ASM_BRANCH Label* label);
   void cbz(const Register& rt, int imm19);
 
   // Compare and branch to label / pc offset if not zero.
-  void cbnz(const Register& rt, Label* label);
+  void cbnz(const Register& rt, V8_ASM_BRANCH Label* label);
   void cbnz(const Register& rt, int imm19);
 
   // Test bit and branch to label / pc offset if zero.
-  void tbz(const Register& rt, unsigned bit_pos, Label* label);
+  void tbz(const Register& rt, unsigned bit_pos, V8_ASM_BRANCH Label* label);
   void tbz(const Register& rt, unsigned bit_pos, int imm14);
 
   // Test bit and branch to label / pc offset if not zero.
-  void tbnz(const Register& rt, unsigned bit_pos, Label* label);
+  void tbnz(const Register& rt, unsigned bit_pos, V8_ASM_BRANCH Label* label);
   void tbnz(const Register& rt, unsigned bit_pos, int imm14);
 
   // Address calculation instructions.
   // Calculate a PC-relative address. Unlike for branches the offset in adr is
   // unscaled (i.e. the result can be unaligned).
-  void adr(const Register& rd, Label* label);
-  void adr(const Register& rd, int imm21);
+  void adr(V8_REG_OUT const Register& rd, Label* label);
+  void adr(V8_REG_OUT const Register& rd, int imm21);
 
   // Data Processing instructions.
   // Add.
-  void add(const Register& rd, const Register& rn, const Operand& operand);
+  void add(V8_REG_OUT const Register& rd, const Register& rn,
+           const Operand& operand);
 
   // Add and update status flags.
-  void adds(const Register& rd, const Register& rn, const Operand& operand);
+  void adds(V8_REG_OUT const Register& rd, const Register& rn,
+            const Operand& operand);
 
   // Compare negative.
   void cmn(const Register& rn, const Operand& operand);
 
   // Subtract.
-  void sub(const Register& rd, const Register& rn, const Operand& operand);
+  V8_ASM_ZEROING_IF_SAME void sub(V8_REG_OUT const Register& rd,
+                                  const Register& rn, const Operand& operand);
 
   // Subtract and update status flags.
-  void subs(const Register& rd, const Register& rn, const Operand& operand);
+  V8_ASM_ZEROING_IF_SAME void subs(V8_REG_OUT const Register& rd,
+                                   const Register& rn, const Operand& operand);
 
   // Compare.
   void cmp(const Register& rn, const Operand& operand);
 
   // Negate.
-  void neg(const Register& rd, const Operand& operand);
+  void neg(V8_REG_OUT const Register& rd, const Operand& operand);
 
   // Negate and update status flags.
-  void negs(const Register& rd, const Operand& operand);
+  void negs(V8_REG_OUT const Register& rd, const Operand& operand);
 
   // Add with carry bit.
-  void adc(const Register& rd, const Register& rn, const Operand& operand);
+  void adc(V8_REG_OUT const Register& rd, const Register& rn,
+           const Operand& operand);
 
   // Add with carry bit and update status flags.
-  void adcs(const Register& rd, const Register& rn, const Operand& operand);
+  void adcs(V8_REG_OUT const Register& rd, const Register& rn,
+            const Operand& operand);
 
   // Subtract with carry bit.
-  void sbc(const Register& rd, const Register& rn, const Operand& operand);
+  void sbc(V8_REG_OUT const Register& rd, const Register& rn,
+           const Operand& operand);
 
   // Subtract with carry bit and update status flags.
-  void sbcs(const Register& rd, const Register& rn, const Operand& operand);
+  void sbcs(V8_REG_OUT const Register& rd, const Register& rn,
+            const Operand& operand);
 
   // Negate with carry bit.
-  void ngc(const Register& rd, const Operand& operand);
+  void ngc(V8_REG_OUT const Register& rd, const Operand& operand);
 
   // Negate with carry bit and update status flags.
-  void ngcs(const Register& rd, const Operand& operand);
+  void ngcs(V8_REG_OUT const Register& rd, const Operand& operand);
 
   // Logical instructions.
   // Bitwise and (A & B).
-  void and_(const Register& rd, const Register& rn, const Operand& operand);
+  void and_(V8_REG_OUT const Register& rd, const Register& rn,
+            const Operand& operand);
 
   // Bitwise and (A & B) and update status flags.
-  void ands(const Register& rd, const Register& rn, const Operand& operand);
+  void ands(V8_REG_OUT const Register& rd, const Register& rn,
+            const Operand& operand);
 
   // Bit test, and set flags.
   void tst(const Register& rn, const Operand& operand);
 
   // Bit clear (A & ~B).
-  void bic(const Register& rd, const Register& rn, const Operand& operand);
+  void bic(V8_REG_OUT const Register& rd, const Register& rn,
+           const Operand& operand);
 
   // Bit clear (A & ~B) and update status flags.
-  void bics(const Register& rd, const Register& rn, const Operand& operand);
+  void bics(V8_REG_OUT const Register& rd, const Register& rn,
+            const Operand& operand);
 
   // Bitwise and.
   void and_(const VRegister& vd, const VRegister& vn, const VRegister& vm);
@@ -602,7 +747,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void eor(const VRegister& vd, const VRegister& vn, const VRegister& vm);
 
   // Bitwise or (A | B).
-  void orr(const Register& rd, const Register& rn, const Operand& operand);
+  void orr(V8_REG_OUT const Register& rd, const Register& rn,
+           const Operand& operand);
 
   // Bitwise or.
   void orr(const VRegister& vd, const VRegister& vn, const VRegister& vm);
@@ -611,46 +757,58 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void orr(const VRegister& vd, const int imm8, const int left_shift = 0);
 
   // Bitwise nor (A | ~B).
-  void orn(const Register& rd, const Register& rn, const Operand& operand);
+  void orn(V8_REG_OUT const Register& rd, const Register& rn,
+           const Operand& operand);
 
   // Bitwise eor/xor (A ^ B).
-  void eor(const Register& rd, const Register& rn, const Operand& operand);
+  V8_ASM_ZEROING_IF_SAME void eor(V8_REG_OUT const Register& rd,
+                                  const Register& rn, const Operand& operand);
 
   // Bitwise enor/xnor (A ^ ~B).
-  void eon(const Register& rd, const Register& rn, const Operand& operand);
+  void eon(V8_REG_OUT const Register& rd, const Register& rn,
+           const Operand& operand);
 
   // Logical shift left variable.
-  void lslv(const Register& rd, const Register& rn, const Register& rm);
+  void lslv(V8_REG_OUT const Register& rd, const Register& rn,
+            const Register& rm);
 
   // Logical shift right variable.
-  void lsrv(const Register& rd, const Register& rn, const Register& rm);
+  void lsrv(V8_REG_OUT const Register& rd, const Register& rn,
+            const Register& rm);
 
   // Arithmetic shift right variable.
-  void asrv(const Register& rd, const Register& rn, const Register& rm);
+  void asrv(V8_REG_OUT const Register& rd, const Register& rn,
+            const Register& rm);
 
   // Rotate right variable.
-  void rorv(const Register& rd, const Register& rn, const Register& rm);
+  void rorv(V8_REG_OUT const Register& rd, const Register& rn,
+            const Register& rm);
 
   // Bitfield instructions.
   // Bitfield move.
-  void bfm(const Register& rd, const Register& rn, int immr, int imms);
+  void bfm(V8_REG_INOUT const Register& rd, const Register& rn, int immr,
+           int imms);
 
   // Signed bitfield move.
-  void sbfm(const Register& rd, const Register& rn, int immr, int imms);
+  void sbfm(V8_REG_OUT const Register& rd, const Register& rn, int immr,
+            int imms);
 
   // Unsigned bitfield move.
-  void ubfm(const Register& rd, const Register& rn, int immr, int imms);
+  void ubfm(V8_REG_OUT const Register& rd, const Register& rn, int immr,
+            int imms);
 
   // Bfm aliases.
   // Bitfield insert.
-  void bfi(const Register& rd, const Register& rn, int lsb, int width) {
+  void bfi(V8_REG_INOUT const Register& rd, const Register& rn, int lsb,
+           int width) {
     DCHECK_GE(width, 1);
     DCHECK(lsb + width <= rn.SizeInBits());
     bfm(rd, rn, (rd.SizeInBits() - lsb) & (rd.SizeInBits() - 1), width - 1);
   }
 
   // Bitfield extract and insert low.
-  void bfxil(const Register& rd, const Register& rn, int lsb, int width) {
+  void bfxil(V8_REG_INOUT const Register& rd, const Register& rn, int lsb,
+             int width) {
     DCHECK_GE(width, 1);
     DCHECK(lsb + width <= rn.SizeInBits());
     bfm(rd, rn, lsb, lsb + width - 1);
@@ -658,108 +816,124 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Sbfm aliases.
   // Arithmetic shift right.
-  void asr(const Register& rd, const Register& rn, int shift) {
+  void asr(V8_REG_OUT const Register& rd, const Register& rn, int shift) {
     DCHECK(shift < rd.SizeInBits());
     sbfm(rd, rn, shift, rd.SizeInBits() - 1);
   }
 
   // Signed bitfield insert in zero.
-  void sbfiz(const Register& rd, const Register& rn, int lsb, int width) {
+  void sbfiz(V8_REG_OUT const Register& rd, const Register& rn, int lsb,
+             int width) {
     DCHECK_GE(width, 1);
     DCHECK(lsb + width <= rn.SizeInBits());
     sbfm(rd, rn, (rd.SizeInBits() - lsb) & (rd.SizeInBits() - 1), width - 1);
   }
 
   // Signed bitfield extract.
-  void sbfx(const Register& rd, const Register& rn, int lsb, int width) {
+  void sbfx(V8_REG_OUT const Register& rd, const Register& rn, int lsb,
+            int width) {
     DCHECK_GE(width, 1);
     DCHECK(lsb + width <= rn.SizeInBits());
     sbfm(rd, rn, lsb, lsb + width - 1);
   }
 
   // Signed extend byte.
-  void sxtb(const Register& rd, const Register& rn) { sbfm(rd, rn, 0, 7); }
+  void sxtb(V8_REG_OUT const Register& rd, const Register& rn) {
+    sbfm(rd, rn, 0, 7);
+  }
 
   // Signed extend halfword.
-  void sxth(const Register& rd, const Register& rn) { sbfm(rd, rn, 0, 15); }
+  void sxth(V8_REG_OUT const Register& rd, const Register& rn) {
+    sbfm(rd, rn, 0, 15);
+  }
 
   // Signed extend word.
-  void sxtw(const Register& rd, const Register& rn) { sbfm(rd, rn, 0, 31); }
+  void sxtw(V8_REG_OUT const Register& rd, const Register& rn) {
+    sbfm(rd, rn, 0, 31);
+  }
 
   // Ubfm aliases.
   // Logical shift left.
-  void lsl(const Register& rd, const Register& rn, int shift) {
+  void lsl(V8_REG_OUT const Register& rd, const Register& rn, int shift) {
     int reg_size = rd.SizeInBits();
     DCHECK(shift < reg_size);
     ubfm(rd, rn, (reg_size - shift) % reg_size, reg_size - shift - 1);
   }
 
   // Logical shift right.
-  void lsr(const Register& rd, const Register& rn, int shift) {
+  void lsr(V8_REG_OUT const Register& rd, const Register& rn, int shift) {
     DCHECK(shift < rd.SizeInBits());
     ubfm(rd, rn, shift, rd.SizeInBits() - 1);
   }
 
   // Unsigned bitfield insert in zero.
-  void ubfiz(const Register& rd, const Register& rn, int lsb, int width) {
+  void ubfiz(V8_REG_OUT const Register& rd, const Register& rn, int lsb,
+             int width) {
     DCHECK_GE(width, 1);
     DCHECK(lsb + width <= rn.SizeInBits());
     ubfm(rd, rn, (rd.SizeInBits() - lsb) & (rd.SizeInBits() - 1), width - 1);
   }
 
   // Unsigned bitfield extract.
-  void ubfx(const Register& rd, const Register& rn, int lsb, int width) {
+  void ubfx(V8_REG_OUT const Register& rd, const Register& rn, int lsb,
+            int width) {
     DCHECK_GE(width, 1);
     DCHECK(lsb + width <= rn.SizeInBits());
     ubfm(rd, rn, lsb, lsb + width - 1);
   }
 
   // Unsigned extend byte.
-  void uxtb(const Register& rd, const Register& rn) { ubfm(rd, rn, 0, 7); }
+  void uxtb(V8_REG_OUT const Register& rd, const Register& rn) {
+    ubfm(rd, rn, 0, 7);
+  }
 
   // Unsigned extend halfword.
-  void uxth(const Register& rd, const Register& rn) { ubfm(rd, rn, 0, 15); }
+  void uxth(V8_REG_OUT const Register& rd, const Register& rn) {
+    ubfm(rd, rn, 0, 15);
+  }
 
   // Unsigned extend word.
-  void uxtw(const Register& rd, const Register& rn) { ubfm(rd, rn, 0, 31); }
+  void uxtw(V8_REG_OUT const Register& rd, const Register& rn) {
+    ubfm(rd, rn, 0, 31);
+  }
 
   // Extract.
-  void extr(const Register& rd, const Register& rn, const Register& rm,
-            int lsb);
+  void extr(V8_REG_OUT const Register& rd, const Register& rn,
+            const Register& rm, int lsb);
 
   // Conditional select: rd = cond ? rn : rm.
-  void csel(const Register& rd, const Register& rn, const Register& rm,
-            Condition cond);
+  void csel(V8_REG_OUT const Register& rd, const Register& rn,
+            const Register& rm, Condition cond);
 
   // Conditional select increment: rd = cond ? rn : rm + 1.
-  void csinc(const Register& rd, const Register& rn, const Register& rm,
-             Condition cond);
+  void csinc(V8_REG_OUT const Register& rd, const Register& rn,
+             const Register& rm, Condition cond);
 
   // Conditional select inversion: rd = cond ? rn : ~rm.
-  void csinv(const Register& rd, const Register& rn, const Register& rm,
-             Condition cond);
+  void csinv(V8_REG_OUT const Register& rd, const Register& rn,
+             const Register& rm, Condition cond);
 
   // Conditional select negation: rd = cond ? rn : -rm.
-  void csneg(const Register& rd, const Register& rn, const Register& rm,
-             Condition cond);
+  void csneg(V8_REG_OUT const Register& rd, const Register& rn,
+             const Register& rm, Condition cond);
 
   // Conditional set: rd = cond ? 1 : 0.
-  void cset(const Register& rd, Condition cond);
+  void cset(V8_REG_OUT const Register& rd, Condition cond);
 
   // Conditional set minus: rd = cond ? -1 : 0.
-  void csetm(const Register& rd, Condition cond);
+  void csetm(V8_REG_OUT const Register& rd, Condition cond);
 
   // Conditional increment: rd = cond ? rn + 1 : rn.
-  void cinc(const Register& rd, const Register& rn, Condition cond);
+  void cinc(V8_REG_OUT const Register& rd, const Register& rn, Condition cond);
 
   // Conditional invert: rd = cond ? ~rn : rn.
-  void cinv(const Register& rd, const Register& rn, Condition cond);
+  void cinv(V8_REG_OUT const Register& rd, const Register& rn, Condition cond);
 
   // Conditional negate: rd = cond ? -rn : rn.
-  void cneg(const Register& rd, const Register& rn, Condition cond);
+  void cneg(V8_REG_OUT const Register& rd, const Register& rn, Condition cond);
 
   // Extr aliases.
-  void ror(const Register& rd, const Register& rs, unsigned shift) {
+  void ror(V8_REG_OUT const Register& rd, const Register& rs, unsigned shift) {
     extr(rd, rs, rs, shift);
   }
 
@@ -774,126 +948,137 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Multiplication.
   // 32 x 32 -> 32-bit and 64 x 64 -> 64-bit multiply.
-  void mul(const Register& rd, const Register& rn, const Register& rm);
+  void mul(V8_REG_OUT const Register& rd, const Register& rn,
+           const Register& rm);
 
   // 32 + 32 x 32 -> 32-bit and 64 + 64 x 64 -> 64-bit multiply accumulate.
-  void madd(const Register& rd, const Register& rn, const Register& rm,
-            const Register& ra);
+  void madd(V8_REG_OUT const Register& rd, const Register& rn,
+            const Register& rm, const Register& ra);
 
   // -(32 x 32) -> 32-bit and -(64 x 64) -> 64-bit multiply.
-  void mneg(const Register& rd, const Register& rn, const Register& rm);
+  void mneg(V8_REG_OUT const Register& rd, const Register& rn,
+            const Register& rm);
 
   // 32 - 32 x 32 -> 32-bit and 64 - 64 x 64 -> 64-bit multiply subtract.
-  void msub(const Register& rd, const Register& rn, const Register& rm,
-            const Register& ra);
+  void msub(V8_REG_OUT const Register& rd, const Register& rn,
+            const Register& rm, const Register& ra);
 
   // 32 x 32 -> 64-bit multiply.
-  void smull(const Register& rd, const Register& rn, const Register& rm);
+  void smull(V8_REG_OUT const Register& rd, const Register& rn,
+             const Register& rm);
 
   // Xd = bits<127:64> of Xn * Xm, signed.
-  void smulh(const Register& rd, const Register& rn, const Register& rm);
+  void smulh(V8_REG_OUT const Register& rd, const Register& rn,
+             const Register& rm);
 
   // Xd = bits<127:64> of Xn * Xm, unsigned.
-  void umulh(const Register& rd, const Register& rn, const Register& rm);
+  void umulh(V8_REG_OUT const Register& rd, const Register& rn,
+             const Register& rm);
 
   // Signed 32 x 32 -> 64-bit multiply and accumulate.
-  void smaddl(const Register& rd, const Register& rn, const Register& rm,
-              const Register& ra);
+  void smaddl(V8_REG_OUT const Register& rd, const Register& rn,
+              const Register& rm, const Register& ra);
 
   // Unsigned 32 x 32 -> 64-bit multiply and accumulate.
-  void umaddl(const Register& rd, const Register& rn, const Register& rm,
-              const Register& ra);
+  void umaddl(V8_REG_OUT const Register& rd, const Register& rn,
+              const Register& rm, const Register& ra);
 
   // Signed 32 x 32 -> 64-bit multiply and subtract.
-  void smsubl(const Register& rd, const Register& rn, const Register& rm,
-              const Register& ra);
+  void smsubl(V8_REG_OUT const Register& rd, const Register& rn,
+              const Register& rm, const Register& ra);
 
   // Unsigned 32 x 32 -> 64-bit multiply and subtract.
-  void umsubl(const Register& rd, const Register& rn, const Register& rm,
-              const Register& ra);
+  void umsubl(V8_REG_OUT const Register& rd, const Register& rn,
+              const Register& rm, const Register& ra);
 
   // Signed integer divide.
-  void sdiv(const Register& rd, const Register& rn, const Register& rm);
+  void sdiv(V8_REG_OUT const Register& rd, const Register& rn,
+            const Register& rm);
 
   // Unsigned integer divide.
-  void udiv(const Register& rd, const Register& rn, const Register& rm);
+  void udiv(V8_REG_OUT const Register& rd, const Register& rn,
+            const Register& rm);
 
   // Bit count, bit reverse and endian reverse.
-  void rbit(const Register& rd, const Register& rn);
-  void rev16(const Register& rd, const Register& rn);
-  void rev32(const Register& rd, const Register& rn);
-  void rev(const Register& rd, const Register& rn);
-  void clz(const Register& rd, const Register& rn);
-  void cls(const Register& rd, const Register& rn);
+  void rbit(V8_REG_OUT const Register& rd, const Register& rn);
+  void rev16(V8_REG_OUT const Register& rd, const Register& rn);
+  void rev32(V8_REG_OUT const Register& rd, const Register& rn);
+  void rev(V8_REG_OUT const Register& rd, const Register& rn);
+  void clz(V8_REG_OUT const Register& rd, const Register& rn);
+  void cls(V8_REG_OUT const Register& rd, const Register& rn);
 
   // Absolute value.
-  void abs(const Register& rd, const Register& rn);
+  void abs(V8_REG_OUT const Register& rd, const Register& rn);
 
   // Count bits.
-  void cnt(const Register& rd, const Register& rn);
+  void cnt(V8_REG_OUT const Register& rd, const Register& rn);
 
   // Count Trailing Zeros.
-  void ctz(const Register& rd, const Register& rn);
+  void ctz(V8_REG_OUT const Register& rd, const Register& rn);
 
   // Signed Maximum.
-  void smax(const Register& rd, const Register& rn, const Operand& op);
+  void smax(V8_REG_OUT const Register& rd, const Register& rn,
+            const Operand& op);
 
   // Signed Minimum.
-  void smin(const Register& rd, const Register& rn, const Operand& op);
+  void smin(V8_REG_OUT const Register& rd, const Register& rn,
+            const Operand& op);
 
   // Unsigned Maximum.
-  void umax(const Register& rd, const Register& rn, const Operand& op);
+  void umax(V8_REG_OUT const Register& rd, const Register& rn,
+            const Operand& op);
 
   // Unsigned Minimum.
-  void umin(const Register& rd, const Register& rn, const Operand& op);
+  void umin(V8_REG_OUT const Register& rd, const Register& rn,
+            const Operand& op);
 
   // Pointer Authentication InstructionStream for Instruction address, using key
   // B, with address in x17 and modifier in x16 [Armv8.3].
-  void pacib1716();
+  V8_REG_IMPLICIT_IN(ip0) V8_REG_IMPLICIT_INOUT(ip1) void pacib1716();
 
   // Pointer Authentication InstructionStream for Instruction address, using key
   // B, with address in LR and modifier in SP [Armv8.3].
-  void pacibsp();
+  V8_REG_IMPLICIT_INOUT(lr) void pacibsp();
 
   // Authenticate Instruction address, using key B, with address in x17 and
   // modifier in x16 [Armv8.3].
-  void autib1716();
+  V8_REG_IMPLICIT_IN(ip0) V8_REG_IMPLICIT_INOUT(ip1) void autib1716();
 
   // Authenticate Instruction address, using key B, with address in LR and
   // modifier in SP [Armv8.3].
-  void autibsp();
+  V8_REG_IMPLICIT_INOUT(lr) void autibsp();
 
   // Memory instructions.
 
   // Load integer or FP register.
-  void ldr(const CPURegister& rt, const MemOperand& src);
+  void ldr(V8_REG_OUT const CPURegister& rt, const MemOperand& src);
 
   // Store integer or FP register.
   void str(const CPURegister& rt, const MemOperand& dst);
 
   // Load word with sign extension.
-  void ldrsw(const Register& rt, const MemOperand& src);
+  void ldrsw(V8_REG_OUT const Register& rt, const MemOperand& src);
 
   // Load byte.
-  void ldrb(const Register& rt, const MemOperand& src);
+  void ldrb(V8_REG_OUT const Register& rt, const MemOperand& src);
 
   // Store byte.
   void strb(const Register& rt, const MemOperand& dst);
 
   // Load byte with sign extension.
-  void ldrsb(const Register& rt, const MemOperand& src);
+  void ldrsb(V8_REG_OUT const Register& rt, const MemOperand& src);
 
   // Load half-word.
-  void ldrh(const Register& rt, const MemOperand& src);
+  void ldrh(V8_REG_OUT const Register& rt, const MemOperand& src);
 
   // Store half-word.
   void strh(const Register& rt, const MemOperand& dst);
 
   // Load half-word with sign extension.
-  void ldrsh(const Register& rt, const MemOperand& src);
+  void ldrsh(V8_REG_OUT const Register& rt, const MemOperand& src);
 
   // Load integer or FP register pair.
-  void ldp(const CPURegister& rt, const CPURegister& rt2,
+  void ldp(V8_REG_OUT const CPURegister& rt, V8_REG_OUT const CPURegister& rt2,
            const MemOperand& src);
 
   // Store integer or FP register pair.
@@ -901,50 +1086,54 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
            const MemOperand& dst);
 
   // Load word pair with sign extension.
-  void ldpsw(const Register& rt, const Register& rt2, const MemOperand& src);
+  void ldpsw(V8_REG_OUT const Register& rt, V8_REG_OUT const Register& rt2,
+             const MemOperand& src);
 
   // Load literal to register from a pc relative address.
-  void ldr_pcrel(const CPURegister& rt, int imm19);
+  void ldr_pcrel(V8_REG_OUT const CPURegister& rt, int imm19);
 
   // Load literal to register.
-  void ldr(const CPURegister& rt, const Immediate& imm);
-  void ldr(const CPURegister& rt, const Operand& operand);
+  void ldr(V8_REG_OUT const CPURegister& rt, const Immediate& imm);
+  void ldr(V8_REG_OUT const CPURegister& rt, const Operand& operand);
 
   // Load-acquire word.
-  void ldar(const Register& rt, const Register& rn);
+  void ldar(V8_REG_OUT const Register& rt, const Register& rn);
 
   // Load-acquire exclusive word.
-  void ldaxr(const Register& rt, const Register& rn);
+  void ldaxr(V8_REG_OUT const Register& rt, const Register& rn);
 
   // Store-release word.
   void stlr(const Register& rt, const Register& rn);
 
   // Store-release exclusive word.
-  void stlxr(const Register& rs, const Register& rt, const Register& rn);
+  void stlxr(V8_REG_OUT const Register& rs, const Register& rt,
+             const Register& rn);
 
   // Load-acquire byte.
-  void ldarb(const Register& rt, const Register& rn);
+  void ldarb(V8_REG_OUT const Register& rt, const Register& rn);
 
   // Load-acquire exclusive byte.
-  void ldaxrb(const Register& rt, const Register& rn);
+  void ldaxrb(V8_REG_OUT const Register& rt, const Register& rn);
 
   // Store-release byte.
   void stlrb(const Register& rt, const Register& rn);
 
   // Store-release exclusive byte.
-  void stlxrb(const Register& rs, const Register& rt, const Register& rn);
+  void stlxrb(V8_REG_OUT const Register& rs, const Register& rt,
+              const Register& rn);
 
   // Load-acquire half-word.
-  void ldarh(const Register& rt, const Register& rn);
+  void ldarh(V8_REG_OUT const Register& rt, const Register& rn);
 
   // Load-acquire exclusive half-word.
-  void ldaxrh(const Register& rt, const Register& rn);
+  void ldaxrh(V8_REG_OUT const Register& rt, const Register& rn);
 
   // Store-release half-word.
   void stlrh(const Register& rt, const Register& rn);
 
   // Store-release exclusive half-word.
-  void stlxrh(const Register& rs, const Register& rt, const Register& rn);
+  void stlxrh(V8_REG_OUT const Register& rs, const Register& rt,
+              const Register& rn);
 
   // Store-release byte (unscaled offset) [Armv8.4].
   void stlurb(const Register& rt, const MemOperand& dst);
@@ -956,434 +1145,542 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void stlur(const Register& rt, const MemOperand& dst);
 
   // Load-acquire RCpc byte (unscaled offset) [Armv8.4].
-  void ldapurb(const Register& rt, const MemOperand& src);
+  void ldapurb(V8_REG_OUT const Register& rt, const MemOperand& src);
 
   // Load-acquire RCpc signed byte (unscaled offset) [Armv8.4].
-  void ldapursb(const Register& rt, const MemOperand& src);
+  void ldapursb(V8_REG_OUT const Register& rt, const MemOperand& src);
 
   // Load-acquire RCpc half-word (unscaled offset) [Armv8.4].
-  void ldapurh(const Register& rt, const MemOperand& src);
+  void ldapurh(V8_REG_OUT const Register& rt, const MemOperand& src);
 
   // Load-acquire RCpc signed half-word (unscaled offset) [Armv8.4].
-  void ldapursh(const Register& rt, const MemOperand& src);
+  void ldapursh(V8_REG_OUT const Register& rt, const MemOperand& src);
 
   // Load-acquire RCpc word or doubleword (unscaled offset) [Armv8.4].
-  void ldapur(const Register& rt, const MemOperand& src);
+  void ldapur(V8_REG_OUT const Register& rt, const MemOperand& src);
 
   // Load-acquire RCpc signed word (unscaled offset) [Armv8.4].
-  void ldapursw(const Register& rt, const MemOperand& src);
+  void ldapursw(V8_REG_OUT const Register& rt, const MemOperand& src);
 
   // Compare and Swap word or doubleword in memory [Armv8.1].
-  void cas(const Register& rs, const Register& rt, const MemOperand& src);
+  void cas(V8_REG_INOUT const Register& rs, const Register& rt,
+           const MemOperand& src);
 
   // Compare and Swap word or doubleword in memory, with Load-acquire semantics
   // [Armv8.1].
-  void casa(const Register& rs, const Register& rt, const MemOperand& src);
+  void casa(V8_REG_INOUT const Register& rs, const Register& rt,
+            const MemOperand& src);
 
   // Compare and Swap word or doubleword in memory, with Store-release semantics
   // [Armv8.1].
-  void casl(const Register& rs, const Register& rt, const MemOperand& src);
+  void casl(V8_REG_INOUT const Register& rs, const Register& rt,
+            const MemOperand& src);
 
   // Compare and Swap word or doubleword in memory, with Load-acquire and
   // Store-release semantics [Armv8.1].
-  void casal(const Register& rs, const Register& rt, const MemOperand& src);
+  void casal(V8_REG_INOUT const Register& rs, const Register& rt,
+             const MemOperand& src);
 
   // Compare and Swap byte in memory [Armv8.1].
-  void casb(const Register& rs, const Register& rt, const MemOperand& src);
+  void casb(V8_REG_INOUT const Register& rs, const Register& rt,
+            const MemOperand& src);
 
   // Compare and Swap byte in memory, with Load-acquire semantics [Armv8.1].
-  void casab(const Register& rs, const Register& rt, const MemOperand& src);
+  void casab(V8_REG_INOUT const Register& rs, const Register& rt,
+             const MemOperand& src);
 
   // Compare and Swap byte in memory, with Store-release semantics [Armv8.1].
-  void caslb(const Register& rs, const Register& rt, const MemOperand& src);
+  void caslb(V8_REG_INOUT const Register& rs, const Register& rt,
+             const MemOperand& src);
 
   // Compare and Swap byte in memory, with Load-acquire and Store-release
   // semantics [Armv8.1].
-  void casalb(const Register& rs, const Register& rt, const MemOperand& src);
+  void casalb(V8_REG_INOUT const Register& rs, const Register& rt,
+              const MemOperand& src);
 
   // Compare and Swap halfword in memory [Armv8.1].
-  void cash(const Register& rs, const Register& rt, const MemOperand& src);
+  void cash(V8_REG_INOUT const Register& rs, const Register& rt,
+            const MemOperand& src);
 
   // Compare and Swap halfword in memory, with Load-acquire semantics [Armv8.1].
-  void casah(const Register& rs, const Register& rt, const MemOperand& src);
+  void casah(V8_REG_INOUT const Register& rs, const Register& rt,
+             const MemOperand& src);
 
   // Compare and Swap halfword in memory, with Store-release semantics
   // [Armv8.1].
-  void caslh(const Register& rs, const Register& rt, const MemOperand& src);
+  void caslh(V8_REG_INOUT const Register& rs, const Register& rt,
+             const MemOperand& src);
 
   // Compare and Swap halfword in memory, with Load-acquire and Store-release
   // semantics [Armv8.1].
-  void casalh(const Register& rs, const Register& rt, const MemOperand& src);
+  void casalh(V8_REG_INOUT const Register& rs, const Register& rt,
+              const MemOperand& src);
 
   // Compare and Swap Pair of words or doublewords in memory [Armv8.1].
-  void casp(const Register& rs, const Register& rs2, const Register& rt,
-            const Register& rt2, const MemOperand& src);
+  void casp(V8_REG_INOUT const Register& rs, V8_REG_INOUT const Register& rs2,
+            const Register& rt, const Register& rt2, const MemOperand& src);
 
   // Compare and Swap Pair of words or doublewords in memory, with Load-acquire
   // semantics [Armv8.1].
-  void caspa(const Register& rs, const Register& rs2, const Register& rt,
-             const Register& rt2, const MemOperand& src);
+  void caspa(V8_REG_INOUT const Register& rs, V8_REG_INOUT const Register& rs2,
+             const Register& rt, const Register& rt2, const MemOperand& src);
 
   // Compare and Swap Pair of words or doublewords in memory, with Store-release
   // semantics [Armv8.1].
-  void caspl(const Register& rs, const Register& rs2, const Register& rt,
-             const Register& rt2, const MemOperand& src);
+  void caspl(V8_REG_INOUT const Register& rs, V8_REG_INOUT const Register& rs2,
+             const Register& rt, const Register& rt2, const MemOperand& src);
 
   // Compare and Swap Pair of words or doublewords in memory, with Load-acquire
   // and Store-release semantics [Armv8.1].
-  void caspal(const Register& rs, const Register& rs2, const Register& rt,
-              const Register& rt2, const MemOperand& src);
+  void caspal(V8_REG_INOUT const Register& rs, V8_REG_INOUT const Register& rs2,
+              const Register& rt, const Register& rt2, const MemOperand& src);
 
   // Atomic add on byte in memory [Armv8.1]
-  void ldaddb(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldaddb(const Register& rs, V8_REG_OUT const Register& rt,
+              const MemOperand& src);
 
   // Atomic add on byte in memory, with Load-acquire semantics [Armv8.1]
-  void ldaddab(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldaddab(const Register& rs, V8_REG_OUT const Register& rt,
+               const MemOperand& src);
 
   // Atomic add on byte in memory, with Store-release semantics [Armv8.1]
-  void ldaddlb(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldaddlb(const Register& rs, V8_REG_OUT const Register& rt,
+               const MemOperand& src);
 
   // Atomic add on byte in memory, with Load-acquire and Store-release semantics
   // [Armv8.1]
-  void ldaddalb(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldaddalb(const Register& rs, V8_REG_OUT const Register& rt,
+                const MemOperand& src);
 
   // Atomic add on halfword in memory [Armv8.1]
-  void ldaddh(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldaddh(const Register& rs, V8_REG_OUT const Register& rt,
+              const MemOperand& src);
 
   // Atomic add on halfword in memory, with Load-acquire semantics [Armv8.1]
-  void ldaddah(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldaddah(const Register& rs, V8_REG_OUT const Register& rt,
+               const MemOperand& src);
 
   // Atomic add on halfword in memory, with Store-release semantics [Armv8.1]
-  void ldaddlh(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldaddlh(const Register& rs, V8_REG_OUT const Register& rt,
+               const MemOperand& src);
 
   // Atomic add on halfword in memory, with Load-acquire and Store-release
   // semantics [Armv8.1]
-  void ldaddalh(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldaddalh(const Register& rs, V8_REG_OUT const Register& rt,
+                const MemOperand& src);
 
   // Atomic add on word or doubleword in memory [Armv8.1]
-  void ldadd(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldadd(const Register& rs, V8_REG_OUT const Register& rt,
+             const MemOperand& src);
 
   // Atomic add on word or doubleword in memory, with Load-acquire semantics
   // [Armv8.1]
-  void ldadda(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldadda(const Register& rs, V8_REG_OUT const Register& rt,
+              const MemOperand& src);
 
   // Atomic add on word or doubleword in memory, with Store-release semantics
   // [Armv8.1]
-  void ldaddl(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldaddl(const Register& rs, V8_REG_OUT const Register& rt,
+              const MemOperand& src);
 
   // Atomic add on word or doubleword in memory, with Load-acquire and
   // Store-release semantics [Armv8.1]
-  void ldaddal(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldaddal(const Register& rs, V8_REG_OUT const Register& rt,
+               const MemOperand& src);
 
   // Atomic bit clear on byte in memory [Armv8.1]
-  void ldclrb(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldclrb(const Register& rs, V8_REG_OUT const Register& rt,
+              const MemOperand& src);
 
   // Atomic bit clear on byte in memory, with Load-acquire semantics [Armv8.1]
-  void ldclrab(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldclrab(const Register& rs, V8_REG_OUT const Register& rt,
+               const MemOperand& src);
 
   // Atomic bit clear on byte in memory, with Store-release semantics [Armv8.1]
-  void ldclrlb(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldclrlb(const Register& rs, V8_REG_OUT const Register& rt,
+               const MemOperand& src);
 
   // Atomic bit clear on byte in memory, with Load-acquire and Store-release
   // semantics [Armv8.1]
-  void ldclralb(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldclralb(const Register& rs, V8_REG_OUT const Register& rt,
+                const MemOperand& src);
 
   // Atomic bit clear on halfword in memory [Armv8.1]
-  void ldclrh(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldclrh(const Register& rs, V8_REG_OUT const Register& rt,
+              const MemOperand& src);
 
   // Atomic bit clear on halfword in memory, with Load-acquire semantics
   // [Armv8.1]
-  void ldclrah(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldclrah(const Register& rs, V8_REG_OUT const Register& rt,
+               const MemOperand& src);
 
   // Atomic bit clear on halfword in memory, with Store-release semantics
   // [Armv8.1]
-  void ldclrlh(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldclrlh(const Register& rs, V8_REG_OUT const Register& rt,
+               const MemOperand& src);
 
   // Atomic bit clear on halfword in memory, with Load-acquire and Store-release
   // semantics [Armv8.1]
-  void ldclralh(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldclralh(const Register& rs, V8_REG_OUT const Register& rt,
+                const MemOperand& src);
 
   // Atomic bit clear on word or doubleword in memory [Armv8.1]
-  void ldclr(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldclr(const Register& rs, V8_REG_OUT const Register& rt,
+             const MemOperand& src);
 
   // Atomic bit clear on word or doubleword in memory, with Load-acquire
   // semantics [Armv8.1]
-  void ldclra(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldclra(const Register& rs, V8_REG_OUT const Register& rt,
+              const MemOperand& src);
 
   // Atomic bit clear on word or doubleword in memory, with Store-release
   // semantics [Armv8.1]
-  void ldclrl(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldclrl(const Register& rs, V8_REG_OUT const Register& rt,
+              const MemOperand& src);
 
   // Atomic bit clear on word or doubleword in memory, with Load-acquire and
   // Store-release semantics [Armv8.1]
-  void ldclral(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldclral(const Register& rs, V8_REG_OUT const Register& rt,
+               const MemOperand& src);
 
   // Atomic exclusive OR on byte in memory [Armv8.1]
-  void ldeorb(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldeorb(const Register& rs, V8_REG_OUT const Register& rt,
+              const MemOperand& src);
 
   // Atomic exclusive OR on byte in memory, with Load-acquire semantics
   // [Armv8.1]
-  void ldeorab(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldeorab(const Register& rs, V8_REG_OUT const Register& rt,
+               const MemOperand& src);
 
   // Atomic exclusive OR on byte in memory, with Store-release semantics
   // [Armv8.1]
-  void ldeorlb(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldeorlb(const Register& rs, V8_REG_OUT const Register& rt,
+               const MemOperand& src);
 
   // Atomic exclusive OR on byte in memory, with Load-acquire and Store-release
   // semantics [Armv8.1]
-  void ldeoralb(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldeoralb(const Register& rs, V8_REG_OUT const Register& rt,
+                const MemOperand& src);
 
   // Atomic exclusive OR on halfword in memory [Armv8.1]
-  void ldeorh(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldeorh(const Register& rs, V8_REG_OUT const Register& rt,
+              const MemOperand& src);
 
   // Atomic exclusive OR on halfword in memory, with Load-acquire semantics
   // [Armv8.1]
-  void ldeorah(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldeorah(const Register& rs, V8_REG_OUT const Register& rt,
+               const MemOperand& src);
 
   // Atomic exclusive OR on halfword in memory, with Store-release semantics
   // [Armv8.1]
-  void ldeorlh(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldeorlh(const Register& rs, V8_REG_OUT const Register& rt,
+               const MemOperand& src);
 
   // Atomic exclusive OR on halfword in memory, with Load-acquire and
   // Store-release semantics [Armv8.1]
-  void ldeoralh(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldeoralh(const Register& rs, V8_REG_OUT const Register& rt,
+                const MemOperand& src);
 
   // Atomic exclusive OR on word or doubleword in memory [Armv8.1]
-  void ldeor(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldeor(const Register& rs, V8_REG_OUT const Register& rt,
+             const MemOperand& src);
 
   // Atomic exclusive OR on word or doubleword in memory, with Load-acquire
   // semantics [Armv8.1]
-  void ldeora(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldeora(const Register& rs, V8_REG_OUT const Register& rt,
+              const MemOperand& src);
 
   // Atomic exclusive OR on word or doubleword in memory, with Store-release
   // semantics [Armv8.1]
-  void ldeorl(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldeorl(const Register& rs, V8_REG_OUT const Register& rt,
+              const MemOperand& src);
 
   // Atomic exclusive OR on word or doubleword in memory, with Load-acquire and
   // Store-release semantics [Armv8.1]
-  void ldeoral(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldeoral(const Register& rs, V8_REG_OUT const Register& rt,
+               const MemOperand& src);
 
   // Atomic bit set on byte in memory [Armv8.1]
-  void ldsetb(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldsetb(const Register& rs, V8_REG_OUT const Register& rt,
+              const MemOperand& src);
 
   // Atomic bit set on byte in memory, with Load-acquire semantics [Armv8.1]
-  void ldsetab(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldsetab(const Register& rs, V8_REG_OUT const Register& rt,
+               const MemOperand& src);
 
   // Atomic bit set on byte in memory, with Store-release semantics [Armv8.1]
-  void ldsetlb(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldsetlb(const Register& rs, V8_REG_OUT const Register& rt,
+               const MemOperand& src);
 
   // Atomic bit set on byte in memory, with Load-acquire and Store-release
   // semantics [Armv8.1]
-  void ldsetalb(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldsetalb(const Register& rs, V8_REG_OUT const Register& rt,
+                const MemOperand& src);
 
   // Atomic bit set on halfword in memory [Armv8.1]
-  void ldseth(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldseth(const Register& rs, V8_REG_OUT const Register& rt,
+              const MemOperand& src);
 
   // Atomic bit set on halfword in memory, with Load-acquire semantics [Armv8.1]
-  void ldsetah(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldsetah(const Register& rs, V8_REG_OUT const Register& rt,
+               const MemOperand& src);
 
   // Atomic bit set on halfword in memory, with Store-release semantics
   // [Armv8.1]
-  void ldsetlh(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldsetlh(const Register& rs, V8_REG_OUT const Register& rt,
+               const MemOperand& src);
 
   // Atomic bit set on halfword in memory, with Load-acquire and Store-release
   // semantics [Armv8.1]
-  void ldsetalh(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldsetalh(const Register& rs, V8_REG_OUT const Register& rt,
+                const MemOperand& src);
 
   // Atomic bit set on word or doubleword in memory [Armv8.1]
-  void ldset(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldset(const Register& rs, V8_REG_OUT const Register& rt,
+             const MemOperand& src);
 
   // Atomic bit set on word or doubleword in memory, with Load-acquire semantics
   // [Armv8.1]
-  void ldseta(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldseta(const Register& rs, V8_REG_OUT const Register& rt,
+              const MemOperand& src);
 
   // Atomic bit set on word or doubleword in memory, with Store-release
   // semantics [Armv8.1]
-  void ldsetl(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldsetl(const Register& rs, V8_REG_OUT const Register& rt,
+              const MemOperand& src);
 
   // Atomic bit set on word or doubleword in memory, with Load-acquire and
   // Store-release semantics [Armv8.1]
-  void ldsetal(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldsetal(const Register& rs, V8_REG_OUT const Register& rt,
+               const MemOperand& src);
 
   // Atomic signed maximum on byte in memory [Armv8.1]
-  void ldsmaxb(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldsmaxb(const Register& rs, V8_REG_OUT const Register& rt,
+               const MemOperand& src);
 
   // Atomic signed maximum on byte in memory, with Load-acquire semantics
   // [Armv8.1]
-  void ldsmaxab(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldsmaxab(const Register& rs, V8_REG_OUT const Register& rt,
+                const MemOperand& src);
 
   // Atomic signed maximum on byte in memory, with Store-release semantics
   // [Armv8.1]
-  void ldsmaxlb(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldsmaxlb(const Register& rs, V8_REG_OUT const Register& rt,
+                const MemOperand& src);
 
   // Atomic signed maximum on byte in memory, with Load-acquire and
   // Store-release semantics [Armv8.1]
-  void ldsmaxalb(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldsmaxalb(const Register& rs, V8_REG_OUT const Register& rt,
+                 const MemOperand& src);
 
   // Atomic signed maximum on halfword in memory [Armv8.1]
-  void ldsmaxh(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldsmaxh(const Register& rs, V8_REG_OUT const Register& rt,
+               const MemOperand& src);
 
   // Atomic signed maximum on halfword in memory, with Load-acquire semantics
   // [Armv8.1]
-  void ldsmaxah(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldsmaxah(const Register& rs, V8_REG_OUT const Register& rt,
+                const MemOperand& src);
 
   // Atomic signed maximum on halfword in memory, with Store-release semantics
   // [Armv8.1]
-  void ldsmaxlh(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldsmaxlh(const Register& rs, V8_REG_OUT const Register& rt,
+                const MemOperand& src);
 
   // Atomic signed maximum on halfword in memory, with Load-acquire and
   // Store-release semantics [Armv8.1]
-  void ldsmaxalh(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldsmaxalh(const Register& rs, V8_REG_OUT const Register& rt,
+                 const MemOperand& src);
 
   // Atomic signed maximum on word or doubleword in memory [Armv8.1]
-  void ldsmax(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldsmax(const Register& rs, V8_REG_OUT const Register& rt,
+              const MemOperand& src);
 
   // Atomic signed maximum on word or doubleword in memory, with Load-acquire
   // semantics [Armv8.1]
-  void ldsmaxa(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldsmaxa(const Register& rs, V8_REG_OUT const Register& rt,
+               const MemOperand& src);
 
   // Atomic signed maximum on word or doubleword in memory, with Store-release
   // semantics [Armv8.1]
-  void ldsmaxl(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldsmaxl(const Register& rs, V8_REG_OUT const Register& rt,
+               const MemOperand& src);
 
   // Atomic signed maximum on word or doubleword in memory, with Load-acquire
   // and Store-release semantics [Armv8.1]
-  void ldsmaxal(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldsmaxal(const Register& rs, V8_REG_OUT const Register& rt,
+                const MemOperand& src);
 
   // Atomic signed minimum on byte in memory [Armv8.1]
-  void ldsminb(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldsminb(const Register& rs, V8_REG_OUT const Register& rt,
+               const MemOperand& src);
 
   // Atomic signed minimum on byte in memory, with Load-acquire semantics
   // [Armv8.1]
-  void ldsminab(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldsminab(const Register& rs, V8_REG_OUT const Register& rt,
+                const MemOperand& src);
 
   // Atomic signed minimum on byte in memory, with Store-release semantics
   // [Armv8.1]
-  void ldsminlb(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldsminlb(const Register& rs, V8_REG_OUT const Register& rt,
+                const MemOperand& src);
 
   // Atomic signed minimum on byte in memory, with Load-acquire and
   // Store-release semantics [Armv8.1]
-  void ldsminalb(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldsminalb(const Register& rs, V8_REG_OUT const Register& rt,
+                 const MemOperand& src);
 
   // Atomic signed minimum on halfword in memory [Armv8.1]
-  void ldsminh(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldsminh(const Register& rs, V8_REG_OUT const Register& rt,
+               const MemOperand& src);
 
   // Atomic signed minimum on halfword in memory, with Load-acquire semantics
   // [Armv8.1]
-  void ldsminah(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldsminah(const Register& rs, V8_REG_OUT const Register& rt,
+                const MemOperand& src);
 
   // Atomic signed minimum on halfword in memory, with Store-release semantics
   // [Armv8.1]
-  void ldsminlh(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldsminlh(const Register& rs, V8_REG_OUT const Register& rt,
+                const MemOperand& src);
 
   // Atomic signed minimum on halfword in memory, with Load-acquire and
   // Store-release semantics [Armv8.1]
-  void ldsminalh(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldsminalh(const Register& rs, V8_REG_OUT const Register& rt,
+                 const MemOperand& src);
 
   // Atomic signed minimum on word or doubleword in memory [Armv8.1]
-  void ldsmin(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldsmin(const Register& rs, V8_REG_OUT const Register& rt,
+              const MemOperand& src);
 
   // Atomic signed minimum on word or doubleword in memory, with Load-acquire
   // semantics [Armv8.1]
-  void ldsmina(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldsmina(const Register& rs, V8_REG_OUT const Register& rt,
+               const MemOperand& src);
 
   // Atomic signed minimum on word or doubleword in memory, with Store-release
   // semantics [Armv8.1]
-  void ldsminl(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldsminl(const Register& rs, V8_REG_OUT const Register& rt,
+               const MemOperand& src);
 
   // Atomic signed minimum on word or doubleword in memory, with Load-acquire
   // and Store-release semantics [Armv8.1]
-  void ldsminal(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldsminal(const Register& rs, V8_REG_OUT const Register& rt,
+                const MemOperand& src);
 
   // Atomic unsigned maximum on byte in memory [Armv8.1]
-  void ldumaxb(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldumaxb(const Register& rs, V8_REG_OUT const Register& rt,
+               const MemOperand& src);
 
   // Atomic unsigned maximum on byte in memory, with Load-acquire semantics
   // [Armv8.1]
-  void ldumaxab(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldumaxab(const Register& rs, V8_REG_OUT const Register& rt,
+                const MemOperand& src);
 
   // Atomic unsigned maximum on byte in memory, with Store-release semantics
   // [Armv8.1]
-  void ldumaxlb(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldumaxlb(const Register& rs, V8_REG_OUT const Register& rt,
+                const MemOperand& src);
 
   // Atomic unsigned maximum on byte in memory, with Load-acquire and
   // Store-release semantics [Armv8.1]
-  void ldumaxalb(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldumaxalb(const Register& rs, V8_REG_OUT const Register& rt,
+                 const MemOperand& src);
 
   // Atomic unsigned maximum on halfword in memory [Armv8.1]
-  void ldumaxh(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldumaxh(const Register& rs, V8_REG_OUT const Register& rt,
+               const MemOperand& src);
 
   // Atomic unsigned maximum on halfword in memory, with Load-acquire semantics
   // [Armv8.1]
-  void ldumaxah(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldumaxah(const Register& rs, V8_REG_OUT const Register& rt,
+                const MemOperand& src);
 
   // Atomic unsigned maximum on halfword in memory, with Store-release semantics
   // [Armv8.1]
-  void ldumaxlh(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldumaxlh(const Register& rs, V8_REG_OUT const Register& rt,
+                const MemOperand& src);
 
   // Atomic unsigned maximum on halfword in memory, with Load-acquire and
   // Store-release semantics [Armv8.1]
-  void ldumaxalh(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldumaxalh(const Register& rs, V8_REG_OUT const Register& rt,
+                 const MemOperand& src);
 
   // Atomic unsigned maximum on word or doubleword in memory [Armv8.1]
-  void ldumax(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldumax(const Register& rs, V8_REG_OUT const Register& rt,
+              const MemOperand& src);
 
   // Atomic unsigned maximum on word or doubleword in memory, with Load-acquire
   // semantics [Armv8.1]
-  void ldumaxa(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldumaxa(const Register& rs, V8_REG_OUT const Register& rt,
+               const MemOperand& src);
 
   // Atomic unsigned maximum on word or doubleword in memory, with Store-release
   // semantics [Armv8.1]
-  void ldumaxl(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldumaxl(const Register& rs, V8_REG_OUT const Register& rt,
+               const MemOperand& src);
 
   // Atomic unsigned maximum on word or doubleword in memory, with Load-acquire
   // and Store-release semantics [Armv8.1]
-  void ldumaxal(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldumaxal(const Register& rs, V8_REG_OUT const Register& rt,
+                const MemOperand& src);
 
   // Atomic unsigned minimum on byte in memory [Armv8.1]
-  void lduminb(const Register& rs, const Register& rt, const MemOperand& src);
+  void lduminb(const Register& rs, V8_REG_OUT const Register& rt,
+               const MemOperand& src);
 
   // Atomic unsigned minimum on byte in memory, with Load-acquire semantics
   // [Armv8.1]
-  void lduminab(const Register& rs, const Register& rt, const MemOperand& src);
+  void lduminab(const Register& rs, V8_REG_OUT const Register& rt,
+                const MemOperand& src);
 
   // Atomic unsigned minimum on byte in memory, with Store-release semantics
   // [Armv8.1]
-  void lduminlb(const Register& rs, const Register& rt, const MemOperand& src);
+  void lduminlb(const Register& rs, V8_REG_OUT const Register& rt,
+                const MemOperand& src);
 
   // Atomic unsigned minimum on byte in memory, with Load-acquire and
   // Store-release semantics [Armv8.1]
-  void lduminalb(const Register& rs, const Register& rt, const MemOperand& src);
+  void lduminalb(const Register& rs, V8_REG_OUT const Register& rt,
+                 const MemOperand& src);
 
   // Atomic unsigned minimum on halfword in memory [Armv8.1]
-  void lduminh(const Register& rs, const Register& rt, const MemOperand& src);
+  void lduminh(const Register& rs, V8_REG_OUT const Register& rt,
+               const MemOperand& src);
 
   // Atomic unsigned minimum on halfword in memory, with Load-acquire semantics
   // [Armv8.1]
-  void lduminah(const Register& rs, const Register& rt, const MemOperand& src);
+  void lduminah(const Register& rs, V8_REG_OUT const Register& rt,
+                const MemOperand& src);
 
   // Atomic unsigned minimum on halfword in memory, with Store-release semantics
   // [Armv8.1]
-  void lduminlh(const Register& rs, const Register& rt, const MemOperand& src);
+  void lduminlh(const Register& rs, V8_REG_OUT const Register& rt,
+                const MemOperand& src);
 
   // Atomic unsigned minimum on halfword in memory, with Load-acquire and
   // Store-release semantics [Armv8.1]
-  void lduminalh(const Register& rs, const Register& rt, const MemOperand& src);
+  void lduminalh(const Register& rs, V8_REG_OUT const Register& rt,
+                 const MemOperand& src);
 
   // Atomic unsigned minimum on word or doubleword in memory [Armv8.1]
-  void ldumin(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldumin(const Register& rs, V8_REG_OUT const Register& rt,
+              const MemOperand& src);
 
   // Atomic unsigned minimum on word or doubleword in memory, with Load-acquire
   // semantics [Armv8.1]
-  void ldumina(const Register& rs, const Register& rt, const MemOperand& src);
+  void ldumina(const Register& rs, V8_REG_OUT const Register& rt,
+               const MemOperand& src);
 
   // Atomic unsigned minimum on word or doubleword in memory, with Store-release
   // semantics [Armv8.1]
-  void lduminl(const Register& rs, const Register& rt, const MemOperand& src);
+  void lduminl(const Register& rs, V8_REG_OUT const Register& rt,
+               const MemOperand& src);
 
   // Atomic unsigned minimum on word or doubleword in memory, with Load-acquire
   // and Store-release semantics [Armv8.1]
-  void lduminal(const Register& rs, const Register& rt, const MemOperand& src);
+  void lduminal(const Register& rs, V8_REG_OUT const Register& rt,
+                const MemOperand& src);
 
   // Atomic add on byte in memory, without return. [Armv8.1]
   void staddb(const Register& rs, const MemOperand& src);
@@ -1559,43 +1856,55 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void stuminl(const Register& rs, const MemOperand& src);
 
   // Swap byte in memory [Armv8.1]
-  void swpb(const Register& rs, const Register& rt, const MemOperand& src);
+  void swpb(const Register& rs, V8_REG_OUT const Register& rt,
+            const MemOperand& src);
 
   // Swap byte in memory, with Load-acquire semantics [Armv8.1]
-  void swpab(const Register& rs, const Register& rt, const MemOperand& src);
+  void swpab(const Register& rs, V8_REG_OUT const Register& rt,
+             const MemOperand& src);
 
   // Swap byte in memory, with Store-release semantics [Armv8.1]
-  void swplb(const Register& rs, const Register& rt, const MemOperand& src);
+  void swplb(const Register& rs, V8_REG_OUT const Register& rt,
+             const MemOperand& src);
 
   // Swap byte in memory, with Load-acquire and Store-release semantics
   // [Armv8.1]
-  void swpalb(const Register& rs, const Register& rt, const MemOperand& src);
+  void swpalb(const Register& rs, V8_REG_OUT const Register& rt,
+              const MemOperand& src);
 
   // Swap halfword in memory [Armv8.1]
-  void swph(const Register& rs, const Register& rt, const MemOperand& src);
+  void swph(const Register& rs, V8_REG_OUT const Register& rt,
+            const MemOperand& src);
 
   // Swap halfword in memory, with Load-acquire semantics [Armv8.1]
-  void swpah(const Register& rs, const Register& rt, const MemOperand& src);
+  void swpah(const Register& rs, V8_REG_OUT const Register& rt,
+             const MemOperand& src);
 
   // Swap halfword in memory, with Store-release semantics [Armv8.1]
-  void swplh(const Register& rs, const Register& rt, const MemOperand& src);
+  void swplh(const Register& rs, V8_REG_OUT const Register& rt,
+             const MemOperand& src);
 
   // Swap halfword in memory, with Load-acquire and Store-release semantics
   // [Armv8.1]
-  void swpalh(const Register& rs, const Register& rt, const MemOperand& src);
+  void swpalh(const Register& rs, V8_REG_OUT const Register& rt,
+              const MemOperand& src);
 
   // Swap word or doubleword in memory [Armv8.1]
-  void swp(const Register& rs, const Register& rt, const MemOperand& src);
+  void swp(const Register& rs, V8_REG_OUT const Register& rt,
+           const MemOperand& src);
 
   // Swap word or doubleword in memory, with Load-acquire semantics [Armv8.1]
-  void swpa(const Register& rs, const Register& rt, const MemOperand& src);
+  void swpa(const Register& rs, V8_REG_OUT const Register& rt,
+            const MemOperand& src);
 
   // Swap word or doubleword in memory, with Store-release semantics [Armv8.1]
-  void swpl(const Register& rs, const Register& rt, const MemOperand& src);
+  void swpl(const Register& rs, V8_REG_OUT const Register& rt,
+            const MemOperand& src);
 
   // Swap word or doubleword in memory, with Load-acquire and Store-release
   // semantics [Armv8.1]
-  void swpal(const Register& rs, const Register& rt, const MemOperand& src);
+  void swpal(const Register& rs, V8_REG_OUT const Register& rt,
+             const MemOperand& src);
 
   // Move instructions. The default shift of -1 indicates that the move
   // instruction will calculate an appropriate 16-bit immediate and left shift
@@ -1608,49 +1917,57 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // most-significant.
 
   // Move and keep.
-  void movk(const Register& rd, uint64_t imm, int shift = -1) {
+  void movk(V8_REG_INOUT const Register& rd, uint64_t imm, int shift = -1) {
     MoveWide(rd, imm, shift, MOVK);
   }
 
   // Move with non-zero.
-  void movn(const Register& rd, uint64_t imm, int shift = -1) {
+  void movn(V8_REG_OUT const Register& rd, uint64_t imm, int shift = -1) {
     MoveWide(rd, imm, shift, MOVN);
   }
 
   // Move with zero.
-  void movz(const Register& rd, uint64_t imm, int shift = -1) {
+  void movz(V8_REG_OUT const Register& rd, uint64_t imm, int shift = -1) {
     MoveWide(rd, imm, shift, MOVZ);
   }
 
   // MOPS instructions
-  void cpy(MemCpyOp op, const Register& rd, const Register& rs,
-           const Register& rn);
-  void cpyp(const Register& rd, const Register& rs, const Register& rn);
-  void cpym(const Register& rd, const Register& rs, const Register& rn);
-  void cpye(const Register& rd, const Register& rs, const Register& rn);
+  void cpy(MemCpyOp op, V8_REG_INOUT const Register& rd,
+           V8_REG_INOUT const Register& rs, V8_REG_INOUT const Register& rn);
+  void cpyp(V8_REG_INOUT const Register& rd, V8_REG_INOUT const Register& rs,
+            V8_REG_INOUT const Register& rn);
+  void cpym(V8_REG_INOUT const Register& rd, V8_REG_INOUT const Register& rs,
+            V8_REG_INOUT const Register& rn);
+  void cpye(V8_REG_IN_CLOBBER const Register& rd,
+            V8_REG_IN_CLOBBER const Register& rs,
+            V8_REG_IN_CLOBBER const Register& rn);
 
-  void set(MemSetOp op, const Register& rd, const Register& rn,
-           const Register& rs);
-  void setp(const Register& rd, const Register& rn, const Register& rs);
-  void setm(const Register& rd, const Register& rn, const Register& rs);
-  void sete(const Register& rd, const Register& rn, const Register& rs);
+  void set(MemSetOp op, V8_REG_INOUT const Register& rd,
+           V8_REG_INOUT const Register& rn, V8_REG_INOUT const Register& rs);
+  void setp(V8_REG_INOUT const Register& rd, V8_REG_INOUT const Register& rn,
+            V8_REG_INOUT const Register& rs);
+  void setm(V8_REG_INOUT const Register& rd, V8_REG_INOUT const Register& rn,
+            V8_REG_INOUT const Register& rs);
+  void sete(V8_REG_IN_CLOBBER const Register& rd,
+            V8_REG_IN_CLOBBER const Register& rn,
+            V8_REG_IN_CLOBBER const Register& rs);
 
   // Misc instructions.
   // Monitor debug-mode breakpoint.
-  void brk(int code);
+  V8_ASM_NO_FALLTHROUGH void brk(int code);
 
   // Halting debug-mode breakpoint.
-  void hlt(int code);
+  V8_ASM_NO_FALLTHROUGH void hlt(int code);
 
   // Move register to register.
-  void mov(const Register& rd, const Register& rn);
+  void mov(V8_REG_OUT const Register& rd, const Register& rn);
 
   // Move NOT(operand) to register.
-  void mvn(const Register& rd, const Operand& operand);
+  void mvn(V8_REG_OUT const Register& rd, const Operand& operand);
 
   // System instructions.
   // Move to register from system register.
-  void mrs(const Register& rt, SystemRegister sysreg);
+  void mrs(V8_REG_OUT const Register& rt, SystemRegister sysreg);
 
   // Move from register to system register.
   void msr(SystemRegister sysreg, const Register& rt);
@@ -2240,7 +2557,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void fmov(const VRegister& fd, float imm);
 
   // Move FP register to register.
-  void fmov(const Register& rd, const VRegister& fn);
+  void fmov(V8_REG_OUT const Register& rd, const VRegister& fn);
 
   // Move register to FP register.
   void fmov(const VRegister& fd, const Register& rn);
@@ -2252,7 +2569,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void fmov(const VRegister& vd, int index, const Register& rn);
 
   // Move top half of 128-bit FP register to 64-bit register.
-  void fmov(const Register& rd, const VRegister& vn, int index);
+  void fmov(V8_REG_OUT const Register& rd, const VRegister& vn, int index);
 
   // FP add.
   void fadd(const VRegister& vd, const VRegister& vn, const VRegister& vm);
@@ -2433,7 +2750,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
              Condition cond);
 
   // Common FP Convert functions.
-  void NEONFPConvertToInt(const Register& rd, const VRegister& vn, Instr op);
+  void NEONFPConvertToInt(V8_REG_OUT const Register& rd, const VRegister& vn,
+                          Instr op);
   void NEONFPConvertToInt(const VRegister& vd, const VRegister& vn, Instr op);
 
   // FP convert between precisions.
@@ -2458,10 +2776,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void fcvtxn2(const VRegister& vd, const VRegister& vn);
 
   // FP convert to signed integer, nearest with ties to away.
-  void fcvtas(const Register& rd, const VRegister& vn);
+  void fcvtas(V8_REG_OUT const Register& rd, const VRegister& vn);
 
   // FP convert to unsigned integer, nearest with ties to away.
-  void fcvtau(const Register& rd, const VRegister& vn);
+  void fcvtau(V8_REG_OUT const Register& rd, const VRegister& vn);
 
   // FP convert to signed integer, nearest with ties to away.
   void fcvtas(const VRegister& vd, const VRegister& vn);
@@ -2470,10 +2788,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void fcvtau(const VRegister& vd, const VRegister& vn);
 
   // FP convert to signed integer, round towards -infinity.
-  void fcvtms(const Register& rd, const VRegister& vn);
+  void fcvtms(V8_REG_OUT const Register& rd, const VRegister& vn);
 
   // FP convert to unsigned integer, round towards -infinity.
-  void fcvtmu(const Register& rd, const VRegister& vn);
+  void fcvtmu(V8_REG_OUT const Register& rd, const VRegister& vn);
 
   // FP convert to signed integer, round towards -infinity.
   void fcvtms(const VRegister& vd, const VRegister& vn);
@@ -2482,13 +2800,13 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void fcvtmu(const VRegister& vd, const VRegister& vn);
 
   // FP convert to signed integer, nearest with ties to even.
-  void fcvtns(const Register& rd, const VRegister& vn);
+  void fcvtns(V8_REG_OUT const Register& rd, const VRegister& vn);
 
   // FP JavaScript convert to signed integer, rounding toward zero [Armv8.3].
-  void fjcvtzs(const Register& rd, const VRegister& vn);
+  void fjcvtzs(V8_REG_OUT const Register& rd, const VRegister& vn);
 
   // FP convert to unsigned integer, nearest with ties to even.
-  void fcvtnu(const Register& rd, const VRegister& vn);
+  void fcvtnu(V8_REG_OUT const Register& rd, const VRegister& vn);
 
   // FP convert to signed integer, nearest with ties to even.
   void fcvtns(const VRegister& rd, const VRegister& vn);
@@ -2497,10 +2815,12 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void fcvtnu(const VRegister& rd, const VRegister& vn);
 
   // FP convert to signed integer or fixed-point, round towards zero.
-  void fcvtzs(const Register& rd, const VRegister& vn, int fbits = 0);
+  void fcvtzs(V8_REG_OUT const Register& rd, const VRegister& vn,
+              int fbits = 0);
 
   // FP convert to unsigned integer or fixed-point, round towards zero.
-  void fcvtzu(const Register& rd, const VRegister& vn, int fbits = 0);
+  void fcvtzu(V8_REG_OUT const Register& rd, const VRegister& vn,
+              int fbits = 0);
 
   // FP convert to signed integer or fixed-point, round towards zero.
   void fcvtzs(const VRegister& vd, const VRegister& vn, int fbits = 0);
@@ -2509,10 +2829,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void fcvtzu(const VRegister& vd, const VRegister& vn, int fbits = 0);
 
   // FP convert to signed integer, round towards +infinity.
-  void fcvtps(const Register& rd, const VRegister& vn);
+  void fcvtps(V8_REG_OUT const Register& rd, const VRegister& vn);
 
   // FP convert to unsigned integer, round towards +infinity.
-  void fcvtpu(const Register& rd, const VRegister& vn);
+  void fcvtpu(V8_REG_OUT const Register& rd, const VRegister& vn);
 
   // FP convert to signed integer, round towards +infinity.
   void fcvtps(const VRegister& vd, const VRegister& vn);
@@ -2549,10 +2869,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void mov(const VRegister& vd, int vd_index, const Register& rn);
 
   // Unsigned move vector element to general-purpose register.
-  void umov(const Register& rd, const VRegister& vn, int vn_index);
+  void umov(V8_REG_OUT const Register& rd, const VRegister& vn, int vn_index);
 
   // Move vector element to general-purpose register.
-  void mov(const Register& rd, const VRegister& vn, int vn_index);
+  void mov(V8_REG_OUT const Register& rd, const VRegister& vn, int vn_index);
 
   // Move vector element to scalar.
   void mov(const VRegister& vd, const VRegister& vn, int vn_index);
@@ -2566,7 +2886,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
            int vn_index);
 
   // Signed move vector element to general-purpose register.
-  void smov(const Register& rd, const VRegister& vn, int vn_index);
+  void smov(V8_REG_OUT const Register& rd, const VRegister& vn, int vn_index);
 
   // One-element structure load to one register.
   void ld1(const VRegister& vt, const MemOperand& src);
@@ -2946,6 +3266,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   inline static Instr ImmLSPair(int imm7, unsigned size);
   inline static Instr ImmShiftLS(unsigned shift_amount);
   inline static Instr ImmException(int imm16);
+  inline static Instr ImmUdf(int imm16);
   inline static Instr ImmSystemRegister(int imm15);
   inline static Instr ImmHint(int imm7);
   inline static Instr ImmBarrierDomain(int imm2);
@@ -3158,7 +3479,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Clear any internal state to avoid check failures if we drop
   // the assembly code.
-  void ClearInternalState() { constpool_.Clear(); }
+  void ClearInternalState();
 
   // Unused on this architecture.
   void MaybeEmitOutOfLineConstantPool() {}
@@ -3179,10 +3500,19 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Used by veneer checks below - returns the max (= overapproximated) pc
   // offset after the veneer pool, if the veneer pool were to be emitted
   // immediately.
-  intptr_t MaxPCOffsetAfterVeneerPoolIfEmittedNow(size_t margin);
+  int64_t MaxPCOffsetAfterVeneerPoolIfEmittedNow(size_t margin) const {
+    // Account for the branch and guard around the veneers.
+    static constexpr int kBranchSizeInBytes = kInstrSize;
+    static constexpr int kGuardSizeInBytes = kInstrSize;
+    const size_t max_veneer_size_in_bytes =
+        unresolved_branches_.size() * kVeneerCodeSize;
+    return static_cast<int64_t>(pc_offset() + kBranchSizeInBytes +
+                                kGuardSizeInBytes + max_veneer_size_in_bytes +
+                                margin);
+  }
   // Returns true if we should emit a veneer as soon as possible for a branch
   // which can at most reach to specified pc.
-  bool ShouldEmitVeneer(int max_reachable_pc, size_t margin) {
+  bool ShouldEmitVeneer(int64_t max_reachable_pc, size_t margin) const {
     return max_reachable_pc < MaxPCOffsetAfterVeneerPoolIfEmittedNow(margin);
   }
   bool ShouldEmitVeneers(size_t margin = kVeneerDistanceMargin) {
@@ -3200,11 +3530,22 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // over the code.
   void EmitVeneers(bool force_emit, bool need_protection,
                    size_t margin = kVeneerDistanceMargin);
-  void EmitVeneersGuard() { EmitPoolGuard(); }
+  // Emits 'blr xzr', which traps if execution runs into the veneer pool.
+  void EmitVeneersGuard();
   // Checks whether veneers need to be emitted at this point.
   // If force_emit is set, a veneer is generated for *all* unresolved branches.
   void CheckVeneerPool(bool force_emit, bool require_jump,
-                       size_t margin = kVeneerDistanceMargin);
+                       size_t margin = kVeneerDistanceMargin) {
+    if (!require_jump) {
+      // Prefer emitting veneers protected by an existing instruction.
+      margin *= kVeneerNoProtectionFactor;
+    }
+    if (V8_UNLIKELY(force_emit ||
+                    ShouldEmitVeneer(UnresolvedBranchesFirstLimitLowerBound(),
+                                     margin))) {
+      CheckVeneerPoolImpl(force_emit, require_jump, margin);
+    }
+  }
 
   using BlockConstPoolScope = ConstantPool::BlockScope;
 
@@ -3264,34 +3605,36 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   static bool IsImmLSPair(int64_t offset, unsigned size);
 
-  void Logical(const Register& rd, const Register& rn, const Operand& operand,
-               LogicalOp op);
-  void LogicalImmediate(const Register& rd, const Register& rn, unsigned n,
-                        unsigned imm_s, unsigned imm_r, LogicalOp op);
+  void Logical(V8_REG_OUT const Register& rd, const Register& rn,
+               const Operand& operand, LogicalOp op);
+  void LogicalImmediate(V8_REG_OUT const Register& rd, const Register& rn,
+                        unsigned n, unsigned imm_s, unsigned imm_r,
+                        LogicalOp op);
 
   void ConditionalCompare(const Register& rn, const Operand& operand,
                           StatusFlags nzcv, Condition cond,
                           ConditionalCompareOp op);
 
-  void AddSubWithCarry(const Register& rd, const Register& rn,
+  void AddSubWithCarry(V8_REG_OUT const Register& rd, const Register& rn,
                        const Operand& operand, FlagsUpdate S,
                        AddSubWithCarryOp op);
 
   // Functions for emulating operands not directly supported by the instruction
   // set.
-  void EmitShift(const Register& rd, const Register& rn, Shift shift,
+  void EmitShift(V8_REG_OUT const Register& rd, const Register& rn, Shift shift,
                  unsigned amount);
-  void EmitExtendShift(const Register& rd, const Register& rn, Extend extend,
-                       unsigned left_shift);
+  void EmitExtendShift(V8_REG_OUT const Register& rd, const Register& rn,
+                       Extend extend, unsigned left_shift);
 
-  void AddSub(const Register& rd, const Register& rn, const Operand& operand,
-              FlagsUpdate S, AddSubOp op);
+  void AddSub(V8_REG_OUT const Register& rd, const Register& rn,
+              const Operand& operand, FlagsUpdate S, AddSubOp op);
 
-  inline void DataProcPlainRegister(const Register& rd, const Register& rn,
-                                    const Register& rm, Instr op);
+  inline void DataProcPlainRegister(V8_REG_OUT const Register& rd,
+                                    const Register& rn, const Register& rm,
+                                    Instr op);
   inline void CmpPlainRegister(const Register& rn, const Register& rm);
-  inline void DataProcImmediate(const Register& rd, const Register& rn,
-                                int immediate, Instr op);
+  inline void DataProcImmediate(V8_REG_OUT const Register& rd,
+                                const Register& rn, int immediate, Instr op);
 
   static bool IsImmFP32(uint32_t bits);
   static bool IsImmFP64(uint64_t bits);
@@ -3311,25 +3654,29 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // If available, a veneer for this label can be used for other branches in the
   // chain if the link chain cannot be fixed up without this branch.
   void RemoveBranchFromLabelLinkChain(Instruction* branch, Label* label,
-                                      Instruction* label_veneer = nullptr);
+                                      Instruction* label_veneer);
+
+  // Returns the next newer link after {link} in the link chain of {label}.
+  Instruction* NewerLink(Label* label, Instruction* link);
 
  private:
   static uint32_t FPToImm8(double imm);
 
   // Instruction helpers.
-  void MoveWide(const Register& rd, uint64_t imm, int shift,
+  void MoveWide(V8_REG_OUT const Register& rd, uint64_t imm, int shift,
                 MoveWideImmediateOp mov_op);
-  void DataProcShiftedRegister(const Register& rd, const Register& rn,
-                               const Operand& operand, FlagsUpdate S, Instr op);
-  void DataProcExtendedRegister(const Register& rd, const Register& rn,
-                                const Operand& operand, FlagsUpdate S,
-                                Instr op);
-  void ConditionalSelect(const Register& rd, const Register& rn,
+  void DataProcShiftedRegister(V8_REG_OUT const Register& rd,
+                               const Register& rn, const Operand& operand,
+                               FlagsUpdate S, Instr op);
+  void DataProcExtendedRegister(V8_REG_OUT const Register& rd,
+                                const Register& rn, const Operand& operand,
+                                FlagsUpdate S, Instr op);
+  void ConditionalSelect(V8_REG_OUT const Register& rd, const Register& rn,
                          const Register& rm, Condition cond,
                          ConditionalSelectOp op);
-  void DataProcessing1Source(const Register& rd, const Register& rn,
+  void DataProcessing1Source(V8_REG_OUT const Register& rd, const Register& rn,
                              DataProcessing1SourceOp op);
-  void DataProcessing3Source(const Register& rd, const Register& rn,
+  void DataProcessing3Source(V8_REG_OUT const Register& rd, const Register& rn,
                              const Register& rm, const Register& ra,
                              DataProcessing3SourceOp op);
   void FPDataProcessing1Source(const VRegister& fd, const VRegister& fn,
@@ -3441,8 +3788,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   void CheckBuffer() {
     CheckBufferSpace();
-    if (pc_offset() >= next_veneer_pool_check_) {
-      CheckVeneerPool(false, true);
+    if (V8_UNLIKELY(pc_offset() >= next_veneer_pool_check_)) {
+      CheckVeneerPoolImpl(false, true, kVeneerDistanceMargin);
     }
     constpool_.MaybeCheck();
   }
@@ -3510,32 +3857,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
  protected:
   const AssemblerZone zone_;
 
-  // Information about unresolved (forward) branches.
-  // The Assembler is only allowed to delete out-of-date information from here
-  // after a label is bound. The MacroAssembler uses this information to
-  // generate veneers.
-  //
-  // The first member of the pair (max_pc) is the maximum offset that the branch
-  // can reach in the buffer, with the bottom bit set to indicate a
-  // test-and-branch instruction. This bit is used to help in calculating the
-  // address of the branch, ie.
-  //
-  //   branch_addr = { max_pc - 2^21,     if max_pc<0> == 0 (B.cond, CB[N]Z)
-  //                 { max_pc - 2^16 - 1, if max_pc<0> == 1 (TB[N]Z)
-  //
-  // The second member is a pointer to the Label targetted by the branch.
-  //
-  // The map is sorted according to the reachable offset, max_pc, allowing to
-  // check easily when veneers need to be emitted.
-  // Note that the maximum reachable offset (first member of the pairs) should
-  // always be positive but has the same type as the return value for
-  // pc_offset() for convenience.
-  ZoneAbslBTreeMap<int, Label*> unresolved_branches_;
+  // Unresolved (forward) branches that may need a veneer. Branches are
+  // resolved when their label is bound or when a veneer is emitted for them.
+  UnresolvedBranches unresolved_branches_;
 
-  // Back edge offsets for the link chain - the forward edge is stored in the
-  // generated code. This is used to accelerate removing branches from the
-  // link chain when emitting veneers.
-  absl::flat_hash_map<int, int> branch_link_chain_back_edge_;
+  NewerLinkMap newer_links_;
 
   // We generate a veneer for a branch if we reach within this distance of the
   // limit of the range.
@@ -3548,15 +3874,18 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
       kVeneerNoProtectionFactor * kVeneerDistanceMargin;
   int unresolved_branches_first_limit() const {
     DCHECK(!unresolved_branches_.empty());
-
-    // Mask branch type tag bit.
-    return unresolved_branches_.begin()->first & ~1;
+    return unresolved_branches_.First()->max_reachable_pc;
+  }
+  // Binding a label does not update next_veneer_pool_check_, so this may be
+  // lower than unresolved_branches_first_limit().
+  int64_t UnresolvedBranchesFirstLimitLowerBound() const {
+    return int64_t{next_veneer_pool_check_} + kVeneerDistanceCheckMargin;
   }
 
   // This PC-offset of the next veneer pool check helps reduce the overhead
-  // of checking for veneer pools.
-  // It is maintained to the closest unresolved branch limit minus the maximum
-  // veneer margin (or kMaxInt if there are no unresolved branches).
+  // of checking for veneer pools. Binding a label does not update it, so the
+  // check may happen earlier than needed, even with no unresolved branches
+  // left. CheckVeneerPoolImpl recomputes it.
   int next_veneer_pool_check_;
 
   // Record jump table locations, this is only used when the disassembler is
@@ -3568,16 +3897,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 #endif
 
  private:
-  // If a veneer is emitted for a branch instruction, that instruction must be
-  // removed from the associated label's link chain so that the assembler does
-  // not later attempt (likely unsuccessfully) to patch it to branch directly to
-  // the label.
-  void DeleteUnresolvedBranchInfoForLabel(Label* label);
-  // This function deletes the information related to the label by traversing
-  // the label chain, and for each PC-relative instruction in the chain checking
-  // if pending unresolved information exists. Its complexity is proportional to
-  // the length of the label chain.
-  void DeleteUnresolvedBranchInfoForLabelTraverse(Label* label);
+  // Slow path of CheckVeneerPool. {margin} already includes
+  // kVeneerNoProtectionFactor.
+  void CheckVeneerPoolImpl(bool force_emit, bool require_jump, size_t margin);
+  void UpdateNextVeneerPoolCheck();
+  void ClearUnresolvedBranches();
 
   void PatchInHeapNumberRequest(Address pc, Handle<HeapNumber> object) override;
 

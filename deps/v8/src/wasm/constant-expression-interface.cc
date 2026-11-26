@@ -134,7 +134,13 @@ void ConstantExpressionInterface::RefFunc(FullDecoder* decoder,
                                           uint32_t function_index,
                                           Value* result) {
   if (isolate_ == nullptr) {
-    outer_module_->functions[function_index].declared = true;
+    // Validation-only mode (during module decoding): record the declaration if
+    // before the Code section (`outer_module_ != nullptr`). Data section
+    // offsets (`i32`/`i64`) cannot validly contain `ref.func`, and mutating
+    // `declared_for_ref` there would race with streaming validation.
+    if (outer_module_ != nullptr) {
+      outer_module_->functions[function_index].declared_for_ref = true;
+    }
     return;
   }
   if (!generate_value()) return;
@@ -229,7 +235,8 @@ void ConstantExpressionInterface::StructNew(FullDecoder* decoder,
       header_size = WasmStruct::kHeaderSize;
     }
   } else {
-    // Pretenure, because we expect values in globals to be long-lived.
+    // Allocate in old space, because we expect values in globals to be
+    // long-lived.
     obj = isolate_->factory()->NewWasmStructUninitialized(
         struct_type, rtt,
         type.is_shared ? AllocationType::kSharedOld : AllocationType::kOld);
@@ -346,7 +353,8 @@ void ConstantExpressionInterface::StructNewDefault(
       header_size = WasmStruct::kHeaderSize;
     }
   } else {
-    // Pretenure, because we expect values in globals to be long-lived.
+    // Allocate in old space, because we expect values in globals to be
+    // long-lived.
     obj = isolate_->factory()->NewWasmStructUninitialized(
         struct_type, rtt,
         type.is_shared ? AllocationType::kSharedOld : AllocationType::kOld);

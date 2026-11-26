@@ -55,15 +55,17 @@
 // Resetting --vmodule will override all previous modifications to `--vmodule`,
 // including via SetVLogLevel.
 
+// SKIP_ABSL_INLINE_NAMESPACE_CHECK
+
 #ifndef ABSL_LOG_VLOG_IS_ON_H_
 #define ABSL_LOG_VLOG_IS_ON_H_
 
 #include "absl/log/absl_vlog_is_on.h"  // IWYU pragma: export
 
-// Each VLOG_IS_ON call site gets its own VLogSite that registers with the
-// global linked list of sites to asynchronously update its verbosity level on
-// changes to --v or --vmodule. The verbosity can also be set by manually
-// calling SetVLogLevel.
+// Each source file's VLOG_IS_ON call sites share a single VLogSite that
+// registers with the global linked list of sites to asynchronously update its
+// verbosity level on changes to --v or --vmodule. The verbosity can also be set
+// by manually calling SetVLogLevel.
 //
 // VLOG_IS_ON is not async signal safe, but it is guaranteed not to allocate
 // new memory.

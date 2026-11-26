@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/execution/isolate.h"
+#include "src/heap/heap-allocator.h"
 #include "src/heap/heap.h"
 #include "src/wasm/c-api.h"
 #include "test/wasm-api-tests/wasm-api-test.h"
@@ -337,6 +338,189 @@ TEST_F(WasmCapiTest, DirectCallCapiFunctionWithManyArgs) {
   EXPECT_EQ(a2 + 1, results[11].f32());
   EXPECT_EQ(a3 + 1, results[12].f64());
   EXPECT_EQ(a0 + 1, results[13].i32());
+}
+
+namespace {
+
+own<Trap> EchoAndCheckFuncRef(const vec<Val>& args, vec<Val>& results) {
+  results[0] = Val::i32(args[0].ref() == nullptr ? 1 : 0);
+  results[1] = args[0].copy();
+  return nullptr;
+}
+
+own<Trap> EchoTwoRefs(const vec<Val>& args, vec<Val>& results) {
+  EXPECT_NE(nullptr, args[0].ref());
+  results[0] = args[0].copy();
+  results[1] = args[1].copy();
+  return nullptr;
+}
+
+}  // namespace
+
+TEST_F(WasmCapiTest, FuncRefCallbackAndReturn) {
+  own<FuncType> cb_cpp_sig = FuncType::make(
+      ownvec<ValType>::make(ValType::make(::wasm::ValKind::FUNCREF)),
+      ownvec<ValType>::make(ValType::make(::wasm::ValKind::I32),
+                            ValType::make(::wasm::ValKind::FUNCREF)));
+  own<Func> cb = Func::make(store(), cb_cpp_sig.get(), EchoAndCheckFuncRef);
+
+  own<FuncType> cb_two_refs_cpp_sig = FuncType::make(
+      ownvec<ValType>::make(ValType::make(::wasm::ValKind::FUNCREF),
+                            ValType::make(::wasm::ValKind::EXTERNREF)),
+      ownvec<ValType>::make(ValType::make(::wasm::ValKind::FUNCREF),
+                            ValType::make(::wasm::ValKind::EXTERNREF)));
+  own<Func> cb_two_refs =
+      Func::make(store(), cb_two_refs_cpp_sig.get(), EchoTwoRefs);
+
+  ValueType cb_wasm_types[] = {kWasmI32, kWasmFuncRef, kWasmFuncRef};
+  FunctionSig cb_wasm_sig(2, 1, cb_wasm_types);
+  uint32_t cb_index = builder()->AddImport("cb", &cb_wasm_sig);
+
+  ValueType cb_two_refs_wasm_types[] = {kWasmFuncRef, kWasmExternRef,
+                                        kWasmFuncRef, kWasmExternRef};
+  FunctionSig cb_two_refs_wasm_sig(2, 2, cb_two_refs_wasm_types);
+  uint32_t cb_two_refs_index =
+      builder()->AddImport("cb_two_refs", &cb_two_refs_wasm_sig);
+
+  uint8_t roundtrip_code[] = {WASM_CALL_FUNCTION(cb_index, WASM_LOCAL_GET(0))};
+  AddExportedFunction("roundtrip", roundtrip_code, sizeof(roundtrip_code),
+                      &cb_wasm_sig);
+
+  uint8_t call_cb_null_code[] = {
+      WASM_CALL_FUNCTION(cb_index, WASM_REF_NULL(kFuncRefCode)), WASM_DROP};
+  ValueType i32_ret[] = {kWasmI32};
+  FunctionSig sig_i_v(1, 0, i32_ret);
+  AddExportedFunction("call_cb_null", call_cb_null_code,
+                      sizeof(call_cb_null_code), &sig_i_v);
+
+  // Declare function 3 (call_cb_null) in a global so WASM_REF_FUNC(3) is valid.
+  builder()->AddGlobal(kWasmFuncRef, false, WasmInitExpr::RefFuncConst(3));
+
+  uint8_t call_cb_nonnull_code[] = {
+      WASM_CALL_FUNCTION(cb_index, WASM_REF_FUNC(3)), WASM_DROP};
+  AddExportedFunction("call_cb_nonnull", call_cb_nonnull_code,
+                      sizeof(call_cb_nonnull_code), &sig_i_v);
+
+  ValueType funcref_ret[] = {kWasmFuncRef};
+  FunctionSig sig_r_v(1, 0, funcref_ret);
+  uint8_t ret_null_code[] = {WASM_REF_NULL(kFuncRefCode)};
+  AddExportedFunction("ret_null", ret_null_code, sizeof(ret_null_code),
+                      &sig_r_v);
+
+  uint8_t ret_nonnull_code[] = {WASM_REF_FUNC(3)};
+  AddExportedFunction("ret_nonnull", ret_nonnull_code, sizeof(ret_nonnull_code),
+                      &sig_r_v);
+
+  // Unexported functions (indices 7 and 8) have no cached external JSFunction
+  // until V8RefValueToWasm calls WasmInternalFunction::GetOrCreateExternal.
+  uint8_t unexported_1_code[] = {WASM_I32V_1(11)};
+  AddFunction(unexported_1_code, sizeof(unexported_1_code), &sig_i_v);
+  builder()->AddGlobal(kWasmFuncRef, false, WasmInitExpr::RefFuncConst(7));
+
+  uint8_t unexported_2_code[] = {WASM_I32V_1(22)};
+  AddFunction(unexported_2_code, sizeof(unexported_2_code), &sig_i_v);
+  builder()->AddGlobal(kWasmFuncRef, false, WasmInitExpr::RefFuncConst(8));
+
+  uint8_t ret_two_refs_code[] = {WASM_REF_FUNC(7), WASM_LOCAL_GET(1)};
+  AddExportedFunction("ret_two_refs", ret_two_refs_code,
+                      sizeof(ret_two_refs_code), &cb_two_refs_wasm_sig);
+
+  ValueType two_refs_ret_one_param_types[] = {kWasmFuncRef, kWasmExternRef,
+                                              kWasmExternRef};
+  FunctionSig sig_rr_r(2, 1, two_refs_ret_one_param_types);
+  uint8_t call_cb_two_refs_code[] = {WASM_CALL_FUNCTION(
+      cb_two_refs_index, WASM_REF_FUNC(8), WASM_LOCAL_GET(0))};
+  AddExportedFunction("call_cb_two_refs", call_cb_two_refs_code,
+                      sizeof(call_cb_two_refs_code), &sig_rr_r);
+
+  vec<Extern*> imports = vec<Extern*>::make(cb.get(), cb_two_refs.get());
+  Instantiate(imports);
+
+  Func* roundtrip = GetExportedFunction(0);
+  Func* call_cb_null = GetExportedFunction(1);
+  Func* call_cb_nonnull = GetExportedFunction(2);
+  Func* ret_null = GetExportedFunction(3);
+  Func* ret_nonnull = GetExportedFunction(4);
+  Func* ret_two_refs = GetExportedFunction(5);
+  Func* call_cb_two_refs = GetExportedFunction(6);
+
+  // Test PushArgs + v8_callback params/results + PopArgs with null and non-null
+  // funcref.
+  vec<Val> rt_null_args = vec<Val>::make(Val::ref(own<Ref>()));
+  vec<Val> rt_results = vec<Val>::make_uninitialized(2);
+  EXPECT_EQ(nullptr, roundtrip->call(rt_null_args, rt_results));
+  EXPECT_EQ(1, rt_results[0].i32());
+  EXPECT_EQ(nullptr, rt_results[1].ref());
+
+  vec<Val> rt_func_args = vec<Val>::make(Val::ref(call_cb_null->copy()));
+  EXPECT_EQ(nullptr, roundtrip->call(rt_func_args, rt_results));
+  EXPECT_EQ(0, rt_results[0].i32());
+  ASSERT_NE(nullptr, rt_results[1].ref());
+  EXPECT_TRUE(call_cb_null->same(rt_results[1].ref()));
+
+  vec<Val> empty_args = vec<Val>::make();
+  vec<Val> results = vec<Val>::make_uninitialized(1);
+
+  EXPECT_EQ(nullptr, call_cb_null->call(empty_args, results));
+  EXPECT_EQ(1, results[0].i32());
+
+  EXPECT_EQ(nullptr, call_cb_nonnull->call(empty_args, results));
+  EXPECT_EQ(0, results[0].i32());
+
+  EXPECT_EQ(nullptr, ret_null->call(empty_args, results));
+  EXPECT_EQ(nullptr, results[0].ref());
+
+  EXPECT_EQ(nullptr, ret_nonnull->call(empty_args, results));
+  ASSERT_NE(nullptr, results[0].ref());
+  EXPECT_TRUE(call_cb_null->same(results[0].ref()));
+
+  // Verify GC safety when GetOrCreateExternal allocates for an unexported
+  // funcref while a second reference slot is also being unpacked in PopArgs /
+  // FuncData::v8_callback.
+  {
+#ifdef V8_ENABLE_ALLOCATION_TIMEOUT
+    i::Isolate* isolate =
+        reinterpret_cast<::wasm::StoreImpl*>(store())->i_isolate();
+#endif
+    own<Foreign> foreign1 = Foreign::make(store());
+    vec<Val> args1 = vec<Val>::make(Val::ref(call_cb_null->copy()),
+                                    Val::ref(foreign1->copy()));
+    vec<Val> two_results = vec<Val>::make_uninitialized(2);
+#ifdef V8_ENABLE_ALLOCATION_TIMEOUT
+    i::HeapAllocator::SetAllocationGcInterval(1);
+    isolate->heap()->set_allocation_timeout(1);
+#endif
+    EXPECT_EQ(nullptr, ret_two_refs->call(args1, two_results));
+    EXPECT_NE(nullptr, two_results[0].ref());
+    ASSERT_NE(nullptr, two_results[1].ref());
+    EXPECT_TRUE(foreign1->same(two_results[1].ref()));
+
+    own<Foreign> foreign2 = Foreign::make(store());
+    vec<Val> args2 = vec<Val>::make(Val::ref(foreign2->copy()));
+#ifdef V8_ENABLE_ALLOCATION_TIMEOUT
+    isolate->heap()->set_allocation_timeout(1);
+#endif
+    EXPECT_EQ(nullptr, call_cb_two_refs->call(args2, two_results));
+#ifdef V8_ENABLE_ALLOCATION_TIMEOUT
+    i::HeapAllocator::SetAllocationGcInterval(-1);
+    isolate->heap()->set_allocation_timeout(0);
+#endif
+    EXPECT_NE(nullptr, two_results[0].ref());
+    ASSERT_NE(nullptr, two_results[1].ref());
+    EXPECT_TRUE(foreign2->same(two_results[1].ref()));
+  }
+
+  // Also test standalone mutable FUNCREF Global::make / get / set.
+  own<::wasm::GlobalType> global_type = ::wasm::GlobalType::make(
+      ValType::make(::wasm::ValKind::FUNCREF), ::wasm::Mutability::VAR);
+  own<::wasm::Global> global =
+      ::wasm::Global::make(store(), global_type.get(), Val::ref(own<Ref>()));
+  EXPECT_EQ(nullptr, global->get().ref());
+  global->set(Val::ref(call_cb_null->copy()));
+  ASSERT_NE(nullptr, global->get().ref());
+  EXPECT_TRUE(call_cb_null->same(global->get().ref()));
+  global->set(Val::ref(own<Ref>()));
+  EXPECT_EQ(nullptr, global->get().ref());
 }
 }  // namespace wasm
 }  // namespace internal

@@ -1,0 +1,3 @@
+Tests modifying catch block scope variables via evaluateOnCallFrame.
+hasException: false
+result: [5,7]

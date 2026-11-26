@@ -25,7 +25,7 @@ assertOptimized(alloc_array);
 
 // Trying to allocated more than JSArray::kInitialMaxFastElementArray will
 // trigger a deopt.
-let len_for_deopt = 0x3ffc;
+let len_for_deopt = 0x3ffd;
 let expected = new Array(len_for_deopt);
 expected[0] = 42;
 expected[2] = 17;

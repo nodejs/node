@@ -1031,7 +1031,7 @@ TEST_P(TurboshaftInstructionSelectorODPITest, BranchIfOverflowWithLoop) {
   m.Bind(loop_header);
   OpIndex phi = m.PendingLoopPhi(v1, phi_repr);
   OpIndex binop = m.Emit(ovf_binop.op, v1, v2);
-  m.Branch(m.Word32Equal(m.Projection(binop, 1), m.Word32Constant(0)), b1, b2);
+  m.Branch(m.Word32Equal(m.Projection(binop, 1), 0), b1, b2);
   m.Bind(b2);
   m.Goto(loop_header);
   m.Bind(b1);

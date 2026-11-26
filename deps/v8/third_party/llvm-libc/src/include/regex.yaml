@@ -44,6 +44,7 @@ types:
   - type_name: regex_t
   - type_name: regmatch_t
   - type_name: regoff_t
+  - type_name: size_t
 enums: []
 objects: []
 functions:

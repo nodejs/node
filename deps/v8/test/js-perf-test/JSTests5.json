@@ -336,9 +336,11 @@
         {"name": "DataViewTest-DataView-BigEndian"},
         {"name": "DataViewTest-DataView-LittleEndian"},
         {"name": "DataViewTest-DataView-Floats"},
+        {"name": "DataViewTest-DataView-Float16"},
         {"name": "DataViewTest-TypedArray-BigEndian"},
         {"name": "DataViewTest-TypedArray-LittleEndian"},
-        {"name": "DataViewTest-TypedArray-Floats"}
+        {"name": "DataViewTest-TypedArray-Floats"},
+        {"name": "DataViewTest-TypedArray-Float16"}
       ]
     },
     {
@@ -543,20 +545,6 @@
       "results_regexp": "^%s\\-ApiAccessors\\(Score\\): (.+)$",
       "tests": [
         {"name": "nodeType"}
-      ]
-    },
-    {
-      "name": "Inspector",
-      "path": ["Inspector"],
-      "main": "run.js",
-      "resources": [ "debugger.js", "runtime.js" ],
-      "flags": ["--enable-inspector","--allow-natives-syntax"],
-      "results_regexp": "^%s\\-Inspector\\(Score\\): (.+)$",
-      "tests": [
-        {"name": "Debugger.paused"},
-        {"name": "Runtime.evaluate(String16Cstor)"},
-        {"name": "Debugger.getPossibleBreakpoints"},
-        {"name": "AsyncStacksInstrumentation"}
       ]
     },
     {

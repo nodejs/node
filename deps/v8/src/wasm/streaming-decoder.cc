@@ -157,9 +157,6 @@ class StreamingDecoder::DecodeModuleHeader : public DecodingState {
   std::unique_ptr<DecodingState> Next(StreamingDecoder* streaming) override;
 
  private:
-  // Checks if the magic bytes of the module header are correct.
-  void CheckHeader(Decoder* decoder);
-
   // The size of the module header.
   static constexpr size_t kModuleHeaderSize = 8;
   uint8_t byte_buffer_[kModuleHeaderSize];

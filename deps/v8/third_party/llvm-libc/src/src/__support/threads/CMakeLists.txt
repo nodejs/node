@@ -149,6 +149,7 @@ add_header_library(
     .tcb
     .thread_attributes
     libc.hdr.stdint_proxy
+    libc.hdr.types.clockid_t
     libc.hdr.types.struct_sched_param
     libc.src.__support.common
     libc.src.__support.error_or

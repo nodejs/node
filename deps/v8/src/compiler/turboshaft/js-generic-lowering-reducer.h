@@ -89,7 +89,7 @@ class JSGenericLoweringReducer : public Next {
   }
 
  private:
-  Isolate* isolate_ = __ data() -> isolate();
+  Isolate* isolate_ = __ data()->isolate();
 };
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"

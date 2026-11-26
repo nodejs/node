@@ -7,6 +7,7 @@
 
 #include <array>
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "include/libplatform/libplatform.h"
@@ -20,6 +21,8 @@
 #include "include/v8-template.h"
 #include "src/api/api-inl.h"
 #include "src/base/macros.h"
+#include "src/base/platform/mutex.h"
+#include "src/base/sanitizer/asan.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/flags/save-flags.h"
 #include "src/handles/handles.h"
@@ -47,16 +50,23 @@ static v8::Local<v8::External> MakeData(v8::Isolate* isolate, void* pointer) {
 template <typename T, typename TCallbackInfo>
 static T* GetData(const TCallbackInfo& info) {
   USE(MakeData);
-  v8::Local<v8::Data> data;
-  if constexpr (requires { info.DataV2(); }) {
-    data = info.DataV2();
-  } else {
-    data = info.Data();
-  }
+  v8::Local<v8::Data> data = info.Data();
+  return reinterpret_cast<T*>(v8::External::Cast(*data)->Value(kTestConfigTag));
+}
+
+template <typename T>
+static T* GetData(v8::Local<v8::Data> data) {
+  USE(MakeData);
   return reinterpret_cast<T*>(v8::External::Cast(*data)->Value(kTestConfigTag));
 }
 
 class ArrayBufferAllocator;
+
+template <typename TMixin>
+class WithSaveFlagsMixin : public TMixin {
+ private:
+  i::SaveFlags save_flags_;
+};
 
 template <typename TMixin>
 class WithDefaultPlatformMixin : public TMixin {
@@ -69,7 +79,7 @@ class WithDefaultPlatformMixin : public TMixin {
     // Allow changing flags in unit tests.
     // TODO(12887): Fix tests to avoid changing flag values after
     // initialization.
-    i::v8_flags.freeze_flags_after_init = false;
+    i::v8_flags.freeze_flags_after_init.Set(false);
     v8::V8::Initialize();
   }
 
@@ -85,17 +95,119 @@ class WithDefaultPlatformMixin : public TMixin {
   std::unique_ptr<v8::Platform> platform_;
 };
 
+// Base v8::Platform wrapper that delegates all methods to an underlying
+// platform by default; install via WithCustomPlatformMixin.
+class TestPlatform : public v8::Platform {
+ public:
+  ~TestPlatform() override = default;
+
+  TestPlatform(const TestPlatform&) = delete;
+  TestPlatform& operator=(const TestPlatform&) = delete;
+
+  virtual void TearDownPlatform() {}
+
+  v8::PageAllocator* GetPageAllocator() override {
+    return default_platform_->GetPageAllocator();
+  }
+  v8::ThreadIsolatedAllocator* GetThreadIsolatedAllocator() override {
+    return default_platform_->GetThreadIsolatedAllocator();
+  }
+  void OnCriticalMemoryPressure() override {
+    default_platform_->OnCriticalMemoryPressure();
+  }
+  int NumberOfWorkerThreads() override {
+    return default_platform_->NumberOfWorkerThreads();
+  }
+  std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner(
+      v8::Isolate* isolate, v8::TaskPriority priority) override {
+    return default_platform_->GetForegroundTaskRunner(isolate, priority);
+  }
+  void PostTaskOnWorkerThreadImpl(v8::TaskPriority priority,
+                                  std::unique_ptr<v8::Task> task,
+                                  const v8::SourceLocation& location) override {
+    default_platform_->PostTaskOnWorkerThread(priority, std::move(task),
+                                              location);
+  }
+  void PostDelayedTaskOnWorkerThreadImpl(
+      v8::TaskPriority priority, std::unique_ptr<v8::Task> task,
+      double delay_in_seconds, const v8::SourceLocation& location) override {
+    default_platform_->PostDelayedTaskOnWorkerThread(
+        priority, std::move(task), delay_in_seconds, location);
+  }
+  std::unique_ptr<v8::JobHandle> CreateJobImpl(
+      v8::TaskPriority priority, std::unique_ptr<v8::JobTask> job_task,
+      const v8::SourceLocation& location) override {
+    return default_platform_->CreateJob(priority, std::move(job_task),
+                                        location);
+  }
+  double MonotonicallyIncreasingTime() override {
+    return default_platform_->MonotonicallyIncreasingTime();
+  }
+  double CurrentClockTimeMillis() override {
+    return default_platform_->CurrentClockTimeMillis();
+  }
+  bool IdleTasksEnabled(v8::Isolate* isolate) override {
+    return default_platform_->IdleTasksEnabled(isolate);
+  }
+  v8::TracingController* GetTracingController() override {
+    return default_platform_->GetTracingController();
+  }
+
+ protected:
+  explicit TestPlatform(v8::Platform* default_platform)
+      : default_platform_(default_platform) {
+    CHECK_NOT_NULL(default_platform_);
+  }
+
+  v8::Platform* default_platform() const { return default_platform_; }
+
+ private:
+  v8::Platform* default_platform_;
+};
+
+template <typename TMixin, typename TPlatform>
+class WithCustomPlatformMixin : public TMixin {
+ public:
+  WithCustomPlatformMixin() : custom_platform_(TMixin::platform()) {
+    i::V8::SetPlatformForTesting(&custom_platform_);
+  }
+  ~WithCustomPlatformMixin() override {
+    if (i::V8::GetCurrentPlatform() == &custom_platform_) {
+      i::V8::SetPlatformForTesting(TMixin::platform());
+    }
+  }
+  WithCustomPlatformMixin(const WithCustomPlatformMixin&) = delete;
+  WithCustomPlatformMixin& operator=(const WithCustomPlatformMixin&) = delete;
+
+  void TearDown() override {
+    custom_platform_.TearDownPlatform();
+    // Restore the default platform before ~IsolateWrapper() calls
+    // v8::platform::PumpMessageLoop().
+    if (i::V8::GetCurrentPlatform() == &custom_platform_) {
+      i::V8::SetPlatformForTesting(TMixin::platform());
+    }
+    TMixin::TearDown();
+  }
+
+  TPlatform& custom_platform() { return custom_platform_; }
+
+ protected:
+  TPlatform custom_platform_;
+};
+
 template <typename TMixin>
 class WithJSSharedMemoryFeatureFlagsMixin : public TMixin {
  public:
-  WithJSSharedMemoryFeatureFlagsMixin() { i::v8_flags.shared_strings = true; }
+  WithJSSharedMemoryFeatureFlagsMixin() {
+    i::v8_flags.shared_strings.Set(true);
+  }
 };
 
 template <typename TMixin>
 class WithShadowRealmFeatureFlagsMixin : public TMixin {
  public:
   WithShadowRealmFeatureFlagsMixin() {
-    i::v8_flags.harmony_shadow_realm = true;
+    i::v8_flags.harmony_shadow_realm.Set(true);
   }
 };
 
@@ -204,15 +316,39 @@ class WithIsolateScopeMixin : public TMixin {
     return reinterpret_cast<v8::internal::Isolate*>(this->v8_isolate());
   }
 
-  i::DirectHandle<i::String> MakeName(const char* str, int suffix) {
+  static i::DirectHandle<i::String> MakeName(i::Isolate* isolate,
+                                             const char* str, int suffix) {
     std::array<char, 128> buffer;
     v8::base::SNPrintF(buffer, "%s%d", str, suffix);
-    return MakeString(buffer.data());
+    return MakeString(isolate, buffer.data());
+  }
+
+  i::DirectHandle<i::String> MakeName(const char* str, int suffix) {
+    return MakeName(i_isolate(), str, suffix);
+  }
+
+  static i::Handle<i::String> MakeString(i::Isolate* isolate, const char* str) {
+    i::Factory* factory = isolate->factory();
+    return factory->InternalizeUtf8String(str);
   }
 
   i::Handle<i::String> MakeString(const char* str) {
-    i::Factory* factory = i_isolate()->factory();
-    return factory->InternalizeUtf8String(str);
+    return MakeString(i_isolate(), str);
+  }
+
+  template <typename T>
+  static i::DirectHandle<T> GetGlobal(i::Isolate* isolate, const char* name) {
+    i::DirectHandle<i::String> str_name =
+        isolate->factory()->InternalizeUtf8String(name);
+    i::DirectHandle<i::Object> value =
+        i::Object::GetProperty(isolate, isolate->global_object(), str_name)
+            .ToHandleChecked();
+    return i::Cast<T>(value);
+  }
+
+  template <typename T>
+  i::DirectHandle<T> GetGlobal(const char* name) {
+    return GetGlobal<T>(i_isolate(), name);
   }
 
   Local<Value> RunJS(const char* source) {
@@ -243,6 +379,12 @@ class WithIsolateScopeMixin : public TMixin {
     return script->Run(context);
   }
 
+  static MaybeLocal<Value> TryRunJS(Isolate* isolate, Local<Context> context,
+                                    const char* source) {
+    return TryRunJS(context,
+                    v8::String::NewFromUtf8(isolate, source).ToLocalChecked());
+  }
+
   Local<Value> RunJS(v8::String::ExternalOneByteStringResource* source) {
     return RunJS(v8::String::NewExternalOneByte(this->v8_isolate(), source)
                      .ToLocalChecked());
@@ -256,6 +398,18 @@ class WithIsolateScopeMixin : public TMixin {
     ScriptCompiler::Source script_source(source, origin);
     return ScriptCompiler::Compile(isolate->GetCurrentContext(), &script_source)
         .ToLocalChecked();
+  }
+
+  Local<Script> CompileWithOrigin(Local<String> source, const char* origin_url,
+                                  bool is_shared_cross_origin) {
+    return CompileWithOrigin(source, NewString(origin_url),
+                             is_shared_cross_origin);
+  }
+
+  Local<Script> CompileWithOrigin(const char* source, const char* origin_url,
+                                  bool is_shared_cross_origin) {
+    return CompileWithOrigin(NewString(source), NewString(origin_url),
+                             is_shared_cross_origin);
   }
 
   void InvokeMajorGC(i::Isolate* isolate = nullptr) {
@@ -406,12 +560,11 @@ class PrintExtension : public v8::Extension {
 // Run a ScriptStreamingTask in a separate thread.
 class StreamerThread : public v8::base::Thread {
  public:
+  // The main thread is parked while joining, so that a GC requested by the
+  // streaming task cannot deadlock with the blocked main thread.
   static void StartThreadForTaskAndJoin(
-      v8::ScriptCompiler::ScriptStreamingTask* task) {
-    StreamerThread thread(task);
-    CHECK(thread.Start());
-    thread.Join();
-  }
+      v8::ScriptCompiler::ScriptStreamingTask* task,
+      i::Isolate* i_isolate = i::Isolate::Current());
 
   explicit StreamerThread(v8::ScriptCompiler::ScriptStreamingTask* task)
       : Thread(Thread::Options()), task_(task) {}
@@ -422,7 +575,31 @@ class StreamerThread : public v8::base::Thread {
   v8::ScriptCompiler::ScriptStreamingTask* task_;
 };
 
+static inline MaybeLocal<Value> TryRunJS(Isolate* isolate,
+                                         Local<Context> context,
+                                         const char* source) {
+  return TestWithIsolate::TryRunJS(isolate, context, source);
+}
+
+class StaticOneByteResource : public v8::String::ExternalOneByteStringResource {
+ public:
+  explicit StaticOneByteResource(const char* data) : data_(data) {}
+
+  ~StaticOneByteResource() override = default;
+
+  const char* data() const override { return data_; }
+
+  size_t length() const override { return strlen(data_); }
+
+ private:
+  const char* data_;
+};
+
 namespace internal {
+
+using v8::TestPlatform;
+using v8::WithCustomPlatformMixin;
+using v8::WithSaveFlagsMixin;
 
 // Forward declarations.
 class Factory;
@@ -576,6 +753,29 @@ static inline uint16_t* AsciiToTwoByteString(const char* source) {
   return converted;
 }
 
+static inline uint16_t* AsciiToTwoByteString(const char16_t* source,
+                                             size_t* length_out = nullptr) {
+  size_t array_length = std::char_traits<char16_t>::length(source) + 1;
+  uint16_t* converted = NewArray<uint16_t>(array_length);
+  for (size_t i = 0; i < array_length; i++) converted[i] = source[i];
+  if (length_out != nullptr) *length_out = array_length - 1;
+  return converted;
+}
+
+static inline Handle<String> MakeString(Isolate* isolate, const char* str) {
+  return TestWithIsolate::MakeString(isolate, str);
+}
+
+static inline DirectHandle<String> MakeName(Isolate* isolate, const char* str,
+                                            int suffix) {
+  return TestWithIsolate::MakeName(isolate, str, suffix);
+}
+
+template <typename T>
+static inline DirectHandle<T> GetGlobal(Isolate* isolate, const char* name) {
+  return TestWithIsolate::GetGlobal<T>(isolate, name);
+}
+
 class TestTransitionsAccessor : public TransitionsAccessor {
  public:
   TestTransitionsAccessor(Isolate* isolate, Tagged<Map> map)
@@ -658,16 +858,14 @@ class FakeCodeEventLogger : public i::CodeEventLogger {
 
 class CrashKeyStore {
  public:
-  explicit CrashKeyStore(Isolate* isolate) : isolate_(isolate) {
-    InstallCallbacks();
-  }
+  CrashKeyStore();
+  ~CrashKeyStore();
 
   CrashKeyStore(const CrashKeyStore&) = delete;
   CrashKeyStore& operator=(const CrashKeyStore&) = delete;
 
-  ~CrashKeyStore() { isolate_->SetCrashKeyStringCallbacks({}, {}); }
-
-  const std::string& ValueForKey(const std::string& name) const {
+  std::string ValueForKey(const std::string& name) const {
+    base::MutexGuard guard(&mutex_);
     auto it = entries_.find(name);
     CHECK(it != entries_.end());
     CHECK_NOT_NULL(it->second.get());
@@ -675,10 +873,14 @@ class CrashKeyStore {
   }
 
   bool HasKey(const std::string& name) const {
+    base::MutexGuard guard(&mutex_);
     return entries_.find(name) != entries_.end();
   }
 
-  size_t size() const { return entries_.size(); }
+  size_t size() const {
+    base::MutexGuard guard(&mutex_);
+    return entries_.size();
+  }
   std::unordered_set<std::string> KeyNames() const;
 
  private:
@@ -687,11 +889,13 @@ class CrashKeyStore {
     std::string value;
   };
 
-  void InstallCallbacks();
-  CrashKey AllocateKey(const char key[], CrashKeySize size);
-  void SetValue(CrashKey crash_key, const std::string_view value);
+  static CrashKey AllocateCallback(const char key[], CrashKeySize size);
+  static void SetCallback(CrashKey crash_key, std::string_view value);
 
-  Isolate* isolate_;
+  CrashKey AllocateKey(const char key[], CrashKeySize size);
+  void SetValue(CrashKey crash_key, std::string_view value);
+
+  mutable base::Mutex mutex_;
   std::unordered_map<std::string, std::unique_ptr<Entry>> entries_;
 };
 
@@ -724,7 +928,7 @@ class CrashKeyStore {
 #elif defined(__PPC64__) || defined(_ARCH_PPC64)
 #define GET_STACK_POINTER_TO(sp_addr) \
   __asm__ __volatile__("std 1, %0" : "=m"(sp_addr))
-#elif V8_TARGET_ARCH_RISCV64
+#elif V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_RISCV32
 #define GET_STACK_POINTER_TO(sp_addr) \
   __asm__ __volatile__("add %0, sp, x0" : "=r"(sp_addr))
 #elif V8_HOST_ARCH_LOONG64
@@ -733,6 +937,14 @@ class CrashKeyStore {
 #else
 #error Host architecture was not detected as supported by v8
 #endif
+
+DISABLE_ASAN inline uintptr_t GetStackPointer() {
+  // MSAN doesn't seem to treat initializing stores in inline assembly as such,
+  // so we initialize this value here.
+  uintptr_t sp_addr = 0;
+  GET_STACK_POINTER_TO(sp_addr);
+  return sp_addr;
+}
 
 #endif  // V8_CC_GNU
 

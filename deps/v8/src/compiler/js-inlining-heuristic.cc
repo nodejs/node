@@ -367,7 +367,11 @@ void JSInliningHeuristic::Finalize() {
         IsSmallWithHeapNumberParam(candidate.own_size) &&
         total_ignored_bytecode_size_ < max_inlined_bytecode_size_small_total_) {
       Reduction const reduction = InlineCandidate(candidate, true);
-      if (reduction.Changed()) return;
+      if (reduction.Changed()) {
+        DCHECK(candidate.node->uses().empty());
+        candidate.node->Kill();
+        return;
+      }
     }
 
     // Make sure we have some extra budget left, so that any small functions
@@ -384,7 +388,11 @@ void JSInliningHeuristic::Finalize() {
     }
 
     Reduction const reduction = InlineCandidate(candidate, false);
-    if (reduction.Changed()) return;
+    if (reduction.Changed()) {
+      DCHECK(candidate.node->uses().empty());
+      candidate.node->Kill();
+      return;
+    }
   }
 }
 
@@ -398,6 +406,7 @@ struct NodeAndIndex {
 bool CollectStateValuesOwnedUses(Node* node, Node* state_values,
                                  NodeAndIndex* uses_buffer, size_t* use_count,
                                  size_t max_uses) {
+  if (state_values->opcode() == IrOpcode::kDeadValue) return false;
   // Only accumulate states that are not shared with other users.
   if (state_values->UseCount() > 1) return true;
   for (int i = 0; i < state_values->InputCount(); i++) {
@@ -423,6 +432,7 @@ Node* JSInliningHeuristic::DuplicateStateValuesAndRename(Node* state_values,
                                                          StateCloneMode mode) {
   // Only rename in states that are not shared with other users. This needs to
   // be in sync with the condition in {CollectStateValuesOwnedUses}.
+  DCHECK_NE(state_values->opcode(), IrOpcode::kDeadValue);
   Node* copy = (mode == kChangeInPlace && state_values->UseCount() <= 1)
                    ? state_values
                    : nullptr;
@@ -649,7 +659,10 @@ bool JSInliningHeuristic::TryReuseDispatch(Node* node, Node* callee,
   // Collect the uses to check case 2.
   Node* checkpoint_state = nullptr;
   if (checkpoint) {
-    checkpoint_state = checkpoint->InputAt(0);
+    checkpoint_state = NodeProperties::GetFrameStateInput(checkpoint);
+    // {checkpoint} may still be on the GraphReducer stack while its FrameState
+    // input has already been replaced with DeadValue by DeadCodeElimination.
+    if (checkpoint_state->opcode() != IrOpcode::kFrameState) return false;
     if (!CollectFrameStateUniqueUses(callee, FrameState{checkpoint_state},
                                      replaceable_uses, &replaceable_uses_count,
                                      kMaxUses)) {
@@ -769,8 +782,9 @@ void JSInliningHeuristic::CreateOrReuseDispatch(
     if (node->opcode() == IrOpcode::kJSConstruct) {
       // TODO(jgruber, v8:10675): This branch seems unreachable.
       JSConstructNode n(node);
-      if (inputs[n.TargetIndex()] == inputs[n.NewTargetIndex()]) {
-        inputs[n.NewTargetIndex()] = target;
+      if (inputs[JSConstructNode::TargetIndex()] ==
+          inputs[JSConstructNode::NewTargetIndex()]) {
+        inputs[JSConstructNode::NewTargetIndex()] = target;
       }
     }
     inputs[JSCallOrConstructNode::TargetIndex()] = target;
@@ -782,6 +796,11 @@ void JSInliningHeuristic::CreateOrReuseDispatch(
 
 Reduction JSInliningHeuristic::InlineCandidate(Candidate const& candidate,
                                                bool small_function) {
+  if (info_->HasReachedMaxInliningId()) {
+    info_->set_could_not_inline_all_candidates();
+    return NoChange();
+  }
+
   int num_calls = candidate.num_functions;
   Node* const node = candidate.node;
 

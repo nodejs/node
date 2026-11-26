@@ -80,17 +80,31 @@ struct IsTransparent<T, std::void_t<typename T::is_transparent>>
     : std::true_type {};
 
 template <bool is_transparent>
-struct KeyArg {
-  // Transparent. Forward `K`.
-  template <typename K, typename key_type>
-  using type = K;
+struct KeyArg;
+
+template <>
+struct KeyArg<true> {
+  // Transparent case: forward the user's argument type as-is (without
+  // converting to the key type).
+  template <typename Arg, typename Key>
+  using Select = Arg;
+
+  // In the transparent case, the argument type is deduced, and we can't make
+  // pass-by-value vs. pass-by-reference be conditional on the type.
+  template <typename Arg, typename Key>
+  using SelectReadOnly = const Arg&;
 };
 
 template <>
 struct KeyArg<false> {
-  // Not transparent. Always use `key_type`.
-  template <typename K, typename key_type>
-  using type = key_type;
+  // Non-transparent case: convert the user's argument to the key type first.
+  template <typename Arg, typename Key>
+  using Select = Key;
+
+  template <typename Arg, typename Key>
+  using SelectReadOnly = type_traits_internal::AddConstRefIfExpensiveToCopy<
+      // Allows incomplete Key by making it a dependent type.
+      std::conditional_t<false, Arg, Key>>;
 };
 
 // The node_handle concept from C++17.

@@ -46,7 +46,7 @@ using {{type.id}} = {{protocol.resolve_type(type).type}};
 
 namespace {{type.id}}Enum {
       {% for literal in type.enum %}
-{{config.protocol.export_macro}} extern const char {{ literal | dash_to_camelcase}}[];
+inline constexpr char {{ literal | dash_to_camelcase}}[] = "{{literal}}";
       {% endfor %}
 } // namespace {{type.id}}Enum
     {% endif %}
@@ -58,7 +58,7 @@ namespace {{type.id}}Enum {
 namespace {{command.name | to_title_case}} {
 namespace {{param.name | to_title_case}}Enum {
         {% for literal in param.enum %}
-{{config.protocol.export_macro}} extern const char* {{literal | dash_to_camelcase}};
+inline constexpr char {{literal | dash_to_camelcase}}[] = "{{literal}}";
         {% endfor %}
 } // {{param.name | to_title_case}}Enum
 } // {{command.name | to_title_case }}

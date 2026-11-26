@@ -147,9 +147,11 @@ void PropertyDetails::PrintAsFastTo(std::ostream& os, PrintMode mode) {
   } else {
     os << " descriptor";
   }
+#ifndef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
   if (mode & kPrintPointer) {
     os << ", p: " << pointer();
   }
+#endif  // !V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
   if (mode & kPrintAttributes) {
     os << ", attrs: " << attributes();
   }

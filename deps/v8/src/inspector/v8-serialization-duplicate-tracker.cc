@@ -59,17 +59,15 @@ bool V8SerializationDuplicateTracker::SetKnownSerializedValue(
   // Don't store the raw `serializedValue` pointer in the (in-sandbox) map,
   // but only its index into `m_serializedValues`.
   int32_t index = static_cast<int32_t>(m_serializedValues.size());
-  v8::Local<v8::Map> map;
-  if (!m_v8ObjectToSerializedDictionary
-           ->Set(m_context, v8Value,
-                 v8::Integer::New(v8::Isolate::GetCurrent(), index))
-           .ToLocal(&map)) {
+  if (m_v8ObjectToSerializedDictionary
+          ->Set(m_context, v8Value,
+                v8::Integer::New(v8::Isolate::GetCurrent(), index))
+          .IsEmpty()) {
     // Return false when Map::Set fails instead of aborting via ToLocalChecked.
     return false;
   }
-  // Record the serialized dictionary and update the map handle on success.
+  // Record the serialized dictionary on success.
   m_serializedValues.push_back(serializedValue);
-  m_v8ObjectToSerializedDictionary = map;
   return true;
 }
 

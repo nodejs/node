@@ -10,6 +10,24 @@ namespace maglev {
 
 thread_local MaglevGraphLabeller* thread_graph_labeller;
 
+MaglevGraphLabeller::Provenance MaglevGraphLabeller::GetNodeProvenance(
+    const NodeBase* node) const {
+  const auto it = nodes_.find(node);
+  return it == nodes_.end() ? Provenance{} : it->second.provenance;
+}
+
+void MaglevGraphLabeller::SetNodeLineNumber(const NodeBase* node,
+                                            int line_number) {
+  if (auto it = nodes_.find(node); it != nodes_.end()) {
+    it->second.line_number = line_number;
+  }
+}
+
+int MaglevGraphLabeller::GetNodeLineNumber(const NodeBase* node) const {
+  const auto it = nodes_.find(node);
+  return it == nodes_.end() ? -1 : it->second.line_number;
+}
+
 MaglevGraphLabellerScope::MaglevGraphLabellerScope(
     MaglevGraphLabeller* graph_labeller) {
   DCHECK_NULL(thread_graph_labeller);

@@ -20,7 +20,6 @@ if(NOT ${getrandom_index} EQUAL -1)
     libc.hdr.errno_macros)
 endif()
 
-
 add_header_library(
   table
   HDRS

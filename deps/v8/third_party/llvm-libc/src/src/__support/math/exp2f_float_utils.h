@@ -15,8 +15,8 @@
 #define LLVM_LIBC_SRC___SUPPORT_MATH_EXP2F_FLOAT_UTILS_H
 
 #include "src/__support/CPP/bit.h"
-#include "src/__support/FPUtil/PolyEval.h"
-#include "src/__support/FPUtil/multiply_add.h"
+#include "src/__support/FPUtil/polyeval.h"
+#include "src/__support/macros/attributes.h"
 #include "src/__support/macros/config.h"
 #include "src/__support/macros/optimization.h"
 
@@ -80,7 +80,10 @@ LIBC_INLINE float scale_exp2f(float y, int m) {
 //   0x1.68cb...p-28
 // > dirtyinfnorm((1 + x * P - 2^x) / 2^x, [-0.5, 0.5]);
 //   0x1.5109...p-28
-//
+LIBC_INLINE_VAR constexpr float EXP2F_COEFFS[6] = {
+    0x1.62e430p-1f, 0x1.ebfbdep-3f,  0x1.c6af9ep-5f,
+    0x1.3b2c58p-7f, 0x1.5ef4a2p-10f, 0x1.427918p-13f};
+
 // Instead of using pure Estrin's scheme on P(u), we evaluate the degree-4
 // part p = c1 + c2 * u + c3 * u^2 + c4 * u^3 + c5 * u^4 with Estrin's
 // scheme, and then evaluate y = 1.0f + u * (c0 + u * p) with Horner's
@@ -90,19 +93,8 @@ LIBC_INLINE float scale_exp2f(float y, int m) {
 // rounding errors on non-FMA targets. Evaluating c1..c5 first keeps only a
 // single rounding at c0's scale.
 LIBC_INLINE float exp2f_eval(float u, int m) {
-  constexpr float COEFFS[6] = {0x1.62e430p-1f,  0x1.ebfbdep-3f,
-                               0x1.c6af9ep-5f,  0x1.3b2c58p-7f,
-                               0x1.5ef4a2p-10f, 0x1.427918p-13f};
-
-  float u2 = u * u;
-  float u4 = u2 * u2;
-
-  float p0 = fputil::multiply_add(u, COEFFS[2], COEFFS[1]);
-  float p1 = fputil::multiply_add(u, COEFFS[4], COEFFS[3]);
-  float q0 = fputil::multiply_add(u2, p1, p0);
-  float p = fputil::multiply_add(u4, COEFFS[5], q0);
-
-  float y = fputil::polyeval(u, 1.0f, COEFFS[0], p);
+  float p = fputil::estrin_polyeval</*OFFSET=*/1>(u, EXP2F_COEFFS);
+  float y = fputil::polyeval(u, 1.0f, EXP2F_COEFFS[0], p);
 
   return scale_exp2f(y, m);
 }

@@ -111,7 +111,7 @@ MaybeDirectHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
   //               requestedLocales, opt,
   //               %RelativeTimeFormat%.[[RelevantExtensionKeys]], localeData).
   Intl::ResolvedLocale r;
-  if (!Intl::ResolveLocale(isolate, JSRelativeTimeFormat::GetAvailableLocales(),
+  if (!Intl::ResolveLocale(isolate, JSRelativeTimeFormat::GetAvailableLocales,
                            requested_locales, matcher, {"nu"})
            .To(&r)) {
     THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError));

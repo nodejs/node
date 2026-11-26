@@ -2,8 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <atomic>
 #include <format>
+#include <string>
 #include <string_view>
+#include <thread>
+#include <utility>
 
 #include "include/v8-context.h"
 #include "include/v8-function.h"
@@ -11,12 +15,21 @@
 #include "include/v8-local-handle.h"
 #include "include/v8-platform.h"
 #include "include/v8-primitive.h"
+#include "include/v8-profiler.h"
 #include "include/v8-script.h"
 #include "src/api/api-inl.h"
+#include "src/base/platform/semaphore.h"
+#include "src/base/synchronization-point-support.h"
 #include "src/codegen/compilation-cache.h"
-#include "src/common/synchronization-point-support.h"
+#if defined(V8_ENABLE_ETW_STACK_WALKING)
+#include "src/diagnostics/etw-isolate-load-script-data-win.h"
+#endif  // defined(V8_ENABLE_ETW_STACK_WALKING)
+#include "src/heap/heap-inl.h"
+#include "src/heap/heap-verifier.h"
+#include "src/objects/scope-info-inl.h"
 #include "src/objects/script-inl.h"
 #include "src/objects/string-inl.h"
+#include "test/common/flag-utils.h"
 #include "test/unittests/heap/heap-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -69,6 +82,10 @@ class DeserializeTest : public TestWithPlatform {
     DCHECK(!context_.IsEmpty());
     return context_.Get(isolate_);
   }
+
+  template <typename Action>
+  void RunConcurrentOffThreadDeserialize(int iterations,
+                                         Action&& concurrent_action);
 
  private:
   Isolate* isolate_ = nullptr;
@@ -203,6 +220,111 @@ TEST_F(DeserializeTest, OffThreadDeserialize) {
     CHECK_EQ(RunGlobalFunc("foo"), v8::Integer::New(isolate(), 42));
   }
 }
+
+class SignalingDeserializeThread : public base::Thread {
+ public:
+  SignalingDeserializeThread(
+      std::unique_ptr<ScriptCompiler::ConsumeCodeCacheTask> task,
+      std::atomic<bool>* done)
+      : Thread(base::Thread::Options("SignalingDeserializeThread")),
+        task_(std::move(task)),
+        done_(done) {}
+
+  void Run() override {
+    task_->Run();
+    done_->store(true, std::memory_order_release);
+  }
+
+  std::unique_ptr<ScriptCompiler::ConsumeCodeCacheTask> TakeTask() {
+    return std::move(task_);
+  }
+
+ private:
+  std::unique_ptr<ScriptCompiler::ConsumeCodeCacheTask> task_;
+  std::atomic<bool>* done_;
+};
+
+template <typename Action>
+void DeserializeTest::RunConcurrentOffThreadDeserialize(
+    int iterations, Action&& concurrent_action) {
+  if (!i::v8_flags.concurrent_cache_deserialization) GTEST_SKIP();
+
+  std::string source_str;
+  for (int i = 0; i < 2000; ++i) {
+    source_str += std::format("function f{0}() {{ return {0}; }} f{0}();\n", i);
+  }
+
+  std::unique_ptr<v8::ScriptCompiler::CachedData> cached_data;
+  {
+    IsolateAndContextScope scope(this);
+    Local<String> source_code = NewString(source_str.c_str());
+    Local<Script> script =
+        Script::Compile(context(), source_code).ToLocalChecked();
+    CHECK(!script->Run(context()).IsEmpty());
+    cached_data.reset(
+        ScriptCompiler::CreateCodeCache(script->GetUnboundScript()));
+    CHECK_NOT_NULL(cached_data);
+  }
+
+  {
+    IsolateAndContextScope scope(this);
+    for (int iter = 0; iter < iterations; ++iter) {
+      std::atomic<bool> done{false};
+      std::unique_ptr<ScriptCompiler::ConsumeCodeCacheTask> task(
+          ScriptCompiler::StartConsumingCodeCache(
+              isolate(), std::make_unique<ScriptCompiler::CachedData>(
+                             cached_data->data, cached_data->length,
+                             ScriptCompiler::CachedData::BufferNotOwned)));
+      CHECK_NOT_NULL(task);
+      SignalingDeserializeThread deserialize_thread(std::move(task), &done);
+      CHECK(deserialize_thread.Start());
+      while (!done.load(std::memory_order_acquire)) {
+        concurrent_action(isolate());
+        std::this_thread::yield();
+      }
+      deserialize_thread.Join();
+
+      if (iter == 0) {
+        Local<String> source_code = NewString(source_str.c_str());
+        ScriptCompiler::Source source(
+            source_code,
+            new ScriptCompiler::CachedData(
+                cached_data->data, cached_data->length,
+                ScriptCompiler::CachedData::BufferNotOwned),
+            deserialize_thread.TakeTask().release());
+        Local<Script> script =
+            ScriptCompiler::Compile(context(), &source,
+                                    ScriptCompiler::kConsumeCodeCache)
+                .ToLocalChecked();
+        CHECK(!source.GetCachedData()->rejected);
+        CHECK(!script->Run(context()).IsEmpty());
+        CHECK_EQ(RunGlobalFunc("f1999"), v8::Integer::New(isolate(), 1999));
+      }
+    }
+  }
+}
+
+TEST_F(DeserializeTest, OffThreadDeserializeWithCpuProfiler) {
+  RunConcurrentOffThreadDeserialize(20, [](Isolate* isolate) {
+    v8::CpuProfiler* profiler =
+        v8::CpuProfiler::New(isolate, v8::kDebugNaming, v8::kEagerLogging);
+    profiler->Dispose();
+  });
+}
+
+#if defined(V8_ENABLE_ETW_STACK_WALKING)
+TEST_F(DeserializeTest, OffThreadDeserializeWithEtwEnableLog) {
+  i::FlagScope<bool> enable_etw(&i::v8_flags.enable_etw_stack_walking, true);
+  RunConcurrentOffThreadDeserialize(15, [](Isolate* isolate) {
+    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+    i::ETWJITInterface::IsolateLoadScriptData::EnableLog(
+        i_isolate, 0,
+        std::weak_ptr<i::ETWJITInterface::EtwIsolateCaptureStateMonitor>(),
+        v8::kJitCodeEventEnumExisting);
+    i::ETWJITInterface::IsolateLoadScriptData::DisableLog(i_isolate, 0);
+  });
+}
+#endif  // defined(V8_ENABLE_ETW_STACK_WALKING)
 
 namespace {
 
@@ -726,8 +848,8 @@ class MergeDeserializedCodeTest : public DeserializeTest {
                           ScriptObjectFlag aged_after_background_merge,
                           bool lazy_should_be_compiled = false,
                           bool eager_should_be_compiled = true) {
-    i::v8_flags.merge_background_deserialized_script_with_compilation_cache =
-        true;
+    i::v8_flags.merge_background_deserialized_script_with_compilation_cache.Set(
+        true);
     std::unique_ptr<v8::ScriptCompiler::CachedData> cached_data;
     IsolateAndContextScope scope(this);
     i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
@@ -981,8 +1103,8 @@ TEST_F(MergeDeserializedCodeTest, Regress1360024) {
 }
 
 TEST_F(MergeDeserializedCodeTest, MergeWithNoFollowUpWork) {
-  i::v8_flags.merge_background_deserialized_script_with_compilation_cache =
-      true;
+  i::v8_flags.merge_background_deserialized_script_with_compilation_cache.Set(
+      true);
   std::unique_ptr<v8::ScriptCompiler::CachedData> cached_data;
   IsolateAndContextScope scope(this);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
@@ -1065,8 +1187,8 @@ TEST_F(MergeDeserializedCodeTest, MergeWithNoFollowUpWork) {
 }
 
 TEST_F(MergeDeserializedCodeTest, MergeThatCompilesLazyFunction) {
-  i::v8_flags.merge_background_deserialized_script_with_compilation_cache =
-      true;
+  i::v8_flags.merge_background_deserialized_script_with_compilation_cache.Set(
+      true);
   std::unique_ptr<v8::ScriptCompiler::CachedData> cached_data;
   IsolateAndContextScope scope(this);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
@@ -1166,9 +1288,9 @@ TEST_F(MergeDeserializedCodeTest, MergeThatCompilesLazyFunction) {
 
 TEST_F(MergeDeserializedCodeTest,
        MergeThatCompilesLazyFunctionWithOuterScopeInfo) {
-  i::v8_flags.merge_background_deserialized_script_with_compilation_cache =
-      true;
-  i::v8_flags.verify_code_merge = true;
+  i::v8_flags.merge_background_deserialized_script_with_compilation_cache.Set(
+      true);
+  i::v8_flags.verify_code_merge.Set(true);
   std::unique_ptr<v8::ScriptCompiler::CachedData> cached_data;
   IsolateAndContextScope scope(this);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
@@ -1240,29 +1362,40 @@ TEST_F(MergeDeserializedCodeTest,
 
   CHECK(task->ShouldMergeWithExistingScript());
 
-  // Request block at sync point before background thread reads outer scope
-  // info.
-  i::SynchronizationPointSupport::Get()->RequestBlockAt(
-      "BeforeGetOuterScopeInfo", base::TimeDelta::FromSeconds(10));
-
-  MergeThread merge_thread(task.get());
-  CHECK(merge_thread.Start());
-
-  // Wait until background merge is paused at the sync point.
-  CHECK(i::SynchronizationPointSupport::Get()->WaitUntilBlocked(
-      "BeforeGetOuterScopeInfo", base::TimeDelta::FromSeconds(10)));
-
-  // While background merge is paused before reading outer scope info, trigger
-  // real lazy compilation of 'f' on the main thread.
   {
-    Local<Value> actual = RunGlobalFunc("f");
-    CHECK_EQ(42, actual->Int32Value(context()).FromJust());
-  }
+    // Finalize any in-progress incremental marking and disable stress-marking
+    // flags before merge_thread starts so a pre-existing GC request cannot
+    // fire while merge_thread is artificially paused unparked inside
+    // DisallowGarbageCollection at BeforeGetOuterScopeInfo.
+    i::ManualGCScope manual_gc_scope(i_isolate);
 
-  // Resume the background merge thread.
-  CHECK(
-      i::SynchronizationPointSupport::Get()->Resume("BeforeGetOuterScopeInfo"));
-  merge_thread.Join();
+    // Request block at sync point before background thread reads outer scope
+    // info.
+    base::SynchronizationPointSupport::Get()->RequestBlockAt(
+        "BeforeGetOuterScopeInfo", base::TimeDelta::FromSeconds(10));
+
+    MergeThread merge_thread(task.get());
+    CHECK(merge_thread.Start());
+
+    // Wait until background merge is paused at the sync point.
+    CHECK(base::SynchronizationPointSupport::Get()->WaitUntilBlocked(
+        "BeforeGetOuterScopeInfo", base::TimeDelta::FromSeconds(10)));
+
+    // While background merge is paused before reading outer scope info, trigger
+    // real lazy compilation of 'f' on the main thread. Suppress automatic GCs
+    // during this call so it cannot block on Safepoint::Barrier::Arm while
+    // merge_thread is paused unparked.
+    {
+      i::AlwaysAllocateScopeForTesting always_allocate(i_isolate->heap());
+      Local<Value> actual = RunGlobalFunc("f");
+      CHECK_EQ(42, actual->Int32Value(context()).FromJust());
+    }
+
+    // Resume the background merge thread.
+    CHECK(base::SynchronizationPointSupport::Get()->Resume(
+        "BeforeGetOuterScopeInfo"));
+    merge_thread.Join();
+  }
 
   // Complete compilation on the main thread.
   ScriptCompiler::Source source(NewString(kSourceCode),
@@ -1276,6 +1409,205 @@ TEST_F(MergeDeserializedCodeTest,
 
   Local<Value> actual = RunGlobalFunc("f");
   CHECK_EQ(42, actual->Int32Value(context()).FromJust());
+}
+
+// Reproduces an in-development near-miss caught by the concurrency model
+// checker while restoring the CompleteMergeInForeground fast-path skip: a
+// two-slot handoff TOCTOU race in SharedFunctionInfo::TryGetScopeInfoForMerge
+// (and TryGetOuterScopeInfo) that was previously masked on ToT because the
+// foreground pass unconditionally rescanned every valid SFI in
+// old_script->infos().
+//
+// Initial state before BeginMergeInBackground:
+//   old_script->infos():
+//     [0] top-level : ClearedValue (collected by GC)
+//     [1] outer     : ClearedValue (collected by GC)
+//     [2] old_f     : Uncompiled SFI
+//                       name_or_scope_info = String("f")
+//                       outer_scope_info   = Scope_outer_old (uid=1)
+//   new_script->infos() (from code cache):
+//     [0] new_top   : Compiled SFI (Scope_top_new)
+//     [1] new_outer : Compiled SFI (Scope_outer_new, uid=1)
+//     [2] new_f     : Uncompiled SFI (outer_scope_info = Scope_outer_new)
+//
+// Sequence Diagram:
+//
+//   Background Merge Thread                     Main Thread (JS Execution)
+//   -----------------------                     --------------------------
+//   BeginMergeInBackground:
+//   [slot 1]: old_script->infos[1] is Cleared
+//     -> used_new_sfis_.push_back(new_outer)
+//        (new_outer has Scope_outer_new, uid=1)
+//
+//   [slot 2]: old_script->infos[2] is old_f
+//     forwarder.RecordScopeInfos(old_f)
+//       old_f->TryGetScopeInfoForMerge():
+//       1) Read old_f->name_or_scope_info(kAcquireLoad)
+//          -> observes String("f") (not a ScopeInfo)
+//
+//       === SYNCHRONIZATION_POINT("BeforeGetScopeInfoForMerge") ===
+//                     |
+//                     +-----------------------> RunGlobalFunc("f") (lazy
+//                     compile):
+//                                               1) old_f->SetScopeInfo(
+//                                                    Scope_f_old,
+//                                                    kReleaseStore)
+//                                                  [Scope_f_old->outer =
+//                                                   Scope_outer_old (uid=1)]
+//                                               2)
+//                                               old_f->set_feedback_metadata(
+//                                                    FeedbackMetadata,
+//                                                    kReleaseStore)
+//                                                  [overwrites
+//                                                  outer_scope_info!]
+//                     <-----------------------+
+//       2) Read old_f->raw_outer_scope_info_or_feedback_metadata(kAcquireLoad)
+//          -> observes FeedbackMetadata (not a ScopeInfo!)
+//          -> [NEAR-MISS WITHOUT FIX]: returns empty_scope_info()!
+//             Scope_outer_old (uid=1) is NEVER recorded in forwarder!
+//          -> [WITH FIX]: re-reads old_f->name_or_scope_info(kAcquireLoad),
+//             observing Scope_f_old -> records Scope_f_old & Scope_outer_old.
+//
+//     3) Check old_f->scope_info(kAcquireLoad)->IsEmpty():
+//        -> observes Scope_f_old (IsEmpty() == false!)
+//        -> sets new_script->infos[2] = old_f (NOT Smi::zero())
+//
+//   --------------------------------------------------------------------------
+//   CompleteMergeInForeground (on Main Thread):
+//     Pass 1 (Rescan):
+//       [slot 2]: maybe_new_info (old_f) == maybe_old_info (old_f)
+//                 -> FAST-PATH SKIPPED! (Scope_outer_old still not recorded)
+//     Pass 2 (Publish):
+//       [slot 1]: publishes new_outer (with unforwarded Scope_outer_new, uid=1)
+//       [slot 2]: keeps old_f (whose Scope_f_old->outer is Scope_outer_old,
+//       uid=1)
+//
+//     VerifyCodeMerge:
+//       CRASH WITHOUT FIX! Two distinct ScopeInfo objects for uid=1:
+//       Scope_outer_new (on slot 1) != Scope_outer_old (on slot 2's outer
+//       chain)
+//       -> Isolate::PushParamsAndDie("duplicate scope info unique id")
+TEST_F(MergeDeserializedCodeTest,
+       ConcurrentLazyCompileDuringTryGetScopeInfoForMerge) {
+  i::v8_flags.merge_background_deserialized_script_with_compilation_cache.Set(
+      true);
+  i::v8_flags.verify_code_merge.Set(true);
+  std::unique_ptr<v8::ScriptCompiler::CachedData> cached_data;
+  IsolateAndContextScope scope(this);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
+  PersistentScriptOrigin default_origin(isolate(), NewString(""));
+
+  constexpr char kSourceCode[] =
+      "var outer = function () {\n"
+      "  var x = 42;\n"
+      "  var f = function () { return x; };\n"
+      "  return f;\n"
+      "};\n"
+      "var f = outer();\n"
+      "outer = null;";
+
+  // 1. First compilation: outer() runs so 'outer' is compiled in the code
+  // cache (with Scope_outer_new), while 'f' remains uncompiled.
+  {
+    v8::HandleScope handle_scope(isolate());
+    ScriptOrigin origin = default_origin.AsScriptOrigin();
+    Local<Script> script =
+        Script::Compile(context(), NewString(kSourceCode), &origin)
+            .ToLocalChecked();
+    CHECK(!script->Run(context()).IsEmpty());
+    cached_data.reset(
+        ScriptCompiler::CreateCodeCache(script->GetUnboundScript()));
+  }
+
+  i_isolate->compilation_cache()->Clear();
+
+  // 2. Second compilation: run outer() and set outer = null, then age both
+  // top-level and 'outer' so GC clears slot 0 (top-level) and slot 1 (outer) in
+  // old_script->infos(). Only slot 2 ('f', uncompiled) remains alive and holds
+  // the sole reference to Scope_outer_old in its outer_scope_info slot.
+  {
+    v8::HandleScope handle_scope(isolate());
+    ScriptOrigin origin = default_origin.AsScriptOrigin();
+    Local<Script> script =
+        Script::Compile(context(), NewString(kSourceCode), &origin)
+            .ToLocalChecked();
+    CHECK(!script->Run(context()).IsEmpty());
+
+    i::Tagged<i::SharedFunctionInfo> top_sfi = GetSharedFunctionInfo(script);
+    i::Tagged<i::Script> old_script = i::Cast<i::Script>(top_sfi->script());
+    for (uint32_t k = 0; k < old_script->infos()->ulength().value(); ++k) {
+      i::Tagged<i::HeapObject> ho;
+      if (old_script->infos()->get(k).GetHeapObjectIfWeak(&ho) &&
+          i::Is<i::SharedFunctionInfo>(ho)) {
+        i::Tagged<i::SharedFunctionInfo> sfi =
+            i::Cast<i::SharedFunctionInfo>(ho);
+        if (sfi->is_compiled()) {
+          i::SharedFunctionInfo::EnsureOldForTesting(sfi);
+        }
+      }
+    }
+  }
+
+  {
+    i::DisableConservativeStackScanningScopeForTesting no_css_scope(
+        i_isolate->heap());
+    InvokeMajorGC(i_isolate);
+    InvokeMajorGC(i_isolate);
+  }
+
+  DeserializeThread deserialize_thread(ScriptCompiler::StartConsumingCodeCache(
+      isolate(), std::make_unique<ScriptCompiler::CachedData>(
+                     cached_data->data, cached_data->length,
+                     ScriptCompiler::CachedData::BufferNotOwned)));
+  CHECK(deserialize_thread.Start());
+  deserialize_thread.Join();
+
+  std::unique_ptr<ScriptCompiler::ConsumeCodeCacheTask> task =
+      deserialize_thread.TakeTask();
+  task->SourceTextAvailable(isolate(), NewString(kSourceCode),
+                            default_origin.AsScriptOrigin());
+  CHECK(task->ShouldMergeWithExistingScript());
+
+  {
+    // Finalize any in-progress incremental marking and disable stress-marking
+    // flags before merge_thread starts so a pre-existing GC request cannot
+    // fire while merge_thread is artificially paused unparked inside
+    // DisallowGarbageCollection at BeforeGetScopeInfoForMerge.
+    i::ManualGCScope manual_gc_scope(i_isolate);
+
+    base::SynchronizationPointSupport::Get()->RequestBlockAt(
+        "BeforeGetScopeInfoForMerge", base::TimeDelta::FromSeconds(10));
+
+    MergeThread merge_thread(task.get());
+    CHECK(merge_thread.Start());
+
+    CHECK(base::SynchronizationPointSupport::Get()->WaitUntilBlocked(
+        "BeforeGetScopeInfoForMerge", base::TimeDelta::FromSeconds(10)));
+
+    // Compile 'f' on the main thread while the background thread is paused
+    // between name_or_scope_info(kAcquireLoad) and
+    // raw_outer_scope_info_or_feedback_metadata(kAcquireLoad). Suppress
+    // automatic GCs during this call so it cannot block on
+    // Safepoint::Barrier::Arm while merge_thread is paused unparked.
+    {
+      i::AlwaysAllocateScopeForTesting always_allocate(i_isolate->heap());
+      Local<Value> actual = RunGlobalFunc("f");
+      CHECK_EQ(42, actual->Int32Value(context()).FromJust());
+    }
+
+    CHECK(base::SynchronizationPointSupport::Get()->Resume(
+        "BeforeGetScopeInfoForMerge"));
+    merge_thread.Join();
+  }
+
+  ScriptCompiler::Source source(NewString(kSourceCode),
+                                default_origin.AsScriptOrigin(),
+                                cached_data.release(), task.release());
+  Local<Script> script =
+      ScriptCompiler::Compile(context(), &source,
+                              ScriptCompiler::kConsumeCodeCache)
+          .ToLocalChecked();
+  CHECK(!script->Run(context()).IsEmpty());
 }
 
 // POC: Relaxed-store publication of fresh SharedFunctionInfo into
@@ -1299,9 +1631,9 @@ TEST_F(MergeDeserializedCodeTest,
 // before the SFI's field stores are visible.
 TEST_F(MergeDeserializedCodeTest,
        DISABLED_ConcurrentLazyCompileDuringBackgroundMerge) {
-  i::v8_flags.merge_background_deserialized_script_with_compilation_cache =
-      true;
-  i::v8_flags.lazy_compile_dispatcher = false;
+  i::v8_flags.merge_background_deserialized_script_with_compilation_cache.Set(
+      true);
+  i::v8_flags.lazy_compile_dispatcher.Set(false);
 
   // Source layout (literal-id order):
   //   [0]                toplevel
@@ -1450,8 +1782,8 @@ TEST_F(MergeDeserializedCodeTest,
 }
 
 TEST_F(MergeDeserializedCodeTest, MergeThatStartsButDoesNotFinish) {
-  i::v8_flags.merge_background_deserialized_script_with_compilation_cache =
-      true;
+  i::v8_flags.merge_background_deserialized_script_with_compilation_cache.Set(
+      true);
   constexpr int kSimultaneousScripts = 10;
   std::vector<std::unique_ptr<v8::ScriptCompiler::CachedData>> cached_data;
   IsolateAndContextScope scope(this);
@@ -1544,8 +1876,8 @@ TEST_F(MergeDeserializedCodeTest, MergeThatStartsButDoesNotFinish) {
 }
 
 TEST_F(MergeDeserializedCodeTest, ModuleCacheClassicScriptMismatch) {
-  i::v8_flags.merge_background_deserialized_script_with_compilation_cache =
-      true;
+  i::v8_flags.merge_background_deserialized_script_with_compilation_cache.Set(
+      true);
   std::unique_ptr<v8::ScriptCompiler::CachedData> cached_data;
   IsolateAndContextScope scope(this);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
@@ -1684,6 +2016,293 @@ TEST_F(MergeDeserializedCodeTest, ModuleCacheClassicScriptMismatch) {
                         NewString("for (const f of globalThis.__keep) f();"))
             .ToLocalChecked();
     CHECK(!run_kept->Run(context()).IsEmpty());
+  }
+}
+
+// Regression test for crbug.com/589815794:
+// Serializer::ObjectSerializer::VisitPointers must not coalesce ReadOnlySpace
+// slots into OutputRawData runs, because BackgroundMergeTask can concurrently
+// overwrite ScopeInfo::inferred_function_name with a mutable heap string
+// between VisitPointers and OutputRawData's PutRaw, leaving a raw dangling
+// compressed heap pointer in the serialized code cache.
+TEST_F(MergeDeserializedCodeTest,
+       ConcurrentScopeInfoMutationDuringCodeCacheSerialization) {
+  i::FlagScope<bool> merge_scope(
+      &i::v8_flags.merge_background_deserialized_script_with_compilation_cache,
+      true);
+  i::FlagScope<bool> lazy_scope(&i::v8_flags.lazy, true);
+  i::FlagScope<bool> flush_scope(&i::v8_flags.flush_bytecode, true);
+  constexpr char kSource[] =
+      "var G;\n"
+      "(function setG(fn) { G = fn; })(\n"
+      "  (function G() {\n"
+      "    return {\n"
+      "      copyWithin: function() {\n"
+      "        eval('');\n"
+      "        return new Error().stack;\n"
+      "      }\n"
+      "    }.copyWithin;\n"
+      "  })\n"
+      ");\n";
+
+  std::unique_ptr<v8::ScriptCompiler::CachedData> raced_cache;
+
+  {
+    IsolateAndContextScope scope(this);
+    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
+    PersistentScriptOrigin default_origin(
+        isolate(), NewString("http://example.com/race.js"));
+
+    std::unique_ptr<v8::ScriptCompiler::CachedData> heap_name_cache;
+    // 1. Flush G's eagerly-compiled bytecode and recompile G lazily so
+    // Parser::DoParseFunction pushes "G" as enclosing name, giving copyWithin a
+    // mutable heap-allocated inferred name ("G.copyWithin") in the code cache.
+    {
+      v8::HandleScope handle_scope(isolate());
+      ScriptOrigin origin = default_origin.AsScriptOrigin();
+      Local<Script> script =
+          Script::Compile(context(), NewString(kSource), &origin)
+              .ToLocalChecked();
+      CHECK(!script->Run(context()).IsEmpty());
+
+      Local<Value> g_val =
+          context()->Global()->Get(context(), NewString("G")).ToLocalChecked();
+      CHECK(g_val->IsFunction());
+      i::SharedFunctionInfo::EnsureOldForTesting(
+          GetSharedFunctionInfo(g_val.As<Function>()));
+
+      {
+        i::DisableConservativeStackScanningScopeForTesting no_css(
+            i_isolate->heap());
+        InvokeMajorGC(i_isolate);
+        InvokeMajorGC(i_isolate);
+      }
+
+      Local<Value> inner_val = RunGlobalFunc("G");
+      CHECK(inner_val->IsFunction());
+      Local<Function> inner_fn = inner_val.As<Function>();
+      CHECK(!inner_fn->Call(context(), Undefined(isolate()), 0, nullptr)
+                 .IsEmpty());
+
+      i::Tagged<i::SharedFunctionInfo> inner_sfi =
+          GetSharedFunctionInfo(inner_fn);
+      CHECK(inner_sfi->HasScopeInfo());
+      CHECK(inner_sfi->scope_info()->HasInferredFunctionName());
+      i::Tagged<i::Object> inferred =
+          inner_sfi->scope_info()->inferred_function_name();
+      CHECK(i::IsString(inferred));
+      CHECK(!i::HeapLayout::InReadOnlySpace(i::Cast<i::HeapObject>(inferred)));
+
+      heap_name_cache.reset(
+          ScriptCompiler::CreateCodeCache(script->GetUnboundScript()));
+    }
+
+    i_isolate->compilation_cache()->Clear();
+
+    // 2. Compile the same script fresh so G is eagerly parsed without pushing
+    // "G" as enclosing name, leaving copyWithin's
+    // ScopeInfo::inferred_function_name as the non-root ReadOnlySpace string
+    // "copyWithin".
+    v8::Global<v8::Function> kept_inner_fn;
+    {
+      v8::HandleScope handle_scope(isolate());
+      ScriptOrigin origin = default_origin.AsScriptOrigin();
+      Local<Script> script =
+          Script::Compile(context(), NewString(kSource), &origin)
+              .ToLocalChecked();
+      CHECK(!script->Run(context()).IsEmpty());
+      Local<Value> inner_val = RunGlobalFunc("G");
+      CHECK(inner_val->IsFunction());
+      Local<Function> inner_fn = inner_val.As<Function>();
+      CHECK(!inner_fn->Call(context(), Undefined(isolate()), 0, nullptr)
+                 .IsEmpty());
+      kept_inner_fn.Reset(isolate(), inner_fn);
+
+      i::Tagged<i::SharedFunctionInfo> inner_sfi =
+          GetSharedFunctionInfo(inner_fn);
+      CHECK(inner_sfi->HasScopeInfo());
+      CHECK(inner_sfi->scope_info()->HasInferredFunctionName());
+      i::Tagged<i::Object> inferred =
+          inner_sfi->scope_info()->inferred_function_name();
+      CHECK(i::IsString(inferred));
+#if V8_STATIC_ROOTS_BOOL
+      CHECK(i::HeapLayout::InReadOnlySpace(i::Cast<i::HeapObject>(inferred)));
+#endif
+
+      // Age all compiled SFIs so top-level and o.copyWithin flush bytecode
+      // while o.copyWithin retains its ScopeInfo (and old_script stays in the
+      // compilation cache).
+      i::Tagged<i::Script> old_script =
+          i::Cast<i::Script>(GetSharedFunctionInfo(script)->script());
+      for (uint32_t k = 0; k < old_script->infos()->ulength().value(); ++k) {
+        i::Tagged<i::HeapObject> ho;
+        if (old_script->infos()->get(k).GetHeapObjectIfWeak(&ho) &&
+            i::Is<i::SharedFunctionInfo>(ho)) {
+          i::Tagged<i::SharedFunctionInfo> sfi =
+              i::Cast<i::SharedFunctionInfo>(ho);
+          if (sfi->is_compiled()) {
+            i::SharedFunctionInfo::EnsureOldForTesting(sfi);
+          }
+        }
+      }
+    }
+
+    {
+      i::DisableConservativeStackScanningScopeForTesting no_css(
+          i_isolate->heap());
+      InvokeMajorGC(i_isolate);
+      InvokeMajorGC(i_isolate);
+    }
+
+    // 3. Start background code-cache deserialization and set up the merge task
+    // against old_script (whose top-level SFI is flushed).
+    DeserializeThread deserialize_thread(
+        ScriptCompiler::StartConsumingCodeCache(
+            isolate(), std::make_unique<ScriptCompiler::CachedData>(
+                           heap_name_cache->data, heap_name_cache->length,
+                           ScriptCompiler::CachedData::BufferNotOwned)));
+    CHECK(deserialize_thread.Start());
+    deserialize_thread.Join();
+
+    std::unique_ptr<ScriptCompiler::ConsumeCodeCacheTask> task =
+        deserialize_thread.TakeTask();
+    task->SourceTextAvailable(isolate(), NewString(kSource),
+                              default_origin.AsScriptOrigin());
+    CHECK(task->ShouldMergeWithExistingScript());
+
+    // 4. Recompile top-level and G on old_script so CreateCodeCache will
+    // serialize old_script -> G -> o.copyWithin's SFI -> ScopeInfo, while
+    // o.copyWithin itself remains uncompiled with its ReadOnlySpace
+    // inferred_function_name.
+    v8::Global<v8::UnboundScript> script_for_cache;
+    {
+      v8::HandleScope handle_scope(isolate());
+      ScriptOrigin origin = default_origin.AsScriptOrigin();
+      Local<Script> script =
+          Script::Compile(context(), NewString(kSource), &origin)
+              .ToLocalChecked();
+      CHECK(!script->Run(context()).IsEmpty());
+      Local<Value> inner_val = RunGlobalFunc("G");
+      CHECK(inner_val->IsFunction());
+      script_for_cache.Reset(isolate(), script->GetUnboundScript());
+
+      i::Tagged<i::SharedFunctionInfo> inner_sfi =
+          GetSharedFunctionInfo(kept_inner_fn.Get(isolate()));
+      CHECK(!inner_sfi->HasBytecodeArray());
+      CHECK(inner_sfi->HasScopeInfo());
+#if V8_STATIC_ROOTS_BOOL
+      CHECK(i::HeapLayout::InReadOnlySpace(i::Cast<i::HeapObject>(
+          inner_sfi->scope_info()->inferred_function_name())));
+#endif
+    }
+
+    // 5. Run CreateCodeCache on the main thread while pausing right before
+    // OutputRawData copies ScopeInfo raw bytes, and execute the background
+    // merge (which mutates ScopeInfo::inferred_function_name to the heap string
+    // "G.copyWithin") during that pause.
+    class RaceMergeThread : public base::Thread {
+     public:
+      RaceMergeThread(ScriptCompiler::ConsumeCodeCacheTask* task,
+                      base::Semaphore* armed)
+          : Thread(base::Thread::Options("RaceMergeThread")),
+            task_(task),
+            armed_(armed) {}
+
+      void Run() override {
+        base::SynchronizationPointSupport::Get()->RequestBlockAt(
+            "SerializerOutputRawDataScopeInfo",
+            base::TimeDelta::FromSeconds(10));
+        armed_->Signal();
+        CHECK(base::SynchronizationPointSupport::Get()->WaitUntilBlocked(
+            "SerializerOutputRawDataScopeInfo",
+            base::TimeDelta::FromSeconds(10)));
+        task_->MergeWithExistingScript();
+        CHECK(base::SynchronizationPointSupport::Get()->Resume(
+            "SerializerOutputRawDataScopeInfo"));
+      }
+
+     private:
+      ScriptCompiler::ConsumeCodeCacheTask* task_;
+      base::Semaphore* armed_;
+    };
+
+    {
+      i::ManualGCScope manual_gc_scope(i_isolate);
+      base::Semaphore armed(0);
+      RaceMergeThread merge_thread(task.get(), &armed);
+      CHECK(merge_thread.Start());
+      armed.Wait();
+
+      {
+        v8::HandleScope handle_scope(isolate());
+        raced_cache.reset(
+            ScriptCompiler::CreateCodeCache(script_for_cache.Get(isolate())));
+      }
+
+      merge_thread.Join();
+    }
+
+    // Verify the background merge actually overwrote inferred_function_name
+    // with the mutable heap string "G.copyWithin".
+    {
+      v8::HandleScope handle_scope(isolate());
+      i::Tagged<i::SharedFunctionInfo> inner_sfi =
+          GetSharedFunctionInfo(kept_inner_fn.Get(isolate()));
+      i::Tagged<i::Object> inferred =
+          inner_sfi->scope_info()->inferred_function_name();
+      CHECK(i::IsString(inferred));
+      CHECK(!i::HeapLayout::InReadOnlySpace(i::Cast<i::HeapObject>(inferred)));
+    }
+
+    CHECK_NOT_NULL(raced_cache.get());
+  }
+
+  // 6. Isolate 1 (and its heap string "G.copyWithin") is now disposed.
+  // Deserialize raced_cache in a fresh Isolate 2 and verify ScopeInfo is
+  // valid and passes heap verification.
+  {
+    IsolateAndContextScope scope(this);
+    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
+    // Match the GC flags active during CreateCodeCache so the code-cache flag
+    // hash check succeeds.
+    i::ManualGCScope manual_gc_scope(i_isolate);
+    PersistentScriptOrigin default_origin(
+        isolate(), NewString("http://example.com/race.js"));
+
+    v8::HandleScope handle_scope(isolate());
+    ScriptCompiler::Source source(NewString(kSource),
+                                  default_origin.AsScriptOrigin(),
+                                  raced_cache.release());
+    Local<Script> script =
+        ScriptCompiler::Compile(context(), &source,
+                                ScriptCompiler::kConsumeCodeCache)
+            .ToLocalChecked();
+    CHECK(!source.GetCachedData()->rejected);
+    CHECK(!script->Run(context()).IsEmpty());
+
+    Local<Value> inner_val = RunGlobalFunc("G");
+    CHECK(inner_val->IsFunction());
+    Local<Function> inner_fn = inner_val.As<Function>();
+    i::Tagged<i::SharedFunctionInfo> inner_sfi =
+        GetSharedFunctionInfo(inner_fn);
+    CHECK(inner_sfi->HasScopeInfo());
+    CHECK(inner_sfi->scope_info()->HasInferredFunctionName());
+    i::Tagged<i::Object> inferred =
+        inner_sfi->scope_info()->inferred_function_name();
+    CHECK(i::IsString(inferred));
+    std::unique_ptr<char[]> name_cstr =
+        i::Cast<i::String>(inferred)->ToCString();
+    std::string_view name_view(name_cstr.get());
+    CHECK(name_view == "G.copyWithin" || name_view == "copyWithin");
+
+    Local<Value> stack_val =
+        inner_fn->Call(context(), Undefined(isolate()), 0, nullptr)
+            .ToLocalChecked();
+    CHECK(stack_val->IsString());
+
+#ifdef VERIFY_HEAP
+    i::HeapVerifier::VerifyHeap(i_isolate->heap());
+#endif
   }
 }
 

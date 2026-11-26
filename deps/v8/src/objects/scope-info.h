@@ -131,6 +131,14 @@ V8_OBJECT class ScopeInfo : public HeapObject {
     BIT_FIELD_GROUP_ACCESSORS(is_hoisted_in_context, IsHoistedInContextBit)
   };
 
+  // Properties of variables.
+  using VariableModeBits = base::BitField<VariableMode, 0, 4, uint32_t>;
+  using InitFlagBit = VariableModeBits::Next<InitializationFlag, 1>;
+  using MaybeAssignedFlagBit = InitFlagBit::Next<MaybeAssignedFlag, 1>;
+  using IsParameterBit = MaybeAssignedFlagBit::Next<bool, 1>;
+  using ParameterNumberOrPositionBits = IsParameterBit::Next<uint32_t, 16>;
+  using IsStaticFlagBit = ParameterNumberOrPositionBits::Next<IsStaticFlag, 1>;
+
   DECL_PRINTER(ScopeInfo)
   DECL_VERIFIER(ScopeInfo)
   class BodyDescriptor;
@@ -576,14 +584,6 @@ V8_OBJECT class ScopeInfo : public HeapObject {
       sizeof(FunctionVariableInfo) / kTaggedSize;
   static const int kModuleVariableEntryLength =
       sizeof(ModuleVariableInfo) / kTaggedSize;
-
-  // Properties of variables.
-  using VariableModeBits = base::BitField<VariableMode, 0, 4, uint32_t>;
-  using InitFlagBit = VariableModeBits::Next<InitializationFlag, 1>;
-  using MaybeAssignedFlagBit = InitFlagBit::Next<MaybeAssignedFlag, 1>;
-  using IsParameterBit = MaybeAssignedFlagBit::Next<bool, 1>;
-  using ParameterNumberOrPositionBits = IsParameterBit::Next<uint32_t, 16>;
-  using IsStaticFlagBit = ParameterNumberOrPositionBits::Next<IsStaticFlag, 1>;
 
   friend class ScopeIterator;
   friend class CodeStubAssembler;

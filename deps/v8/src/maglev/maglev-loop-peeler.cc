@@ -33,7 +33,7 @@ void RegisterIfLabelled(Graph* graph, NodeBase* node) {
 void RegisterClonedNode(Graph* graph, NodeBase* clone, const NodeBase* src) {
   if (graph->has_graph_labeller()) {
     graph->graph_labeller()->RegisterNode(
-        clone, &graph->graph_labeller()->GetNodeProvenance(src));
+        clone, graph->graph_labeller()->GetNodeProvenance(src));
   }
   // Register the cloned deopt top frame(s) so passes walking the graph's frame
   // sets (e.g. RecomputePhiUseHintsProcessor) see the peeled iteration.
@@ -54,12 +54,10 @@ int LoopHeaderBytecodeOffset(BasicBlock* block) {
 
 // Bumps `node`'s deopt-use counter the same way the graph builder does when
 // it stores a ValueNode into a deopt frame.
-ValueNode* RemapAndAddDeoptUse(const ValueMap& vmap, ValueNode* v,
-                               const VirtualObjectList& virtual_objects) {
+ValueNode* RemapAndAddDeoptUse(const ValueMap& vmap, ValueNode* v) {
   ValueNode* mapped = Remap(vmap, v);
   if (mapped == nullptr) return nullptr;
-  if (mapped->template Is<VirtualObject>()) return mapped;
-  mapped->AddDeoptUse(virtual_objects);
+  mapped->AddDeoptUse();
   return mapped;
 }
 
@@ -71,35 +69,28 @@ ValueNode* RemapAndAddDeoptUse(const ValueMap& vmap, ValueNode* v,
 DeoptFrame* CloneDeoptFrame(DeoptFrame* src, const ValueMap& vmap, Zone* zone) {
   if (src == nullptr) return nullptr;
   DeoptFrame* parent_clone = CloneDeoptFrame(src->parent(), vmap, zone);
-  VirtualObjectList remapped_vos =
-      parent_clone ? parent_clone->GetVirtualObjects() : VirtualObjectList();
   switch (src->type()) {
     case DeoptFrame::FrameType::kInterpretedFrame: {
       auto& f = src->as_interpreted();
       const MaglevCompilationUnit& info = f.unit();
-      VirtualObject* lvo = f.last_virtual_object();
-      if (lvo != nullptr) {
-        lvo = Remap(vmap, lvo)->Cast<VirtualObject>();
-      }
-      VirtualObjectList frame_vos(lvo);
       auto* new_fs = zone->New<CompactInterpreterFrameState>(
           info, f.frame_state()->liveness());
       new_fs->ForEachValue(
           info, [&](ValueNode*& dst, interpreter::Register reg) {
             ValueNode* src_val = f.frame_state()->GetValueOf(reg, info);
-            dst = RemapAndAddDeoptUse(vmap, src_val, frame_vos);
+            dst = RemapAndAddDeoptUse(vmap, src_val);
           });
-      ValueNode* closure = RemapAndAddDeoptUse(vmap, f.closure(), frame_vos);
+      ValueNode* closure = RemapAndAddDeoptUse(vmap, f.closure());
       return zone->New<InterpretedDeoptFrame>(
-          info, new_fs, closure, lvo, f.bytecode_position(),
-          f.source_position(), parent_clone);
+          info, new_fs, closure, f.bytecode_position(), f.source_position(),
+          parent_clone);
     }
     case DeoptFrame::FrameType::kInlinedArgumentsFrame: {
       auto& f = src->as_inlined_arguments();
-      ValueNode* closure = RemapAndAddDeoptUse(vmap, f.closure(), remapped_vos);
+      ValueNode* closure = RemapAndAddDeoptUse(vmap, f.closure());
       ValueNode** args = zone->AllocateArray<ValueNode*>(f.arguments().size());
       for (size_t i = 0; i < f.arguments().size(); ++i) {
-        args[i] = RemapAndAddDeoptUse(vmap, f.arguments()[i], remapped_vos);
+        args[i] = RemapAndAddDeoptUse(vmap, f.arguments()[i]);
       }
       return zone->New<InlinedArgumentsDeoptFrame>(
           f.unit(), f.bytecode_position(), closure,
@@ -109,23 +100,22 @@ DeoptFrame* CloneDeoptFrame(DeoptFrame* src, const ValueMap& vmap, Zone* zone) {
       auto& f = src->as_construct_stub();
       return zone->New<ConstructInvokeStubDeoptFrame>(
           f.unit(), f.source_position(),
-          RemapAndAddDeoptUse(vmap, f.receiver(), remapped_vos),
-          RemapAndAddDeoptUse(vmap, f.context(), remapped_vos), parent_clone);
+          RemapAndAddDeoptUse(vmap, f.receiver()),
+          RemapAndAddDeoptUse(vmap, f.context()), parent_clone);
     }
     case DeoptFrame::FrameType::kBuiltinContinuationFrame: {
       auto& f = src->as_builtin_continuation();
       ValueNode** params =
           zone->AllocateArray<ValueNode*>(f.parameters().size());
       for (size_t i = 0; i < f.parameters().size(); ++i) {
-        params[i] = RemapAndAddDeoptUse(vmap, f.parameters()[i], remapped_vos);
+        params[i] = RemapAndAddDeoptUse(vmap, f.parameters()[i]);
       }
       compiler::OptionalJSFunctionRef js_target;
       if (f.is_javascript()) js_target = f.javascript_target();
       return zone->New<BuiltinContinuationDeoptFrame>(
           f.builtin_id(),
           base::Vector<ValueNode*>(params, f.parameters().size()),
-          RemapAndAddDeoptUse(vmap, f.context(), remapped_vos), js_target,
-          parent_clone);
+          RemapAndAddDeoptUse(vmap, f.context()), js_target, parent_clone);
     }
   }
   UNREACHABLE();
@@ -652,6 +642,9 @@ void MaglevLoopPeeler::PeelLoop(const LoopInfo& loop) {
   RetargetOriginalLoopExits(ctx);
   RewireLoopConnections(ctx);
   SplicePeeledBlocks(ctx);
+  if (graph_->may_have_unreachable_blocks()) {
+    graph_->RemoveUnreachableBlocks();
+  }
 
   loop.header()->state()->set_is_loop_with_peeled_iteration();
   TRACE_PEEL_PEELED("@" << LoopHeaderBytecodeOffset(loop.header())
@@ -743,7 +736,7 @@ void MaglevLoopPeeler::CloneBodySubgraph(PeelContext& ctx) {
       if (node->Is<Identity>()) {
         ValueNode* identity = node->Cast<ValueNode>();
         ctx.value_map[identity] =
-            Remap(ctx.value_map, identity->UnwrapIdentities());
+            Remap(ctx.value_map, identity->UnwrapAliases());
         continue;
       }
       Node* cloned = CloneNodeWithRemap(node, ctx.value_map, zone());
@@ -1059,24 +1052,14 @@ void MaglevLoopPeeler::CloneLoopBodyControl(PeelContext& ctx) {
     ControlNode* cloned_control = nullptr;
 
     if (block == ctx.loop.backedge()) {
-      // Back-edge: original is JumpLoop. Replace with a CheckpointedJump (not a
-      // plain Jump) targeting the original loop header directly at predecessor
-      // slot 0 (the forward pre-header slot). The header's pre-header phi
-      // inputs get rewired below to consume the cloned-backedge values. It must
-      // stay checkpointed: JumpLoop carries a deopt checkpoint that phi
-      // untagging depends on -- MaglevPhiRepresentationSelector hoists loop-phi
-      // untagging onto the forward predecessor and unconditionally casts its
-      // control node to CheckpointedJump. Clone the JumpLoop's checkpoint frame
-      // (remapped to the peeled values) into the new node.
-      JumpLoop* orig = control->Cast<JumpLoop>();
+      // Back-edge: original is JumpLoop. Replace with a plain Jump targeting
+      // the original loop header directly at predecessor slot 0 (the forward
+      // pre-header slot). The header's pre-header phi inputs get rewired below
+      // to consume the cloned-backedge values.
       BasicBlockRef* ref = zone()->New<BasicBlockRef>();
-      CheckpointedJump* jump = NodeBase::New<CheckpointedJump>(zone(), 0, ref);
+      Jump* jump = NodeBase::New<Jump>(zone(), 0, ref);
       ref->Bind(ctx.loop.header());
       jump->set_predecessor_id(0);
-      DeoptFrame* top = CloneDeoptFrame(&orig->eager_deopt_info()->top_frame(),
-                                        ctx.value_map, zone());
-      jump->SetEagerDeoptInfo(zone(), top,
-                              orig->eager_deopt_info()->feedback_to_update());
       cloned_control = jump;
     } else {
       cloned_control = clone_control_and_remap_inputs(control);
@@ -1120,12 +1103,21 @@ void MaglevLoopPeeler::RetargetOriginalLoopExits(PeelContext& ctx) {
                                   exit_edge.target, edge_splits.original_es);
         break;
       case OriginalSplitKind::kNone: {
-        // Jump source: retarget the original Jump from e.target to the PEM at
-        // its original-side slot (2*i + 1).
+        // Jump source: retarget the original Jump from exit_edge.target (or
+        // exit_edge.original_es) to the PEM at its original-side slot
+        // (2*i + 1).
         UnconditionalControlNode* uc =
             exit_edge.src->control_node()->Cast<UnconditionalControlNode>();
         uc->set_target(ctx.pem);
         uc->set_predecessor_id(2 * static_cast<int>(i) + 1);
+        if (exit_edge.original_es != nullptr) {
+          // A pre-existing kEdgeSplit left over from a folded Branch is now
+          // bypassed on both the peeled and original paths.
+          DCHECK_EQ(exit_edge.original_es->predecessor(), exit_edge.src);
+          DCHECK(exit_edge.original_es->nodes().empty());
+          exit_edge.original_es->set_predecessor(nullptr);
+          graph_->set_may_have_unreachable_blocks(true);
+        }
         break;
       }
       case OriginalSplitKind::kExisting:
@@ -1233,6 +1225,10 @@ void MaglevLoopPeeler::RewireLoopConnections(PeelContext& ctx) {
 //     │  pem_phi = Phi(pre_val, loop_phi) ◄┼─ Merges peeled and loop values
 //     │  old_phi = Identity(pem_phi)      ◄┼─── Satisfies all downstream
 //     └────────────────────────────────────┘    uses of old_phi.
+//
+// TODO(victorgomes): Investigate whether we might want to change Maglev (or
+// loop peeling) to use LCSSA, which would avoid downstream uses of loop phis
+// and body values and eliminate this in-place Identity/KNA rewiring.
 void MaglevLoopPeeler::RewireDownstreamPhiRefs(PeelContext& ctx) {
   if (ctx.header_phi_to_pem_phi.empty()) return;
 
@@ -1272,6 +1268,14 @@ void MaglevLoopPeeler::RewireDownstreamPhiRefs(PeelContext& ctx) {
   for (const PhiRewire& r : rewires) {
     RewireNodeInputs(r.loop_phi, replacements);
   }
+
+  // Rewrite references to the old header phis in the loop's saved backedge KNA
+  // before the old phis are overwritten with identities to the PEM phis.
+  ctx.loop.header()
+      ->state()
+      ->AsLoopHeader()
+      ->backedge_known_node_aspects()
+      ->RemapLoopHeaderPhis(replacements);
 
   // Rewrite all references inside the loop body blocks from the old header
   // phis to their loop phis in a single walk. Body blocks are never dead:

@@ -140,8 +140,8 @@ class BufferedRawMachineAssemblerTester
       // Since we are returning values via storing to off-heap location
       // generate full-word store here.
       Store(MachineType::PointerRepresentation(),
-            RawMachineAssembler::Parameter(return_parameter_index_),
-            BitcastTaggedToWord(input), kNoWriteBarrier);
+            RawMachineAssembler::Parameter(return_parameter_index_), input,
+            kNoWriteBarrier);
 
     } else {
       Store(MachineTypeForC<ReturnType>().representation(),
@@ -344,17 +344,83 @@ class TaggedBinopTester : public BinopTester<Type, USE_RETURN_REGISTER> {
                                                MachineType::AnyTagged()) {}
 };
 
+// A helper class for integer binary operations. Wraps a machine opcode and
+// provides evaluation routines and the operators.
+template <typename T>
+class IntBinopWrapper {
+ public:
+  explicit IntBinopWrapper(IrOpcode::Value op) : opcode(op) {}
+
+  const Operator* op(MachineOperatorBuilder* machine) const {
+    switch (opcode) {
+      case IrOpcode::kInt32Add:
+        return machine->Int32Add();
+      case IrOpcode::kInt32Sub:
+        return machine->Int32Sub();
+      case IrOpcode::kInt32Mul:
+        return machine->Int32Mul();
+      case IrOpcode::kWord32And:
+        return machine->Word32And();
+      case IrOpcode::kWord32Or:
+        return machine->Word32Or();
+      case IrOpcode::kWord32Xor:
+        return machine->Word32Xor();
+      case IrOpcode::kInt64Add:
+        return machine->Int64Add();
+      case IrOpcode::kInt64Sub:
+        return machine->Int64Sub();
+      case IrOpcode::kInt64Mul:
+        return machine->Int64Mul();
+      case IrOpcode::kWord64And:
+        return machine->Word64And();
+      case IrOpcode::kWord64Or:
+        return machine->Word64Or();
+      case IrOpcode::kWord64Xor:
+        return machine->Word64Xor();
+      default:
+        UNREACHABLE();
+    }
+  }
+
+  T eval(T a, T b) const {
+    switch (opcode) {
+      case IrOpcode::kInt32Add:
+      case IrOpcode::kInt64Add:
+        return a + b;
+      case IrOpcode::kInt32Sub:
+      case IrOpcode::kInt64Sub:
+        return a - b;
+      case IrOpcode::kInt32Mul:
+      case IrOpcode::kInt64Mul:
+        return a * b;
+      case IrOpcode::kWord32And:
+      case IrOpcode::kWord64And:
+        return a & b;
+      case IrOpcode::kWord32Or:
+      case IrOpcode::kWord64Or:
+        return a | b;
+      case IrOpcode::kWord32Xor:
+      case IrOpcode::kWord64Xor:
+        return a ^ b;
+      default:
+        UNREACHABLE();
+    }
+  }
+  IrOpcode::Value opcode;
+};
+
 // A helper class for testing compares. Wraps a machine opcode and provides
 // evaluation routines and the operators.
 class CompareWrapper {
  public:
   explicit CompareWrapper(IrOpcode::Value op) : opcode(op) {}
 
-  Node* MakeNode(RawMachineAssemblerTester<int32_t>* m, Node* a, Node* b) {
+  Node* MakeNode(RawMachineAssemblerTester<int32_t>* m, Node* a,
+                 Node* b) const {
     return m->AddNode(op(m->machine()), a, b);
   }
 
-  const Operator* op(MachineOperatorBuilder* machine) {
+  const Operator* op(MachineOperatorBuilder* machine) const {
     switch (opcode) {
       case IrOpcode::kWord32Equal:
         return machine->Word32Equal();
@@ -366,6 +432,16 @@ class CompareWrapper {
         return machine->Uint32LessThan();
       case IrOpcode::kUint32LessThanOrEqual:
         return machine->Uint32LessThanOrEqual();
+      case IrOpcode::kWord64Equal:
+        return machine->Word64Equal();
+      case IrOpcode::kInt64LessThan:
+        return machine->Int64LessThan();
+      case IrOpcode::kInt64LessThanOrEqual:
+        return machine->Int64LessThanOrEqual();
+      case IrOpcode::kUint64LessThan:
+        return machine->Uint64LessThan();
+      case IrOpcode::kUint64LessThanOrEqual:
+        return machine->Uint64LessThanOrEqual();
       case IrOpcode::kFloat64Equal:
         return machine->Float64Equal();
       case IrOpcode::kFloat64LessThan:
@@ -377,7 +453,7 @@ class CompareWrapper {
     }
   }
 
-  bool Int32Compare(int32_t a, int32_t b) {
+  bool Int32Compare(int32_t a, int32_t b) const {
     switch (opcode) {
       case IrOpcode::kWord32Equal:
         return a == b;
@@ -394,7 +470,24 @@ class CompareWrapper {
     }
   }
 
-  bool Float64Compare(double a, double b) {
+  bool Int64Compare(int64_t a, int64_t b) const {
+    switch (opcode) {
+      case IrOpcode::kWord64Equal:
+        return a == b;
+      case IrOpcode::kInt64LessThan:
+        return a < b;
+      case IrOpcode::kInt64LessThanOrEqual:
+        return a <= b;
+      case IrOpcode::kUint64LessThan:
+        return static_cast<uint64_t>(a) < static_cast<uint64_t>(b);
+      case IrOpcode::kUint64LessThanOrEqual:
+        return static_cast<uint64_t>(a) <= static_cast<uint64_t>(b);
+      default:
+        UNREACHABLE();
+    }
+  }
+
+  bool Float64Compare(double a, double b) const {
     switch (opcode) {
       case IrOpcode::kFloat64Equal:
         return a == b;
@@ -443,6 +536,35 @@ class Int32BinopInputShapeTester {
   void RunLeft(RawMachineAssemblerTester<int32_t>* m);
   void RunRight(RawMachineAssemblerTester<int32_t>* m);
 };
+
+// Mostly same as CHECK_EQ() but customized for compressed tagged values.
+template <typename CType>
+inline void CheckEq(CType in_value, CType out_value) {
+  CHECK_EQ(in_value, out_value);
+}
+
+#ifdef V8_COMPRESS_POINTERS
+// Specializations for checking the result of compressing store.
+template <>
+inline void CheckEq<Tagged<Object>>(Tagged<Object> in_value,
+                                    Tagged<Object> out_value) {
+  // Compare only lower 32-bits of the value because tagged load/stores are
+  // 32-bit operations anyway.
+  CHECK_EQ(static_cast<Tagged_t>(in_value.ptr()),
+           static_cast<Tagged_t>(out_value.ptr()));
+}
+
+template <>
+inline void CheckEq<Tagged<HeapObject>>(Tagged<HeapObject> in_value,
+                                        Tagged<HeapObject> out_value) {
+  return CheckEq<Tagged<Object>>(in_value, out_value);
+}
+
+template <>
+inline void CheckEq<Tagged<Smi>>(Tagged<Smi> in_value, Tagged<Smi> out_value) {
+  return CheckEq<Tagged<Object>>(in_value, out_value);
+}
+#endif
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

@@ -7,6 +7,8 @@
 
 #include <signal.h>
 
+#include <atomic>
+
 #include "src/base/build_config.h"
 #include "src/base/debug/stack_trace.h"
 #include "src/base/free_deleter.h"
@@ -19,7 +21,7 @@ namespace debug {
 
 namespace {
 
-bool IsDumpStackInSignalHandler = true;
+std::atomic<bool> IsDumpStackInSignalHandler{true};
 
 bool StartThread(void* (*threadEntry)(void*)) {
   // based on Thread::Start()
@@ -55,7 +57,9 @@ void StackDumpSignalHandler(int signal, siginfo_t* info, void* void_context) {
     // From third_party/zoslib, will first call __display_traceback().
     abort();
   }
-  if (IsDumpStackInSignalHandler) __display_backtrace(STDERR_FILENO);
+  if (IsDumpStackInSignalHandler.load(std::memory_order_relaxed)) {
+    __display_backtrace(STDERR_FILENO);
+  }
   raise(signal);
 }
 
@@ -92,7 +96,7 @@ void* StackDumpingSignalThread(void* data) {
 }  // namespace
 
 bool EnableInProcessStackDumping() {
-  IsDumpStackInSignalHandler = true;
+  IsDumpStackInSignalHandler.store(true, std::memory_order_relaxed);
   bool success = StartThread(StackDumpingSignalThread);
   CHECK_EQ(true, success);
   // Block all signals on the main thread:
@@ -103,7 +107,7 @@ bool EnableInProcessStackDumping() {
 }
 
 void DisableSignalStackDump() {
-  IsDumpStackInSignalHandler = false;
+  IsDumpStackInSignalHandler.store(false, std::memory_order_relaxed);
   // zoslib's abort() displays backtrace by default, so disable it:
   __set_backtrace_on_abort(false);
 }

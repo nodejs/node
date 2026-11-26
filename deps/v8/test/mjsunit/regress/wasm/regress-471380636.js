@@ -33,9 +33,9 @@ builder.addFunction("make_struct", kSig_r_v).exportFunc().addBody([
 {
   let data = [
     1,  // number of prototypes to configure
+    0x7f,  // no parent
     0,  // no constructor
     0,  // no methods
-    0x7f,  // no parent
   ];
   let data_seg = builder.addPassiveDataSegment(data);
 
@@ -53,11 +53,11 @@ builder.addFunction("make_struct", kSig_r_v).exportFunc().addBody([
 {
   let data = [
     1,  // number of prototypes to configure
+    0x7f,   // no parent
     0,  // no constructor (nor statics)
     1,  // one method
     0,  // kind=method
     1, 48,  // "0"
-    0x7f,   // no parent
   ];
   let data_seg = builder.addPassiveDataSegment(data);
 

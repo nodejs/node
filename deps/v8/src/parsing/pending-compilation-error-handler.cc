@@ -10,6 +10,7 @@
 #include "src/debug/debug.h"
 #include "src/execution/isolate.h"
 #include "src/execution/messages.h"
+#include "src/flags/flags.h"
 #include "src/handles/handles.h"
 #include "src/heap/local-heap-inl.h"
 #include "src/objects/objects-inl.h"
@@ -83,6 +84,9 @@ void PendingCompilationErrorHandler::ReportMessageAt(int start_position,
                                                      const char* arg) {
   DCHECK((start_position == -1 && end_position == -1) ||
          (start_position != -1 && start_position <= end_position));
+  if (V8_UNLIKELY(message == MessageTemplate::kInvalidStringLength)) {
+    has_invalid_string_length_error_ = true;
+  }
   if (has_pending_error_ && end_position >= error_details_.start_pos()) return;
 
   has_pending_error_ = true;
@@ -194,6 +198,11 @@ void PendingCompilationErrorHandler::ReportErrors(Isolate* isolate,
 void PendingCompilationErrorHandler::ThrowPendingError(
     Isolate* isolate, Handle<Script> script) const {
   if (!has_pending_error_) return;
+
+  if (v8_flags.correctness_fuzzer_suppressions &&
+      has_invalid_string_length_error_) {
+    base::FatalNoSecurityImpact("Aborting on invalid string length");
+  }
 
   MessageLocation location = error_details_.GetLocation(script);
   int num_args = 0;

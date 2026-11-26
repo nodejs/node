@@ -499,6 +499,7 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   TFH(KeyedStoreIC_Megamorphic, StoreWithVector)                               \
   TFH(DefineKeyedOwnIC_Megamorphic, StoreNoFeedback)                           \
   TFH(LoadGlobalIC_NoFeedback, LoadGlobalNoFeedback)                           \
+  TFH(LoadIC_FunctionName, LoadWithVector)                                     \
   TFH(LoadIC_FunctionPrototype, LoadWithVector)                                \
   TFH(LoadIC_StringLength, LoadWithVector)                                     \
   TFH(LoadIC_StringWrapperLength, LoadWithVector)                              \
@@ -543,6 +544,8 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
       kHandler)                                                                \
   TFC(ProxyGetPropertyTrapResultLazyDeoptContinuation,                         \
       ProxyGetPropertyTrapResultLazyDeoptContinuation)                         \
+  TFC(ProxySetPropertyTrapResultLazyDeoptContinuation,                         \
+      ProxySetPropertyTrapResultLazyDeoptContinuation)                         \
   TFC(CopyDataPropertiesWithExcludedPropertiesOnStack,                         \
       CopyDataPropertiesWithExcludedPropertiesOnStack)                         \
   TFC(CopyDataPropertiesWithExcludedProperties,                                \
@@ -1227,14 +1230,13 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   CPP(SharedArrayBufferPrototypeSlice, JSParameterCount(2))                    \
   CPP(SharedArrayBufferPrototypeGrow, JSParameterCount(1))                     \
                                                                                \
-  TFJ(AtomicsLoad, kJSArgcReceiverSlots + 2, kReceiver, kArrayOrSharedObject,  \
-      kIndexOrFieldName)                                                       \
-  TFJ(AtomicsStore, kJSArgcReceiverSlots + 3, kReceiver, kArrayOrSharedObject, \
-      kIndexOrFieldName, kValue)                                               \
-  TFJ(AtomicsExchange, kJSArgcReceiverSlots + 3, kReceiver,                    \
-      kArrayOrSharedObject, kIndexOrFieldName, kValue)                         \
-  TFJ(AtomicsCompareExchange, kJSArgcReceiverSlots + 4, kReceiver,             \
-      kArrayOrSharedObject, kIndexOrFieldName, kOldValue, kNewValue)           \
+  TFJ(AtomicsLoad, kJSArgcReceiverSlots + 2, kReceiver, kArray, kIndex)        \
+  TFJ(AtomicsStore, kJSArgcReceiverSlots + 3, kReceiver, kArray, kIndex,       \
+      kValue)                                                                  \
+  TFJ(AtomicsExchange, kJSArgcReceiverSlots + 3, kReceiver, kArray, kIndex,    \
+      kValue)                                                                  \
+  TFJ(AtomicsCompareExchange, kJSArgcReceiverSlots + 4, kReceiver, kArray,     \
+      kIndex, kOldValue, kNewValue)                                            \
   TFJ(AtomicsAdd, kJSArgcReceiverSlots + 3, kReceiver, kArray, kIndex, kValue) \
   TFJ(AtomicsSub, kJSArgcReceiverSlots + 3, kReceiver, kArray, kIndex, kValue) \
   TFJ(AtomicsAnd, kJSArgcReceiverSlots + 3, kReceiver, kArray, kIndex, kValue) \
@@ -1287,6 +1289,14 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   CPP(Uint8ArrayPrototypeToHex, kDontAdaptArgumentsSentinel)                   \
                                                                                \
   /* Wasm */                                                                   \
+  IF_WASM(CPP, WebAssemblyException, kDontAdaptArgumentsSentinel)              \
+  IF_WASM(CPP, WebAssemblyGlobal, kDontAdaptArgumentsSentinel)                 \
+  IF_WASM(CPP, WebAssemblyInstance, kDontAdaptArgumentsSentinel)               \
+  IF_WASM(CPP, WebAssemblyMemory, kDontAdaptArgumentsSentinel)                 \
+  IF_WASM(CPP, WebAssemblyModule, kDontAdaptArgumentsSentinel)                 \
+  IF_WASM(CPP, WebAssemblySuspending, kDontAdaptArgumentsSentinel)             \
+  IF_WASM(CPP, WebAssemblyTable, kDontAdaptArgumentsSentinel)                  \
+  IF_WASM(CPP, WebAssemblyTag, kDontAdaptArgumentsSentinel)                    \
   IF_WASM_DRUMBRAKE(ASM, WasmInterpreterEntry, WasmDummy)                      \
   IF_WASM_DRUMBRAKE(ASM, JSToWasmInterpreterWrapperAsm, WasmJSToWasmWrapper)   \
   IF_WASM_DRUMBRAKE(ASM, WasmInterpreterCWasmEntry, WasmDummy)                 \
@@ -1548,14 +1558,6 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   /* WeakSet / WeakMap Helpers */                                              \
   TFS(WeakCollectionDelete, NeedsContext{true}, kCollection, kKey)             \
   TFS(WeakCollectionSet, NeedsContext{true}, kCollection, kKey, kValue)        \
-                                                                               \
-  /* JS Structs and friends */                                                 \
-  CPP(SharedSpaceJSObjectHasInstance, kDontAdaptArgumentsSentinel)             \
-  CPP(SharedStructTypeConstructor, kDontAdaptArgumentsSentinel)                \
-  CPP(SharedStructTypeIsSharedStruct, JSParameterCount(1))                     \
-  CPP(SharedStructConstructor, JSParameterCount(0))                            \
-  CPP(SharedArrayConstructor, JSParameterCount(0))                             \
-  CPP(SharedArrayIsSharedArray, JSParameterCount(1))                           \
                                                                                \
   /* AsyncGenerator */                                                         \
                                                                                \

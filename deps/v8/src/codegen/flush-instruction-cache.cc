@@ -7,6 +7,7 @@
 #include "src/base/platform/mutex.h"
 #include "src/codegen/cpu-features.h"
 #include "src/execution/simulator.h"
+#include "src/tracing/trace-event.h"
 
 namespace v8 {
 namespace internal {

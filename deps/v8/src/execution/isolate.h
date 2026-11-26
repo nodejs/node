@@ -110,10 +110,6 @@ void DefaultWasmAsyncResolvePromiseCallback(
     v8::Local<v8::Promise::Resolver> resolver,
     v8::Local<v8::Value> compilation_result, WasmAsyncSuccess success);
 
-namespace heap {
-class HeapTester;
-}  // namespace heap
-
 namespace maglev {
 class MaglevConcurrentDispatcher;
 }  // namespace maglev
@@ -123,6 +119,7 @@ class Stack;
 }  // namespace regexp
 
 class AddressToIndexHashMap;
+class AllocationSiteCache;
 class AstStringConstants;
 class Bootstrapper;
 class BuiltinsConstantsTableBuilder;
@@ -158,11 +155,9 @@ class PersistentHandlesList;
 class ReadOnlyArtifacts;
 class RootVisitor;
 class SetupIsolateDelegate;
-class SharedStructTypeRegistry;
 class Simulator;
 class SnapshotData;
 class StackFrame;
-class StringForwardingTable;
 class StringTable;
 class StubCache;
 class ThreadManager;
@@ -505,9 +500,7 @@ using DebugObjectCache = std::vector<Handle<HeapObject>>;
     nullptr)                                                                \
   V(AllowWasmCodeGenerationCallback, allow_wasm_code_gen_callback, nullptr) \
   V(WasmModuleCallback, wasm_module_callback, nullptr)                      \
-  V(ExtensionCallback, deprecated_wasm_module_callback, nullptr)            \
   V(WasmInstanceCallback, wasm_instance_callback, nullptr)                  \
-  V(ExtensionCallback, deprecated_wasm_instance_callback, nullptr)          \
   V(SharedArrayBufferConstructorEnabledCallback,                            \
     sharedarraybuffer_constructor_enabled_callback, nullptr)                \
   V(WasmStreamingCallback, wasm_streaming_callback, nullptr)                \
@@ -586,7 +579,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // and reused on subsequent entries.
   class PerIsolateThreadData {
    public:
-    PerIsolateThreadData(Isolate* isolate, ThreadId thread_id)
+    PerIsolateThreadData(Isolate* isolate, base::ThreadId thread_id)
         : isolate_(isolate),
           thread_id_(thread_id),
           stack_limit_(0),
@@ -601,7 +594,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     PerIsolateThreadData(const PerIsolateThreadData&) = delete;
     PerIsolateThreadData& operator=(const PerIsolateThreadData&) = delete;
     Isolate* isolate() const { return isolate_; }
-    ThreadId thread_id() const { return thread_id_; }
+    base::ThreadId thread_id() const { return thread_id_; }
 
     FIELD_ACCESSOR(uintptr_t, stack_limit)
     FIELD_ACCESSOR(ThreadState*, thread_state)
@@ -609,13 +602,13 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     FIELD_ACCESSOR(Simulator*, simulator)
 #endif
 
-    bool Matches(Isolate* isolate, ThreadId thread_id) const {
+    bool Matches(Isolate* isolate, base::ThreadId thread_id) const {
       return isolate_ == isolate && thread_id_ == thread_id;
     }
 
    private:
     Isolate* isolate_;
-    ThreadId thread_id_;
+    base::ThreadId thread_id_;
     uintptr_t stack_limit_;
     ThreadState* thread_state_;
 
@@ -720,7 +713,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   // Find the PerThread for given (isolate, thread) combination
   // If one does not yet exist, return null.
-  PerIsolateThreadData* FindPerThreadDataForThread(ThreadId thread_id);
+  PerIsolateThreadData* FindPerThreadDataForThread(base::ThreadId thread_id);
 
   // Discard the PerThread for this particular (isolate, thread) combination
   // If one does not yet exist, no-op.
@@ -782,17 +775,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return OwnsStringTables() ? string_table_.get()
                               : shared_space_isolate()->string_table_.get();
   }
-  StringForwardingTable* string_forwarding_table() const {
-    return OwnsStringTables()
-               ? string_forwarding_table_.get()
-               : shared_space_isolate()->string_forwarding_table_.get();
-  }
-
-  SharedStructTypeRegistry* shared_struct_type_registry() const {
-    return is_shared_space_isolate()
-               ? shared_struct_type_registry_.get()
-               : shared_space_isolate()->shared_struct_type_registry_.get();
-  }
 
   // Access to top context (where the current function object was created).
   Tagged<Context> context() const { return thread_local_top()->context_; }
@@ -826,10 +808,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   }
 
   // Access to current thread id.
-  inline void set_thread_id(ThreadId id) {
+  inline void set_thread_id(base::ThreadId id) {
     thread_local_top()->thread_id_.store(id, std::memory_order_relaxed);
   }
-  inline ThreadId thread_id() const {
+  inline base::ThreadId thread_id() const {
     return thread_local_top()->thread_id_.load(std::memory_order_relaxed);
   }
 
@@ -968,9 +950,12 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
       v8::Isolate::AbortOnUncaughtExceptionCallback callback);
 
   enum PrintStackMode { kPrintStackConcise, kPrintStackVerbose };
-  void PrintCurrentStackTrace(std::ostream& out,
-                              PrintCurrentStackTraceFilterCallback
-                                  should_include_frame_callback = nullptr);
+  void PrintCurrentStackTrace(
+      std::ostream& out,
+      PrintCurrentStackTraceFilterCallback should_include_frame_callback =
+          nullptr,
+      PrintCurrentStackTraceWithOriginFilterCallback origin_filter_callback =
+          nullptr);
   void PrintStack(StringStream* accumulator,
                   PrintStackMode mode = kPrintStackVerbose,
                   AllowAllocation allow_allocation = AllowAllocation{true});
@@ -1139,11 +1124,33 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   Tagged<Object> StackOverflow();
   Tagged<Object> TerminateExecution();
   void CancelTerminateExecution();
+  V8_WARN_UNUSED_RESULT bool CheckTerminationAfterCallback();
 
   void RequestInterrupt(InterruptCallback callback, void* data);
   void InvokeApiInterruptCallbacks();
 
   bool is_executing_api_interrupt() const { return api_interrupt_depth_ > 0; }
+
+  class V8_NODISCARD PauseApiInterruptScopeForTesting final {
+   public:
+    explicit PauseApiInterruptScopeForTesting(Isolate* isolate)
+        : isolate_(isolate), saved_depth_(isolate->api_interrupt_depth_) {
+      DCHECK_LT(0, saved_depth_);
+      isolate_->api_interrupt_depth_ = 0;
+    }
+    ~PauseApiInterruptScopeForTesting() {
+      DCHECK_EQ(0, isolate_->api_interrupt_depth_);
+      isolate_->api_interrupt_depth_ = saved_depth_;
+    }
+    PauseApiInterruptScopeForTesting(const PauseApiInterruptScopeForTesting&) =
+        delete;
+    PauseApiInterruptScopeForTesting& operator=(
+        const PauseApiInterruptScopeForTesting&) = delete;
+
+   private:
+    Isolate* const isolate_;
+    const int saved_depth_;
+  };
 
   void RequestInvalidateNoProfilingProtector();
 
@@ -1402,6 +1409,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return descriptor_lookup_cache_;
   }
 
+  AllocationSiteCache* allocation_site_cache() const {
+    return isolate_data_.allocation_site_cache();
+  }
+
   V8_INLINE HandleScopeData* handle_scope_data() {
     return &isolate_data_.handle_scope_data_;
   }
@@ -1606,6 +1617,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return code_coverage_mode() == debug::CoverageMode::kBestEffort;
   }
 
+  bool requires_bytecode_for_code_coverage() const {
+    return !is_best_effort_code_coverage();
+  }
+
   bool is_precise_count_code_coverage() const {
     return code_coverage_mode() == debug::CoverageMode::kPreciseCount;
   }
@@ -1684,8 +1699,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
       kDefaultSimpleDateFormatForTime, kDefaultSimpleDateFormatForDate};
   static constexpr int kICUObjectCacheTypeCount = 5;
 
-  icu::UMemory* get_cached_icu_object(ICUObjectCacheType cache_type,
-                                      DirectHandle<Object> locales);
+  // Returns a shared_ptr, not a raw pointer, so that the object stays alive
+  // while the caller uses it, even if the cache entry is replaced.
+  std::shared_ptr<icu::UMemory> get_cached_icu_object(
+      ICUObjectCacheType cache_type, DirectHandle<Object> locales);
   void set_icu_object_in_cache(ICUObjectCacheType cache_type,
                                DirectHandle<Object> locales,
                                std::shared_ptr<icu::UMemory> obj);
@@ -2092,18 +2109,13 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
       DirectHandle<JSArray> sites);
   bool HasPrepareStackTraceCallback() const;
 
-  void SetAddCrashKeyCallback(AddCrashKeyCallback callback);
-  void AddCrashKey(CrashKeyId id, const std::string& value) {
-    if (add_crash_key_callback_) {
-      add_crash_key_callback_(id, value);
-    }
-  }
-
   v8::CrashKey AllocateCrashKeyString(const char key[], CrashKeySize size);
   v8::CrashKey AddCrashKeyString(const char key[], CrashKeySize size,
                                  std::string_view value);
   void SetCrashKeyString(CrashKey crash_key, std::string_view value);
 
+  // Deprecated - to be deleted once embedders migrate to
+  // v8::V8::SetCrashKeyCallbacks.
   void SetCrashKeyStringCallbacks(
       AllocateCrashKeyStringCallback allocate_callback,
       SetCrashKeyStringCallback set_callback);
@@ -2390,7 +2402,11 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   }
 #endif  // V8_ENABLE_DRUMBRAKE
 
-  bool owns_shareable_data() { return owns_shareable_data_; }
+  bool owns_shareable_data() const {
+    DCHECK_EQ(owns_shareable_data_, !isolate_data_.uses_shared_heap_flag_ ||
+                                        is_shared_space_isolate());
+    return owns_shareable_data_;
+  }
 
   bool log_object_relocation() const { return log_object_relocation_; }
 
@@ -2406,6 +2422,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
 #if V8_ENABLE_WEBASSEMBLY
   bool IsOnCentralStack();
+  bool IsOnCentralStack(Address addr);
   std::vector<std::unique_ptr<wasm::StackMemory>>& wasm_stacks() {
     return wasm_stacks_;
   }
@@ -2426,6 +2443,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void RetireWasmStack(wasm::StackMemory* stack);
 #else
   bool IsOnCentralStack() { return true; }
+  bool IsOnCentralStack(Address addr) { return true; }
 #endif
 
   // Access to the global "locals block list cache". Caches outer-stack
@@ -2475,8 +2493,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // kNotAssigned in ScopeInfo, making the kNotAssigned flag unreliable for
   // constant-folding optimizations in this isolate.
   bool is_context_slot_not_assigned_unreliable() const {
-    return context_slot_not_assigned_is_unreliable_.load(
-        std::memory_order_relaxed);
+    DCHECK_EQ(base::ThreadId::Current(), thread_id());
+    return is_context_slot_not_assigned_unreliable_;
   }
 
   void MarkContextSlotNotAssignedIsUnreliable();
@@ -2547,19 +2565,19 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
    public:
     ThreadDataTable() = default;
 
-    PerIsolateThreadData* Lookup(ThreadId thread_id);
+    PerIsolateThreadData* Lookup(base::ThreadId thread_id);
     void Insert(PerIsolateThreadData* data);
     void Remove(PerIsolateThreadData* data);
     void RemoveAllThreads();
 
    private:
     struct Hasher {
-      std::size_t operator()(const ThreadId& t) const {
+      std::size_t operator()(const base::ThreadId& t) const {
         return std::hash<int>()(t.ToInteger());
       }
     };
 
-    std::unordered_map<ThreadId, PerIsolateThreadData*, Hasher> table_;
+    std::unordered_map<base::ThreadId, PerIsolateThreadData*, Hasher> table_;
   };
 
   // These items form a stack synchronously with threads Enter'ing and Exit'ing
@@ -2613,12 +2631,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   void AddCrashKeysForIsolateAndHeapPointers();
 
-#if V8_ENABLE_WEBASSEMBLY
-  bool IsOnCentralStack(Address addr);
-#else
-  bool IsOnCentralStack(Address addr) { return true; }
-#endif
-
   // This class contains a collection of data accessible from both C++ runtime
   // and compiled code (including assembly stubs, builtins, interpreter bytecode
   // handlers and optimized code).
@@ -2635,9 +2647,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   Heap heap_;
   ReadOnlyHeap* read_only_heap_ = nullptr;
 
-  // These are guaranteed empty when !OwnsStringTables().
+  // Guaranteed empty when !OwnsStringTables().
   std::unique_ptr<StringTable> string_table_;
-  std::unique_ptr<StringForwardingTable> string_forwarding_table_;
 
   const int id_;
   std::atomic<EntryStackItem*> entry_stack_ = nullptr;
@@ -2705,7 +2716,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   std::atomic<bool> battery_saver_mode_enabled_ = false;
   std::atomic<bool> memory_saver_mode_enabled_ = false;
-  std::atomic<bool> context_slot_not_assigned_is_unreliable_ = false;
+  bool is_context_slot_not_assigned_unreliable_ = false;
 
   // Helper function for RunHostImportModuleDynamicallyCallback.
   // Unpacks import attributes, if present, from the second argument to dynamic
@@ -2959,11 +2970,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // Stores the isolate containing the shared space.
   std::optional<Isolate*> shared_space_isolate_;
 
-  // Used to deduplicate registered SharedStructType shapes.
-  //
-  // This is guaranteed empty when !is_shared_space_isolate().
-  std::unique_ptr<SharedStructTypeRegistry> shared_struct_type_registry_;
-
 #ifdef V8_COMPRESS_POINTERS
   // Stores the external pointer table space for the shared external pointer
   // table.
@@ -3002,11 +3008,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   wasm::StackPool stack_pool_;
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-  // Enables the host application to provide a mechanism for recording a
-  // predefined set of data as crash keys to be used in postmortem debugging
-  // in case of a crash.
-  AddCrashKeyCallback add_crash_key_callback_ = nullptr;
-
   AllocateCrashKeyStringCallback allocate_crash_key_string_callback_;
   SetCrashKeyStringCallback set_crash_key_string_callback_;
 
@@ -3028,7 +3029,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 #endif
 
 #ifdef V8_ENABLE_CHECKS
-  ThreadId current_thread_id_;
+  base::ThreadId current_thread_id_ = base::ThreadId::Invalid();
   int current_thread_counter_ = 0;
 #endif
 
@@ -3036,7 +3037,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   friend class HandleScopeImplementer;
   friend class GlobalSafepoint;
-  friend class heap::HeapTester;
   friend class IsolateForPointerCompression;
   friend class IsolateForSandbox;
   friend class IsolateGroup;
@@ -3222,7 +3222,7 @@ class V8_NODISCARD MutexGuardIfOffThread<Isolate> final {
   MutexGuardIfOffThread(base::Mutex* mutex, Isolate* isolate) {
     DCHECK_NOT_NULL(mutex);
     DCHECK_NOT_NULL(isolate);
-    DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
+    DCHECK_EQ(base::ThreadId::Current(), isolate->thread_id());
   }
 
   MutexGuardIfOffThread(const MutexGuardIfOffThread&) = delete;

@@ -1196,7 +1196,7 @@ bool CpuProfilesCollection::IsLastProfileLeft(ProfilerId id) {
 
 void CpuProfilesCollection::RemoveProfile(CpuProfile* profile) {
   // Called from VM thread for a completed profile.
-  DCHECK_EQ(ThreadId::Current(), isolate_->thread_id());
+  DCHECK_EQ(base::ThreadId::Current(), isolate_->thread_id());
   auto pos =
       std::find_if(finished_profiles_.begin(), finished_profiles_.end(),
                    [&](const std::unique_ptr<CpuProfile>& finished_profile) {

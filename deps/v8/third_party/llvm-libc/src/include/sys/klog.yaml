@@ -1,0 +1,16 @@
+header: sys/klog.h
+standards:
+  - linux
+macros: []
+types: []
+enums: []
+objects: []
+functions:
+  - name: klogctl
+    standards:
+      - linux
+    return_type: int
+    arguments:
+      - type: int
+      - type: char *
+      - type: int

@@ -272,7 +272,6 @@ cc_binary(
         ":string_view",
         ":strings",
         "//absl/base:config",
-        "//absl/base:raw_logging_internal",
         "@google_benchmark//:benchmark_main",
     ],
 )
@@ -1131,7 +1130,6 @@ cc_binary(
     visibility = ["//visibility:private"],
     deps = [
         ":strings",
-        "//absl/base:core_headers",
         "@google_benchmark//:benchmark_main",
     ],
 )

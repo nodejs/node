@@ -16,10 +16,10 @@
 #include "acoshf_utils.h"
 #include "src/__support/FPUtil/FEnvImpl.h"
 #include "src/__support/FPUtil/FPBits.h"
-#include "src/__support/FPUtil/PolyEval.h"
 #include "src/__support/FPUtil/cast.h"
 #include "src/__support/FPUtil/except_value_utils.h"
 #include "src/__support/FPUtil/multiply_add.h"
+#include "src/__support/FPUtil/polyeval.h"
 #include "src/__support/FPUtil/rounding_mode.h"
 #include "src/__support/FPUtil/sqrt.h"
 #include "src/__support/macros/config.h"
@@ -89,10 +89,16 @@ LIBC_INLINE constexpr float16 asinhf16(float16 x) {
     if (LIBC_UNLIKELY(x_abs < 0x29c6)) {
 #ifndef LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
       int rounding = fputil::quick_get_round();
-      if ((rounding == FE_UPWARD || rounding == FE_TOWARDZERO) && xf < 0)
-        return fputil::cast<float16>(xf + 0x1p-24f);
-      if ((rounding == FE_DOWNWARD || rounding == FE_TOWARDZERO) && xf > 0)
-        return fputil::cast<float16>(xf - 0x1p-24f);
+      if ((rounding == FE_UPWARD || rounding == FE_TOWARDZERO) && xf < 0) {
+        FPBits result(fputil::cast<float16>(xf + 0x1p-24f));
+        result.set_sign(xbits.sign());
+        return result.get_val();
+      }
+      if ((rounding == FE_DOWNWARD || rounding == FE_TOWARDZERO) && xf > 0) {
+        FPBits result(fputil::cast<float16>(xf - 0x1p-24f));
+        result.set_sign(xbits.sign());
+        return result.get_val();
+      }
 #endif
       return fputil::cast<float16>(xf);
     }

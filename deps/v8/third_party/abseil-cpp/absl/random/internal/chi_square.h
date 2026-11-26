@@ -60,7 +60,7 @@ double ChiSquare(Iterator it, Iterator end, Expected eit, Expected eend) {
       assert(*eit > 0);
     }
     double e = static_cast<double>(*eit);
-    double d = static_cast<double>(*it - *eit);
+    double d = static_cast<double>(*it) - e;
     if (d != 0) {
       assert(e > 0);
       chi_square += (d * d) / e;
@@ -74,9 +74,9 @@ double ChiSquare(Iterator it, Iterator end, Expected eit, Expected eend) {
 // The following methods can be used for an arbitrary significance level.
 //
 
-// Calculates critical chi-square values to produce the given p-value using a
-// bisection search for a value within epsilon, relying on the monotonicity of
-// ChiSquarePValue().
+// Calculates the critical chi-square value x such that P(X <= x) = p
+// (i.e., upper-tail p-value 1 - p), using Wilson-Hilferty for large dof
+// (> 150) and bisection over ChiSquarePValue() otherwise.
 double ChiSquareValue(int dof, double p);
 
 // Calculates the p-value (probability) of a given chi-square value.

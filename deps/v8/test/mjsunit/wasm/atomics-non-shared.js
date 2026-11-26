@@ -6,7 +6,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 // TODO(gdeepti): If non-shared atomics are moving forward, ensure that
 // the tests here are more comprehensive -i.e. reuse atomics.js/atomics64.js
-// and cctests to run on both shared/non-shared memory.
+// and C++ unittests to run on both shared/non-shared memory.
 
 (function TestCompileGenericAtomicOp() {
   print(arguments.callee.name);

@@ -253,7 +253,6 @@ class MachineRepresentationInferrer {
             break;
           case IrOpcode::kChangeInt32ToInt64:
           case IrOpcode::kChangeUint32ToUint64:
-          case IrOpcode::kBitcastWord32ToWord64:
           case IrOpcode::kInt64Constant:
           case IrOpcode::kRelocatableInt64Constant:
           case IrOpcode::kBitcastFloat64ToInt64:
@@ -449,7 +448,6 @@ class MachineRepresentationChecker {
           case IrOpcode::kRoundInt32ToFloat32:
           case IrOpcode::kRoundUint32ToFloat32:
           case IrOpcode::kBitcastInt32ToFloat32:
-          case IrOpcode::kBitcastWord32ToWord64:
           case IrOpcode::kChangeInt32ToInt64:
           case IrOpcode::kChangeUint32ToUint64:
           case IrOpcode::kWord32Popcnt:

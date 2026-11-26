@@ -67,10 +67,10 @@ LIBC_INLINE LIBC_CONSTEXPR bfloat16 asinbf16(bfloat16 x) {
       return fputil::cast<bfloat16>(x_sign * PI_2);
     }
 
-    float t = fputil::multiply_add<float>(xf_abs, -0.5f, 0.5f);
+    float t = fputil::sub_multiply<float>(0.5f, xf_abs, 0.5f);
     float t_sqrt = fputil::sqrt<float>(t);
     float asin_sqrt_t = t_sqrt * asin_internal::asin_eval_float(t);
-    float result = fputil::multiply_add<float>(-2.0f, asin_sqrt_t, PI_2);
+    float result = fputil::sub_multiply<float>(PI_2, 2.0f, asin_sqrt_t);
     return fputil::cast<bfloat16>(x_sign * result);
   }
 

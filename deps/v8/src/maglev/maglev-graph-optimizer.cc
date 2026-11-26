@@ -34,8 +34,7 @@ namespace {
 // need a deopt use each. Without it, reducing the current node can drop their
 // last regular use, letting dead node sweeping remove a node that the frame
 // still references.
-void AddDeoptUseToScopeData(const DeoptFrame::FrameData& data,
-                            const VirtualObjectList& virtual_objects) {
+void AddDeoptUseToScopeData(const DeoptFrame::FrameData& data) {
   switch (data.tag()) {
     case DeoptFrame::FrameType::kInterpretedFrame:
     case DeoptFrame::FrameType::kInlinedArgumentsFrame:
@@ -43,16 +42,16 @@ void AddDeoptUseToScopeData(const DeoptFrame::FrameData& data,
       UNREACHABLE();
     case DeoptFrame::FrameType::kConstructInvokeStubFrame:
       data.get<DeoptFrame::ConstructInvokeStubFrameData>()
-          .receiver->AddDeoptUse(virtual_objects);
-      data.get<DeoptFrame::ConstructInvokeStubFrameData>().context->AddDeoptUse(
-          virtual_objects);
+          .receiver->AddDeoptUse();
+      data.get<DeoptFrame::ConstructInvokeStubFrameData>()
+          .context->AddDeoptUse();
       break;
     case DeoptFrame::FrameType::kBuiltinContinuationFrame:
-      data.get<DeoptFrame::BuiltinContinuationFrameData>().context->AddDeoptUse(
-          virtual_objects);
+      data.get<DeoptFrame::BuiltinContinuationFrameData>()
+          .context->AddDeoptUse();
       for (ValueNode* node :
            data.get<DeoptFrame::BuiltinContinuationFrameData>().parameters) {
-        node->AddDeoptUse(virtual_objects);
+        node->AddDeoptUse();
       }
       break;
   }
@@ -60,11 +59,11 @@ void AddDeoptUseToScopeData(const DeoptFrame::FrameData& data,
 
 DeoptFrame* GetDeoptFrameForLazyDeoptHelper(
     Zone* zone, MaglevReducer<MaglevGraphOptimizer>::LazyDeoptFrameScope* scope,
-    DeoptFrame* parent, const VirtualObjectList& virtual_objects) {
+    DeoptFrame* parent) {
   if (scope == nullptr) return parent;
-  DeoptFrame* new_parent = GetDeoptFrameForLazyDeoptHelper(
-      zone, scope->parent(), parent, virtual_objects);
-  AddDeoptUseToScopeData(scope->data(), virtual_objects);
+  DeoptFrame* new_parent =
+      GetDeoptFrameForLazyDeoptHelper(zone, scope->parent(), parent);
+  AddDeoptUseToScopeData(scope->data());
   return zone->New<DeoptFrame>(scope->data(), new_parent);
 }
 
@@ -77,9 +76,8 @@ MaglevGraphOptimizer::GetDeoptFrameForLazyDeopt(bool can_throw) {
       current_node()->lazy_deopt_info()->GetFrameForCloning();
 
   if (reducer_.current_lazy_deopt_scope() != nullptr) {
-    frame = GetDeoptFrameForLazyDeoptHelper(graph()->zone(),
-                                            reducer_.current_lazy_deopt_scope(),
-                                            frame, frame->GetVirtualObjects());
+    frame = GetDeoptFrameForLazyDeoptHelper(
+        graph()->zone(), reducer_.current_lazy_deopt_scope(), frame);
     result_location = interpreter::Register::virtual_accumulator();
     result_size = 1;
   }
@@ -92,10 +90,9 @@ DeoptFrame* MaglevGraphOptimizer::GetDeoptFrameForEagerDeopt() {
 
   auto* eager_scope = reducer_.current_eager_deopt_scope();
   if (eager_scope != nullptr) {
-    const VirtualObjectList& virtual_objects = frame->GetVirtualObjects();
-    frame = GetDeoptFrameForLazyDeoptHelper(
-        graph()->zone(), eager_scope->parent(), frame, virtual_objects);
-    AddDeoptUseToScopeData(eager_scope->data(), virtual_objects);
+    frame = GetDeoptFrameForLazyDeoptHelper(graph()->zone(),
+                                            eager_scope->parent(), frame);
+    AddDeoptUseToScopeData(eager_scope->data());
     frame = graph()->zone()->New<DeoptFrame>(eager_scope->data(), frame);
   }
   return frame;
@@ -258,7 +255,7 @@ Subgraph<MaglevGraphOptimizer>::Subgraph(
       blocks_(zone_),
       saved_block_(reducer->current_block()),
       saved_position_(reducer->current_block_position()),
-      saved_kna_(&reducer->known_node_aspects()),
+      saved_kna_(reducer->TakeKnownNodeAspects()),
       parent_(reducer->active_subgraph_),
       stashed_nodes_at_(zone_),
       stashed_nodes_at_end_(zone_) {
@@ -283,7 +280,7 @@ Subgraph<MaglevGraphOptimizer>::Subgraph(
 
   // Active KNA = clone of parent, so refinements inside the subgraph don't
   // leak back. Restored to parent_kna_ in the destructor.
-  reducer_->set_known_node_aspects(saved_kna_->Clone(zone_));
+  reducer_->set_known_node_aspects(saved_kna_->Clone());
 
   // We need to set a context, since this is unconditioned in the frame state.
   // It should never be used, since this will never be executed. Use a DeadValue
@@ -332,7 +329,10 @@ Subgraph<MaglevGraphOptimizer>::~Subgraph() {
                               blocks_.end());
       reducer_->set_current_block(exit_block);
       reducer_->SetNewNodePosition(BasicBlockPosition::End());
-      // KNA stays as exit_block's merged aspects (set during Bind).
+      // KNA stays as exit_block's merged aspects (set during Bind); our
+      // saved_kna_ is automatically returned to the pool by ~Subgraph().
+      DCHECK_NE(saved_kna_.get(), parent_->saved_kna_.get());
+      DCHECK_NE(saved_kna_.get(), &reducer_->known_node_aspects());
       return;
     }
     if (reducer_->pending_splice_.has_value()) {
@@ -349,7 +349,8 @@ Subgraph<MaglevGraphOptimizer>::~Subgraph() {
   }
   reducer_->set_current_block(saved_block_);
   reducer_->SetNewNodePosition(saved_position_);
-  reducer_->set_known_node_aspects(saved_kna_);
+  DCHECK_NE(&reducer_->known_node_aspects(), saved_kna_.get());
+  reducer_->set_known_node_aspects(std::move(saved_kna_));
 
   if (parent_ == nullptr) {
     DCHECK(reducer_->new_nodes_at_.empty());
@@ -365,7 +366,7 @@ Subgraph<MaglevGraphOptimizer>::~Subgraph() {
 void Subgraph<MaglevGraphOptimizer>::MergeIntoLabel(Label* label,
                                                     BasicBlock* predecessor) {
   // Borrow active KNA into variable_frame_ so the merge sees it.
-  variable_frame_.set_known_node_aspects(&reducer_->known_node_aspects());
+  variable_frame_.set_known_node_aspects(reducer_->TakeKnownNodeAspects());
   if (label->variable_merge_state_ == nullptr) {
     label->variable_merge_state_ = MergePointInterpreterFrameState::New(
         *dummy_unit_, variable_frame_, /*merge_offset=*/0,
@@ -376,7 +377,7 @@ void Subgraph<MaglevGraphOptimizer>::MergeIntoLabel(Label* label,
         reducer_->graph(), reducer_->is_tracing(), *dummy_unit_,
         variable_frame_, predecessor, std::nullopt);
   }
-  variable_frame_.clear_known_node_aspects();
+  reducer_->set_known_node_aspects(variable_frame_.TakeKnownNodeAspects());
 }
 
 void Subgraph<MaglevGraphOptimizer>::Goto(Label* label) {
@@ -404,12 +405,14 @@ void Subgraph<MaglevGraphOptimizer>::Bind(Label* label) {
   blocks_.push_back(block);
   merge_state->InitializeWithBasicBlock(block);
 
-  // Pull merged frame state + KNA back into variable_frame_, then move KNA
-  // onto the reducer as the active aspects.
+  // Pull merged frame state + cloned KNA into variable_frame_, then move the
+  // cloned KNA onto the reducer as the active aspects while preserving
+  // merge_state's unpolluted KNA for RecomputeKnownNodeAspectsProcessor when it
+  // later walks the spliced blocks.
   variable_frame_.CopyFrom(*dummy_unit_, *merge_state,
-                           /*preserve_known_node_aspects=*/true, zone_);
-  reducer_->set_known_node_aspects(variable_frame_.known_node_aspects());
-  variable_frame_.clear_known_node_aspects();
+                           /*preserve_known_node_aspects=*/true);
+  DCHECK_NE(&reducer_->known_node_aspects(), saved_kna_.get());
+  reducer_->set_known_node_aspects(variable_frame_.TakeKnownNodeAspects());
 
   // Set predecessor IDs on the predecessor blocks' control nodes.
   if (label->predecessor_count_ > 1) {
@@ -551,11 +554,19 @@ void MaglevGraphOptimizer::PostProcessNode(Phi*) {}
 
 void MaglevGraphOptimizer::PreProcessNode(ControlNode* node,
                                           const ProcessingState& state) {
+  if (reducer_.has_graph_labeller()) {
+    reducer_.SetCurrentProvenance(
+        reducer_.graph_labeller()->GetNodeProvenance(node));
+  }
   reducer_.SetNewNodePosition(BasicBlockPosition::End());
   TRACE(TraceColor::kDarkCyan << "Processing " << PrintNodeLabel(node) << ": "
                               << PrintNode(node));
 }
-void MaglevGraphOptimizer::PostProcessNode(ControlNode*) {}
+void MaglevGraphOptimizer::PostProcessNode(ControlNode*) {
+#ifdef DEBUG
+  reducer_.SetCurrentProvenance(MaglevGraphLabeller::Provenance{});
+#endif  // DEBUG
+}
 
 compiler::JSHeapBroker* MaglevGraphOptimizer::broker() const {
   return reducer_.broker();
@@ -669,7 +680,7 @@ void MaglevGraphOptimizer::UnwrapInputs() {
   for (int i = 0; i < current_node()->input_count(); i++) {
     ValueNode* input = current_node()->input(i).node();
     if (!input) continue;
-    current_node()->change_input(i, input->UnwrapIdentitiesAndPhis());
+    current_node()->change_input(i, input->UnwrapAliases());
   }
 }
 
@@ -769,17 +780,23 @@ MaybeReduceResult MaglevGraphOptimizer::GetUntaggedValueWithRepresentation(
   }
   if (node->is_tagged()) {
     // Check if we already have a canonical conversion.
-    NodeInfo* node_info =
-        known_node_aspects().GetOrCreateInfoFor(broker(), node);
-    if (ValueNode* alternative = node_info->alternative().get(use_repr);
+    if (ValueNode* alternative =
+            known_node_aspects().TryGetAlternativeFor(node, use_repr);
         alternative &&
         CanReuseAlternative(node, alternative, use_repr, assumed_input_type)) {
       return alternative;
     }
-    // If `node` is itself tagging an untagged value, convert that value
-    // directly instead of untagging the tagged result.
+    // If `node` is itself tagging an untagged value, reuse or convert that
+    // value directly instead of untagging the tagged result.
     if (node->is_conversion()) {
-      return GetUntaggedValueWithRepresentation(node->input_node(0), use_repr,
+      ValueNode* input =
+          node->input_node(0)->UnwrapIdentitiesAndReturnedValues();
+      if (input->value_representation() ==
+              ValueRepresentationFromUse(use_repr) &&
+          CanReuseAlternative(node, input, use_repr, assumed_input_type)) {
+        return input;
+      }
+      return GetUntaggedValueWithRepresentation(input, use_repr,
                                                 assumed_input_type);
     }
     return {};
@@ -818,17 +835,25 @@ MaybeReduceResult MaglevGraphOptimizer::GetUntaggedValueWithRepresentation(
 }
 
 template <typename NodeT>
-ValueNode* MaglevGraphOptimizer::TrySmiTag(Input input) {
-  auto cst = reducer_.TryGetInt32Constant(input.node());
-  if (cst.has_value() && Smi::IsValid(cst.value())) {
-    return reducer_.GetSmiConstant(cst.value());
-  }
-  if (auto range = GetRange(input.node())) {
-    if (range->IsSmi()) {
-      return reducer_.AddNewNodeNoInputConversion<NodeT>({input.node()});
+std::optional<ProcessResult> MaglevGraphOptimizer::TrySmiTag(ValueNode* input) {
+  if constexpr (std::is_same_v<NodeT, UnsafeSmiTagIntPtr>) {
+    auto cst = reducer_.TryGetIntPtrConstant(input);
+    if (cst.has_value() && Smi::IsValid(cst.value())) {
+      return ReplaceWith(
+          reducer_.GetSmiConstant(static_cast<int>(cst.value())));
+    }
+  } else {
+    auto cst = reducer_.TryGetInt32Constant(input);
+    if (cst.has_value() && Smi::IsValid(cst.value())) {
+      return ReplaceWith(reducer_.GetSmiConstant(cst.value()));
     }
   }
-  return nullptr;
+  if (auto range = GetRange(input)) {
+    if (range->IsSmi()) {
+      return OverwriteWith(NodeBase::opcode_of<NodeT>);
+    }
+  }
+  return {};
 }
 
 template <Operation kOperation>
@@ -913,6 +938,7 @@ Jump* MaglevGraphOptimizer::FoldBranch(BasicBlock* current,
   }
 
   // Update control node.
+  branch_node->ClearInputs();
   Jump* new_control_node = branch_node->OverwriteWith<Jump>();
   new_control_node->set_target(target);
 
@@ -930,6 +956,13 @@ Jump* MaglevGraphOptimizer::FoldBranch(BasicBlock* current,
 
   reducer_.graph()->set_may_have_unreachable_blocks(true);
   return new_control_node;
+}
+
+ProcessResult MaglevGraphOptimizer::AbortBlock(BasicBlock* block,
+                                               AbortReason reason) {
+  block->OverwriteControlWithAbort(reason);
+  reducer_.graph()->set_may_have_unreachable_blocks(true);
+  return ProcessResult::kRevisit;
 }
 
 void MaglevGraphOptimizer::AttachExceptionHandlerInfo(NodeBase* node) {
@@ -1104,9 +1137,6 @@ ProcessResult MaglevGraphOptimizer::ProcessCheckMaps(NodeT* node,
     return ProcessResult::kTruncateBlock;
   }
   if (result.IsDone()) {
-    if (merger.emit_check_with_migration()) {
-      return ProcessResult::kContinue;
-    }
     return RemoveCurrentNode();
   }
   if constexpr (std::is_same_v<NodeT, CheckMaps> ||
@@ -1114,12 +1144,12 @@ ProcessResult MaglevGraphOptimizer::ProcessCheckMaps(NodeT* node,
                 std::is_same_v<NodeT, CheckMapsWithMigrationAndDeopt>) {
     NodeInfo* known_info =
         known_node_aspects().GetOrCreateInfoFor(broker(), object);
-    node->set_check_type(reducer_.GetCheckType(known_info->type()));
+    node->set_check_type(
+        MaglevReducer<MaglevGraphOptimizer>::GetCheckType(known_info->type()));
   }
 
-  if (!merger.UpdateKnownNodeAspects(object, known_node_aspects())) {
-    return DeoptAndTruncate(DeoptimizeReason::kWrongValue);
-  }
+  // The KNA processor records the checked maps once it has processed the
+  // node's side effects.
   return ProcessResult::kContinue;
 }
 
@@ -1178,7 +1208,14 @@ ProcessResult MaglevGraphOptimizer::VisitCheckNotUndefined(
 
 ProcessResult MaglevGraphOptimizer::VisitCheckHoleyFloat64NotHoleOrUndefined(
     CheckHoleyFloat64NotHoleOrUndefined* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  ValueNode* input = node->input_node(0);
+  if (std::optional<Float64> cst = reducer_.TryGetHoleyFloat64Constant(
+          input, NodeType::kNumberOrOddball)) {
+    return RemoveCheckOrDeopt(!cst->is_undefined_or_hole_nan(),
+                              DeoptimizeReason::kHoleOrUndefined);
+  }
+  REMOVE_AND_RETURN_IF_DONE(reducer_.EnsureType(
+      input, NodeType::kNumber, DeoptimizeReason::kHoleOrUndefined));
   return ProcessResult::kContinue;
 }
 #define VISIT_CHECK(Type)                                 \
@@ -1250,12 +1287,10 @@ ProcessResult MaglevGraphOptimizer::VisitCheckValueEqualsString(
 ProcessResult MaglevGraphOptimizer::VisitCheckInstanceType(
     CheckInstanceType* node, const ProcessingState& state) {
   ValueNode* input = node->input_node(0);
-  if (input->Is<FastCreateClosure>()) {
-    if (node->first_instance_type() == FIRST_JS_FUNCTION_TYPE &&
-        node->last_instance_type() == LAST_JS_FUNCTION_TYPE) {
-      // Don't need to emit this check, we know it is a closure.
-      return RemoveCurrentNode();
-    }
+  if (node->first_instance_type() == FIRST_JS_FUNCTION_TYPE &&
+      node->last_instance_type() == LAST_JS_FUNCTION_TYPE) {
+    REMOVE_AND_RETURN_IF_DONE(reducer_.EnsureType(
+        input, NodeType::kJSFunction, DeoptimizeReason::kWrongInstanceType));
   }
 
   if (node->first_instance_type() == FIRST_JS_RECEIVER_TYPE &&
@@ -1285,6 +1320,11 @@ ProcessResult MaglevGraphOptimizer::VisitAssumeMap(AssumeMap*,
 
 ProcessResult MaglevGraphOptimizer::VisitAssumeType(AssumeType*,
                                                     const ProcessingState&) {
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitRetain(Retain*,
+                                                const ProcessingState&) {
   return ProcessResult::kContinue;
 }
 
@@ -1356,6 +1396,12 @@ ProcessResult MaglevGraphOptimizer::VisitStoreFixedHoleyDoubleArrayElement(
   return ProcessResult::kContinue;
 }
 
+ProcessResult MaglevGraphOptimizer::VisitInitializeFixedHoleyDoubleArrayElement(
+    InitializeFixedHoleyDoubleArrayElement* node,
+    const ProcessingState& state) {
+  return ProcessResult::kContinue;
+}
+
 ProcessResult MaglevGraphOptimizer::VisitStoreFixedDoubleArrayElement(
     StoreFixedDoubleArrayElement* node, const ProcessingState& state) {
   REMOVE_AND_RETURN_IF_DONE(
@@ -1383,6 +1429,12 @@ ProcessResult MaglevGraphOptimizer::VisitStoreFixedDoubleArrayHole(
 
 ProcessResult MaglevGraphOptimizer::VisitStoreInt32(
     StoreInt32* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitStoreUint32(
+    StoreUint32* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
@@ -1485,8 +1537,8 @@ ProcessResult MaglevGraphOptimizer::VisitReduceInterruptBudgetForLoop(
   return ProcessResult::kContinue;
 }
 
-ProcessResult MaglevGraphOptimizer::VisitReduceInterruptBudgetForReturn(
-    ReduceInterruptBudgetForReturn* node, const ProcessingState& state) {
+ProcessResult MaglevGraphOptimizer::VisitReduceInterruptBudgetForEntry(
+    ReduceInterruptBudgetForEntry* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
@@ -1627,12 +1679,12 @@ ProcessResult MaglevGraphOptimizer::VisitCall(Call* node,
   }
 
   compiler::SharedFunctionInfoRef shared = target_function->shared(broker());
-  // Do not reduce calls to functions with break points.
-  if (shared.HasBreakInfo(broker())) return ProcessResult::kContinue;
   if (IsClassConstructor(shared.kind())) {
     // If we have a class constructor, we should raise an exception.
     return ThrowAndTruncate(Throw::kThrowConstructorNonCallableError, target);
   }
+  // Do not reduce calls to functions with break points.
+  if (shared.HasBreakInfo(broker())) return ProcessResult::kContinue;
 
   // Call's varargs slots are [receiver, arg0, arg1, ...]; CallKnownBuiltin
   // pulls receiver into a fixed input slot.
@@ -1645,9 +1697,13 @@ ProcessResult MaglevGraphOptimizer::VisitCall(Call* node,
   // callees, kNullOrUndefined receivers are replaced by the global proxy;
   // otherwise we emit a runtime ConvertReceiver. Already-known JSReceivers
   // pass through unchanged.
+  if (receiver->IsAnyHoleConstant()) return AbortAndTruncate();
   ConvertReceiverMode receiver_mode = node->receiver_mode();
   ReduceResult converted_receiver_result =
       reducer_.GetConvertReceiver(shared, receiver, receiver_mode);
+  if (converted_receiver_result.IsDoneWithAbort()) {
+    return ProcessResult::kTruncateBlock;
+  }
   if (!converted_receiver_result.IsDoneWithValue()) {
     return ProcessResult::kContinue;
   }
@@ -1719,12 +1775,13 @@ ProcessResult MaglevGraphOptimizer::VisitCall(Call* node,
   // TODO(victorgomes): Investigate if we can avoid this copy.
   auto arguments =
       reducer_.zone()->AllocateVector<ValueNode*>(node->num_args());
-  arguments[0] = converted_receiver;
+  arguments[0] = converted_receiver->Unwrap();
   for (int i = 1; i < node->num_args(); ++i) {
-    arguments[i] = node->arg(i).node();
+    arguments[i] = node->arg(i).node()->Unwrap();
   }
 
-  if (!reducer_.CanInlineCall(current_unit, shared, call_frequency, arguments,
+  if (!reducer_.CanInlineCall(current_unit, shared, feedback_cell,
+                              call_frequency, arguments,
                               new_call_node->use_repr_hints())) {
     return ReplaceWith(new_call_node);
   }
@@ -1746,13 +1803,12 @@ ProcessResult MaglevGraphOptimizer::VisitCall(Call* node,
   bool is_small_function =
       bytecode_length <
       reducer_.graph()->compilation_info()->flags().max_eager_inlined_bytecode;
-  KnownNodeAspects* call_aspects = known_node_aspects().Clone(reducer_.zone());
-  call_aspects->virtual_objects() =
-      new_call_node->lazy_deopt_info()->top_frame().GetVirtualObjects();
+  KnownNodeAspects::Ptr call_aspects = known_node_aspects().Clone();
   MaglevCallSiteInfo* call_site = reducer_.zone()->New<MaglevCallSiteInfo>(
       MaglevCallerDetails{
           base::VectorOf(arguments),
-          &new_call_node->lazy_deopt_info()->top_frame(), call_aspects,
+          &new_call_node->lazy_deopt_info()->top_frame(),
+          std::move(call_aspects),
           nullptr,  // loop_effects
           ZoneUnorderedMap<KnownNodeAspects::LoadedContextSlotsKey, Node*>(
               reducer_.zone()),  // unobserved_context_slot_stores
@@ -1762,6 +1818,7 @@ ProcessResult MaglevGraphOptimizer::VisitCall(Call* node,
           is_small_function, call_frequency,
           reducer_.graph()->inlining_tree_debug_info()},
       new_call_node, feedback_cell, score, bytecode_length);
+  call_site->caller_details.CheckArgumentsAreUnwrapped();
 
   reducer_.PushInlineCandidate(call_site);
 
@@ -2075,6 +2132,13 @@ ProcessResult MaglevGraphOptimizer::VisitLoadTaggedField(
     }
   }
   if (node->offset() == offsetof(JSFunction, feedback_cell_)) {
+    // TODO(victorgomes): Fold loads of immutable VirtualObject fields.
+    if (auto* alloc = node->input_node(0)->TryCast<InlinedAllocation>();
+        alloc != nullptr &&
+        alloc->object()->object_type() == vobj::ObjectType::kJSFunction) {
+      return ReplaceWith(
+          alloc->object()->get(offsetof(JSFunction, feedback_cell_)));
+    }
     if (auto input = node->input_node(0)->TryCast<FastCreateClosure>()) {
       return ReplaceWith(reducer_.GetConstant(input->feedback_cell()));
     }
@@ -2083,6 +2147,18 @@ ProcessResult MaglevGraphOptimizer::VisitLoadTaggedField(
     }
   }
   if (node->offset() == offsetof(JSFunction, context_)) {
+    if (auto* alloc = node->input_node(0)->TryCast<InlinedAllocation>();
+        alloc != nullptr &&
+        alloc->object()->object_type() == vobj::ObjectType::kJSFunction) {
+      ValueNode* ctx = alloc->object()->context();
+      if (!ctx->Is<VirtualObject>()) {
+        if (auto* ctx_alloc = ctx->TryCast<InlinedAllocation>();
+            ctx_alloc == nullptr || !ctx_alloc->HasBeenAnalysed() ||
+            !ctx_alloc->HasBeenElided()) {
+          return ReplaceWith(ctx);
+        }
+      }
+    }
     if (auto input = node->input_node(0)->TryCast<FastCreateClosure>()) {
       return ReplaceWith(input->ContextInput().node());
     }
@@ -2115,6 +2191,12 @@ ProcessResult MaglevGraphOptimizer::VisitLoadFloat64(
 
 ProcessResult MaglevGraphOptimizer::VisitLoadInt32(
     LoadInt32* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitLoadUint32(
+    LoadUint32* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
@@ -2179,24 +2261,34 @@ ProcessResult MaglevGraphOptimizer::VisitLoadDoubleDataViewElement(
 ProcessResult MaglevGraphOptimizer::VisitLoadTypedArrayLength(
     LoadTypedArrayLength* node, const ProcessingState& state) {
   if (!IsRabGsabTypedArrayElementsKind(node->elements_kind())) {
-    REPLACE_AND_RETURN_IF_DONE(
-        known_node_aspects().TryFindLoadedConstantProperty(
-            node->ValueInput().node(), PropertyKey::TypedArrayLength()));
+    PropertyConstness constness = v8_flags.track_array_buffer_views
+                                      ? PropertyConstness::kMutable
+                                      : PropertyConstness::kConst;
+    REPLACE_AND_RETURN_IF_DONE(known_node_aspects().TryFindLoadedProperty(
+        node->ValueInput().node(), PropertyKey::TypedArrayLength(), constness));
   }
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitLoadDataViewByteLength(
     LoadDataViewByteLength* node, const ProcessingState& state) {
-  REPLACE_AND_RETURN_IF_DONE(known_node_aspects().TryFindLoadedConstantProperty(
-      node->ValueInput().node(), PropertyKey::ArrayBufferViewByteLength()));
+  PropertyConstness constness = v8_flags.track_array_buffer_views
+                                    ? PropertyConstness::kMutable
+                                    : PropertyConstness::kConst;
+  REPLACE_AND_RETURN_IF_DONE(known_node_aspects().TryFindLoadedProperty(
+      node->ValueInput().node(), PropertyKey::ArrayBufferViewByteLength(),
+      constness));
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitLoadDataViewDataPointer(
     LoadDataViewDataPointer* node, const ProcessingState& state) {
-  REPLACE_AND_RETURN_IF_DONE(known_node_aspects().TryFindLoadedConstantProperty(
-      node->ValueInput().node(), PropertyKey::ArrayBufferViewDataPointer()));
+  PropertyConstness constness = v8_flags.track_array_buffer_views
+                                    ? PropertyConstness::kMutable
+                                    : PropertyConstness::kConst;
+  REPLACE_AND_RETURN_IF_DONE(known_node_aspects().TryFindLoadedProperty(
+      node->ValueInput().node(), PropertyKey::ArrayBufferViewDataPointer(),
+      constness));
   return ProcessResult::kContinue;
 }
 
@@ -2411,6 +2503,14 @@ ProcessResult MaglevGraphOptimizer::VisitCheckedInternalizedString(
 
 ProcessResult MaglevGraphOptimizer::VisitCheckedObjectToIndex(
     CheckedObjectToIndex* node, const ProcessingState& state) {
+  // A Float64 index converts without a -0 check, unlike a generic Int32 use.
+  ValueNode* input = node->input_node(0)->UnwrapIdentitiesAndReturnedValues();
+  if (input->is_tagged() && input->is_conversion()) {
+    input = input->input_node(0)->UnwrapIdentitiesAndReturnedValues();
+  }
+  if (!input->is_tagged()) {
+    REPLACE_AND_RETURN_IF_DONE(reducer_.GetInt32ElementIndex(input));
+  }
   REPLACE_AND_RETURN_IF_DONE(GetUntaggedValueWithRepresentation(
       node->input_node(0), UseRepresentation::kInt32, {}));
   return ProcessResult::kContinue;
@@ -2500,6 +2600,18 @@ ProcessResult MaglevGraphOptimizer::VisitCheckedFloat64ToInt32(
   return ProcessResult::kContinue;
 }
 
+ProcessResult MaglevGraphOptimizer::VisitCheckedFloat64ToIndex(
+    CheckedFloat64ToIndex* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitCheckedHoleyFloat64ToIndex(
+    CheckedHoleyFloat64ToIndex* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
 ProcessResult MaglevGraphOptimizer::VisitCheckedFloat64ToUint32(
     CheckedFloat64ToUint32* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
@@ -2584,52 +2696,23 @@ ProcessResult MaglevGraphOptimizer::VisitCheckedNumberOrOddballToUint8Clamped(
   return ProcessResult::kContinue;
 }
 
-template <ValueRepresentation kRepresentation>
-void MaglevGraphOptimizer::RegisterUntaggedAlternative(ValueNode* tagged) {
-  ValueNode* input = tagged->input_node(0);
-  DCHECK_EQ(input->value_representation(), kRepresentation);
-  auto& alternative =
-      known_node_aspects().GetOrCreateInfoFor(broker(), tagged)->alternative();
-  switch (kRepresentation) {
-    case ValueRepresentation::kInt32:
-      if (!alternative.int32()) alternative.set_int32(input);
-      break;
-    case ValueRepresentation::kFloat64:
-      if (!alternative.float64()) alternative.set_float64(input);
-      break;
-    case ValueRepresentation::kHoleyFloat64:
-      if (!alternative.holey_float64()) alternative.set_holey_float64(input);
-      break;
-    case ValueRepresentation::kTagged:
-    case ValueRepresentation::kUint32:
-    case ValueRepresentation::kIntPtr:
-    case ValueRepresentation::kRawPtr:
-    case ValueRepresentation::kNone:
-      UNREACHABLE();
-  }
-}
-
 ProcessResult MaglevGraphOptimizer::VisitInt32ToNumber(
     Int32ToNumber* node, const ProcessingState& state) {
   if (node->conversion_mode() != NumberConversionMode::kForceHeapNumber) {
-    REPLACE_AND_RETURN_IF_DONE(
-        TrySmiTag<UnsafeSmiTagInt32>(node->ValueInput()));
+    RETURN_IF_SUCCESS(TrySmiTag<UnsafeSmiTagInt32>(node->input_node(0)));
   }
-  RegisterUntaggedAlternative<ValueRepresentation::kInt32>(node);
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitUint32ToNumber(
     Uint32ToNumber* node, const ProcessingState& state) {
-  // No untagged alternative slot for uint32, so nothing to register.
-  REPLACE_AND_RETURN_IF_DONE(TrySmiTag<UnsafeSmiTagUint32>(node->ValueInput()));
+  RETURN_IF_SUCCESS(TrySmiTag<UnsafeSmiTagUint32>(node->input_node(0)));
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitIntPtrToNumber(
     IntPtrToNumber* node, const ProcessingState& state) {
-  // No untagged alternative slot for intptr, so nothing to register.
-  REPLACE_AND_RETURN_IF_DONE(TrySmiTag<UnsafeSmiTagIntPtr>(node->ValueInput()));
+  RETURN_IF_SUCCESS(TrySmiTag<UnsafeSmiTagIntPtr>(node->input_node(0)));
   return ProcessResult::kContinue;
 }
 
@@ -2661,13 +2744,13 @@ ProcessResult MaglevGraphOptimizer::VisitIntPtrToBoolean(
 
 ProcessResult MaglevGraphOptimizer::VisitFloat64ToTagged(
     Float64ToTagged* node, const ProcessingState& state) {
-  RegisterUntaggedAlternative<ValueRepresentation::kFloat64>(node);
+  // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitHoleyFloat64ToTagged(
     HoleyFloat64ToTagged* node, const ProcessingState& state) {
-  RegisterUntaggedAlternative<ValueRepresentation::kHoleyFloat64>(node);
+  // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 
@@ -2884,6 +2967,18 @@ ProcessResult MaglevGraphOptimizer::VisitStringLocaleCompareIntl(
     StringLocaleCompareIntl* node, const ProcessingState& state) {
   // Lowered to an inline ASCII fast path by Turboshaft (see
   // MachineLoweringReducer::REDUCE(StringLocaleCompareIntl)).
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitStringToLowerCaseIntl(
+    StringToLowerCaseIntl* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitStringToUpperCaseIntl(
+    StringToUpperCaseIntl* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
 #endif  // V8_INTL_SUPPORT
@@ -3634,12 +3729,32 @@ ProcessResult MaglevGraphOptimizer::VisitNewConsString(
 
 ProcessResult MaglevGraphOptimizer::VisitMapPrototypeGet(
     MapPrototypeGet* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  if (ValueNode* int32_key =
+          reducer_.TryGetInt32(node->KeyInput().node()->Unwrap())) {
+    return ReplaceWith<MapPrototypeGetInt32Key>(
+        {node->TableInput().node(), int32_key});
+  }
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitMapPrototypeGetInt32Key(
     MapPrototypeGetInt32Key* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitMapPrototypeHas(
+    MapPrototypeHas* node, const ProcessingState& state) {
+  if (ValueNode* int32_key =
+          reducer_.TryGetInt32(node->KeyInput().node()->Unwrap())) {
+    return ReplaceWith<MapPrototypeHasInt32Key>(
+        {node->TableInput().node(), int32_key});
+  }
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitMapPrototypeHasInt32Key(
+    MapPrototypeHasInt32Key* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
@@ -3718,9 +3833,16 @@ ProcessResult MaglevGraphOptimizer::VisitSwitch(Switch* node,
 
 ProcessResult MaglevGraphOptimizer::VisitBranchIfSmi(
     BranchIfSmi* node, const ProcessingState& state) {
-  ValueNode* input = node->input_node(0);
-  if (input->Is<SmiConstant>()) {
+  NodeType input_type = reducer_.GetType(node->input_node(0));
+  if (IsEmptyNodeType(input_type)) {
+    return AbortBlock(state.block());
+  }
+  if (NodeTypeIs(input_type, NodeType::kSmi)) {
     FoldBranch(state.block(), node, true);
+    return ProcessResult::kRevisit;
+  }
+  if (!NodeTypeCanBe(input_type, NodeType::kSmi)) {
+    FoldBranch(state.block(), node, false);
     return ProcessResult::kRevisit;
   }
   return ProcessResult::kContinue;
@@ -3739,16 +3861,113 @@ ProcessResult MaglevGraphOptimizer::VisitBranchIfRootConstant(
 
 ProcessResult MaglevGraphOptimizer::VisitBranchIfToBooleanTrue(
     BranchIfToBooleanTrue* node, const ProcessingState& state) {
-  if (IsConstantNode(node->input_node(0)->opcode())) {
-    // Holes shouldn't flow up to here: there should be either a ThrowXXXIfHole
-    // or a CheckNotHole before, which should have been constant-folded into
-    // unconditional deopt/throw if their input is a hole.
-    DCHECK_IMPLIES(node->input_node(0)->Is<HeapConstant>(),
-                   !node->input_node(0)->Cast<HeapConstant>()->IsAnyHole());
+  ValueNode* value = node->input_node(0)->Unwrap();
+  if (IsConstantNode(value->opcode())) {
+    std::optional<bool> condition =
+        FromConstantToBool(reducer_.local_isolate(), value);
+    if (!condition.has_value()) {
+      return AbortBlock(state.block());
+    }
 
-    bool condition =
-        FromConstantToBool(reducer_.local_isolate(), node->input_node(0));
-    FoldBranch(state.block(), node, condition);
+    FoldBranch(state.block(), node, *condition);
+    return ProcessResult::kRevisit;
+  }
+
+  switch (value->value_representation()) {
+    case ValueRepresentation::kUint32:
+      value =
+          reducer_.AddNewNodeNoInputConversion<TruncateUint32ToInt32>({value});
+      [[fallthrough]];
+    case ValueRepresentation::kInt32:
+      node->change_input(0, value);
+      node->OverwriteWith<BranchIfInt32ToBooleanTrue>();
+      return ProcessResult::kRevisit;
+    case ValueRepresentation::kIntPtr:
+      node->change_input(0, value);
+      node->OverwriteWith<BranchIfIntPtrToBooleanTrue>();
+      return ProcessResult::kRevisit;
+    case ValueRepresentation::kFloat64:
+      node->change_input(0, value);
+      node->OverwriteWith<BranchIfFloat64ToBooleanTrue>();
+      return ProcessResult::kRevisit;
+    case ValueRepresentation::kHoleyFloat64:
+      node->change_input(0, value);
+      node->OverwriteWith<BranchIfHoleyFloat64ToBooleanTrue>();
+      return ProcessResult::kRevisit;
+    case ValueRepresentation::kTagged:
+      break;
+    case ValueRepresentation::kRawPtr:
+    case ValueRepresentation::kNone:
+      UNREACHABLE();
+  }
+
+  if (const NodeInfo* node_info =
+          reducer_.known_node_aspects().TryGetInfoFor(value)) {
+    if (ValueNode* as_int32 = node_info->alternative().int32()) {
+      value->MaybeRecordUseReprHint(UseRepresentation::kInt32);
+      node->change_input(0, as_int32);
+      node->OverwriteWith<BranchIfInt32ToBooleanTrue>();
+      return ProcessResult::kRevisit;
+    }
+    if (ValueNode* as_float64 = node_info->alternative().float64()) {
+      value->MaybeRecordUseReprHint(UseRepresentation::kFloat64);
+      node->change_input(0, as_float64);
+      node->OverwriteWith<BranchIfFloat64ToBooleanTrue>();
+      return ProcessResult::kRevisit;
+    }
+    if (ValueNode* as_holey_float64 =
+            node_info->alternative().holey_float64()) {
+      value->MaybeRecordUseReprHint(UseRepresentation::kHoleyFloat64);
+      node->change_input(0, as_holey_float64);
+      node->OverwriteWith<BranchIfHoleyFloat64ToBooleanTrue>();
+      return ProcessResult::kRevisit;
+    }
+  }
+
+  NodeType node_type = reducer_.GetType(value);
+  if (IsEmptyNodeType(node_type)) {
+    return AbortBlock(state.block());
+  }
+  if (NodeTypeIs(node_type, NodeType::kSmi)) {
+    value->MaybeRecordUseReprHint(UseRepresentation::kInt32);
+    ValueNode* untagged =
+        reducer_.AddNewNodeNoInputConversion<UnsafeSmiUntag>({value});
+    node->change_input(0, untagged);
+    node->OverwriteWith<BranchIfInt32ToBooleanTrue>();
+    return ProcessResult::kRevisit;
+  }
+  if (NodeTypeIs(node_type, NodeType::kBoolean)) {
+    node->change_input(0, value);
+    node->OverwriteWith<BranchIfRootConstant>()->set_root_index(
+        RootIndex::kTrueValue);
+    return ProcessResult::kRevisit;
+  }
+  if (NodeTypeIs(node_type, NodeType::kString)) {
+    node->change_input(0, value);
+    node->OverwriteWith<BranchIfRootConstant>()->set_root_index(
+        RootIndex::kempty_string);
+    node->SwapTargets();
+    return ProcessResult::kRevisit;
+  }
+  if (NodeTypeIs(node_type, NodeType::kJSReceiver)) {
+    MaybeReduceResult is_undetectable = reducer_.TryFoldTestUndetectable(value);
+    if (is_undetectable.IsDoneWithAbort()) {
+      return ProcessResult::kTruncateBlock;
+    }
+    if (is_undetectable.HasValue()) {
+      std::optional<bool> cst =
+          FromConstantToBool(reducer_.local_isolate(), is_undetectable.value());
+      FoldBranch(state.block(), node, !cst.value());
+      return ProcessResult::kRevisit;
+    }
+    node->change_input(0, value);
+    node->OverwriteWith<BranchIfUndetectable>()->set_check_type(
+        CheckType::kOmitHeapObjectCheck);
+    node->SwapTargets();
+    return ProcessResult::kRevisit;
+  }
+  if (NodeTypeIsNullOrUndefined(node_type)) {
+    FoldBranch(state.block(), node, false);
     return ProcessResult::kRevisit;
   }
   return ProcessResult::kContinue;
@@ -4023,7 +4242,7 @@ ProcessResult MaglevGraphOptimizer::VisitJumpLoop(
       for (int i = 0; i < phi->input_count(); i++) {
         ValueNode* input = phi->input(i).node();
         if (!input) continue;
-        phi->change_input(i, input->UnwrapIdentities());
+        phi->change_input(i, input->UnwrapAliases());
       }
     }
   }
@@ -4035,9 +4254,7 @@ ProcessResult MaglevGraphOptimizer::VisitJumpLoop(
 ProcessResult MaglevGraphOptimizer::VisitDeadValue(
     DeadValue* node, const ProcessingState& state) {
   // DeadValues are unreachable, so we truncate the block now.
-  auto res = reducer_.BuildAbort(AbortReason::kUnreachable);
-  CHECK(res.IsDoneWithAbort());
-  return ProcessResult::kTruncateBlock;
+  return AbortAndTruncate();
 }
 
 // Nodes never emitted before Graph optimizer.

@@ -11,6 +11,14 @@ add_header(
 )
 
 add_header(
+  struct_tcp_info
+  HDR
+    struct_tcp_info.h
+  DEPENDS
+    libc.include.llvm-libc-macros.stdint_macros
+)
+
+add_header(
   struct_ifmap
   HDR
     struct_ifmap.h

@@ -61,13 +61,6 @@ class ElementsAccessor {
   virtual Handle<Object> Get(Isolate* isolate, DirectHandle<JSObject> holder,
                              InternalIndex entry) = 0;
 
-  // Currently only shared array elements support sequentially consistent
-  // access.
-  virtual Handle<Object> GetAtomic(Isolate* isolate,
-                                   DirectHandle<JSObject> holder,
-                                   InternalIndex entry,
-                                   SeqCstAccessTag tag) = 0;
-
   virtual bool HasAccessors(Tagged<JSObject> holder) = 0;
   virtual size_t NumberOfElements(Isolate* isolate,
                                   Tagged<JSObject> holder) = 0;
@@ -125,22 +118,6 @@ class ElementsAccessor {
 
   virtual void Set(DirectHandle<JSObject> holder, InternalIndex entry,
                    Tagged<Object> value) = 0;
-
-  // Currently only shared array elements support sequentially consistent
-  // access.
-  virtual void SetAtomic(DirectHandle<JSObject> holder, InternalIndex entry,
-                         Tagged<Object> value, SeqCstAccessTag tag) = 0;
-
-  // Currently only shared array elements support sequentially consistent
-  // access.
-  virtual Handle<Object> SwapAtomic(Isolate* isolate,
-                                    DirectHandle<JSObject> holder,
-                                    InternalIndex entry, Tagged<Object> value,
-                                    SeqCstAccessTag tag) = 0;
-
-  virtual Handle<Object> CompareAndSwapAtomic(
-      Isolate* isolate, DirectHandle<JSObject> holder, InternalIndex entry,
-      Tagged<Object> expected, Tagged<Object> value, SeqCstAccessTag tag) = 0;
 
   V8_WARN_UNUSED_RESULT virtual Maybe<bool> Add(Isolate* isolate,
                                                 DirectHandle<JSObject> object,

@@ -1018,6 +1018,13 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadAsyncIteratorProperty(
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::LoadDisposeProperty(
+    Register object, int feedback_slot) {
+  size_t name_index = DisposeSymbolConstantPoolEntry();
+  OutputGetNamedProperty(object, name_index, feedback_slot);
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::DefineKeyedOwnPropertyInLiteral(
     Register object, Register name, DefineKeyedOwnPropertyInLiteralFlags flags,
     int feedback_slot) {

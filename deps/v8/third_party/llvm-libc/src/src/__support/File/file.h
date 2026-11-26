@@ -49,7 +49,7 @@ public:
 
   static constexpr size_t DEFAULT_BUFFER_SIZE = 1024;
 
-  enum class Orientation { UNORIENTED, BYTE, WIDE };
+  enum class Orientation : uint8_t { UNORIENTED, BYTE, WIDE };
 
   using LockFunc = void(File *);
   using UnlockFunc = void(File *);
@@ -60,6 +60,15 @@ public:
   // file position indicator.
   using SeekFunc = ErrorOr<off_t>(File *, off_t, int);
   using CloseFunc = int(File *);
+
+  // Exposes the platform I/O callbacks so a platform backend can positively
+  // identify which concrete File subclass an object is (e.g. distinguishing
+  // a LinuxFile from a CookieFile/MemoryFile) without needing RTTI. See
+  // is_linux_file() in the Linux backend for the concrete use.
+  LIBC_INLINE ReadFunc *get_read_func() const { return platform_read; }
+  LIBC_INLINE WriteFunc *get_write_func() const { return platform_write; }
+  LIBC_INLINE SeekFunc *get_seek_func() const { return platform_seek; }
+  LIBC_INLINE CloseFunc *get_close_func() const { return platform_close; }
 
   // This is a convenience RAII class to lock and unlock file objects.
   class FileLock {
@@ -85,7 +94,23 @@ private:
   SeekFunc *platform_seek;
   CloseFunc *platform_close;
 
-  Mutex mutex;
+  uint8_t *buf;   // Pointer to the stream buffer for buffered streams
+  size_t bufsize; // Size of the buffer pointed to by |buf|.
+
+  // Current read or write pointer.
+  size_t pos;
+
+  // When the buffer is used as a read buffer, read_limit is the upper limit
+  // of the index to which the buffer can be read until.
+  size_t read_limit;
+
+  File *prev;
+  File *next;
+
+  internal::mbstate mbstate;
+
+  // Used to handle the File's mode
+  FileMode mode;
 
   // For files which are readable, we should be able to support one ungetc
   // operation even if |buf| is nullptr. So, in the constructor of File, we
@@ -93,34 +118,20 @@ private:
   // bytes so we can store a widechar.
   uint8_t ungetc_buf[4];
 
-  uint8_t *buf;   // Pointer to the stream buffer for buffered streams
-  size_t bufsize; // Size of the buffer pointed to by |buf|.
+  Mutex mutex;
 
   // Buffering mode to used to buffer.
-  int bufmode;
+  int8_t bufmode;
+
+  // Represents the previous operation that was performed.
+  FileOp prev_op : 2;
+  Orientation orientation : 2;
 
   // If own_buf is true, the |buf| is owned by the stream and will be
   // free-ed when close method is called on the stream.
-  bool own_buf;
-
-  // Used to handle the File's mode
-  FileMode mode;
-
-  // Current read or write pointer.
-  size_t pos;
-
-  // Represents the previous operation that was performed.
-  FileOp prev_op;
-
-  // When the buffer is used as a read buffer, read_limit is the upper limit
-  // of the index to which the buffer can be read until.
-  size_t read_limit;
-
-  bool eof;
-  bool err;
-
-  Orientation orientation;
-  internal::mbstate mbstate;
+  bool own_buf : 1;
+  bool eof : 1;
+  bool err : 1;
 
 protected:
   LIBC_INLINE constexpr bool write_allowed() const {
@@ -155,13 +166,13 @@ public:
                              CloseFunc *cf, uint8_t *buffer, size_t buffer_size,
                              int buffer_mode, bool owned, FileMode mode)
       : platform_write(wf), platform_read(rf), platform_seek(sf),
-        platform_close(cf), mutex(/*timed=*/false, /*recursive=*/false,
-                                  /*robust=*/false, /*pshared=*/false),
-        ungetc_buf{}, buf(buffer), bufsize(buffer_size), bufmode(buffer_mode),
-        own_buf(owned), mode(mode), pos(0), prev_op(FileOp::NONE),
-        read_limit(0), eof(false), err(false),
-        orientation(Orientation::UNORIENTED), mbstate(), prev(nullptr),
-        next(nullptr) {
+        platform_close(cf), buf(buffer), bufsize(buffer_size), pos(0),
+        read_limit(0), prev(nullptr), next(nullptr), mbstate(), mode(mode),
+        ungetc_buf{}, mutex(/*timed=*/false, /*recursive=*/true,
+                            /*robust=*/false, /*pshared=*/false),
+        bufmode(static_cast<int8_t>(buffer_mode)), prev_op(FileOp::NONE),
+        orientation(Orientation::UNORIENTED), own_buf(owned), eof(false),
+        err(false) {
     adjust_buf();
   }
 
@@ -277,6 +288,8 @@ public:
 
   LIBC_INLINE bool error_unlocked() const { return err; }
 
+  LIBC_INLINE void set_error_unlocked() { err = true; }
+
   LIBC_INLINE bool error() {
     FileLock l(this);
     return error_unlocked();
@@ -334,6 +347,8 @@ private:
 
   FileIOResult read_unlocked_fbf(uint8_t *data, size_t len);
   FileIOResult read_unlocked_nbf(uint8_t *data, size_t len);
+  FileIOResult read_from_platform(uint8_t *dst, size_t min_bytes,
+                                  size_t max_bytes);
   size_t copy_data_from_buf(uint8_t *data, size_t len);
 
   LIBC_INLINE constexpr void adjust_buf() {
@@ -357,9 +372,6 @@ private:
       own_buf = false; // We shouldn't call free on |buf| when closing the file.
     }
   }
-
-  File *prev;
-  File *next;
 };
 
 // The implementation of this function is provided by the platform_file
@@ -377,7 +389,7 @@ int reopenfile_unlocked(File *f, const char *path, const char *mode);
 
 // The platform_file library should implement it if it relevant for that
 // platform.
-int get_fileno(File *f);
+ErrorOr<int> get_fileno(File *f);
 
 } // namespace LIBC_NAMESPACE_DECL
 

@@ -74,13 +74,12 @@ TEST_F(GrowMemoryTest, Run_WasmModule_Buffer_Externalized_GrowMem) {
   {
     Isolate* isolate = WasmExecutionTestBase::InitIsolateOnce();
     HandleScope scope(isolate);
-    TestSignatures sigs;
     v8::internal::AccountingAllocator allocator;
     Zone zone(&allocator, ZONE_NAME);
 
     WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
     builder->AddMemory(16);
-    WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
+    WasmFunctionBuilder* f = builder->AddFunction(TestSignatures::i_v());
     ExportAsMain(f);
     f->EmitCode({WASM_MEMORY_GROW(WASM_I32V_1(6)), WASM_DROP, WASM_MEMORY_SIZE,
                  WASM_END});

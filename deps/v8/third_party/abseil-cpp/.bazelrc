@@ -38,13 +38,15 @@ build:linux --per_file_copt=external/.*@-w
 build:linux --host_per_file_copt=external/.*@-w
 
 # Configure our Windows MSVC and ClangCL setup.
-common:windows-msvc --enable_runfiles
-build:windows-msvc --cxxopt=/std:c++17 --host_cxxopt=/std:c++17
-build:windows-msvc --copt=/WX
-build:windows-msvc --per_file_copt=external/.*@/w
-build:windows-msvc --host_per_file_copt=external/.*@/w
+common:windows-base --enable_runfiles
+build:windows-base --cxxopt=/std:c++17 --host_cxxopt=/std:c++17
+build:windows-base --copt=/WX
+build:windows-base --per_file_copt=external/.*@/w,/O1
+build:windows-base --host_per_file_copt=external/.*@/w,/O1
 
-build:windows-clangcl --config=windows-msvc
+common:windows-msvc --config=windows-base
+
+common:windows-clangcl --config=windows-base
 build:windows-clangcl --compiler=clang-cl
 build:windows-clangcl --copt=-Wno-microsoft-cast
 build:windows-clangcl --extra_execution_platforms=//:x64_windows-clang-cl
@@ -84,7 +86,6 @@ test:tsan --test_tag_filters=-benchmark,-notsan
 
 # Remote build configuration for CI.
 build:remote-cache --remote_cache=https://storage.googleapis.com/absl-bazel-remote-cache
-build:remote-cache --remote_timeout=1200 --bes_timeout=600s
 build:remote-cache --remote_download_minimal
 # cc_test puts Windows .pdb files in the pdb_file output group rather than
 # runfiles, so explicitly download symbolize_test.pdb when linking hits the
@@ -92,9 +93,13 @@ build:remote-cache --remote_download_minimal
 build:remote-cache --remote_download_regex=.*symbolize_test\.pdb$
 # Retry up for up to 15 minutes under heavy load (exponential backoff).
 build:remote-cache --remote_retries=20 --remote_retry_max_delay=60s
+# Use more parallel jobs for remote cache lookups and tests.
+build:remote-cache --jobs=HOST_CPUS*4
+# Avoid building benchmarks on non-RBE CI builds (macOS and Windows).
+test:remote-cache --build_tests_only
 
 build:remote-base --define=EXECUTOR=remote
-build:remote-base --remote_timeout=1200 --bes_timeout=600s
+build:remote-base --remote_grpc_service_config=ci/rbe_grpc_service_config.json
 build:remote-base --jobs=50
 build:remote-base --remote_download_minimal
 # Retry up for up to 15 minutes under heavy load (exponential backoff).

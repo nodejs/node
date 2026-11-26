@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --turbolev --maglev-object-tracking
+// Flags: --allow-natives-syntax --turbolev
 // Flags: --max-turbolev-eager-inlined-bytecode-size=0
 // Flags: --trace-turbo-inlining --no-stress-concurrent-inlining
 // Flags: --no-stress-maglev --no-optimize-on-next-call-optimizes-to-maglev

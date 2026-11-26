@@ -1,9 +1,14 @@
-//===-- String to float conversion utils ------------------------*- C++ -*-===//
+//===----------------------------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
+//===----------------------------------------------------------------------===//
+///
+/// \file
+/// String to floating-point conversion utilities.
+///
 //===----------------------------------------------------------------------===//
 
 // -----------------------------------------------------------------------------
@@ -20,16 +25,19 @@
 #include "src/__support/CPP/bit.h"
 #include "src/__support/CPP/limits.h"
 #include "src/__support/CPP/optional.h"
-#include "src/__support/CPP/string_view.h"
+#include "src/__support/CPP/type_traits.h"
 #include "src/__support/FPUtil/FPBits.h"
 #include "src/__support/FPUtil/rounding_mode.h"
 #include "src/__support/common.h"
 #include "src/__support/ctype_utils.h"
 #include "src/__support/detailed_powers_of_ten.h"
 #include "src/__support/high_precision_decimal.h"
+#include "src/__support/macros/attributes.h"
 #include "src/__support/macros/config.h"
 #include "src/__support/macros/null_check.h"
 #include "src/__support/macros/optimization.h"
+#include "src/__support/macros/properties/types.h"
+#include "src/__support/math_extras.h"
 #include "src/__support/str_to_integer.h"
 #include "src/__support/str_to_num_result.h"
 #include "src/__support/uint128.h"
@@ -85,21 +93,17 @@ set_implicit_bit<long double>(fputil::FPBits<long double> &result) {
 // (https://nigeltao.github.io/blog/2020/eisel-lemire.html) and the golang
 // implementation, also by Nigel Tao
 // (https://github.com/golang/go/blob/release-branch.go1.16/src/strconv/eisel_lemire.go#L25)
-// for some optimizations as well as handling 32 bit floats.
-template <class T>
+// for some optimizations as well as handling 32 bit floats. This implementation
+// of Eisel-Lemire cannot handle anything longer than a double.
+template <class T, cpp::enable_if_t<sizeof(T) <= 8, int> = 0>
 LIBC_INLINE cpp::optional<ExpandedFloat<T>>
-eisel_lemire(ExpandedFloat<T> init_num,
-             RoundDirection round = RoundDirection::Nearest) {
+eisel_lemire_impl(ExpandedFloat<T> init_num,
+                  RoundDirection round = RoundDirection::Nearest) {
   using FPBits = typename fputil::FPBits<T>;
   using StorageType = typename FPBits::StorageType;
 
   StorageType mantissa = init_num.mantissa;
   int32_t exp_10 = init_num.exponent;
-
-  if (sizeof(T) > 8) { // This algorithm cannot handle anything longer than a
-                       // double, so we skip straight to the fallback.
-    return cpp::nullopt;
-  }
 
   // Exp10 Range
   if (exp_10 < DETAILED_POWERS_OF_TEN_MIN_EXP_10 ||
@@ -195,17 +199,12 @@ eisel_lemire(ExpandedFloat<T> init_num,
   return output;
 }
 
-// TODO: Re-enable eisel-lemire for long double is double double once it's
-// properly supported.
-#if !defined(LIBC_TYPES_LONG_DOUBLE_IS_FLOAT64) &&                             \
-    !defined(LIBC_TYPES_LONG_DOUBLE_IS_DOUBLE_DOUBLE)
-template <>
-LIBC_INLINE cpp::optional<ExpandedFloat<long double>>
-eisel_lemire<long double>(ExpandedFloat<long double> init_num,
-                          RoundDirection round) {
-  using FPBits = typename fputil::FPBits<long double>;
+template <class T, cpp::enable_if_t<(sizeof(T) > 8), int> = 0>
+LIBC_INLINE cpp::optional<ExpandedFloat<T>>
+eisel_lemire_impl(ExpandedFloat<T> init_num,
+                  RoundDirection round = RoundDirection::Nearest) {
+  using FPBits = typename fputil::FPBits<T>;
   using StorageType = typename FPBits::StorageType;
-
   UInt128 mantissa = init_num.mantissa;
   int32_t exp_10 = init_num.exponent;
 
@@ -314,17 +313,29 @@ eisel_lemire<long double>(ExpandedFloat<long double> init_num,
     return cpp::nullopt;
   }
 
-  ExpandedFloat<long double> output;
+  ExpandedFloat<T> output;
   output.mantissa = static_cast<StorageType>(final_mantissa);
   output.exponent = exp_2;
   return output;
 }
-#endif // !defined(LIBC_TYPES_LONG_DOUBLE_IS_FLOAT64) &&
-       // !defined(LIBC_TYPES_LONG_DOUBLE_IS_DOUBLE_DOUBLE)
+
+template <class T>
+LIBC_INLINE cpp::optional<ExpandedFloat<T>>
+eisel_lemire(ExpandedFloat<T> init_num,
+             RoundDirection round = RoundDirection::Nearest) {
+  // TODO: Re-enable eisel-lemire for long double is double double once it's
+  // properly supported.
+#if defined(LIBC_TYPES_LONG_DOUBLE_IS_DOUBLE_DOUBLE)
+  if constexpr (cpp::is_same_v<T, long double>)
+    return cpp::nullopt;
+  else
+#endif // LIBC_TYPES_LONG_DOUBLE_IS_DOUBLE_DOUBLE
+    return eisel_lemire_impl(init_num, round);
+}
 
 // The nth item in POWERS_OF_TWO represents the greatest power of two less than
 // 10^n. This tells us how much we can safely shift without overshooting.
-constexpr uint8_t POWERS_OF_TWO[19] = {
+LIBC_INLINE_VAR constexpr uint8_t POWERS_OF_TWO[19] = {
     0, 3, 6, 9, 13, 16, 19, 23, 26, 29, 33, 36, 39, 43, 46, 49, 53, 56, 59,
 };
 constexpr int32_t NUM_POWERS_OF_TWO =
@@ -353,18 +364,26 @@ LIBC_INLINE FloatConvertReturn<T> simple_decimal_conversion(
     return output;
   }
 
+  // exp10_to_exp2 is only valid for inputs below 646 456 636, but
+  // HighPrecisionDecimal clamps the decimal point to 1 << 30. Decimal points at
+  // or beyond that limit are far outside the range of any float type, so they
+  // are handled explicitly instead of letting exp10_to_exp2 wrap around.
+  constexpr int32_t EXP10_TO_EXP2_LIMIT = 646456636;
+
   // If the exponent is too large and can't be represented in this size of
   // float, return inf.
   if (hpd.get_decimal_point() > 0 &&
-      exp10_to_exp2(hpd.get_decimal_point() - 1) > FPBits::EXP_BIAS) {
+      (hpd.get_decimal_point() - 1 >= EXP10_TO_EXP2_LIMIT ||
+       exp10_to_exp2(hpd.get_decimal_point() - 1) > FPBits::EXP_BIAS)) {
     output.num = {0, fputil::FPBits<T>::MAX_BIASED_EXPONENT};
     output.error = ERANGE;
     return output;
   }
   // If the exponent is too small even for a subnormal, return 0.
   if (hpd.get_decimal_point() < 0 &&
-      exp10_to_exp2(-hpd.get_decimal_point()) >
-          (FPBits::EXP_BIAS + static_cast<int32_t>(FPBits::FRACTION_LEN))) {
+      (-hpd.get_decimal_point() >= EXP10_TO_EXP2_LIMIT ||
+       exp10_to_exp2(-hpd.get_decimal_point()) >
+           (FPBits::EXP_BIAS + static_cast<int32_t>(FPBits::FRACTION_LEN)))) {
     output.num = {0, 0};
     output.error = ERANGE;
     return output;
@@ -378,7 +397,13 @@ LIBC_INLINE FloatConvertReturn<T> simple_decimal_conversion(
     } else {
       shift_amount = POWERS_OF_TWO[hpd.get_decimal_point()];
     }
-    exp_2 += shift_amount;
+    // The bounds checks above keep exp_2 small, but stay well defined if they
+    // are ever loosened.
+    if (LIBC_UNLIKELY(add_overflow(exp_2, shift_amount, exp_2))) {
+      output.num = {0, FPBits::MAX_BIASED_EXPONENT};
+      output.error = ERANGE;
+      return output;
+    }
     hpd.shift(-shift_amount);
   }
 
@@ -394,7 +419,11 @@ LIBC_INLINE FloatConvertReturn<T> simple_decimal_conversion(
     } else { // This handles the case of the number being between .1 and .5
       shift_amount = 1;
     }
-    exp_2 -= shift_amount;
+    if (LIBC_UNLIKELY(sub_overflow(exp_2, shift_amount, exp_2))) {
+      output.num = {0, 0};
+      output.error = ERANGE;
+      return output;
+    }
     hpd.shift(shift_amount);
   }
 
@@ -459,7 +488,7 @@ LIBC_INLINE FloatConvertReturn<T> simple_decimal_conversion(
 // exact digits stored by the float type, described in
 // Gay DM, Correctly rounded binary-decimal and decimal-binary conversions;
 // 1990. AT&T Bell Laboratories Numerical Analysis Manuscript 90-10.
-template <class T> class ClingerConsts;
+template <typename T, typename Enable = void> class ClingerConsts;
 
 template <> class ClingerConsts<float> {
 public:
@@ -533,6 +562,93 @@ public:
 #else
 #error "Unknown long double type"
 #endif
+
+template <typename T>
+class ClingerConsts<T, cpp::enable_if_t<cpp::is_same_v<T, fputil::Float128>>> {
+public:
+  LIBC_INLINE_VAR static constexpr T POWERS_OF_TEN_ARRAY[] = {
+      T::from_bits(UInt128(0x3fff000000000000ULL) << 64), // 1e0
+      T::from_bits(UInt128(0x4002400000000000ULL) << 64), // 1e1
+      T::from_bits(UInt128(0x4005900000000000ULL) << 64), // 1e2
+      T::from_bits(UInt128(0x4008f40000000000ULL) << 64), // 1e3
+      T::from_bits(UInt128(0x400c388000000000ULL) << 64), // 1e4
+      T::from_bits(UInt128(0x400f86a000000000ULL) << 64), // 1e5
+      T::from_bits(UInt128(0x4012e84800000000ULL) << 64), // 1e6
+      T::from_bits(UInt128(0x4016312d00000000ULL) << 64), // 1e7
+      T::from_bits(UInt128(0x40197d7840000000ULL) << 64), // 1e8
+      T::from_bits(UInt128(0x401cdcd650000000ULL) << 64), // 1e9
+      T::from_bits(UInt128(0x40202a05f2000000ULL) << 64), // 1e10
+      T::from_bits(UInt128(0x402374876e800000ULL) << 64), // 1e11
+      T::from_bits(UInt128(0x4026d1a94a200000ULL) << 64), // 1e12
+      T::from_bits(UInt128(0x402a2309ce540000ULL) << 64), // 1e13
+      T::from_bits(UInt128(0x402d6bcc41e90000ULL) << 64), // 1e14
+      T::from_bits(UInt128(0x4030c6bf52634000ULL) << 64), // 1e15
+      T::from_bits(UInt128(0x40341c37937e0800ULL) << 64), // 1e16
+      T::from_bits(UInt128(0x40376345785d8a00ULL) << 64), // 1e17
+      T::from_bits(UInt128(0x403abc16d674ec80ULL) << 64), // 1e18
+      T::from_bits(UInt128(0x403e158e460913d0ULL) << 64), // 1e19
+      T::from_bits(UInt128(0x40415af1d78b58c4ULL) << 64), // 1e20
+      T::from_bits(UInt128(0x4044b1ae4d6e2ef5ULL) << 64), // 1e21
+      T::from_bits((UInt128(0x40480f0cf064dd59ULL) << 64) |
+                   UInt128(0x2000000000000000ULL)), // 1e22
+      T::from_bits((UInt128(0x404b52d02c7e14afULL) << 64) |
+                   UInt128(0x6800000000000000ULL)), // 1e23
+      T::from_bits((UInt128(0x404ea784379d99dbULL) << 64) |
+                   UInt128(0x4200000000000000ULL)), // 1e24
+      T::from_bits((UInt128(0x405208b2a2c28029ULL) << 64) |
+                   UInt128(0x0940000000000000ULL)), // 1e25
+      T::from_bits((UInt128(0x40554adf4b732033ULL) << 64) |
+                   UInt128(0x4b90000000000000ULL)), // 1e26
+      T::from_bits((UInt128(0x40589d971e4fe840ULL) << 64) |
+                   UInt128(0x1e74000000000000ULL)), // 1e27
+      T::from_bits((UInt128(0x405c027e72f1f128ULL) << 64) |
+                   UInt128(0x1308800000000000ULL)), // 1e28
+      T::from_bits((UInt128(0x405f431e0fae6d72ULL) << 64) |
+                   UInt128(0x17caa00000000000ULL)), // 1e29
+      T::from_bits((UInt128(0x406293e5939a08ceULL) << 64) |
+                   UInt128(0x9dbd480000000000ULL)), // 1e30
+      T::from_bits((UInt128(0x4065f8def8808b02ULL) << 64) |
+                   UInt128(0x452c9a0000000000ULL)), // 1e31
+      T::from_bits((UInt128(0x40693b8b5b5056e1ULL) << 64) |
+                   UInt128(0x6b3be04000000000ULL)), // 1e32
+      T::from_bits((UInt128(0x406c8a6e32246c99ULL) << 64) |
+                   UInt128(0xc60ad85000000000ULL)), // 1e33
+      T::from_bits((UInt128(0x406fed09bead87c0ULL) << 64) |
+                   UInt128(0x378d8e6400000000ULL)), // 1e34
+      T::from_bits((UInt128(0x40733426172c74d8ULL) << 64) |
+                   UInt128(0x22b878fe80000000ULL)), // 1e35
+      T::from_bits((UInt128(0x4076812f9cf7920eULL) << 64) |
+                   UInt128(0x2b66973e20000000ULL)), // 1e36
+      T::from_bits((UInt128(0x4079e17b84357691ULL) << 64) |
+                   UInt128(0xb6403d0da8000000ULL)), // 1e37
+      T::from_bits((UInt128(0x407d2ced32a16a1bULL) << 64) |
+                   UInt128(0x11e8262889000000ULL)), // 1e38
+      T::from_bits((UInt128(0x408078287f49c4a1ULL) << 64) |
+                   UInt128(0xd6622fb2ab400000ULL)), // 1e39
+      T::from_bits((UInt128(0x4083d6329f1c35caULL) << 64) |
+                   UInt128(0x4bfabb9f56100000ULL)), // 1e40
+      T::from_bits((UInt128(0x408725dfa371a19eULL) << 64) |
+                   UInt128(0x6f7cb54395ca0000ULL)), // 1e41
+      T::from_bits((UInt128(0x408a6f578c4e0a06ULL) << 64) |
+                   UInt128(0x0b5be2947b3c8000ULL)), // 1e42
+      T::from_bits((UInt128(0x408dcb2d6f618c87ULL) << 64) |
+                   UInt128(0x8e32db399a0ba000ULL)), // 1e43
+      T::from_bits((UInt128(0x40911efc659cf7d4ULL) << 64) |
+                   UInt128(0xb8dfc90400474400ULL)), // 1e44
+      T::from_bits((UInt128(0x409466bb7f0435c9ULL) << 64) |
+                   UInt128(0xe717bb4500591500ULL)), // 1e45
+      T::from_bits((UInt128(0x4097c06a5ec5433cULL) << 64) |
+                   UInt128(0x60ddaa16406f5a40ULL)), // 1e46
+      T::from_bits((UInt128(0x409b18427b3b4a05ULL) << 64) |
+                   UInt128(0xbc8a8a4de8459868ULL)), // 1e47
+      T::from_bits((UInt128(0x409e5e531a0a1c87ULL) << 64) |
+                   UInt128(0x2bad2ce16256fe82ULL))}; // 1e48
+  LIBC_INLINE_VAR static constexpr int32_t EXACT_POWERS_OF_TEN = 48;
+  LIBC_INLINE_VAR static constexpr int32_t DIGITS_IN_MANTISSA = 33;
+  // 2^113 - 1 = 10384593717069655257060992658440191.0
+  LIBC_INLINE_VAR static constexpr T MAX_EXACT_INT = T::from_bits(
+      (UInt128(0x406fffffffffffffULL) << 64) | UInt128(0xffffffffffffffffULL));
+};
 
 // Take an exact mantissa and exponent and attempt to convert it using only
 // exact floating point arithmetic. This only handles numbers with low

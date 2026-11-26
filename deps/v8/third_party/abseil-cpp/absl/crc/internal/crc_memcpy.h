@@ -17,12 +17,14 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <memory>
 
 #include "absl/base/config.h"
 #include "absl/crc/crc32c.h"
 #include "absl/crc/internal/crc.h"
 #include "absl/crc/internal/crc32_x86_arm_combined_simd.h"
+#include "absl/crc/internal/crc32c_inline.h"
 
 // Defined if the class AcceleratedCrcMemcpyEngine exists.
 // TODO(b/299127771): Consider relaxing the pclmul requirement once the other
@@ -55,6 +57,12 @@ class CrcMemcpy {
                              crc32c_t initial_crc = crc32c_t{0},
                              bool non_temporal = false) {
     uint32_t crc = static_cast<uint32_t>(initial_crc);
+    // Short inputs are faster to process inline with a simple serial loop.
+    if (length < kSmallCutoff &&
+        ExtendCrc32cInline(&crc, static_cast<const char*>(src), length)) {
+      std::memcpy(dst, src, length);
+      return crc32c_t{crc};
+    }
     crc ^= 0xffffffffU;
     CRC::Crc32c()->ExtendAndCopy(&crc, dst, src, length, non_temporal);
     crc ^= 0xffffffffU;

@@ -569,9 +569,9 @@ class btree_node {
   //   // internal nodes.
   //   btree_node *children[kNodeSlots + 1];
   //
-  // This class is only constructed by EmptyNodeType. Normally, pointers to the
-  // layout above are allocated, cast to btree_node*, and de-allocated within
-  // the btree implementation.
+  // This class is never constructed. Pointers to the layout above are
+  // allocated, cast to btree_node*, and de-allocated within the btree
+  // implementation. Empty btrees point to a shared BtreeEmptyNode instead.
   ~btree_node() = default;
   btree_node(btree_node const &) = delete;
   btree_node &operator=(btree_node const &) = delete;
@@ -1337,33 +1337,50 @@ class btree_iterator : private btree_iterator_generation_info {
   int position_;
 };
 
+// We use a static empty node for the root/leftmost/rightmost of empty btrees
+// in order to avoid branching in begin()/end(). The empty node only depends on
+// the node's field_type and alignment (not on the full Params), so it is
+// defined outside of btree in order to be shared between all btrees with
+// compatible node headers.
+template <typename FieldType, size_t Alignment>
+struct alignas(Alignment) BtreeEmptyNode {
+  // Mirrors the header of btree_node's layout (see the comment in btree_node).
+  void *parent;
+#ifdef ABSL_BTREE_ENABLE_GENERATIONS
+  uint32_t generation = 0;
+#endif
+  FieldType position = 0;
+  FieldType start = 0;
+  FieldType finish = 0;
+  // max_count must be != kInternalNodeMaxCount (so that this node is regarded
+  // as a leaf node). max_count() is never called when the tree is empty.
+  FieldType max_count = 1;
+
+  constexpr BtreeEmptyNode() : parent(this) {}
+};
+
+template <typename FieldType, size_t Alignment>
+BtreeEmptyNode<FieldType, Alignment> *GetBtreeEmptyNode() {
+  static constexpr BtreeEmptyNode<FieldType, Alignment> empty_node;
+  return const_cast<BtreeEmptyNode<FieldType, Alignment> *>(&empty_node);
+}
+
 template <typename Params>
 class btree {
   using node_type = btree_node<Params>;
   using is_key_compare_to = typename Params::is_key_compare_to;
   using field_type = typename node_type::field_type;
 
-  // We use a static empty node for the root/leftmost/rightmost of empty btrees
-  // in order to avoid branching in begin()/end().
-  struct EmptyNodeType : node_type {
-    using field_type = typename node_type::field_type;
-    node_type *parent;
-#ifdef ABSL_BTREE_ENABLE_GENERATIONS
-    uint32_t generation = 0;
-#endif
-    field_type position = 0;
-    field_type start = 0;
-    field_type finish = 0;
-    // max_count must be != kInternalNodeMaxCount (so that this node is regarded
-    // as a leaf node). max_count() is never called when the tree is empty.
-    field_type max_count = node_type::kInternalNodeMaxCount + 1;
-
-    constexpr EmptyNodeType() : parent(this) {}
-  };
+  // Round the alignment of the empty node up to max natural alignment so that
+  // btrees with different natural node alignments share the same node.
+  static constexpr size_t kEmptyNodeAlignment =
+      (std::max)(alignof(std::max_align_t), size_t{node_type::Alignment()});
 
   static node_type *EmptyNode() {
-    alignas(node_type::Alignment()) static constexpr EmptyNodeType empty_node;
-    return const_cast<EmptyNodeType *>(&empty_node);
+    static_assert(node_type::kInternalNodeMaxCount != 1,
+                  "The empty node must be regarded as a leaf node.");
+    return reinterpret_cast<node_type *>(
+        GetBtreeEmptyNode<field_type, kEmptyNodeAlignment>());
   }
 
   enum : uint32_t {

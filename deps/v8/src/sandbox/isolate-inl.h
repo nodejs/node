@@ -16,7 +16,7 @@
 
 namespace v8::internal {
 
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
 
 ExternalPointerTable& IsolateForSandbox::GetExternalPointerTableFor(
     ExternalPointerTagRange tag_range) {
@@ -34,6 +34,7 @@ JSDispatchTable& IsolateForSandbox::GetJSDispatchTable() {
   return isolate_->js_dispatch_table();
 }
 
+#ifdef V8_ENABLE_SANDBOX
 TrustedPointerTable& IsolateForSandbox::GetTrustedPointerTableFor(
     TrustedPointerTagRange tag_range) {
   return IsSharedTrustedPointerType(tag_range)
@@ -54,6 +55,7 @@ TrustedPointerTable::Space* IsolateForSandbox::GetTrustedPointerTableSpaceFor(
 
   return isolate_->heap()->trusted_pointer_space();
 }
+#endif  // V8_ENABLE_SANDBOX
 
 ExternalPointerTag IsolateForSandbox::GetExternalPointerTableTagFor(
     Tagged<HeapObject> witness, ExternalPointerHandle handle) {
@@ -65,21 +67,20 @@ ExternalPointerTag IsolateForSandbox::GetExternalPointerTableTagFor(
 }
 
 bool IsolateForSandbox::SharesPointerTablesWith(IsolateForSandbox other) const {
-  return &isolate_->shared_trusted_pointer_table() ==
-             &other.isolate_->shared_trusted_pointer_table() &&
-         &isolate_->shared_external_pointer_table() ==
-             &other.isolate_->shared_external_pointer_table() &&
-         isolate_->shared_external_pointer_space() ==
-             other.isolate_->shared_external_pointer_space();
+  return
+#ifdef V8_ENABLE_SANDBOX
+      &isolate_->shared_trusted_pointer_table() ==
+          &other.isolate_->shared_trusted_pointer_table() &&
+#endif  // V8_ENABLE_SANDBOX
+      &isolate_->shared_external_pointer_table() ==
+          &other.isolate_->shared_external_pointer_table() &&
+      isolate_->shared_external_pointer_space() ==
+          other.isolate_->shared_external_pointer_space();
 }
 
 V8_INLINE IsolateForSandbox GetCurrentIsolateForSandbox() {
   return Isolate::Current();
 }
-
-#endif  // V8_ENABLE_SANDBOX
-
-#ifdef V8_COMPRESS_POINTERS
 
 ExternalPointerTable& IsolateForPointerCompression::GetExternalPointerTableFor(
     ExternalPointerTagRange tag_range) {

@@ -122,7 +122,7 @@ struct PtrComprCageReservationParams
 IsolateGroup::~IsolateGroup() {
   DCHECK_EQ(reference_count_.load(), 0);
   DCHECK(isolates_.empty());
-  DCHECK_NULL(main_isolate_);
+  DCHECK_NULL(main_isolate_.load(std::memory_order_relaxed));
 
   if (memory_pool_) {
     memory_pool_->TearDown();
@@ -372,8 +372,8 @@ void IsolateGroup::AddIsolate(Isolate* isolate) {
   const bool inserted = isolates_.insert(isolate).second;
   CHECK(inserted);
 
-  if (!main_isolate_) {
-    main_isolate_ = isolate;
+  if (!main_isolate_.load(std::memory_order_relaxed)) {
+    main_isolate_.store(isolate, std::memory_order_relaxed);
   }
 
   optimizing_compile_task_executor_->EnsureStarted();
@@ -415,12 +415,9 @@ void IsolateGroup::RemoveIsolate(Isolate* isolate) {
 
   CHECK_EQ(isolates_.erase(isolate), 1);
 
-  if (main_isolate_ == isolate) {
-    if (isolates_.empty()) {
-      main_isolate_ = nullptr;
-    } else {
-      main_isolate_ = *isolates_.begin();
-    }
+  if (main_isolate_.load(std::memory_order_relaxed) == isolate) {
+    main_isolate_.store(isolates_.empty() ? nullptr : *isolates_.begin(),
+                        std::memory_order_relaxed);
   }
 }
 

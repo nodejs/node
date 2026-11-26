@@ -153,3 +153,39 @@ def check_frame_relative_inspect(session):
     raise AssertionError(
         f"`v8 inspect [0]` on a non-JS frame did not report an error, "
         f"got:\n{output}")
+
+
+_CAPTURED_EXPECTED_ANNOTATIONS = (
+    "[outer @ <base>/captured-args.js:5:15] (this=<addr>, a=<Smi: 1>, "
+    "[1]=<Smi: 2>, c=<Smi: 3>)",
+    "[<anonymous> @ <base>/captured-args.js:1:1] (this=<addr>, "
+    "[0]=<addr> <FixedArray>)",
+)
+
+# The frame number of the outer(1, 2, 3) call in a `bt` output:
+#   #6  0x... in [outer @ .../captured-args.js:5:15] (this=0x..., a=<Smi: 1>)
+_OUTER_FRAME_RE = re.compile(r"#(?P<frame>\d+)[^\n]*\[outer @ [^\]]+:5:15\]")
+
+
+def check_param_names(session):
+  """Check recovered parameter names in bt, `v8 args`, and `v8 inspect`."""
+  bt = session.run_command("bt")
+  failure = check_backtrace(bt, "captured-args", _CAPTURED_EXPECTED_ANNOTATIONS)
+  if failure is not None:
+    raise AssertionError(failure)
+
+  frame = _find_frame(bt, _OUTER_FRAME_RE)
+  output = session.run_command(f"v8 args {frame}")
+  for pattern in (r"a = <Smi: 1>", r"\[1\] = <Smi: 2>", r"c = <Smi: 3>"):
+    _assert_matches(pattern, output)
+
+  try:
+    session.select_frame(frame)
+    a_out = session.run_command("v8 inspect a")
+    slot1_out = session.run_command("v8 inspect [1]")
+    c_out = session.run_command("v8 inspect c")
+  finally:
+    session.select_frame(0)
+  _assert_matches(r"<Smi: 1>", a_out)
+  _assert_matches(r"<Smi: 2>", slot1_out)
+  _assert_matches(r"<Smi: 3>", c_out)

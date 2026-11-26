@@ -26,11 +26,11 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-import importlib.machinery
+import importlib.util
 import itertools
 import os
+import sys
 
-from contextlib import contextmanager
 from pathlib import Path
 
 from . import statusfile
@@ -232,23 +232,21 @@ class TestGenerator(object):
     self._rebuild_iterator()
 
 
-@contextmanager
-def _load_testsuite_module(name, root):
-  f = None
-  try:
-    yield importlib.machinery.SourceFileLoader(
-        name + "_testcfg", f"{root}/testcfg.py").load_module()
-  finally:
-    if f:
-      f.close()
+def load_module_from_path(name, path):
+  """Imports the Python source file at |path| as module |name|."""
+  spec = importlib.util.spec_from_file_location(name, path)
+  module = importlib.util.module_from_spec(spec)
+  sys.modules[name] = module
+  spec.loader.exec_module(module)
+  return module
 
 
 class TestSuite(object):
   @staticmethod
   def Load(ctx, root, test_config):
     name = root.name
-    with _load_testsuite_module(name, root) as module:
-      return module.TestSuite(ctx, name, root, test_config)
+    module = load_module_from_path(name + "_testcfg", root / "testcfg.py")
+    return module.TestSuite(ctx, name, root, test_config)
 
   def __init__(self, ctx, name, root, test_config):
     self.name = name  # string

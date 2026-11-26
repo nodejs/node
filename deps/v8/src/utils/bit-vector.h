@@ -164,6 +164,7 @@ class V8_EXPORT_PRIVATE BitVector : public ZoneObject {
     DCHECK_LE(0, length);
     int data_length = (length + kDataBits - 1) >> kDataBitShift;
     if (data_length > 1) {
+      DCHECK_NOT_NULL(zone);
       data_.ptr_ = zone->AllocateArray<uintptr_t>(data_length);
       std::fill_n(data_.ptr_, data_length, 0);
       data_begin_ = data_.ptr_;
@@ -198,11 +199,12 @@ class V8_EXPORT_PRIVATE BitVector : public ZoneObject {
     } else {
       data_begin_ = other.data_begin_;
       data_end_ = other.data_end_;
-      // Reset other to inline.
-      other.length_ = 0;
       other.data_begin_ = &other.data_.inline_;
       other.data_end_ = other.data_begin_ + 1;
     }
+    // Reset other to empty inline.
+    other.length_ = 0;
+    other.data_.inline_ = 0;
     return *this;
   }
 
@@ -458,15 +460,16 @@ class GrowableBitVector {
     bits_.Union(other.bits_);
   }
 
+  void Remove(int value) {
+    if (!InBitsRange(value)) return;
+    bits_.Remove(value);
+  }
+
   bool IsEmpty() const { return bits_.IsEmpty(); }
 
   void Clear() { bits_.Clear(); }
 
   int length() const { return bits_.length(); }
-
-  bool Equals(const GrowableBitVector& other) const {
-    return length() == other.length() && bits_.Equals(other.bits_);
-  }
 
   BitVector::Iterator begin() const { return bits_.begin(); }
 
@@ -481,7 +484,7 @@ class GrowableBitVector {
       Zone* zone, const GrowableBitVector& v1, const GrowableBitVector& v2,
       uint32_t* common_prefix_bits);
 
-  static constexpr int kInitialLength = 1024;
+  static constexpr int kInitialLength = BitVector::kDataBits;
 
   // The allocated size is always a power of two, and needs to be strictly
   // bigger than the biggest contained value.
@@ -498,7 +501,8 @@ class GrowableBitVector {
     bits_.Resize(new_length, zone);
   }
 
-  BitVector bits_;
+  // Inline storage needs no Zone.
+  BitVector bits_{kInitialLength, nullptr};
 };
 
 }  // namespace internal

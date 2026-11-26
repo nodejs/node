@@ -1,0 +1,29 @@
+header: sys/swap.h
+standards:
+  - linux
+macros:
+  - macro_name: SWAP_FLAG_PREFER
+    macro_header: sys-swap-macros.h
+  - macro_name: SWAP_FLAG_PRIO_MASK
+    macro_header: sys-swap-macros.h
+  - macro_name: SWAP_FLAG_PRIO_SHIFT
+    macro_header: sys-swap-macros.h
+  - macro_name: SWAP_FLAG_DISCARD
+    macro_header: sys-swap-macros.h
+types: []
+enums: []
+objects: []
+functions:
+  - name: swapoff
+    standards:
+      - linux
+    return_type: int
+    arguments:
+      - type: const char *
+  - name: swapon
+    standards:
+      - linux
+    return_type: int
+    arguments:
+      - type: const char *
+      - type: int

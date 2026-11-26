@@ -180,6 +180,7 @@ absl_cc_library(
     absl::status
     absl::status_builder
     absl::statusor
+    absl::type_traits
   PUBLIC
 )
 

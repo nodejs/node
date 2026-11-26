@@ -25,7 +25,7 @@ struct CompilationResult {
 
   // If successful:
   uint32_t imported_functions = 0;
-  uint32_t declared_functions = 0;
+  uint32_t defined_functions = 0;
 
   static CompilationResult ForFailure(std::string error_message) {
     DCHECK(!error_message.empty());
@@ -36,7 +36,7 @@ struct CompilationResult {
     return {false,
             {},
             module->num_imported_functions,
-            module->num_declared_functions};
+            module->num_defined_functions};
   }
 };
 
@@ -175,7 +175,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   EnableExperimentalWasmFeatures(isolate);
 
   // Limit the maximum module size to avoid OOM.
-  v8_flags.wasm_max_module_size = 256 * KB;
+  v8_flags.wasm_max_module_size.Set(256 * KB);
 
   WasmEnabledFeatures enabled_features =
       WasmEnabledFeatures::FromIsolate(i_isolate);
@@ -205,7 +205,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
           sync_result.error_message.c_str());
   }
   CHECK_EQ(streaming_result.imported_functions, sync_result.imported_functions);
-  CHECK_EQ(streaming_result.declared_functions, sync_result.declared_functions);
+  CHECK_EQ(streaming_result.defined_functions, sync_result.defined_functions);
 
   // We should not leave exceptions behind.
   DCHECK(!i_isolate->has_exception());

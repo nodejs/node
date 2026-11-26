@@ -93,7 +93,7 @@ InstructionSequence* InstructionSequenceTest::sequence() {
   if (sequence_ == nullptr) {
     sequence_ = zone()->New<InstructionSequence>(isolate(), zone(),
                                                  &instruction_blocks_);
-    sequence_->SetRegisterConfigurationForTesting(
+    InstructionSequence::SetRegisterConfigurationForTesting(
         InstructionSequenceTest::config());
   }
   return sequence_;

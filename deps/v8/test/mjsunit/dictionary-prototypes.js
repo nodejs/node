@@ -360,7 +360,7 @@ function TestAddingPropertyToAlmostDictionaryPrototype() {
   for (let i = 0; i < 2; ++i) {
     o.x0;
   }
-  if (!%IsDictPropertyConstTrackingEnabled())
+  if (!%IsDictPrototypesEnabled())
     assertTrue(%HasFastProperties(Bar.prototype));
 
   for (let i = 0; i < 11; ++i) {

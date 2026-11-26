@@ -233,7 +233,9 @@ class DomainDispatcher {
 
    protected:
     // |method| must point at static storage (a C++ string literal in practice).
-    Callback(std::unique_ptr<WeakPtr> backend_impl, Dispatchable& dispatchable);
+    Callback(std::unique_ptr<WeakPtr> backend_impl,
+             Dispatchable& dispatchable,
+             span<uint8_t> method);
 
     void sendIfActive(std::unique_ptr<Serializable> partialMessage,
                       const DispatchResponse& response);

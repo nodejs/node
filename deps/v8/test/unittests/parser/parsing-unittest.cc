@@ -53,7 +53,7 @@ enum ParserFlag {
 enum ParserSyncTestResult { kSuccessOrError, kSuccess, kError };
 
 void SetGlobalFlags(base::EnumSet<ParserFlag> flags) {
-  i::v8_flags.allow_natives_syntax = flags.contains(kAllowNatives);
+  i::v8_flags.allow_natives_syntax.Set(flags.contains(kAllowNatives));
 }
 
 void SetParserFlags(i::UnoptimizedCompileFlags* compile_flags,
@@ -505,6 +505,35 @@ class ParsingTest : public TestWithContextAndZone {
     CHECK_EQ(input.assigned, var->maybe_assigned() == i::kMaybeAssigned);
   }
 };
+
+TEST_F(ParsingTest, ArrayLiteralScannerRuns) {
+  const char* contexts[][2] = {{"", ";"},
+                               {"function f() {", ";}"},
+                               {"function f() { 'use strict';", ";}"},
+                               {nullptr, nullptr}};
+  const char* valid[] = {"[x,0,null,999999999999999,1]",
+                         "[...x,0,null,1]",
+                         "[,0,null,,1]",
+                         "[x,0,null,1e2,2]",
+                         "[x,0,null,1/*x*/,2]",
+                         "[x,0,null,1_000,2]",
+                         "[x,0,null,1n,2]",
+                         "[x,0,null,1000000000000000,2]",
+                         nullptr};
+  RunParserSyncTest(contexts, valid, kSuccess);
+  const char* invalid[] = {"[x,0,null,y] = []",
+                           "([x,0,null,y]) => 0",
+                           "for ([x,0,null,y] of []) {}",
+                           "[...x,0,null,y] = []",
+                           "([x,null,0,y]) => 0",
+                           "let [x,0,null,y] = []",
+                           "function g([x,0,null,y]) {}",
+                           "try {} catch ([x,0,null,y]) {}",
+                           "[x,0,null,1e+,2]",
+                           "[x,0,null,1foo,2]",
+                           nullptr};
+  RunParserSyncTest(contexts, invalid, kError);
+}
 
 TEST_F(ParsingTest, AutoSemicolonToken) {
   for (int i = 0; i < Token::kNumTokens; i++) {
@@ -3171,7 +3200,7 @@ TEST_F(ParsingTest, InvalidLeftHandSide) {
 
 TEST_F(ParsingTest, FuncNameInferrerBasic) {
   // Tests that function names are inferred properly.
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax.Set(true);
 
   RunJS(
       "var foo1 = function() {}; "
@@ -3209,7 +3238,7 @@ TEST_F(ParsingTest, FuncNameInferrerBasic) {
 TEST_F(ParsingTest, FuncNameInferrerTwoByte) {
   // Tests function name inferring in cases where some parts of the inferred
   // function name are two-byte strings.
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax.Set(true);
   v8::Isolate* isolate = v8_isolate();
 
   uint16_t* two_byte_source = AsciiToTwoByteString(
@@ -3232,7 +3261,7 @@ TEST_F(ParsingTest, FuncNameInferrerTwoByte) {
 TEST_F(ParsingTest, FuncNameInferrerEscaped) {
   // The same as FuncNameInferrerTwoByte, except that we express the two-byte
   // character as a Unicode escape.
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax.Set(true);
   v8::Isolate* isolate = v8_isolate();
 
   uint16_t* two_byte_source = AsciiToTwoByteString(
@@ -3552,6 +3581,58 @@ TEST_F(ParsingTest, InnerAssignment) {
               (is_maybe_assigned && inners[j].allow_error_in_inner_function));
       }
     }
+  }
+}
+
+TEST_F(ParsingTest, ArrowParameterInitializerPositionIsStable) {
+  i::Isolate* isolate = i_isolate();
+  const char* sources[] = {
+      "(x = 1/**/) => x",         "(x = (1)/**/) => x",
+      "(x = 1/**/, y) => x",      "(x/**/, y = 1) => x",
+      "(x = 1/**/, ) => x",       "({x}/**/) => x",
+      "({x} = o/**/) => x",       "([x] = a/**/) => x",
+      "(...x/**/) => x",          "(...[x]/**/) => x",
+      "async (x = 1/**/) => x",   "async (x = (1)/**/, ) => x",
+      "async ({x} = o/**/) => x", "async ([x] = a/**/) => x",
+      "async (...[x]/**/) => x",
+  };
+  for (const char* source : sources) {
+    SCOPED_TRACE(source);
+    int expected_pos = static_cast<int>(strchr(source, '/') - source);
+    auto check_position = [&](i::ParseInfo& info, i::Scope* scope) {
+      const i::AstRawString* name =
+          info.ast_value_factory()->GetOneByteString("x");
+      i::Variable* x = scope->LookupForTesting(name);
+      ASSERT_NE(nullptr, x);
+      EXPECT_EQ(expected_pos, x->initializer_position());
+    };
+
+    // Full script parse: arrow parameters are parsed via the cover grammar.
+    {
+      i::DirectHandle<i::String> text =
+          isolate->factory()->InternalizeUtf8String(source);
+      i::Handle<i::Script> script = isolate->factory()->NewScript(text);
+      auto flags =
+          i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
+      flags.set_allow_lazy_parsing(false);
+      i::UnoptimizedCompileState state;
+      i::ReusableUnoptimizedCompileState reusable_state(isolate);
+      i::ParseInfo info(isolate, flags, &state, &reusable_state);
+      CHECK_PARSE_PROGRAM(&info, script, isolate);
+      check_position(info, info.literal()->scope()->inner_scope());
+    }
+
+    // Function reparse: arrow parameters are parsed via ParseFormalParameter.
+    v8::Local<v8::Value> value = RunJS(source);
+    auto function = i::Cast<i::JSFunction>(v8::Utils::OpenDirectHandle(*value));
+    i::Handle<i::SharedFunctionInfo> shared(function->shared(), isolate);
+    auto flags =
+        i::UnoptimizedCompileFlags::ForFunctionCompile(isolate, *shared);
+    i::UnoptimizedCompileState state;
+    i::ReusableUnoptimizedCompileState reusable_state(isolate);
+    i::ParseInfo info(isolate, flags, &state, &reusable_state);
+    CHECK_PARSE_FUNCTION(&info, shared, isolate);
+    check_position(info, info.literal()->scope());
   }
 }
 
@@ -4254,8 +4335,8 @@ TEST_F(ParsingTest, SloppyModeUseCount) {
   int use_counts[v8::Isolate::kUseCounterFeatureCount] = {};
   global_use_counts = use_counts;
   // Force eager parsing (preparser doesn't update use counts).
-  i::v8_flags.lazy = false;
-  i::v8_flags.lazy_streaming = false;
+  i::v8_flags.lazy.Set(false);
+  i::v8_flags.lazy_streaming.Set(false);
   v8_isolate()->SetUseCounterCallback(MockUseCounterCallback);
   RunJS("function bar() { var baz = 1; }");
   CHECK_LT(0, use_counts[v8::Isolate::kSloppyMode]);
@@ -4266,8 +4347,8 @@ TEST_F(ParsingTest, SloppyModeUseCount) {
 TEST_F(ParsingTest, BothModesUseCount) {
   int use_counts[v8::Isolate::kUseCounterFeatureCount] = {};
   global_use_counts = use_counts;
-  i::v8_flags.lazy = false;
-  i::v8_flags.lazy_streaming = false;
+  i::v8_flags.lazy.Set(false);
+  i::v8_flags.lazy_streaming.Set(false);
   v8_isolate()->SetUseCounterCallback(MockUseCounterCallback);
   RunJS("function bar() { 'use strict'; var baz = 1; }");
   CHECK_LT(0, use_counts[v8::Isolate::kSloppyMode]);
@@ -4692,7 +4773,7 @@ TEST_F(ParsingTest, ImportExpressionSuccess) {
 }
 
 TEST_F(ParsingTest, ImportExpressionWithOptionsSuccess) {
-  i::v8_flags.harmony_import_attributes = true;
+  i::v8_flags.harmony_import_attributes.Set(true);
 
   // clang-format off
   const char* context_data[][2] = {
@@ -4824,7 +4905,7 @@ TEST_F(ParsingTest, ImportExpressionErrors) {
 
 TEST_F(ParsingTest, ImportExpressionWithOptionsErrors) {
   {
-    i::v8_flags.harmony_import_attributes = true;
+    i::v8_flags.harmony_import_attributes.Set(true);
 
     // clang-format off
     const char* context_data[][2] = {
@@ -4933,7 +5014,7 @@ TEST_F(ParsingTest, BasicImportAttributesParsing) {
   };
   // clang-format on
 
-  i::v8_flags.harmony_import_attributes = true;
+  i::v8_flags.harmony_import_attributes.Set(true);
   i::Isolate* isolate = i_isolate();
   i::Factory* factory = isolate->factory();
 
@@ -4997,7 +5078,7 @@ TEST_F(ParsingTest, ImportAttributesParsingErrors) {
   };
   // clang-format on
 
-  i::v8_flags.harmony_import_attributes = true;
+  i::v8_flags.harmony_import_attributes.Set(true);
   i::Isolate* isolate = i_isolate();
   i::Factory* factory = isolate->factory();
 
@@ -8745,7 +8826,7 @@ TEST_F(ParsingTest, ModuleParsingInternals) {
 }
 
 TEST_F(ParsingTest, ModuleParsingInternalsWithImportAttributes) {
-  i::v8_flags.harmony_import_attributes = true;
+  i::v8_flags.harmony_import_attributes.Set(true);
   i::Isolate* isolate = i_isolate();
   i::Factory* factory = isolate->factory();
   isolate->stack_guard()->SetStackLimit(base::Stack::GetCurrentStackPosition() -
@@ -8839,7 +8920,7 @@ TEST_F(ParsingTest, ModuleParsingInternalsWithImportAttributes) {
 }
 
 TEST_F(ParsingTest, ModuleParsingModuleRequestOrdering) {
-  i::v8_flags.harmony_import_attributes = true;
+  i::v8_flags.harmony_import_attributes.Set(true);
   i::Isolate* isolate = i_isolate();
   i::Factory* factory = isolate->factory();
   isolate->stack_guard()->SetStackLimit(base::Stack::GetCurrentStackPosition() -
@@ -9108,7 +9189,7 @@ TEST_F(ParsingTest, ModuleParsingModuleRequestOrdering) {
 }
 
 TEST_F(ParsingTest, ModuleParsingImportAttributesKeySorting) {
-  i::v8_flags.harmony_import_attributes = true;
+  i::v8_flags.harmony_import_attributes.Set(true);
   i::Isolate* isolate = i_isolate();
   i::Factory* factory = isolate->factory();
   isolate->stack_guard()->SetStackLimit(base::Stack::GetCurrentStackPosition() -
@@ -13310,6 +13391,129 @@ TEST_F(ParsingTest, LogicalAssignmentDestructuringErrors) {
   // clang-format on
 
   RunParserSyncTest(context_data, error_data, kError);
+}
+
+TEST_F(ParsingTest, SkipFunctionPendingErrorResetsPrivateNameTail) {
+  i::Isolate* isolate = i_isolate();
+  i::HandleScope scope(isolate);
+  // `m(a)` is lazily preparsed inside class C's body before `#x;` is declared.
+  // `this.#x` appends a preparser_zone_-allocated unresolved private name proxy
+  // to C's ClassScope, and `break;` triggers a PreParser pending error.
+  // SkipFunction must unwind C's unresolved private name tail and reset m's
+  // function scope before preparser_zone_ can be reset.
+  const char* src =
+      "class C {"
+      "  m(a) { this.#x; break; }"
+      "  #x;"
+      "}";
+  i::DirectHandle<i::String> source =
+      isolate->factory()->NewStringFromAsciiChecked(src);
+  i::DirectHandle<i::Script> script = isolate->factory()->NewScript(source);
+  i::UnoptimizedCompileState compile_state;
+  i::ReusableUnoptimizedCompileState reusable_state(isolate);
+  i::UnoptimizedCompileFlags flags =
+      i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
+  flags.set_allow_lazy_parsing(true);
+  flags.set_allow_lazy_compile(true);
+  flags.set_is_eager(false);
+  i::ParseInfo info(isolate, flags, &compile_state, &reusable_state);
+  ASSERT_FALSE(i::parsing::ParseProgram(
+      &info, script, isolate, i::parsing::ReportStatisticsMode{false}));
+  ASSERT_TRUE(info.pending_error_handler()->has_pending_error());
+  ASSERT_FALSE(info.pending_error_handler()->stack_overflow());
+  ASSERT_NE(info.script_scope()->inner_scope(), nullptr);
+  i::ClassScope* class_scope =
+      info.script_scope()->inner_scope()->AsClassScope();
+  EXPECT_EQ(class_scope->ResolvePrivateNamesPartially(), nullptr);
+  ASSERT_NE(class_scope->inner_scope(), nullptr);
+  EXPECT_EQ(class_scope->inner_scope()->AsDeclarationScope()->num_parameters(),
+            0);
+}
+
+TEST_F(ParsingTest, SkipFunctionStackOverflowResetsPrivateNameTail) {
+  i::Isolate* isolate = i_isolate();
+  i::HandleScope scope(isolate);
+  isolate->stack_guard()->SetStackLimit(i::GetCurrentStackPosition() -
+                                        128 * 1024);
+  std::string src = "class C { m(a) { this.#x; ";
+  src.append(4096, '(');
+  src.append("0");
+  src.append(4096, ')');
+  src.append("; } #x; }");
+  i::DirectHandle<i::String> source =
+      isolate->factory()->NewStringFromAsciiChecked(src.c_str());
+  i::DirectHandle<i::Script> script = isolate->factory()->NewScript(source);
+  i::UnoptimizedCompileState compile_state;
+  i::ReusableUnoptimizedCompileState reusable_state(isolate);
+  i::UnoptimizedCompileFlags flags =
+      i::UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
+  flags.set_allow_lazy_parsing(true);
+  flags.set_allow_lazy_compile(true);
+  flags.set_is_eager(false);
+  i::ParseInfo info(isolate, flags, &compile_state, &reusable_state);
+  ASSERT_FALSE(i::parsing::ParseProgram(
+      &info, script, isolate, i::parsing::ReportStatisticsMode{false}));
+  ASSERT_TRUE(info.pending_error_handler()->stack_overflow());
+  ASSERT_NE(info.script_scope()->inner_scope(), nullptr);
+  i::ClassScope* class_scope =
+      info.script_scope()->inner_scope()->AsClassScope();
+  EXPECT_EQ(class_scope->ResolvePrivateNamesPartially(), nullptr);
+  ASSERT_NE(class_scope->inner_scope(), nullptr);
+  EXPECT_EQ(class_scope->inner_scope()->AsDeclarationScope()->num_parameters(),
+            0);
+}
+
+// Regression test for crbug.com/587212490: reparsing a class member
+// initializer whose class scope and enclosing strict arrow were elided from the
+// ScopeInfo chain happens inside the (synthetic, context-less) sloppy eval
+// scope. Reparsing must not leave that deserialized scope strict.
+TEST_F(ParsingTest, ReparseClassInitializerKeepsOuterEvalScopeSloppy) {
+  i::Isolate* isolate = i_isolate();
+  i::HandleScope handle_scope(isolate);
+
+  RunJS(
+      "function f() {"
+      "  return eval(\"(() => { 'use strict'; return class {"
+      "    a = 1;"
+      "    b = (function() { return this; })();"
+      "  }; })()\");"
+      "}"
+      "var C = f();");
+
+  auto ctor = i::Cast<i::JSFunction>(v8::Utils::OpenDirectHandle(*RunJS("C")));
+  i::DirectHandle<i::Object> initializer =
+      i::JSReceiver::GetProperty(isolate, ctor,
+                                 isolate->factory()->class_fields_symbol())
+          .ToHandleChecked();
+  auto initializer_fn = i::Cast<i::JSFunction>(initializer);
+  i::Handle<i::SharedFunctionInfo> shared(initializer_fn->shared(), isolate);
+  ASSERT_TRUE(i::IsClassInitializerFunction(shared->kind()));
+
+  {
+    auto flags =
+        i::UnoptimizedCompileFlags::ForFunctionCompile(isolate, *shared);
+    i::UnoptimizedCompileState state;
+    i::ReusableUnoptimizedCompileState reusable_state(isolate);
+    i::ParseInfo info(isolate, flags, &state, &reusable_state);
+    CHECK_PARSE_FUNCTION(&info, shared, isolate);
+
+    i::DeclarationScope* initializer_scope = info.literal()->scope();
+    EXPECT_TRUE(is_strict(initializer_scope->language_mode()));
+    i::Scope* eval_scope = initializer_scope->outer_scope();
+    ASSERT_TRUE(eval_scope->is_eval_scope());
+    EXPECT_TRUE(is_sloppy(eval_scope->language_mode()));
+    EXPECT_EQ(eval_scope->start_position(), eval_scope->end_position());
+    EXPECT_FALSE(eval_scope->NeedsContext());
+  }
+
+  // Lazily recompile the initializer.
+  ASSERT_TRUE(shared->CanDiscardCompiled());
+  i::SharedFunctionInfo::DiscardCompiled(isolate, shared);
+  initializer_fn->ResetIfCodeFlushed(isolate);
+  ASSERT_FALSE(shared->is_compiled());
+
+  EXPECT_EQ(1, RunJS("new C().a")->Int32Value(context()).FromJust());
+  EXPECT_TRUE(RunJS("new C().b")->IsUndefined());
 }
 
 }  // namespace test_parsing

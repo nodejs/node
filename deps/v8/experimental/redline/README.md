@@ -15,6 +15,7 @@ The corpus programs and the crash files are plain JavaScript files.
 - Redline is experimental, and it builds only on Linux.
 - The V8 bots compile Redline on Linux, because the root `BUILD.gn` adds `experimental/redline` to `gn_all`.
 - The bots do not run the Redline tests yet. Run the [checks](#checks) before you upload a change.
+- With a d8 that has coverage counters, Redline can fuzz the changes of a CL (change-based fuzzing). See [TUTORIAL.md](TUTORIAL.md) section 7.9.
 
 ## Quick start
 
@@ -24,10 +25,10 @@ Run all commands from the root of the V8 checkout.
 
 ### Build the fuzzing d8
 
-The target is a d8 with coverage instrumentation and the REPRL loop:
+The target is a d8 with coverage instrumentation, built with `v8_redline=true` (or `v8_fuzzilli=true`):
 
 ```shell
-gn gen out/fuzzbuild --args='is_debug=false dcheck_always_on=true v8_enable_debug_code=true v8_static_library=true v8_enable_verify_heap=true v8_fuzzilli=true v8_enable_backtrace=true v8_enable_partition_alloc=false v8_enable_builtins_profiling=true sanitizer_coverage_flags="inline-bool-flag" target_cpu="x64" use_remoteexec=true'
+gn gen out/fuzzbuild --args='is_debug=false dcheck_always_on=true v8_enable_debug_code=true v8_static_library=true v8_enable_verify_heap=true v8_redline=true v8_enable_backtrace=true v8_enable_partition_alloc=false v8_enable_builtins_profiling=true sanitizer_coverage_flags="inline-bool-flag" target_cpu="x64" use_remoteexec=true'
 autoninja -C out/fuzzbuild d8
 ```
 
@@ -79,6 +80,7 @@ out/redline/redline fuzz --d8=out/fuzzbuild/d8 --preset=maglev --jobs=4 --durati
 
 - `--preset=maglev` loads `experimental/redline/presets/maglev.json`.
   This preset adds the d8 flags `--maglev`, `--no-turbofan` and `--jit-fuzzing`, and it gives higher weights to some generators.
+  It also gives each d8 process some random JIT and garbage collection flags (`randomize_d8_flags`).
 - `--jobs=4` starts four workers. Each worker runs its own d8.
 - Without seed files, the session starts from generated programs. `--import=DIR` adds the `.js` files of a directory as seed files.
 - Without `--duration`, the session runs until you press Ctrl-C.
@@ -89,6 +91,7 @@ out/redline/redline fuzz --d8=out/fuzzbuild/d8 --preset=maglev --jobs=4 --durati
 - [DESIGN.md](DESIGN.md): the architecture, with the fuzzing loop, the stages, the strategies, the configuration and FAST.
 - [TUTORIAL.md](TUTORIAL.md): build Redline, explore the components, and write and run your own configuration.
 - [CONTRIBUTE.md](CONTRIBUTE.md): add or change components, run the checks before you upload, and measure a change.
+- [AGENTS.md](AGENTS.md): the instructions for AI agents. The [skills](skills) directory has one skill for each task of an agent, for example the A/B tests and the known bugs.
 
 ## Directory layout
 
@@ -98,14 +101,17 @@ out/redline/redline fuzz --d8=out/fuzzbuild/d8 --preset=maglev --jobs=4 --durati
 | `commands/` | One file for each command, for example `fuzz`, `shell` and `selftest`. `main.cc` selects the command. |
 | `core/` | Programs, the `Builder`, the `Environment`, components, random numbers, tunables, AST helpers, and the selection interface. |
 | `corpus/` | The shared corpus, and the seed and partner strategies. |
+| `d8/` | The code that d8 links for Redline (`v8_redline=true`): the REPRL file descriptors, the `redline()` builtin and the coverage runtime. It started as a copy of `src/fuzzilli`. |
 | `engine/` | The configuration, the fuzzer and its workers, the stages, the shared coverage, the crash signatures, the amplify step, the importer and the prelude. |
 | `exec/` | The REPRL client, the coverage map, the script runner, the target options, and the plain d8 runs of the amplify step. |
 | `fast/` | FAST: the syntax tree, the arena, the lexer, the parser, the printer and the scope analysis. |
 | `generators/` | The code generators, the expression synthesis that they share (`CodeGen`), and the Wasm module generator. |
 | `minimizer/` | The minimizer and its reducers. |
-| `mutators/` | The mutators. `Explore` and `Probing` run the program in the target before they choose a change. |
+| `mutators/` | The mutators. `Explore`, `Probing` and `Fixup` run the program in the target before they choose a change. |
 | `presets/` | The built-in presets: one JSON configuration for each area of V8. |
+| `skills/` | The skills for AI agents: the presubmit checks, the A/B tests, the known bugs, change-based fuzzing, the generators and ASD-STE100. [AGENTS.md](AGENTS.md) lists them. |
 | `testdata/` | The golden traces of `redline selftest --offline`. [testdata/README.md](testdata/README.md) describes them. |
+| `tools/` | `edge_map.py` and `change_targets.py`, which make the targets of change-based fuzzing. |
 
 ## Code conventions
 

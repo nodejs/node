@@ -23,6 +23,12 @@ transitioning builtin RegExpPrototypeExecSlow(
   return RegExpPrototypeExecBodySlow(regexp, string);
 }
 
+transitioning builtin RegExpPrototypeExecFast(
+    implicit context: Context)(regexp: JSRegExp, string: String): JSAny {
+  dcheck(IsFastRegExpNoPrototype(regexp));
+  return RegExpPrototypeExecBodyFast(regexp, string);
+}
+
 extern macro RegExpBuiltinsAssembler::IsFastRegExpNoPrototype(
     implicit context: Context)(Object): bool;
 

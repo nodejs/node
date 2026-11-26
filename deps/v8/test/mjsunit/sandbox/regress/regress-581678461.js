@@ -6,7 +6,8 @@
 // Flags: --no-memory-pool --no-parallel-compaction --max-old-space-size=2054
 
 const kChunkMask = ~0x3ffff;
-const kNotNormalOldPageMask = 0x98;
+const kNotNormalOldPageMask =
+    (1 << 3) | (1 << 4) | (1 << 6);  // FROM_PAGE | TO_PAGE | LARGE_PAGE
 
 const mem = new DataView(new Sandbox.MemoryView(0, 0x100000000));
 const pageOf = obj => Sandbox.getAddressOf(obj) & kChunkMask;
@@ -17,7 +18,7 @@ const kDoubleLengthOffset = Sandbox.getFieldOffset(
 
 function workerCode() {
   const kSyncPoint = 'ConcurrentMarkerMajorBgThread';
-  const kEvacuationCandidateFlag = 0x100;
+  const kEvacuationCandidateFlag = 1 << 7;  // EVACUATION_CANDIDATE
 
   onmessage = function({data: {pages, capacityField}}) {
     const mem = new DataView(new Sandbox.MemoryView(0, 0x100000000));

@@ -10,9 +10,9 @@ Torque provides language constructs to represent high-level, semantically-rich t
 
 ## Getting started
 
-Most source written in Torque is checked into the V8 repository under [the `src/builtins` directory](https://crsrc.org/c/v8/src/builtins), with the file extension `.tq`. Torque definitions of V8's heap-allocated classes are found alongside their C++ definitions, in `.tq` files with the same name as corresponding C++ files in `src/objects`. The actual Torque compiler can be found under [`src/torque`](https://crsrc.org/c/v8/src/torque). For details on how the compiler works, see [Torque Architecture](architecture.md). Tests for Torque functionality are checked in under [`test/torque`](https://crsrc.org/c/v8/test/torque), [`test/cctest/torque`](https://crsrc.org/c/v8/test/cctest/torque), and [`test/unittests/torque`](https://crsrc.org/c/v8/test/unittests/torque).
+Most source written in Torque is checked into the V8 repository under [the `src/builtins` directory](https://crsrc.org/c/v8/src/builtins), with the file extension `.tq`. Torque definitions of V8's heap-allocated classes are found alongside their C++ definitions, in `.tq` files with the same name as corresponding C++ files in `src/objects`. The actual Torque compiler can be found under [`src/torque`](https://crsrc.org/c/v8/src/torque). For details on how the compiler works, see [Torque Architecture](architecture.md). Tests for Torque functionality are checked in under [`test/torque`](https://crsrc.org/c/v8/test/torque) and [`test/unittests/torque`](https://crsrc.org/c/v8/test/unittests/torque).
 
-To give you a taste of the language, let’s write a V8 builtin that prints “Hello World!”. To do this, we’ll add a Torque `macro` in a test case and call it from the `cctest` test framework.
+To give you a taste of the language, let’s write a V8 builtin that prints “Hello World!”. To do this, we’ll add a Torque `macro` in a test case and call it from the `unittests` test framework.
 
 Begin by opening up the `test/torque/test-torque.tq` file and add the following code at the end (but before the last closing `}`):
 
@@ -23,26 +23,26 @@ macro PrintHelloWorld(): void {
 }
 ```
 
-Next, open up `test/cctest/torque/test-torque.cc` and add the following test case that uses the new Torque code to build a code stub:
+Next, open up `test/unittests/torque/torque-codegen-unittest.cc` and add the following test case that uses the new Torque code to build a code stub:
 
 ```cpp
-TEST(HelloWorld) {
-  Isolate* isolate(CcTest::InitIsolateOnce());
+TEST_F(TorqueCodegenTest, HelloWorld) {
+  Isolate* isolate(i_isolate());
   CodeAssemblerTester asm_tester(isolate, JSParameterCount(0));
   TestTorqueAssembler m(asm_tester.state());
   {
     m.PrintHelloWorld();
     m.Return(m.UndefinedConstant());
   }
-  FunctionTester ft(asm_tester.GenerateCode(), 0);
+  FunctionTester ft(isolate, asm_tester.GenerateCode(), 0);
   ft.Call();
 }
 ```
 
-Then [build the `cctest` executable](/docs/test), and finally execute the `cctest` test to print ‘Hello world’:
+Then [build the `v8_unittests` executable](/docs/test), and finally execute the `v8_unittests` test to print ‘Hello world’:
 
 ```bash
-$ out/x64.debug/cctest test-torque/HelloWorld
+$ out/x64.debug/v8_unittests --gtest_filter=TorqueCodegenTest.HelloWorld
 Hello world!
 ```
 
@@ -81,7 +81,7 @@ Why do you need to know this? Understanding how Torque files get converted into 
 - If you have a syntax or semantic error in Torque code (i.e. a `.tq` file), the Torque compiler fails. The V8 build aborts during this stage, and you will not see other errors that may be uncovered by later parts of the build.
 - Once your Torque code is syntactically correct and passes the Torque compiler’s (more or less) rigorous semantic checks, the build of `mksnapshot` can still fail. This most frequently happens with inconsistencies in external definitions provided in `.tq` files. Definitions marked with the `extern` keyword in Torque code signal to the Torque compiler that the definition of required functionality is found in C++. Currently, the coupling between `extern` definitions from `.tq` files and the C++ code to which those `extern` definitions refer is loose, and there is no verification at Torque-compile time of that coupling. When `extern` definitions don’t match (or in the most subtle cases mask) the functionality that they access in the `code-stub-assembler.h` header file or other V8 headers, the C++ build of `mksnapshot` fails.
 - Even once `mksnapshot` successfully builds, it can fail during execution. This might happen because Turbofan fails to compile the generated CSA code, for example because a Torque `static_assert` cannot be verified by Turbofan. Also, Torque-provided builtin that are run during snapshot creation might have a bug. For example, `Array.prototype.splice`, a Torque-authored builtin, is called as part of the JavaScript snapshot initialization process to setup the default JavaScript environment. If there is a bug in the implementation, `mksnapshot` crashes during execution. When `mksnapshot` crashes, it’s sometimes useful to call `mksnapshot` passing the `--gdb-jit-full` flag, which generates extra debug information that provides useful context, e.g. names for Torque-generated builtins in `gdb` stack crawls.
-- Of course, even if Torque-authored code makes it through `mksnapshot`, it still may be buggy or crash. Adding test cases to `torque-test.tq` and `torque-test.cc` is a good way to ensure that your Torque code does what you actually expect. If your Torque code does end up crashing in `d8` or `chrome`, the `--gdb-jit-full` flag is again very useful.
+- Of course, even if Torque-authored code makes it through `mksnapshot`, it still may be buggy or crash. Adding test cases to `test/torque/test-torque.tq` and `test/unittests/torque/torque-codegen-unittest.cc` is a good way to ensure that your Torque code does what you actually expect. If your Torque code does end up crashing in `d8` or `chrome`, the `--gdb-jit-full` flag is again very useful.
 
 ## `constexpr`: compile-time vs. run-time { #constexpr }
 

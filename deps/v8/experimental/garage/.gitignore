@@ -1,0 +1,13 @@
+target/
+
+# Multi-hundred-MB perf trace: regenerate with tools/gen-large-trace.sh
+fixtures/large/
+
+garage.log
+
+# Stray d8 dogfood traces at the repo root
+/*.log
+/*.tlv
+/*.tf
+
+Cargo.lock

@@ -233,6 +233,11 @@ V8_OBJECT class JSReceiver : public HeapObject {
       LookupIterator* it, DirectHandle<Object> value,
       Maybe<ShouldThrow> should_throw);
 
+#ifdef DEBUG
+  static void ValidateExtensibilityInvariant(LookupIterator* it,
+                                             DirectHandle<JSReceiver> receiver);
+#endif
+
   // ES6 9.1.6.1
   V8_WARN_UNUSED_RESULT static Maybe<bool> OrdinaryDefineOwnProperty(
       Isolate* isolate, DirectHandle<JSObject> object, DirectHandle<Object> key,
@@ -465,7 +470,6 @@ V8_OBJECT class JSObject : public JSReceiver {
   DECL_GETTER(HasPackedElements, bool)
   DECL_GETTER(HasAnyNonextensibleElements, bool)
   DECL_GETTER(HasSealedElements, bool)
-  DECL_GETTER(HasSharedArrayElements, bool)
   DECL_GETTER(HasNonextensibleElements, bool)
 
   DECL_GETTER(HasTypedArrayOrRabGsabTypedArrayElements, bool)
@@ -813,14 +817,7 @@ V8_OBJECT class JSObject : public JSReceiver {
                                       DirectHandle<JSObject> object,
                                       Representation representation,
                                       FieldIndex index);
-  static DirectHandle<JSAny> FastPropertyAt(Isolate* isolate,
-                                            DirectHandle<JSObject> object,
-                                            Representation representation,
-                                            FieldIndex index,
-                                            SeqCstAccessTag tag);
   inline Tagged<JSAny> RawFastPropertyAt(FieldIndex index) const;
-  inline Tagged<JSAny> RawFastPropertyAt(FieldIndex index,
-                                         SeqCstAccessTag tag) const;
 
   // See comment in the body of the method to understand the conditions
   // in which this method is meant to be used, and what guarantees it
@@ -831,30 +828,11 @@ V8_OBJECT class JSObject : public JSReceiver {
 
   inline void FastPropertyAtPut(FieldIndex index, Tagged<Object> value,
                                 WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline void FastPropertyAtPut(FieldIndex index, Tagged<Object> value,
-                                SeqCstAccessTag tag);
   inline void RawFastInobjectPropertyAtPut(
       FieldIndex index, Tagged<Object> value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline void RawFastInobjectPropertyAtPut(FieldIndex index,
-                                           Tagged<Object> value,
-                                           SeqCstAccessTag tag);
   inline void WriteToField(InternalIndex descriptor, PropertyDetails details,
                            Tagged<Object> value);
-
-  inline Tagged<Object> RawFastInobjectPropertyAtSwap(FieldIndex index,
-                                                      Tagged<Object> value,
-                                                      SeqCstAccessTag tag);
-  inline Tagged<Object> RawFastPropertyAtSwap(FieldIndex index,
-                                              Tagged<Object> value,
-                                              SeqCstAccessTag tag);
-  Tagged<Object> RawFastPropertyAtCompareAndSwap(FieldIndex index,
-                                                 Tagged<Object> expected,
-                                                 Tagged<Object> value,
-                                                 SeqCstAccessTag tag);
-  inline Tagged<Object> RawFastInobjectPropertyAtCompareAndSwap(
-      FieldIndex index, Tagged<Object> expected, Tagged<Object> value,
-      SeqCstAccessTag tag);
 
   // Access to in object properties.
   inline int GetInObjectPropertyOffset(int index);
@@ -981,8 +959,6 @@ V8_OBJECT class JSObject : public JSReceiver {
   // kMaxInstanceSize in words must fit in one byte.
   static_assert((kMaxInstanceSize >> kTaggedSizeLog2) <= kMaxUInt8);
 
-  static const int kMapCacheSize = 128;
-
   // When extending the backing storage for property values, we increase
   // its size by more than the 1 entry necessary, so sequentially adding fields
   // to the same object requires fewer allocations and copies.
@@ -991,6 +967,7 @@ V8_OBJECT class JSObject : public JSReceiver {
                 PropertyArray::kMaxLength);
 
   static const int kMaxInObjectProperties;
+  static const int kMapCacheSize;
   static const int kMaxFirstInobjectPropertyOffset =
       (1 << kFirstInobjectPropertyOffsetBitCount) - 1;
   static const int kMaxEmbedderFields;
@@ -1034,10 +1011,6 @@ V8_OBJECT class JSObject : public JSReceiver {
       Isolate* isolate, DirectHandle<JSObject> object,
       ShouldThrow should_throw);
 
-  inline Tagged<Object> RawFastPropertyAtCompareAndSwapInternal(
-      FieldIndex index, Tagged<Object> expected, Tagged<Object> value,
-      SeqCstAccessTag tag);
-
  public:
   TaggedMember<FixedArrayBase> elements_;
 } V8_OBJECT_END;
@@ -1048,6 +1021,8 @@ inline constexpr int JSObject::kHeaderSize = sizeof(JSObject);
 
 inline constexpr int JSObject::kMaxInObjectProperties =
     (JSObject::kMaxInstanceSize - JSObject::kHeaderSize) >> kTaggedSizeLog2;
+inline constexpr int JSObject::kMapCacheSize =
+    JSObject::kMaxInObjectProperties + 1;
 inline constexpr int JSObject::kMaxEmbedderFields =
     (JSObject::kMaxFirstInobjectPropertyOffset - JSObject::kHeaderSize) /
     kEmbedderDataSlotSize;

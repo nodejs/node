@@ -1483,18 +1483,19 @@ class TSAGenerator : public AstVisitor<TSAGenerator> {
         BlockBindings<TSALabel> label_scope(this, &LabelBindingsManager::Get());
         // We first define all labels and add them to a new scope.
         out_i() << "Label<> done(this);\n";
-        out_i() << "Label<";
+        std::string label_type = "Label<";
         for (size_t i = 0; i < expr->label_block->parameters.names.size();
              ++i) {
-          if (i != 0) out() << ", ";
+          if (i != 0) label_type += ", ";
           const Type* type =
               TypeVisitor::ComputeType(expr->label_block->parameters.types[i]);
           parameter_types.push_back(type);
-          out() << GetTypeName(type);
+          label_type += GetTypeName(type);
         }
-        out() << "> " << label_name << "(this";
+        label_type += ">";
+        out_i() << label_type << " " << label_name << "(this";
         if (IsDeferred(expr->label_block->body)) {
-          out() << "LabelBase::Likelyness::kUnlikely";
+          out() << ", " << label_type << "::Likelyness::kUnlikely";
         }
         out() << ");\n";
         label_scope.Add(label_name,

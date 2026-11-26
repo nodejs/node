@@ -5,9 +5,9 @@
 #include 'src/objects/js-plural-rules.h'
 
 type JSPluralRulesType extends int32 constexpr 'JSPluralRules::Type';
-@cppScope('JSPluralRules')
+@cppScope('JSPluralRules::Flags')
 bitfield struct JSPluralRulesFlags extends uint31 {
-  Type: JSPluralRulesType: 1 bit;  // "type" is a reserved word.
+  type: JSPluralRulesType: 1 bit;
 }
 
 @cppObjectLayoutDefinition

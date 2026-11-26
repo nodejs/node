@@ -21,23 +21,24 @@ bool DebugInfo::IsEmpty() const {
 }
 
 bool DebugInfo::HasBreakInfo() const {
-  return flags(kRelaxedLoad).contains(kHasBreakInfo);
+  return flags(kRelaxedLoad).has_break_info();
 }
 
 DebugInfo::ExecutionMode DebugInfo::DebugExecutionMode() const {
-  return flags(kRelaxedLoad).contains(kDebugExecutionMode) ? kSideEffects
-                                                           : kBreakpoints;
+  return flags(kRelaxedLoad).debug_execution_mode() ? kSideEffects
+                                                    : kBreakpoints;
 }
 
 void DebugInfo::SetDebugExecutionMode(ExecutionMode value) {
-  set_flags(value == kSideEffects
-                ? flags(kRelaxedLoad).with(kDebugExecutionMode)
-                : flags(kRelaxedLoad).without(kDebugExecutionMode),
-            kRelaxedStore);
+  set_flags(
+      flags(kRelaxedLoad).with_debug_execution_mode(value == kSideEffects),
+      kRelaxedStore);
 }
 
 void DebugInfo::ClearBreakInfo(Isolate* isolate) {
-  if (HasInstrumentedBytecodeArray()) {
+  const bool keep_for_side_effect_check =
+      HasInstrumentedBytecodeArray() && DebugExecutionMode() == kSideEffects;
+  if (HasInstrumentedBytecodeArray() && !keep_for_side_effect_check) {
     // If the function is currently running on the stack, we need to update the
     // bytecode pointers on the stack so they point to the original
     // BytecodeArray before releasing that BytecodeArray from this DebugInfo.
@@ -54,29 +55,34 @@ void DebugInfo::ClearBreakInfo(Isolate* isolate) {
   }
   set_break_points(ReadOnlyRoots(isolate).empty_fixed_array());
 
-  Flags new_flags =
-      flags(kRelaxedLoad)
-          .without({kHasBreakInfo, kPreparedForDebugExecution, kBreakAtEntry,
-                    kCanBreakAtEntry, kDebugExecutionMode});
+  Flags new_flags = flags(kRelaxedLoad)
+                        .with_has_break_info(false)
+                        .with_break_at_entry(false)
+                        .with_can_break_at_entry(false)
+                        .with_deoptimized_for_break_info(false);
+  if (!keep_for_side_effect_check) {
+    new_flags = new_flags.with_prepared_for_debug_execution(false)
+                    .with_debug_execution_mode(false);
+  }
   set_flags(new_flags, kRelaxedStore);
 }
 
 void DebugInfo::SetBreakAtEntry() {
   DCHECK(CanBreakAtEntry());
-  set_flags(flags(kRelaxedLoad) | kBreakAtEntry, kRelaxedStore);
+  set_flags(flags(kRelaxedLoad).with_break_at_entry(true), kRelaxedStore);
 }
 
 void DebugInfo::ClearBreakAtEntry() {
   DCHECK(CanBreakAtEntry());
-  set_flags(flags(kRelaxedLoad).without(kBreakAtEntry), kRelaxedStore);
+  set_flags(flags(kRelaxedLoad).with_break_at_entry(false), kRelaxedStore);
 }
 
 bool DebugInfo::BreakAtEntry() const {
-  return flags(kRelaxedLoad).contains(kBreakAtEntry);
+  return flags(kRelaxedLoad).break_at_entry();
 }
 
 bool DebugInfo::CanBreakAtEntry() const {
-  return flags(kRelaxedLoad).contains(kCanBreakAtEntry);
+  return flags(kRelaxedLoad).can_break_at_entry();
 }
 
 // Check if there is a break point at this source position.
@@ -221,14 +227,14 @@ DirectHandle<Object> DebugInfo::FindBreakPointInfo(
 }
 
 bool DebugInfo::HasCoverageInfo() const {
-  return flags(kRelaxedLoad).contains(kHasCoverageInfo);
+  return flags(kRelaxedLoad).has_coverage_info();
 }
 
 void DebugInfo::ClearCoverageInfo(Isolate* isolate) {
   if (HasCoverageInfo()) {
     set_coverage_info(ReadOnlyRoots(isolate).undefined_value());
 
-    Flags new_flags = flags(kRelaxedLoad).without(kHasCoverageInfo);
+    Flags new_flags = flags(kRelaxedLoad).with_has_coverage_info(false);
     set_flags(new_flags, kRelaxedStore);
   }
 }

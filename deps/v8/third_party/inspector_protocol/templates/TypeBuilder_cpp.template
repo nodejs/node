@@ -29,12 +29,6 @@ const char Metainfo::version[] = "{{domain.version}}";
   {% for type in domain.types %}
     {% if not protocol.generate_type(domain.domain, type.id) %}{% continue %} {% endif %}
     {% if "enum" in type %}
-
-namespace {{type.id}}Enum {
-      {% for literal in type.enum %}
-const char {{ literal | dash_to_camelcase}}[] = "{{literal}}";
-      {% endfor %}
-} // namespace {{type.id}}Enum
       {% if protocol.is_exported(domain.domain, type.id) %}
 
 namespace API {
@@ -86,14 +80,6 @@ std::unique_ptr<API::{{type.id}}> API::{{type.id}}::fromBinary(const uint8_t* da
   {% for command in join_arrays(domain, ["commands", "events"]) %}
     {% for param in join_arrays(command, ["parameters", "returns"]) %}
       {% if "enum" in param %}
-
-namespace {{command.name | to_title_case}} {
-namespace {{param.name | to_title_case}}Enum {
-        {% for literal in param.enum %}
-const char* {{ literal | to_title_case}} = "{{literal}}";
-        {% endfor %}
-} // namespace {{param.name | to_title_case}}Enum
-} // namespace {{command.name | to_title_case }}
         {% if protocol.is_exported(domain.domain, command.name + "." + param.name) %}
 
 namespace API {
@@ -209,7 +195,7 @@ bool DomainDispatcherImpl::Dispatch({{config.crdtp.namespace}}::span<uint8_t> co
 class {{command_name_title}}CallbackImpl : public Backend::{{command_name_title}}Callback, public DomainDispatcher::Callback {
 public:
     {{command_name_title}}CallbackImpl(std::unique_ptr<DomainDispatcher::WeakPtr> backendImpl, {{config.crdtp.namespace}}::Dispatchable& dispatchable)
-        : DomainDispatcher::Callback(std::move(backendImpl), dispatchable) { }
+        : DomainDispatcher::Callback(std::move(backendImpl), dispatchable, {{config.crdtp.namespace}}::SpanFrom("{{domain.domain}}.{{command.name}}")) { }
 
     void sendSuccess(
       {%- for parameter in command.returns -%}

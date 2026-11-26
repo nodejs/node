@@ -9,6 +9,7 @@ from typing import cast
 
 from .helpers.args import check_args
 from .helpers.args import check_args_mismatch
+from .helpers.args import check_param_names
 from .helpers.args import check_frame_relative_inspect
 from .helpers.backtrace import check_backtrace
 from .helpers.corruptions import check_corruption
@@ -174,6 +175,19 @@ class LldbArgsLiveTest(unittest.TestCase):
     with session:
       session.run_to_abort()
       check_args_mismatch(session)
+
+  def test_param_names(self):
+    """Checks that captured parameters are labeled with their names."""
+    script = os.path.join(FIXTURES_DIR, "captured-args.js")
+    session = LldbSession(
+        _CONFIG,
+        target_binary=_CONFIG.d8_binary,
+        target_args=f'{_CONFIG.d8_args} --abort-on-uncaught-exception '
+        f'"{script}"',
+    )
+    with session:
+      session.run_to_abort()
+      check_param_names(session)
 
 
 class LldbCorruptedMapTest(unittest.TestCase):

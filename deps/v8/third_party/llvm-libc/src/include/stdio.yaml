@@ -37,6 +37,7 @@ macros:
 types:
   - type_name: rsize_t
   - type_name: size_t
+  - type_name: ssize_t
   - type_name: off_t
   - type_name: cookie_io_functions_t
   - type_name: FILE
@@ -329,6 +330,23 @@ functions:
       - posix
     return_type: int
     arguments: []
+  - name: getdelim
+    standards:
+      - posix
+    return_type: ssize_t
+    arguments:
+      - type: char **__restrict
+      - type: size_t *__restrict
+      - type: int
+      - type: FILE *__restrict
+  - name: getline
+    standards:
+      - posix
+    return_type: ssize_t
+    arguments:
+      - type: char **__restrict
+      - type: size_t *__restrict
+      - type: FILE *__restrict
   - name: pclose
     standards:
       - posix
@@ -364,9 +382,22 @@ functions:
     arguments:
       - type: int
       - type: FILE *
+  - name: putc_unlocked
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+      - type: FILE *
   - name: putchar
     standards:
       - stdc
+    return_type: int
+    arguments:
+      - type: int
+  - name: putchar_unlocked
+    standards:
+      - posix
     return_type: int
     arguments:
       - type: int

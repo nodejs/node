@@ -47,7 +47,7 @@ You need two builds of d8:
 | a fuzzing d8 at your revision (`$REDLINE_D8`) | everyday checks, the shell, sessions |
 | a fuzzing d8 with known bugs (`$D8_BUGS`) | the overfitting audit (section 3.7) |
 
-To make a d8 with known bugs, build the fuzzing d8 of [TUTORIAL.md](TUTORIAL.md) section 1 at a V8 revision that is a few months old. Each `test/mjsunit/regress/` test that is newer than that revision shows a bug that this d8 has.
+To make a d8 with known bugs, follow the [redline-bug-reinjection](skills/redline-bug-reinjection/SKILL.md) skill. It reverts fixes on a recent revision, because an older revision does not have `v8_redline`.
 
 `experimental/redline/BUILD.gn` compiles Redline with `-Werror` and strict warnings, for example `-Wconversion`, `-Wshadow` and `-Wold-style-cast`.
 The build fails on every warning. Format and lint your files with these commands:
@@ -69,7 +69,7 @@ clang-tidy -p out/redline experimental/redline/generators/generators.cc
 | Init | an init strategy | `engine/config.cc` | `ReadInitConfig` | `init` |
 | Pick | a seed or partner strategy (`Selector<const Program>`) | `corpus/corpus.cc` | `RegisterBuiltinSelectors<const Program>` | `selection.seeds`, `selection.partners` |
 | Mutate | a mutator (`Mutator`) | `mutators/mutators.cc` | `MutatorSet::CreateDefault` | `selection.mutators` |
-| Mutate | a generator | `generators/generators.cc` | `GeneratorSet::CreateDefault` | `selection.generators` |
+| Mutate | a generator | `generators/generators.cc`, or the file of its area: `generators/shapes_generators.cc` (new program shapes) or `generators/template_generators.cc` (Fuzzilli templates) | `GeneratorSet::CreateDefault`, or the list of the area file (`ShapesGenerators`, `TemplateGenerators`) | `selection.generators` |
 | Mutate | a mutator or generator strategy | `mutators/mutators.cc`, `generators/generators.cc` | `RegisterBuiltinSelectors<Mutator>`, `RegisterBuiltinSelectors<Generator>` | `selection.mutators`, `selection.generators` |
 | Accept | a criterion | `engine/config.cc`, `engine/fuzzer.cc` | `ReadAcceptConfig`, `Worker::Commit` | `accept`, `stages.check` |
 | Minimize | a reducer (`Reducer`) | `minimizer/minimizer.cc` | `Minimizer::CreateDefaultReducers` | `stages.minimize.reducers` |
@@ -77,6 +77,7 @@ clang-tidy -p out/redline experimental/redline/generators/generators.cc
 | any | a number (tunable) | next to its use | `REDLINE_TUNABLE` | `tunables` |
 
 Execute and Publish are fixed code in `engine/fuzzer.cc` and `exec/`. Crash triage is in `engine/crash.cc`, `engine/fuzzer.cc` and `engine/amplifier.cc`.
+Generators of one area can also be in a file of their own. For example, `generators/typing_generators.cc` has the generators for typed functions, destructuring and scopes. `RegisterTypingGenerators()` adds them in `GeneratorSet::CreateDefault`.
 File names in the text and the tables are relative to `experimental/redline/`. The commands run in the root of the V8 checkout.
 
 ### 2.2 Programs, FAST and the Builder
@@ -121,11 +122,9 @@ const int calls = 1 + r.SmallCount(kAtomicsOpsMaxCalls.AsInt() - 1);
 Rules:
 
 - Every probability, count and limit in a component is a tunable. Do not write a number in the code.
-- The name starts with the owner: `generators.<Generator>.`, `mutators.<Mutator>.`, `codegen.<helper>.` or `minimizer.<reducer>.`.
+- The name starts with the owner: `generators.<Generator>.`, `mutators.<Mutator>.`, `codegen.<helper>.`, `minimizer.<reducer>.`, `salvage.`, `prelude.`, `explore.` or `flags.` (the random d8 flags of `maglev` and `turbolev`). The `fuzzilli` profile keeps the fixed numbers of Fuzzilli.
 - When you replace a number in existing code, the default is the old number. Then the behavior does not change.
 - `redline fuzz --help-tunables` lists all tunables. The flag `--tunable=NAME=VALUE` and the `tunables` block set them. The flag also works with `mutate` and `audit`.
-
-Redline has 267 tunables today: 169 in generators, 61 in the CodeGen helpers, 36 in mutators and 1 in the minimizer.
 
 ### 2.6 Configuration
 
@@ -310,6 +309,12 @@ The first command writes a program that declares an `Int16Array`.
 With a file argument, `mutate` inserts the generated code at a random position of that program.
 Before the declaration, the typed array is not visible. Then the generator makes a new array.
 
+Some generators run only in a context that an empty program does not have. Test them with a seed program that has this context:
+
+- `PrivateAccess` needs a class with private names, and `SuperAccess` needs a method. They run only in such bodies.
+- `ClassMember` and `LiteralMember` run only at member slots. With a file argument, `mutate` adds a member to a class body or an object literal of the file.
+- `redline audit` starts from an empty program. For these generators, run `mutate --run` with a seed program on each bug build instead, and look at the `crash` column.
+
 ### 3.6 Examine it in the shell
 
 ```
@@ -383,6 +388,23 @@ Commit the new traces in the same CL as the generator.
 A generator is useful only if it finds coverage or bugs that Redline did not find before.
 Section 10 shows how to compare two sessions.
 Put the result in the CL description.
+
+### 3.10 Use the typed builtin model
+
+Do not write the arguments of a builtin call by hand. Add the signature to the typed model in `core/environment_typed.cc`, and let CodeGen make the arguments:
+
+```cpp
+// In Environment::AddTypedModel():
+methods(T::kDataView, {sig("getInt16", T::kNumber, {Range(0, 4), Opt(Of(T::kBoolean))})});
+// In a generator:
+Expression* call = cg.CallMethod(view, m.name, cg.Arguments(m));  // m: the BuiltinFunction
+```
+
+- Each parameter is an `ArgSpec` (`core/environment.h`): `Of(type)`, `Int()`, `Index()`, `Length()`, `Range(min, max)`, `Iterable(element)`, `Callback(arity)`, `arg::Enum("name")`, `arg::Options("name")` or `Instance(type)`. `Opt()` marks an optional parameter, and `Rest()` a rest parameter.
+- `enums(...)` and `bag(...)` in the same function declare the string lists and the options bags.
+- `cg.ArgumentFor(spec)` uses a visible variable of the kind (probability `codegen.argument.reuse_chance` for objects), or it makes a new value. `cg.Instance(type)` makes an object of a builtin type with its typed constructor or a static factory.
+- Keep the ranges valid. A call that always throws spends an execution and finds nothing. The tunables `codegen.argument.range_edge_chance` and `codegen.argument.enum_invalid_chance` already add a few values outside the ranges.
+- The `DiscoveredApi` generator uses the same signatures for the paths that the target reports (`Environment::DiscoveredSignature`). Add a path outside the model with `discovered(...)`.
 
 ---
 
@@ -589,6 +611,7 @@ class Truncator : public Reducer {
 
 1. Add `reducers.push_back(std::make_unique<YourReducer>());` to `Minimizer::CreateDefaultReducers()`.
 2. Do not add it to `Minimizer::DefaultOrder()` yet. The default order applies to every session. Change it only with A/B evidence.
+   The same rule applies to `Minimizer::CrashOrder()`, the order of the crash minimizer.
 3. Select your reducer in the configuration:
 
 ```json
@@ -596,6 +619,7 @@ class Truncator : public Reducer {
 ```
 
 An unknown name in this list is an error at startup.
+`crash_minimizer.reducers` selects the reducers of the crash minimizer in the same way.
 
 ### 5.4 Try the reducer on captured pairs
 
@@ -801,6 +825,7 @@ A preset is a JSON configuration for one area of V8, in `experimental/redline/pr
 $ cat experimental/redline/presets/maglev.json
 {
   "d8_extra_args": ["--maglev", "--no-turbofan", "--jit-fuzzing"],
+  "randomize_d8_flags": true,
   "selection": {"seeds": {"strategy": "rarity"}, "partners": {"strategy": "rarity-partner"}, "mutators": {"strategy": "adaptive"},
     "generators": {"strategy": "adaptive", "params": {"weights": {
       "JitOptimize": 8, "Deopt": 3, "OsrLoop": 3, "ElementsKind": 4, "ShapeChange": 3}}}}
@@ -808,6 +833,7 @@ $ cat experimental/redline/presets/maglev.json
 ```
 
 - `d8_extra_args` is appended to the d8 flags, like `--d8-extra-args`.
+- `randomize_d8_flags` gives each new d8 process random extra flags (DESIGN.md section 5.4). The `flags.*` tunables set their probabilities in the `maglev` and `turbolev` profiles. The `fuzzilli` profile uses the fixed probabilities of Fuzzilli.
 - `selection` sets the strategies. All presets use the strategies of the latest A/B experiment: `rarity`, `rarity-partner` and `adaptive`.
 - `weights` replaces the base weight of the named generators. The others keep their built-in weight.
 
@@ -894,9 +920,11 @@ The second command writes one event per check and per minimization in `OUT/event
 ### 9.3 A crash
 
 A crash goes to `OUT/crashes/` with the minimized program (`.js`), the original program (`.orig.js`) and a report (`.txt`).
+A minimized crash also gets a reproducer (`.repro.js`): the prelude statements that the crash needs and the program. d8 runs it without the prelude.
 The report has the crash signature and the result of the reproduction runs.
-`redline minimize --oracle=crash FILE` runs the program with the same prelude as a session, and minimizes it again.
+`redline minimize --oracle=crash FILE` runs the program with the same prelude as a session, and minimizes it again. It keeps the crash signature of the first run.
 If the crash needs earlier programs, the `.history/` directory of the crash has them.
+The `.bundle.js` file has them and the crash program in one file for `d8 --bundle-reprl`.
 
 ---
 
@@ -950,6 +978,22 @@ This short run shows no effect of `NegateCondition`. It does not show that the m
 - Compare at the same elapsed time first: a slower component must pay for its time. The same number of executions gives a second view.
 - For bugs, use the d8 with known bugs and the time to the first crash of each bug.
 
+### 10.3 Compare with Fuzzilli and with known bugs
+
+Three measurements tell if Redline improves.
+Compare each one with origin/main too:
+
+| Measurement | What to compare | The goal |
+|---|---|---|
+| Bug finding | Redline and Fuzzilli on known bugs that you put back into d8 | Redline finds more of these bugs, or finds them sooner. |
+| Change-based fuzzing | Change-based fuzzing (the change-based fuzzing section of [TUTORIAL.md](TUTORIAL.md)) and normal mode on the same bugs | Change-based fuzzing finds the bugs sooner. |
+| Coverage | Redline and Fuzzilli on the same d8 with the same flags, without seeds | Redline reaches more coverage. |
+
+These comparisons take many hours, and small differences in the setup change the result.
+The [redline-ab-testing](skills/redline-ab-testing/SKILL.md) skill gives the setups, the scripts and the rules.
+The [redline-bug-reinjection](skills/redline-bug-reinjection/SKILL.md) skill shows how to make a d8 with one known bug.
+Keep the results in your own notes, not in the repository.
+
 ---
 
 ## 11. Checklist for a CL
@@ -965,4 +1009,5 @@ checklist into commands and a report.
 - [ ] `--run`: the share of failures and timeouts is known and explained in the CL description.
 - [ ] Audit: no crash signature above 0.5% for a new or changed generator.
 - [ ] A/B: a change of a weight, a strategy or a default has a measured result in the CL description.
+- [ ] If you change the default prelude (`engine/prelude.cc`), run the whole-against-on-demand comparison on a corpus again. `prelude.on_demand` works only with the default prelude. Another prelude stays whole with a warning.
 - [ ] [TUTORIAL.md](TUTORIAL.md), [DESIGN.md](DESIGN.md) and this guide are still correct.

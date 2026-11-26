@@ -302,6 +302,12 @@ void Cord::InlineRep::UnrefTree() {
 // --------------------------------------------------------------------
 // Constructors and destructors
 
+Cord::Cord(const Cord&) = default;
+
+Cord& Cord::operator=(const Cord&) = default;
+
+Cord& Cord::operator=(Cord&&) = default;
+
 Cord::Cord(absl::string_view src, MethodIdentifier method) {
   const size_t n = src.size();
   if (n <= InlineRep::kMaxInline) {

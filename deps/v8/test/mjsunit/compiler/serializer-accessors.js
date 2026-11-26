@@ -12,10 +12,10 @@ class C {
     return 42;
   }
   set prop(v) {
-    if (!%IsDictPropertyConstTrackingEnabled()) {
-      // TODO(v8:11457) If v8_dict_property_const_tracking is enabled, then
-      // C.prototype is a dictionary mode object and we cannot inline the call
-      // to this setter, yet.
+    if (!%IsDictPrototypesEnabled()) {
+      // TODO(v8:11457) If v8_dict_prototypes is enabled, then C.prototype is a
+      // dictionary mode object and we cannot inline the call to this setter,
+      // yet.
       assertEquals(expect_interpreted, %IsBeingInterpreted());
     }
     %TurbofanStaticAssert(v === 43);

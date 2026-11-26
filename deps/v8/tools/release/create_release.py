@@ -59,6 +59,7 @@ class IncrementVersion(Step):
     self["version"] = "%s.%s.%s" % (self["new_major"],
                                     self["new_minor"],
                                     self["new_build"])
+    self["commit_title"] = "Version %s" % self["version"]
 
     print ("Incremented version to %s" % self["version"])
 
@@ -70,36 +71,63 @@ class DetectLastRelease(Step):
     self["last_push_main"] = self.GetLatestReleaseBase()
 
 
-class DeleteBranchRef(Step):
-  MESSAGE = "Delete branch ref."
-
-  def RunStep(self):
-    cmd = "push origin :refs/heads/%s" % self["version"]
-    if self._options.dry_run:
-      print("Dry run. Command:\ngit %s" % cmd)
-    else:
-      try:
-        self.Git(cmd)
-      except Exception:
-        # Be forgiving if branch ref does not exist.
-        pass
-
-
 class PushBranchRef(Step):
   MESSAGE = "Create branch ref."
 
   def RunStep(self):
-    cmd = "push origin %s:refs/heads/%s" % (self["push_hash"], self["version"])
+    branch_ref = "refs/heads/%s" % self["version"]
+    if self.Git("ls-remote origin %s" % branch_ref).strip():
+      # A previous attempt to create this version failed after the branch
+      # was created. The version stays the same until it is tagged and the
+      # branch can't be deleted, so the release is resumed from the branch.
+      self.ResumeFromExistingBranch()
+      return
+
+    cmd = "push origin %s:%s" % (self["push_hash"], branch_ref)
     if self._options.dry_run:
       print("Dry run. Command:\ngit %s" % cmd)
     else:
       self.Git(cmd)
+
+  def ResumeFromExistingBranch(self):
+    version = self["version"]
+    remote_branch = "origin/%s" % version
+    print("Branch %s already exists. Resuming the release." % version)
+    self.Git("fetch origin +refs/heads/%s:refs/remotes/%s" %
+             (version, remote_branch))
+
+    # The commits on the branch that are not on main.
+    branch_commits = self.GitLog(
+        format="%H",
+        git_hash="%s..%s" % (self.vc.RemoteMainBranch(), remote_branch),
+    ).splitlines()
+
+    if not branch_commits:
+      # The version change didn't land. The release is based on the revision
+      # the branch was created from, which might be older than the requested
+      # one.
+      self["push_hash"] = self.GitLog(n=1, format="%H", branch=remote_branch)
+      print("Release revision %s" % self["push_hash"])
+      return
+
+    if len(branch_commits) == 1:
+      title = self.GitLog(n=1, format="%s", git_hash=branch_commits[0])
+      if title == self["commit_title"]:
+        # The version change landed. Only the tag is missing.
+        print("The version change landed already as %s." % branch_commits[0])
+        self["version_change_landed"] = True
+        return
+
+    self.Die("Branch %s contains unexpected commits. Can't resume the "
+             "release." % version)
 
 
 class MakeBranch(Step):
   MESSAGE = "Create the branch."
 
   def RunStep(self):
+    if self["version_change_landed"]:
+      return
     self.Git("reset --hard origin/main")
     self.Git("new-branch work-branch --upstream origin/%s" % self["version"])
     self.GitCheckoutFile(VERSION_FILE, self["latest_version"])
@@ -109,6 +137,8 @@ class SetVersion(Step):
   MESSAGE = "Set correct version for candidates."
 
   def RunStep(self):
+    if self["version_change_landed"]:
+      return
     self.SetVersion(os.path.join(self.default_cwd, VERSION_FILE), "new_")
 
 
@@ -116,6 +146,8 @@ class EnableMergeWatchlist(Step):
   MESSAGE = "Enable watchlist entry for merge notifications."
 
   def RunStep(self):
+    if self["version_change_landed"]:
+      return
     old_watchlist_content = FileToText(os.path.join(self.default_cwd,
                                                     WATCHLISTS_FILE))
     new_watchlist_content = re.sub(r"(# 'v8-merges@googlegroups\.com',)",
@@ -129,7 +161,8 @@ class CommitBranch(Step):
   MESSAGE = "Commit version to new branch."
 
   def RunStep(self):
-    self["commit_title"] = "Version %s" % self["version"]
+    if self["version_change_landed"]:
+      return
     text = "%s" % (self["commit_title"])
     TextToFile(text, self.Config("COMMITMSG_FILE"))
 
@@ -140,6 +173,8 @@ class LandBranch(Step):
   MESSAGE = "Upload and land changes."
 
   def RunStep(self):
+    if self["version_change_landed"]:
+      return
     if self._options.dry_run:
       print("Dry run - upload CL.")
     else:
@@ -214,7 +249,6 @@ class CreateRelease(ScriptsBase):
       PrepareBranchRevision,
       IncrementVersion,
       DetectLastRelease,
-      DeleteBranchRef,
       PushBranchRef,
       MakeBranch,
       SetVersion,

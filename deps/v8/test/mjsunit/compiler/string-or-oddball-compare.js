@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --turbofan
-// Flags: --no-always-use-string-forwarding-table
 
 let internalized1234 = %ConstructInternalizedString("1234123412341234");
 let nonInternalized1234 = %ConstructConsString("12341234", "12341234");

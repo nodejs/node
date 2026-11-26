@@ -110,6 +110,9 @@ macro CreateJSArrayWithElements(
 // .sort call), where Array.prototype.sort's full algorithm runs and handles
 // Undefined per CompareArrayElements -- including the compaction step
 // (CompactReceiverElementsIntoWorkArray) that this continuation skips.
+//
+// A deopt can happen after comparefn returned and before its result was
+// converted.  Continuations run ToNumber before restarting the sort.
 transitioning macro ArraySortContinueFromSnapshot(
     implicit context: Context)(receiver: JSAny, comparefn: JSAny,
     tempArray: FixedArray, originalLength: Smi): JSAny {
@@ -121,6 +124,15 @@ transitioning macro ArraySortContinueFromSnapshot(
   return obj;
 }
 
+transitioning macro ArraySortConvertResultAndContinueFromSnapshot(
+    implicit context: Context)(receiver: JSAny, comparefn: JSAny,
+    tempArray: JSAny, originalLength: JSAny, result: JSAny): JSAny {
+  const temp = Cast<FixedArray>(tempArray) otherwise unreachable;
+  const len = Cast<Smi>(originalLength) otherwise unreachable;
+  ToNumber_Inline(result);
+  return ArraySortContinueFromSnapshot(receiver, comparefn, temp, len);
+}
+
 transitioning javascript builtin
 ArraySortContinueFromSnapshotEagerDeoptContinuation(
     js-implicit context: NativeContext, receiver: JSAny)(comparefn: JSAny,
@@ -130,12 +142,21 @@ ArraySortContinueFromSnapshotEagerDeoptContinuation(
   return ArraySortContinueFromSnapshot(receiver, comparefn, temp, len);
 }
 
+// We enter when the inlined sort's Number check on a comparefn result fails,
+// before any ToNumber side effect.
+transitioning javascript builtin
+ArraySortContinueFromSnapshotAfterCallbackEagerDeoptContinuation(
+    js-implicit context: NativeContext, receiver: JSAny)(comparefn: JSAny,
+    tempArray: JSAny, originalLength: JSAny, result: JSAny): JSAny {
+  return ArraySortConvertResultAndContinueFromSnapshot(
+      receiver, comparefn, tempArray, originalLength, result);
+}
+
 transitioning javascript builtin
 ArraySortContinueFromSnapshotLazyDeoptContinuation(
     js-implicit context: NativeContext, receiver: JSAny)(comparefn: JSAny,
-    tempArray: JSAny, originalLength: JSAny, _result: JSAny): JSAny {
-  const temp = Cast<FixedArray>(tempArray) otherwise unreachable;
-  const len = Cast<Smi>(originalLength) otherwise unreachable;
-  return ArraySortContinueFromSnapshot(receiver, comparefn, temp, len);
+    tempArray: JSAny, originalLength: JSAny, result: JSAny): JSAny {
+  return ArraySortConvertResultAndContinueFromSnapshot(
+      receiver, comparefn, tempArray, originalLength, result);
 }
 }

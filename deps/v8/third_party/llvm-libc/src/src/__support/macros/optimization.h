@@ -12,7 +12,9 @@
 
 #include "src/__support/macros/attributes.h" // LIBC_INLINE
 #include "src/__support/macros/config.h"
+#include "src/__support/macros/properties/architectures.h"
 #include "src/__support/macros/properties/compiler.h" // LIBC_COMPILER_IS_CLANG
+#include "src/__support/macros/properties/cpu_features.h"
 
 // We use a template to implement likely/unlikely to make sure that we don't
 // accidentally pass an integer.
@@ -27,8 +29,71 @@ template <>
 LIBC_ALWAYS_INLINE constexpr bool expects_bool_condition<bool>(bool value) {
   return value;
 }
+
+template <typename T> void do_not_optimize_impl(T &) = delete;
+
+// Zero-cost SSA value barrier for float and double: keeps `val` in its native
+// register class without spilling to memory or moving across GPR/FPR banks,
+// while preventing the optimizer from looking through or duplicating `val`.
+// Kept in non-constexpr helpers because C++17 rejects inline `asm` statements
+// directly inside `constexpr` functions (`-Wc++20-extensions`). Skipped on
+// `cl.exe` (`LIBC_COMPILER_IS_MSVC`, which excludes `clang-cl`) because MSVC
+// does not support GNU extended `asm` register constraints.
+LIBC_ALWAYS_INLINE void do_not_optimize_impl(LIBC_UNUSED float &val) {
+#if !defined(LIBC_COMPILER_IS_MSVC)
+#if defined(LIBC_TARGET_CPU_HAS_ARM_FPU_FLOAT)
+  asm("" : "+w"(val));
+#elif defined(LIBC_TARGET_ARCH_IS_X86) && defined(LIBC_TARGET_CPU_HAS_SSE2)
+  asm("" : "+x"(val));
+#elif defined(LIBC_TARGET_ARCH_IS_X86)
+  asm("" : "+t"(val));
+#elif defined(LIBC_TARGET_CPU_HAS_RISCV_FPU_FLOAT)
+  asm("" : "+f"(val));
+#elif defined(LIBC_TARGET_ARCH_IS_AMDGPU)
+  asm("" : "+v"(val));
+#elif defined(LIBC_TARGET_ARCH_IS_NVPTX)
+  asm("" : "+f"(val));
+#elif defined(LIBC_TARGET_ARCH_IS_ARM) ||                                      \
+    defined(LIBC_TARGET_ARCH_IS_ANY_RISCV) ||                                  \
+    defined(LIBC_TARGET_ARCH_IS_WASM) || defined(LIBC_TARGET_ARCH_IS_HEXAGON)
+  asm("" : "+r"(val));
+#endif
+#endif // !LIBC_COMPILER_IS_MSVC
+}
+
+LIBC_ALWAYS_INLINE void do_not_optimize_impl(LIBC_UNUSED double &val) {
+#if !defined(LIBC_COMPILER_IS_MSVC)
+#if defined(LIBC_TARGET_CPU_HAS_ARM_FPU_DOUBLE)
+  asm("" : "+w"(val));
+#elif defined(LIBC_TARGET_ARCH_IS_X86) && defined(LIBC_TARGET_CPU_HAS_SSE2)
+  asm("" : "+x"(val));
+#elif defined(LIBC_TARGET_ARCH_IS_X86)
+  asm("" : "+t"(val));
+#elif defined(LIBC_TARGET_CPU_HAS_RISCV_FPU_DOUBLE)
+  asm("" : "+f"(val));
+#elif defined(LIBC_TARGET_ARCH_IS_AMDGPU)
+  asm("" : "+v"(val));
+#elif defined(LIBC_TARGET_ARCH_IS_NVPTX)
+  asm("" : "+d"(val));
+#elif defined(LIBC_TARGET_ARCH_IS_RISCV64) || defined(LIBC_TARGET_ARCH_IS_WASM)
+  asm("" : "+r"(val));
+#endif
+#endif // !LIBC_COMPILER_IS_MSVC
+}
+
+template <typename T>
+LIBC_ALWAYS_INLINE LIBC_CONSTEXPR_DEFAULT void do_not_optimize(T &val) {
+#if LIBC_HAS_BUILTIN_IS_CONSTANT_EVALUATED
+  if (!__builtin_is_constant_evaluated())
+#endif
+    do_not_optimize_impl(val);
+}
+
 } // namespace details
 } // namespace LIBC_NAMESPACE_DECL
+
+#define LIBC_DO_NOT_OPTIMIZE(var) LIBC_NAMESPACE::details::do_not_optimize(var)
+
 #define LIBC_LIKELY(x)                                                         \
   (__builtin_expect(LIBC_NAMESPACE::details::expects_bool_condition((x)), true))
 #define LIBC_UNLIKELY(x)                                                       \
@@ -95,6 +160,21 @@ LIBC_ALWAYS_INLINE constexpr bool expects_bool_condition<bool>(bool value) {
 
 #if ((LIBC_MATH) & LIBC_MATH_ASSUME_ROUND_NEAREST_ONLY)
 #define LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
+#define LIBC_DO_NOT_OPTIMIZE_ROUNDING(var) ((void)(var))
+#else
+#define LIBC_DO_NOT_OPTIMIZE_ROUNDING(var) LIBC_DO_NOT_OPTIMIZE(var)
 #endif
+
+// Helper macros to compare math implementation namespace tokens in #if
+// directives (e.g. when LIBC_MATH_<FUNC>_IMPL is overridden via -D).
+#define LIBC_MATH_IMPL_ID_double_eval 1
+#define LIBC_MATH_IMPL_ID_float_eval 2
+#define LIBC_MATH_IMPL_ID_float_eval_cr_rn 3
+#define LIBC_MATH_IMPL_ID_integer_eval 4
+#define LIBC_MATH_IMPL_CONCAT_INNER(a, b) a##b
+#define LIBC_MATH_IMPL_CONCAT(a, b) LIBC_MATH_IMPL_CONCAT_INNER(a, b)
+#define LIBC_MATH_IMPL_IS(impl, target)                                        \
+  (LIBC_MATH_IMPL_CONCAT(LIBC_MATH_IMPL_ID_, impl) ==                          \
+   LIBC_MATH_IMPL_CONCAT(LIBC_MATH_IMPL_ID_, target))
 
 #endif // LLVM_LIBC_SRC___SUPPORT_MACROS_OPTIMIZATION_H

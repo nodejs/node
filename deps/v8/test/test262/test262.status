@@ -28,26 +28,26 @@
 [
 
 [ALWAYS, {
-  # tc39/test262 PR #4999: these tests have incorrect expectations.
-  # They assume super.prop = val on a deferred namespace doesn't trigger
-  # [[GetOwnProperty]], but OrdinarySetWithOwnDescriptor requires it.
-
   ###################### MISSING ES6 FEATURES #######################
 
   # https://code.google.com/p/v8/issues/detail?id=4248
   'language/expressions/compound-assignment/S11.13.2_A5.*': [FAIL],
   'language/expressions/compound-assignment/S11.13.2_A6.*': [FAIL],
-  'language/expressions/compound-assignment/S11.13.2_A7.10_T4': [FAIL],
-  'language/expressions/compound-assignment/S11.13.2_A7.11_T4': [FAIL],
-  'language/expressions/compound-assignment/S11.13.2_A7.1_T4': [FAIL],
-  'language/expressions/compound-assignment/S11.13.2_A7.2_T4': [FAIL],
-  'language/expressions/compound-assignment/S11.13.2_A7.3_T4': [FAIL],
-  'language/expressions/compound-assignment/S11.13.2_A7.4_T4': [FAIL],
-  'language/expressions/compound-assignment/S11.13.2_A7.5_T4': [FAIL],
-  'language/expressions/compound-assignment/S11.13.2_A7.6_T4': [FAIL],
-  'language/expressions/compound-assignment/S11.13.2_A7.7_T4': [FAIL],
-  'language/expressions/compound-assignment/S11.13.2_A7.8_T4': [FAIL],
-  'language/expressions/compound-assignment/S11.13.2_A7.9_T4': [FAIL],
+  'language/expressions/compound-assignment/left-hand-side-property-reference-topropertykey-once-add': [FAIL],
+  'language/expressions/compound-assignment/left-hand-side-property-reference-topropertykey-once-bitand': [FAIL],
+  'language/expressions/compound-assignment/left-hand-side-property-reference-topropertykey-once-bitor': [FAIL],
+  'language/expressions/compound-assignment/left-hand-side-property-reference-topropertykey-once-bitxor': [FAIL],
+  'language/expressions/compound-assignment/left-hand-side-property-reference-topropertykey-once-div': [FAIL],
+  'language/expressions/compound-assignment/left-hand-side-property-reference-topropertykey-once-exp': [FAIL],
+  'language/expressions/compound-assignment/left-hand-side-property-reference-topropertykey-once-lshift': [FAIL],
+  'language/expressions/compound-assignment/left-hand-side-property-reference-topropertykey-once-mod': [FAIL],
+  'language/expressions/compound-assignment/left-hand-side-property-reference-topropertykey-once-mult': [FAIL],
+  'language/expressions/compound-assignment/left-hand-side-property-reference-topropertykey-once-rshift': [FAIL],
+  'language/expressions/compound-assignment/left-hand-side-property-reference-topropertykey-once-srshift': [FAIL],
+  'language/expressions/compound-assignment/left-hand-side-property-reference-topropertykey-once-sub': [FAIL],
+  'language/expressions/logical-assignment/lgcl-and-assignment-operator-topropertykey-once': [FAIL],
+  'language/expressions/logical-assignment/lgcl-nullish-assignment-operator-topropertykey-once': [FAIL],
+  'language/expressions/logical-assignment/lgcl-or-assignment-operator-topropertykey-once': [FAIL],
   'language/statements/with/unscopables-inc-dec': [FAIL],
 
   # https://code.google.com/p/v8/issues/detail?id=4249
@@ -163,10 +163,6 @@
   # Begin Temporal test expectations
   # Temporal work is tracked in b/42201538
 
-  # Some of these tests need updating to the newer spec, and
-  # there are only 16 tests. Skip for now.
-  'staging/sm/Temporal/*': [SKIP],
-
   # DateTimeFormat doesn't respect hourCycle for Temporal
   # b/468559222
   'intl402/Temporal/Instant/prototype/toLocaleString/hourcycle': [SKIP],
@@ -221,6 +217,27 @@
   'language/statements/with/set-mutable-binding-idref-compound-assign-with-proxy-env': [FAIL],
   'language/statements/with/set-mutable-binding-idref-with-proxy-env': [FAIL],
 
+  # https://crbug.com/581462605
+  'built-ins/DataView/prototype/byteLength/detached-buffer': [FAIL],
+  'built-ins/DataView/prototype/byteLength/resizable-array-buffer-auto': [FAIL],
+  'built-ins/DataView/prototype/byteLength/resizable-array-buffer-fixed': [FAIL],
+  'built-ins/DataView/prototype/byteOffset/detached-buffer': [FAIL],
+  'built-ins/DataView/prototype/byteOffset/resizable-array-buffer-auto': [FAIL],
+  'built-ins/DataView/prototype/byteOffset/resizable-array-buffer-fixed': [FAIL],
+
+  # https://crbug.com/580293064
+  'built-ins/Iterator/concat/underlying-iterator-not-closed-when-step-throws': [FAIL],
+
+  # https://crbug.com/581458354
+  'language/statements/class/elements/arrow-body-arguments-label': [FAIL],
+  'language/statements/class/static-init-arguments-label': [FAIL],
+
+  # https://crbug.com/589420292
+  'built-ins/TypedArrayConstructors/internals/Set/immutable-buffer-key-is-canonical-non-strict': [FAIL],
+  'built-ins/TypedArrayConstructors/internals/Set/immutable-buffer-key-is-canonical-prototype-chain-non-strict': [FAIL],
+  'built-ins/TypedArrayConstructors/internals/Set/immutable-buffer-key-is-canonical-prototype-chain-strict': [FAIL],
+  'built-ins/TypedArrayConstructors/internals/Set/immutable-buffer-key-is-canonical-strict': [FAIL],
+
   ######################## NEEDS INVESTIGATION ###########################
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7833
@@ -271,6 +288,14 @@
 
   # https://github.com/tc39/test262/pull/3987
   'language/module-code/import-attributes/allow-nlt-before-with': [FAIL],
+
+  # https://crbug.com/517575874: Outdated expectations for \A, \z, \Z in
+  # Unicode mode (valid assertions per proposal-regexp-buffer-boundaries).
+  'built-ins/RegExp/unicode_restricted_identity_escape_alpha': [FAIL],
+  'staging/sm/RegExp/unicode-disallow-extended': [FAIL],
+
+  # Fixed upstream in https://github.com/tc39/test262/pull/5192
+  'built-ins/String/prop-desc': [FAIL],
 
   ############################ SKIPPED TESTS #############################
 
@@ -464,14 +489,6 @@
   'intl402/Temporal/PlainYearMonth/prototype/toLocaleString/dateStyle': [SKIP],
   'intl402/Temporal/ZonedDateTime/prototype/toLocaleString/dateStyle': [SKIP],
   'intl402/Temporal/PlainMonthDay/prototype/toLocaleString/dateStyle': [SKIP],
-
-  # Older ICU4C revision with different era codes
-  'intl402/DateTimeFormat/prototype/formatToParts/chinese-calendar-dates': [SKIP],
-  'intl402/DateTimeFormat/prototype/formatToParts/dangi-calendar-dates': [SKIP],
-  'intl402/DateTimeFormat/prototype/formatRangeToParts/chinese-calendar-dates': [SKIP],
-  'intl402/DateTimeFormat/prototype/formatRangeToParts/dangi-calendar-dates': [SKIP],
-
-  # Somehow passes on Android (b/433933898):
 }], # 'system == android'
 
 ['arch == arm or arch == arm64 or arch == mips64 or arch == mips64el', {
@@ -934,7 +951,6 @@
   'built-ins/Error/prototype/stack/setter-receiver-is-proxy': [SKIP],
   'built-ins/Error/prototype/stack/setter-this-not-object': [SKIP],
   'built-ins/Error/prototype/stack/setter-via-assignment': [SKIP],
-  'intl402/Temporal/ZonedDateTime/prototype/round/same-date-starts-twice': [SKIP],
   'language/module-code/ambiguous-export-bindings/namespace-unambiguous-if-import-source-and-export': [SKIP],
   'language/module-code/source-phase-import/reexport-source-binding-named-import': [SKIP],
   'language/module-code/source-phase-import/reexport-source-binding-namespace-get': [SKIP],
@@ -1029,75 +1045,6 @@
 ####
 # Roll-watcher patch
 [ALWAYS, {
-  'built-ins/Iterator/prototype/chunks/argument-effect-order': [SKIP],
-  'built-ins/Iterator/prototype/chunks/argument-validation-failure-close-throws': [SKIP],
-  'built-ins/Iterator/prototype/chunks/argument-validation-failure-closes-underlying': [SKIP],
-  'built-ins/Iterator/prototype/chunks/callable': [SKIP],
-  'built-ins/Iterator/prototype/chunks/chunkSize-out-of-range': [SKIP],
-  'built-ins/Iterator/prototype/chunks/chunks-evenly-divisible': [SKIP],
-  'built-ins/Iterator/prototype/chunks/chunks-last-chunk-partial': [SKIP],
-  'built-ins/Iterator/prototype/chunks/chunks-size-1': [SKIP],
-  'built-ins/Iterator/prototype/chunks/chunks-size-larger-than-iterator': [SKIP],
-  'built-ins/Iterator/prototype/chunks/exhaustion-does-not-call-return': [SKIP],
-  'built-ins/Iterator/prototype/chunks/get-next-method-only-once': [SKIP],
-  'built-ins/Iterator/prototype/chunks/get-next-method-throws': [SKIP],
-  'built-ins/Iterator/prototype/chunks/get-return-method-throws': [SKIP],
-  'built-ins/Iterator/prototype/chunks/is-function': [SKIP],
-  'built-ins/Iterator/prototype/chunks/iterator-already-exhausted': [SKIP],
-  'built-ins/Iterator/prototype/chunks/iterator-return-method-throws': [SKIP],
-  'built-ins/Iterator/prototype/chunks/length': [SKIP],
-  'built-ins/Iterator/prototype/chunks/name': [SKIP],
-  'built-ins/Iterator/prototype/chunks/next-method-returns-non-object': [SKIP],
-  'built-ins/Iterator/prototype/chunks/next-method-returns-throwing-done': [SKIP],
-  'built-ins/Iterator/prototype/chunks/next-method-returns-throwing-value': [SKIP],
-  'built-ins/Iterator/prototype/chunks/next-method-returns-throwing-value-done': [SKIP],
-  'built-ins/Iterator/prototype/chunks/next-method-throws': [SKIP],
-  'built-ins/Iterator/prototype/chunks/prop-desc': [SKIP],
-  'built-ins/Iterator/prototype/chunks/proto': [SKIP],
-  'built-ins/Iterator/prototype/chunks/result-is-iterator': [SKIP],
-  'built-ins/Iterator/prototype/chunks/return-is-forwarded-to-underlying-iterator': [SKIP],
-  'built-ins/Iterator/prototype/chunks/return-is-not-forwarded-after-exhaustion': [SKIP],
-  'built-ins/Iterator/prototype/chunks/this-non-callable-next': [SKIP],
-  'built-ins/Iterator/prototype/chunks/this-plain-iterator': [SKIP],
-  'built-ins/Iterator/prototype/chunks/throws-typeerror-when-generator-is-running': [SKIP],
-  'built-ins/Iterator/prototype/chunks/underlying-iterator-advanced-in-parallel': [SKIP],
-  'built-ins/Iterator/prototype/chunks/underlying-iterator-closed-in-parallel': [SKIP],
-  'built-ins/Iterator/prototype/chunks/yields-distinct-arrays': [SKIP],
-  'built-ins/Iterator/prototype/windows/argument-effect-order': [SKIP],
-  'built-ins/Iterator/prototype/windows/argument-validation-failure-close-throws': [SKIP],
-  'built-ins/Iterator/prototype/windows/argument-validation-failure-closes-underlying': [SKIP],
-  'built-ins/Iterator/prototype/windows/callable': [SKIP],
-  'built-ins/Iterator/prototype/windows/exhaustion-does-not-call-return': [SKIP],
-  'built-ins/Iterator/prototype/windows/get-next-method-only-once': [SKIP],
-  'built-ins/Iterator/prototype/windows/get-next-method-throws': [SKIP],
-  'built-ins/Iterator/prototype/windows/get-return-method-throws': [SKIP],
-  'built-ins/Iterator/prototype/windows/is-function': [SKIP],
-  'built-ins/Iterator/prototype/windows/iterator-already-exhausted': [SKIP],
-  'built-ins/Iterator/prototype/windows/iterator-return-method-throws': [SKIP],
-  'built-ins/Iterator/prototype/windows/length': [SKIP],
-  'built-ins/Iterator/prototype/windows/name': [SKIP],
-  'built-ins/Iterator/prototype/windows/next-method-returns-non-object': [SKIP],
-  'built-ins/Iterator/prototype/windows/next-method-returns-throwing-done': [SKIP],
-  'built-ins/Iterator/prototype/windows/next-method-returns-throwing-value': [SKIP],
-  'built-ins/Iterator/prototype/windows/next-method-returns-throwing-value-done': [SKIP],
-  'built-ins/Iterator/prototype/windows/next-method-throws': [SKIP],
-  'built-ins/Iterator/prototype/windows/prop-desc': [SKIP],
-  'built-ins/Iterator/prototype/windows/proto': [SKIP],
-  'built-ins/Iterator/prototype/windows/result-is-iterator': [SKIP],
-  'built-ins/Iterator/prototype/windows/return-is-forwarded-to-underlying-iterator': [SKIP],
-  'built-ins/Iterator/prototype/windows/return-is-not-forwarded-after-exhaustion': [SKIP],
-  'built-ins/Iterator/prototype/windows/this-non-callable-next': [SKIP],
-  'built-ins/Iterator/prototype/windows/this-plain-iterator': [SKIP],
-  'built-ins/Iterator/prototype/windows/throws-typeerror-when-generator-is-running': [SKIP],
-  'built-ins/Iterator/prototype/windows/underlying-iterator-advanced-in-parallel': [SKIP],
-  'built-ins/Iterator/prototype/windows/underlying-iterator-closed-in-parallel': [SKIP],
-  'built-ins/Iterator/prototype/windows/undersized-default': [SKIP],
-  'built-ins/Iterator/prototype/windows/windowSize-out-of-range': [SKIP],
-  'built-ins/Iterator/prototype/windows/windows-allow-partial': [SKIP],
-  'built-ins/Iterator/prototype/windows/windows-basic': [SKIP],
-  'built-ins/Iterator/prototype/windows/windows-size-1': [SKIP],
-  'built-ins/Iterator/prototype/windows/windows-size-3': [SKIP],
-  'built-ins/Iterator/prototype/windows/yields-distinct-arrays': [SKIP],
   'staging/source-phase-imports/module-source-prototype-chain': [SKIP],
 }],
 # End roll-watcher patch

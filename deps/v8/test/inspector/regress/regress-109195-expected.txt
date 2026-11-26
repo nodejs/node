@@ -1,0 +1,14 @@
+Tests regress-109195.
+Pause 1 scope counts: 4,3,2,2,1
+Pause 2 scope counts: 4,3,2,2,1
+Pause 3 scope counts: 3,2,2,1
+Pause 4 scope counts: 2,2,1
+Pause 5 scope counts: 2,1
+Pause 6 scope counts: 2,1
+Pause 7 scope counts: 2,3,2,2,1
+Pause 8 scope counts: 2,3,2,2,1
+Pause 9 scope counts: 2,3,2,2,1
+Pause 10 scope counts: 3,2,2,1
+Pause 11 scope counts: 2,2,1
+Pause 12 scope counts: 2,1
+Pause 13 scope counts: 1

@@ -1,0 +1,24 @@
+# Copyright 2026 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+[package]
+name = "garage"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+description = "Terminal UI for viewing, navigating and diffing V8 trace output"
+license = "BSD-3-Clause"
+publish = false
+
+[dependencies]
+anyhow = { path = "../../third_party/rust/chromium_crates_io/vendor/anyhow-v1" }
+regex = { package = "regex-lite", path = "../../third_party/rust/chromium_crates_io/vendor/regex-lite-v0_1" }
+
+[target.'cfg(unix)'.dependencies]
+libc = { path = "../../third_party/rust/chromium_crates_io/vendor/libc-v0_2" }
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+debug = "line-tables-only"

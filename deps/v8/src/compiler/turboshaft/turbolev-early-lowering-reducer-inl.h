@@ -240,7 +240,9 @@ class TurbolevEarlyLoweringReducer : public Next {
           transition_source.elements_kind(), transition_target.elements_kind());
       IF (__ TaggedEqual(map, __ HeapConstant(transition_source.object()))) {
         if (is_simple) {
-          __ StoreField(object, AccessBuilder::ForMap(), target_map);
+          FieldAccess access = AccessBuilder::ForMap();
+          access.maybe_initializing_or_transitioning_store = true;
+          __ StoreField(object, access, target_map);
         } else {
           __ template CallRuntime<runtime::TransitionElementsKind>(
               __ NoContextConstant(), {.object = V<HeapObject>::Cast(object),
@@ -371,9 +373,9 @@ class TurbolevEarlyLoweringReducer : public Next {
     // Allocate new PropertyArray.
     int new_length = old_length + JSObject::kFieldsAdded;
     Uninitialized<PropertyArray> new_property_array =
-        __ template Allocate<PropertyArray>(
-            __ IntPtrConstant(PropertyArray::SizeFor(new_length)),
-            AllocationType::kYoung, kTaggedAligned);
+        __ template Allocate<PropertyArray>(PropertyArray::SizeFor(new_length),
+                                            AllocationType::kYoung,
+                                            kTaggedAligned);
     __ InitializeField(new_property_array, AccessBuilder::ForMap(),
                        __ HeapConstant(factory_->property_array_map()));
 
@@ -422,7 +424,7 @@ class TurbolevEarlyLoweringReducer : public Next {
         hash = __ Word32ShiftLeft(__ UntagSmi(V<Smi>::Cast(hash_obj)),
                                   PropertyArray::HashField::kShift);
       } ELSE {
-        hash = __ Word32Constant(PropertyArray::kNoHashSentinel);
+        hash = PropertyArray::kNoHashSentinel;
       }
     } else {
       V<Smi> hash_smi = __ template LoadField<Smi>(
@@ -442,8 +444,9 @@ class TurbolevEarlyLoweringReducer : public Next {
         __ FinishInitialization(std::move(new_property_array));
 
     // Replace the old property array in {object}.
-    __ StoreField(object, AccessBuilder::ForJSObjectPropertiesOrHash(),
-                  initialized_new_property_array);
+    FieldAccess access = AccessBuilder::ForJSObjectPropertiesOrHash();
+    access.maybe_initializing_or_transitioning_store = true;
+    __ StoreField(object, access, initialized_new_property_array);
 
     return initialized_new_property_array;
   }
@@ -455,6 +458,10 @@ class TurbolevEarlyLoweringReducer : public Next {
         generator, offsetof(JSGeneratorObject, parameters_and_registers_));
     for (int i = 0; static_cast<size_t>(i) < parameters_and_registers.size();
          i++) {
+      if (__ matcher().MatchRootConstant(parameters_and_registers[i],
+                                         RootIndex::kOptimizedOut, isolate_)) {
+        continue;
+      }
       __ Store(array, parameters_and_registers[i], StoreOp::Kind::TaggedBase(),
                MemoryRepresentation::AnyTagged(),
                WriteBarrierKind::kFullWriteBarrier,
@@ -469,10 +476,14 @@ class TurbolevEarlyLoweringReducer : public Next {
              WriteBarrierKind::kNoWriteBarrier,
              offsetof(JSGeneratorObject, input_or_debug_pos_));
 
-    __ Store(generator, context, StoreOp::Kind::TaggedBase(),
-             MemoryRepresentation::AnyTagged(),
-             WriteBarrierKind::kFullWriteBarrier,
-             offsetof(JSGeneratorObject, context_));
+    // An optimized out context is known to already be in the generator.
+    if (!__ matcher().MatchRootConstant(context, RootIndex::kOptimizedOut,
+                                        isolate_)) {
+      __ Store(generator, context, StoreOp::Kind::TaggedBase(),
+               MemoryRepresentation::TaggedPointer(),
+               WriteBarrierKind::kPointerWriteBarrier,
+               offsetof(JSGeneratorObject, context_));
+    }
   }
 
   V<Boolean> ObjectIsArray(V<Object> value, V<LazyFrameState> frame_state,
@@ -518,9 +529,9 @@ class TurbolevEarlyLoweringReducer : public Next {
     }
   }
 
-  Isolate* isolate_ = __ data() -> isolate();
+  Isolate* isolate_ = __ data()->isolate();
   LocalIsolate* local_isolate_ = isolate_->AsLocalIsolate();
-  JSHeapBroker* broker_ = __ data() -> broker();
+  JSHeapBroker* broker_ = __ data()->broker();
   LocalFactory* factory_ = local_isolate_->factory();
 };
 

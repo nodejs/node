@@ -1,0 +1,5 @@
+Tests regress-4320.
+function f() { g(); }
+function g() { #}
+
+

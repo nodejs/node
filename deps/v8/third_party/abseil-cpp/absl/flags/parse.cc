@@ -213,7 +213,8 @@ bool ArgsList::ReadFromFlagfile(const std::string& flag_file_name) {
 
   while (std::getline(flag_file, line)) {
     line_number++;
-    absl::string_view stripped = absl::StripLeadingAsciiWhitespace(line);
+    absl::string_view stripped =
+        absl::StripLeadingAsciiWhitespace(absl::StripSuffix(line, "\r"));
 
     if (stripped.empty() || stripped[0] == '#') {
       // Comment or empty line; just ignore.

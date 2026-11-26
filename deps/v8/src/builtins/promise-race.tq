@@ -32,8 +32,8 @@ transitioning javascript builtin PromiseRace(
   // For catch prediction, don't treat the .then calls as handling it;
   // instead, recurse outwards.
   if (IsDebugActive()) deferred {
-      SetPropertyStrict(context, reject, kPromiseForwardingHandlerSymbol, True);
-    }
+    SetPropertyStrict(context, reject, kPromiseForwardingHandlerSymbol, True);
+  }
 
   try {
     let promiseResolveFunction: JSAny;
@@ -86,9 +86,9 @@ transitioning javascript builtin PromiseRace(
         // For catch prediction, mark that rejections here are semantically
         // handled by the combined Promise.
         if (IsDebugActive() && Is<JSPromise>(thenResult)) deferred {
-            SetPropertyStrict(
-                context, thenResult, kPromiseHandledBySymbol, promise);
-          }
+          SetPropertyStrict(
+              context, thenResult, kPromiseHandledBySymbol, promise);
+        }
       }
     } catch (e, _message) deferred {
       iterator::IteratorCloseOnException(i.object);

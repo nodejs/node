@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --fast-null-proto-literals
 
 function runLiteralsTest(fn) {
   %PrepareFunctionForOptimization(fn);
@@ -474,32 +474,35 @@ runLiteralsTest(function TestProxyWithDefinitionInObjectLiteral() {
 });
 
 runLiteralsTest(function TestLiteralWithNullProto() {
-  // Assume dictionary usage for simple null prototype literal objects,
-  // this is equivalent to Object.create(null). Note that on the first call
-  // the literal boilerplate is initialized, and from then on we use a the
-  // fast clone stub.
-  function testDictModeNullProtoLiteral(fn) {
+  // Null prototype literals without any boilerplate properties are assumed
+  // to be used as dictionaries, equivalent to Object.create(null). Literals
+  // that declare properties are treated as records and stay in fast mode.
+  // Note that on the first call the literal boilerplate is initialized, and
+  // from then on we use the fast clone stub.
+  function testNullProtoLiteral(fn, expectFast) {
     let obj = fn();
-    assertFalse(%HasFastProperties(obj));
+    assertEquals(expectFast, %HasFastProperties(obj));
     assertEquals(Object.getPrototypeOf(obj), null);
     let next = fn();
     assertFalse(obj === next);
     obj = next;
-    assertFalse(%HasFastProperties(obj));
+    assertEquals(expectFast, %HasFastProperties(obj));
     assertEquals(Object.getPrototypeOf(obj), null);
     next = fn();
     assertFalse(obj === next);
     obj = next;
-    assertFalse(%HasFastProperties(obj));
+    assertEquals(expectFast, %HasFastProperties(obj));
     assertEquals(Object.getPrototypeOf(obj), null);
   }
-  testDictModeNullProtoLiteral(() => ({__proto__:null}));
-  testDictModeNullProtoLiteral(() => ({__proto__:null, a:1, b:2}));
-  testDictModeNullProtoLiteral(() => ({__proto__: null, ["a"]: 1}));
-  testDictModeNullProtoLiteral(() => ({__proto__: null, a: Object}));
-  testDictModeNullProtoLiteral(() => ({a:1, b:2, __proto__:null}));
-  testDictModeNullProtoLiteral(() => ({["a"]: 1, __proto__: null}));
-  testDictModeNullProtoLiteral(() => ({a: Object, __proto__: null}));
+  const kDict = false;
+  const kFast = true;
+  testNullProtoLiteral(() => ({__proto__:null}), kDict);
+  testNullProtoLiteral(() => ({__proto__:null, a:1, b:2}), kFast);
+  testNullProtoLiteral(() => ({__proto__: null, ["a"]: 1}), kDict);
+  testNullProtoLiteral(() => ({__proto__: null, a: Object}), kFast);
+  testNullProtoLiteral(() => ({a:1, b:2, __proto__:null}), kFast);
+  testNullProtoLiteral(() => ({["a"]: 1, __proto__: null}), kDict);
+  testNullProtoLiteral(() => ({a: Object, __proto__: null}), kFast);
 });
 
 runLiteralsTest(function testNestedNullProtoLiteral() {
@@ -517,7 +520,7 @@ runLiteralsTest(function testNestedNullProtoLiteral() {
 
   obj = { foo: { __proto__:null, bar:"barValue"}};
   assertTrue(%HasFastProperties(obj));
-  assertFalse(%HasFastProperties(obj.foo));
+  assertTrue(%HasFastProperties(obj.foo));
   assertEquals(Object.prototype, Object.getPrototypeOf(obj));
   assertEquals(null, Object.getPrototypeOf(obj.foo));
   assertEquals(["foo"], Object.keys(obj));
@@ -528,13 +531,13 @@ runLiteralsTest(function testNestedNullProtoLiteral() {
 });
 
 
-runLiteralsTest(function TestSlowLiteralOptimized() {
+runLiteralsTest(function TestNullProtoLiteralOptimized() {
   function f() {
     return {__proto__:null, bar:"barValue"};
   }
   %PrepareFunctionForOptimization(f);
   let obj = f();
-  assertFalse(%HasFastProperties(obj));
+  assertTrue(%HasFastProperties(obj));
   assertEquals(Object.getPrototypeOf(obj), null);
   assertEquals(["bar"], Object.keys(obj));
   assertEquals("barValue", obj.bar);
@@ -543,7 +546,7 @@ runLiteralsTest(function TestSlowLiteralOptimized() {
 
   %OptimizeFunctionOnNextCall(f);
   obj = f();
-  assertFalse(%HasFastProperties(obj));
+  assertTrue(%HasFastProperties(obj));
   assertEquals(Object.getPrototypeOf(obj), null);
   assertEquals(["bar"], Object.keys(obj));
   assertEquals("barValue", obj.bar);

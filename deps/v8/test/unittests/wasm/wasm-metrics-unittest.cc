@@ -345,12 +345,11 @@ COMPILE_TEST(TestEventMetrics) {
     v8::base::ThreadTicks::WaitUntilInitialized();
   }
 
-  TestSignatures sigs;
   v8::internal::AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME);
 
   WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
-  WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
+  WasmFunctionBuilder* f = builder->AddFunction(TestSignatures::i_v());
   f->builder()->AddExport("main", f);
   f->EmitCode({WASM_I32V_2(0), WASM_END});
   ZoneBuffer buffer(&zone);

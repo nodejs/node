@@ -165,13 +165,13 @@
   // The new fields installed on the regexp prototype map shouldn't make
   // unmodified regexps slow.
 
-  // TODO(v8:11248) Enabling v8_dict_property_const_tracking currently evokes
-  // that the original fast mode prototype for regexes is converted to a
-  // dictionary mode one, which makes %RegexpIsUnmodified fail. Once we support
-  // directly creating the regex prototype in dictionary mode if
-  // v8_dict_property_const_tracking is enabled, change %RegexpIsUnmodified to
-  // know about the canonical dictionary mode prototype, too.
-  if (!%IsDictPropertyConstTrackingEnabled()) {
+  // TODO(v8:11248) Enabling v8_dict_prototypes currently evokes that the
+  // original fast mode prototype for regexes is converted to a dictionary mode
+  // one, which makes %RegexpIsUnmodified fail. Once we support directly
+  // creating the regex prototype in dictionary mode if v8_dict_prototypes is
+  // enabled, change %RegexpIsUnmodified to know about the canonical dictionary
+  // mode prototype, too.
+  if (!%IsDictPrototypesEnabled()) {
     %RegexpIsUnmodified(/asdf/);
     %RegexpIsUnmodified(/asdf/d);
   }

@@ -1,0 +1,7 @@
+# This file has declarations that appear both in <stdlib.h> and in <alloca.h>.
+
+macros:
+  - macro_name: alloca
+    macro_header: alloca-macros.h
+types:
+  - type_name: size_t

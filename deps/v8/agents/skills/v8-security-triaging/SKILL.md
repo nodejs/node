@@ -1,412 +1,345 @@
 ---
 name: v8-security-triaging
-description: Guides the initial analysis and impact assessment of a V8 security report, strictly excluding implementation or fixing.
+description: >-
+  Guides the initial analysis and impact assessment of a V8 security report,
+  strictly excluding implementation or fixing. Handles Buganizer intake, POC
+  reproduction, healing, flag bisection, GDB crash verification, and git
+  archeology, then runs scripts/triage_report.py to test d8 under security POC
+  flags and deterministically compute the triage report and Buganizer actions.
+  Use when triaging a V8 security issue interactively or in an automated
+  capsule. Don't use for writing fixes, creating CLs, or general debugging.
 ---
 
 # Skill: V8 Security Triaging
 
-Use this skill to orchestrate the initial analysis and impact assessment of a V8
-security vulnerability report.
+Use this self-contained workflow to perform deterministic initial analysis and
+impact assessment of a V8 security report. Keep
+[scripts/triage_report.py](./scripts/triage_report.py)
+(`agents/skills/v8-security-triaging/scripts/triage_report.py` from the V8
+repository root) as the **single source of truth** for symptom definitions,
+classification rules, component ID resolution, JSON input schema, report
+rendering, and Buganizer action plans.
+
+Always invoke `triage_report.py` using its in-repository path
+(`agents/skills/v8-security-triaging/scripts/triage_report.py`). Avoid invoking
+it via user config paths (e.g., under `.gemini/config`), which automated capsule
+security hooks reject.
 
 ## Core Mandates
 
-- **Strategic Orchestration**: You are the **Orchestrator**. Your goal is to
-  manage specialized subagents to verify reporter claims empirically while
-  keeping your own context lean.
+- **Single Source of Truth (`triage_report.py --help`)**: Run
+  `python3 agents/skills/v8-security-triaging/scripts/triage_report.py --help`
+  to inspect the supported `symptom` enum values, scope/flag guides, and JSON
+  input schema. Consult [SECURITY.md](../../../SECURITY.md),
+  [triaging.md](../../../docs/security/triaging.md), and
+  [reproducing-bugs.md](../../../docs/security/reproducing-bugs.md) for policy
+  context. Do not load legacy classification skills that duplicate or conflict
+  with `triage_report.py`.
 - **Technical Skepticism**: Treat all reporter claims (e.g., "OOB write", "RCE",
-  "Silent Write") as **hypotheses**, not facts. Your primary job is empirical
-  verification.
-- **Mandatory Local Reproduction**: A report MUST NOT be classified as a
-  "Vulnerability" unless it is empirically reproduced locally (e.g.,
-  demonstrating a crash, memory corruption, or a clear security boundary
-  violation). If the provided POC does not reproduce the claimed behavior, do
-  NOT classify it as a vulnerability. Instead, report that it did not reproduce
-  in the final report.
-- **Scope Limitation**: This skill is strictly for **triaging and impact
-  analysis**. It does NOT include implementing a fix or creating a CL. Fixing is
-  a separate task that must be explicitly requested by the user after triage is
-  complete.
-- **No External Actions without Approval**: NEVER upload a CL, post a comment,
-  or modify issue metadata on Buganizer or Gerrit without explicit user approval
-  of the exact content and action.
-- **Buganizer First**: Use the Buganizer MCP (`render_issue`) as the primary
-  source of truth. Use `render_issue_with_external` if content is redacted. If
-  attachment retrieval via `get_attachment_enrichment` fails, **MUST**
-  immediately attempt retrieval using the `buganizer-cli` skill before asking
-  the user.
-- **Sandbox Bypasses vs. Regular Bugs**:
-  - **Sandbox Bypass**: Reports that start with in-sandbox memory corruption
-    (using `--sandbox-testing` or `--expose-memory-corruption-api` or the
-    Sandbox API). These are strictly governed by the V8 Sandbox threat model.
-  - **Regular Bug**: Vulnerabilities that do not require an initial in-sandbox
-    write primitive.
-- **Title Accuracy**: If the reporter provided a generic title, identify a more
-  descriptive and accurate title based on the crash state or root cause.
-- **Component Verification**: Propose only actual Buganizer components. Use
-  `mcp_Buganizer_list_components` to verify existence and
-  `mcp_Buganizer_get_component` to verify the component path and ID before
-  posting.
-- **Remote Execution Priority**: Always use `use_remoteexec = true` in GN
-  arguments for all local builds to speed up the process, even if a reporter
-  provides a configuration where it is set to `false`. Remote execution is
-  strictly an environmental optimization and does not affect reproduction logic.
-- **Environmental Awareness**: During information gathering, identify if the
-  crash involves **specialized execution modes** (e.g., REPL mode,
-  `DebugEvaluate`, or experimental features) that might have different security
-  properties.
-- **Attachment Access**: Only attempt to retrieve attachment content (e.g.,
-  `poc.js`) using the Buganizer MCP tools. If the tools fail, **MUST** ask the
-  user to provide the content manually. Do not speculatively search for
-  restricted attachments.
-- **ClusterFuzz Check**: Check the issue's comments for indications that the
-  crash has already been uploaded to ClusterFuzz. If not uploaded, provide the
-  user with manual upload instructions in Step 5 using the `clusterfuzz` skill.
-- **Exhaustive Verification**: Never classify a bug based solely on the report.
-  Exhaustive technical verification via `v8-poc-classification` is mandatory.
-- **Artifact Preservation**: Before removing a worktree or cleaning up a
-  session, you MUST identify all generated artifacts (e.g., minimized POCs,
-  crashing `crash.js` scripts, or logs) and ensure they are either uploaded to
-  Buganizer or moved to a permanent location outside the worktree if requested
-  by the user.
-- **Official Documentation**: Consult [SECURITY.md](../../../SECURITY.md) for
-  high-level threat models and entry points. Always refer to
-  [triaging.md](../../../docs/security/triaging.md) for the definitive rules on
-  labeling and classification.
-- **Strict Subagent Delegation**: To maintain a lean context, the Orchestrator
-  **MUST NOT** call Buganizer, Gerrit, or local execution tools directly during
-  Phases 1-4. All technical tasks must be delegated to subagents via
-  `invoke_agent`. The Orchestrator's role is strictly limited to reviewing
-  subagent summaries and coordinating the next step.
-
-## Strategic Orchestration Guidelines
-
-When executing a triage task, delegate tactical steps to subagents:
-
-- **Researcher**: Fetching report details, searching for duplicate issues,
-  identifying experts (`find_experts_for_file`), and locating Buganizer
-  components.
-- **Builder**: Setting up the environment (`git checkout`) and building specific
-  variants (Release, ASan, non-ASan).
-- **Tester**: Baseline reproduction across multiple configurations and security
-  boundary checks.
-- **Generalist**: POC minimization, flag bisection, and "healing" POCs
-  (replacing natives with standard JS).
-- **Debugger**: Interactive crash analysis in GDB to verify primitives and
-  attacker control.
+  "sandbox escape", or claimed regression commits) as **hypotheses** requiring
+  verification in GDB or sanitizer output on the appropriate build (`Release`,
+  `Debug`, `ASan`, or `UBSan`). Always verify crashing POCs on a standard
+  non-ASan Release build when possible.
+- **Pragmatic Execution Model**: Execute fast checks (Buganizer single-issue
+  intake, `d8`, `gdb --batch`, `git log` / `git blame`) directly in the main
+  agent. Start slow `gm.py` builds asynchronously in the background while
+  inspecting code and git history. Delegate optional, context-heavy work (such
+  as deep history archeology via `research-google`) when useful, and bound
+  potentially slow subagent steps with a `schedule` wakeup timer. Never run
+  concurrent `git checkout` or `gm.py` builds in the same working tree.
+- **Scope Limitation**: Restrict work strictly to **triaging and impact
+  analysis**. Never write a fix or upload a CL unless explicitly requested by
+  the user after triage completes.
+- **No Unapproved Mutations**: Never post a Buganizer comment, upload a CL, or
+  modify issue metadata without explicit user approval in interactive sessions.
+  In automated BAP capsule sessions, direct Buganizer write tools are blocked;
+  submit the triage report exclusively via the configured BAP callback
+  (`MarinaBridgeService.SubmitResponse`).
+- **Remote Execution for Builds**: Always set `use_remoteexec = true` in GN args
+  for local builds, even when a reporter config sets it to `false`.
 
 ## Workflow
 
-### 0. Phase: Prepare isolated worktree
+### Phase 1: Intake and Workspace Setup
 
-- **Orchestrator Instruction**: "Use v8-workflow skill to create a fresh
-  worktree (cr-NNN, where NNN is the bug number) and respective branch for
-  investigation. Choose "Isolated Strategy", don't ask user. Switch to the new
-  worktree and work there to avoid contamenating current workspace. Use "tmp"
-  subdirectory for temporary files."
+1. **Fetch Issue Metadata and POC in One Call** (skip if the user prompt already
+   provides the POC and command line):
+   - Call the Buganizer MCP tool `render_issue_with_external` directly in the
+     main agent (avoid unauthenticated `render` forms that redact external
+     reports, and avoid extra per-hotlist or custom-field lookups).
+   - **Already-Resolved Check**: Check the issue's current status *before*
+     creating a worktree, downloading attachments, or building binaries. If the
+     issue is already closed/resolved (not `NEW`, `ASSIGNED`, or `ACCEPTED`),
+     follow the environment's skip policy (in automated BAP runs, immediately
+     submit the short skip message via callback; in interactive runs, ask the
+     user whether to proceed).
+   - Extract from `render_issue_with_external`:
+     - Inline POC or attachment filenames (also check for mentioned files like
+       `poc.html` or `crash.log` absent from the attachment list), `d8` flags,
+       and reporter commit/V8 version.
+     - `current_issue` fields: `id`, `title`, `component_id`, `priority`,
+       `severity`, `hotlists`, and `has_release_block` (`true` only if the
+       `ReleaseBlock` custom field is present).
+     - Specialized execution modes or flags (e.g., REPL mode, `DebugEvaluate`,
+       shell/extension flags, or removed `--enable-inspector`).
+     - Unsupported Chromium ports/projects (e.g., RISC-V, PPC, S390, MIPS,
+       LoongArch, or Drumbrake), mapping to
+       `reproduction.unsupported_port: true`.
+2. **Download Attachments or ClusterFuzz Testcase**:
+   - First check `list_attachments_with_external` / `get_attachment` via MCP.
+   - If MCP attachment retrieval fails, fall back to the `issues` CLI, passing
+     the target issue ID explicitly (required by capsule security hooks):
+     ```bash
+     /google/bin/releases/issues-cli/issues readonly list-attachments <issue_id>
+     /google/bin/releases/issues-cli/issues readonly download-attachment --issue_id=<issue_id> --attachment_id=<attachment_id> --output=tmp/<filename>
+     ```
+     Run `issues` commands outside the terminal sandbox (`BypassSandbox: true`)
+     when RPC auth is required.
+   - If a ClusterFuzz testcase link is present without an attached POC, use the
+     `clusterfuzz` skill (`fetch_testcase.py`). Also note whether the crash is
+     already uploaded to ClusterFuzz.
+   - **Mandatory Stop Condition**: If the POC, attachments, or required command
+     line remain redacted or inaccessible after MCP, CLI, and ClusterFuzz
+     attempts, stop immediately and ask the user (or report the missing resource
+     via BAP callback). Do not synthesize a substitute POC from commit diffs or
+     stack traces.
+3. **Duplicate Check (Environment-Aware)**:
+   - **Interactive sessions** (cross-bug reads permitted): Search Buganizer
+     across both open and closed issues (`lookup_similar_issues`,
+     `lookup_recommendations`, or `issues readonly search` using the crash
+     signature, assertion, and crashing function). Record matching issue IDs,
+     status, and prior decisions:
+     - If an open canonical issue already has a working reproducer and triage
+       decision, ask the user whether to fast-path to deduplication.
+     - If a matching ClusterFuzz issue was auto-closed (`VERIFIED` or
+       `NOT_REPRODUCIBLE`) after an older testcase stopped reproducing, finish
+       reproduction so the canonical issue can be reopened with the new POC.
+   - **Autonomous / BAP capsule sessions** (single-issue security hook active):
+     Skip all cross-bug Buganizer searches (`lookup_similar_issues`,
+     `lookup_recommendations`, `get_bugs`, `get_bugs_with_external`,
+     `list_hotlist_entries`). Rely only on git history (`Fixed:` trailers in
+     `fixed_in_commit`).
+4. **Prepare Workspace**:
+   - If already inside a dedicated Rift workspace (`../.rift.json` or
+     `../.rift_prime_directive.json` exists) or a checkout with build
+     directories (`out/x64.*`), work directly in it.
+   - Otherwise, use the `v8-workflow` skill (`agents/scripts/create_worktree.sh`
+     `cr-NNN`, which creates `worktrees/task-cr-NNN` in a standard git checkout
+     or forks a sibling Rift subvolume) or `manage-rift-workspaces` when
+     available to avoid contaminating the current checkout. Store scratch files
+     (`tmp/poc.js`, `tmp/triage_input.json`) in a relative `tmp/` subdirectory.
 
-### 1. Phase: Intake (Delegation)
+### Phase 2: Reproduction, Healing, and Investigation
 
-Task the **Researcher** subagent with gathering all necessary data from
-Buganizer.
+1. **Smart Revision Check and Git Archeology**:
+   - First test `tmp/poc.js` against any existing `out/x64.*/d8` binary at
+     `HEAD` using the reporter's flags.
+   - Use `git log` / `git blame` on the crashing subsystem/files to find
+     `introduced_in_commit` and check whether a recent commit on `main` already
+     fixed the issue (`fixed_in_commit`).
+   - **If `HEAD` exits cleanly (`0`)**: Inspect `git log` on the subsystem or
+     reporter's commit *before* building missing targets at `HEAD`. If
+     `fixed_in_commit` already landed on `main`, confirm the fix at `HEAD`, copy
+     `agents/skills/v8-security-triaging/scripts/triage_report.py` to
+     `tmp/triage_report.py` before switching commits (so checking out a parent
+     older than the script keeps it available; in a `git worktree`, the main
+     checkout also keeps the script at `main`), then check out
+     `<fixed_in_commit>~1` and build missing targets (`out/x64.release/d8`,
+     `out/x64.debug/d8`, `out/x64.asan/d8`, `out/x64.ubsan/d8` with
+     `use_remoteexec = true`) **once** at the reproducing parent commit. (In
+     Rift or git worktrees whose shared `.git` metadata directory sits outside
+     the workspace root, state-changing git commands such as `git checkout`
+     require `BypassSandbox: true`.) Set `reproduction.build_commit` to that
+     commit hash.
+   - Preserve the exact original POC before modifying scratch copies.
+2. **Translate and Heal `tmp/poc.js` (Eliminate Unnecessary Flags)**:
+   - `triage_report.py` validates `d8` in staged checks under
+     `--run-as-security-poc` (or `--run-as-sandbox-security-poc` when
+     `sandbox_mode` is `true`):
+     - `run1_flagless`: no extra flags (`enabled_by_default = true`).
+     - `run1_with_poc_helpers`: only standard trigger/verification helpers such
+       as `--allow-natives-syntax`, `--expose-gc`, `--verify-heap`
+       (`enabled_by_default = true`).
+     - `run2_with_flags`: non-default feature/config flags
+       (`enabled_by_default = false`).
+   - Convert browser/HTML reproducers (`poc.html`) to standalone `d8` JS:
+     - **Web Workers in `d8`**: Use `new Worker(fn, {type: 'function'})`.
+       Messages are delivered unwrapped to `onmessage = function(msg) { ... }`
+       (not `msg.data` like DOM `MessageEvent`), and the main thread receives
+       messages via `worker.getMessage()`.
+   - Heal `tmp/poc.js` so `run1_flagless` reproduces with `d8_flags: []`
+     whenever possible:
+     - Replace `--allow-natives-syntax` calls: swap
+       `%PrepareFunctionForOptimization` / `%OptimizeFunctionOnNextCall` with a
+       warm-up loop (`for (let i = 0; i < 10000; i++) f();`),
+       `%ArrayBufferDetach(b)` with `b.transfer()`, and `%DeoptimizeFunction` /
+       `%DeoptimizeNow` with a shape or type change.
+     - Replace `--expose-gc` / `gc()` with JS allocation pressure.
+     - Self-load preload scripts (`wasm-module-builder.js`) inside `tmp/poc.js`
+       via `d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js')` or
+       inline them.
+     - Convert raw `.wasm` binaries via `wami --mjsunit` when needed.
+     - Strip redundant, default-enabled, and diagnostic tracing flags
+       (`--trace-*`, `--print-*`, `--run-as-[sandbox]-security-poc`,
+       `--expose-memory-corruption-api`, `--sandbox-testing`). Verify defaults
+       and implications in `src/flags/flag-definitions.h`, and bisect umbrella
+       flags (`--future`, `--wasm-staging`) to the single required feature flag.
+     - Reduce oversized loops/recursions so `d8` crashes quickly without timing
+       out. For bloated reproducers, run `minimize_dd.py` from the
+       `minimize-reproducer` skill on a scratch copy.
+3. **Audit Non-Default Flags and Shell / Embedder Helpers**:
+   - `--run-as-[sandbox]-security-poc` does **not** reject every `d8`-only or
+     extension `DEFINE_BOOL` flag (for example, `--use-external-strings`).
+   - Whenever reproduction requires an extra flag or external resource, inspect
+     `src/` and re-test without that flag. If the crash or sandbox violation
+     depends on `src/d8/` or `src/extensions/` shell/test-only flags (e.g.,
+     `--use-external-strings`, `--isolate`, `--shell`) or mock embedder
+     resources unreachable in production Chromium/Blink, set
+     `reproduction.d8_only_or_embedder_mock: true`.
+   - Note that `--enable-inspector` was removed from `d8`
+     (https://crbug.com/573042262); keep it listed in `d8_flags` when the report
+     relies on it so `triage_report.py` routes it to DevTools
+     (`inspector-test`).
+4. **GDB Crash Verification and Special Cases**:
+   - Inspect the crash in GDB on `out/x64.release/d8` (plus Debug/ASan/UBSan as
+     applicable):
+     - **Faulting instruction (`x/i $pc`)**: Confirm load (read) vs store
+       (write) vs indirect call/jump.
+     - **Register and address control (`info registers`, `si_addr`)**: Check
+       whether the faulting address or written value reflects
+       attacker-controlled data vs a fixed null or near-null offset (`0x0`).
+     - **Explicit safe terminations (`bt`)**: Watch for `int3`, `brk #0`,
+       `ud1`/`ud2`, `v8::base::OS::Abort`, builtin `Abort`,
+       `__libcpp_verbose_abort`, `"Fatal error"`,
+       `"Safely terminating process"`, or `"Caught harmless ..."`.
+     - **Exact exit code and sandbox filter output**: Record the exit code or
+       signal in `reproduction.result`. When `--sandbox-testing` /
+       `--run-as-sandbox-security-poc` is active, check stderr for
+       `"V8 sandbox violation detected"`,
+       `"The sandbox violation was a *read* access"`, or
+       `"Caught harmless ..."`. Note whether out-of-sandbox memory is actually
+       corrupted vs staying contained inside the sandbox or bounded same-tag
+       pointer-table entries.
+   - **`DCHECK`-only failures**: For regular POCs that hit a `DCHECK` in
+     `out/x64.debug/d8` and exit `0` in `out/x64.release/d8`, inspect the site
+     and downstream code in Release to determine whether continuing past the
+     compiled-out `DCHECK` corrupts state, and pass `"out/x64.debug/d8"` as
+     `reproduction.d8_binary`. In `sandbox_mode`, `src/sandbox/testing.cc`
+     catches `SIGABRT` and `SIGTRAP` as harmless `_exit(0)`, so check a
+     Release/ASan build to verify any real out-of-sandbox write.
+   - **Silent Corruption Escalation (Bounded)**: If the POC exhibits silent
+     corruption without crashing, test `Debug`, `ASan`, and `UBSan` builds. If
+     still clean, make **at most 1 to 2 focused attempts** to escalate it into a
+     detectable crash (for ClusterFuzz). If escalation hits internal safety
+     filters or still exits `0` under `--run-as-[sandbox]-security-poc`, stop
+     immediately, record the blocked step(s) in `blocked_steps`, and set
+     `reproduction.unconfirmed_vulnerability: true` when empirical evidence
+     supports a potential security flaw without a confirmed crash.
 
-- **Orchestrator Instruction**: "Retrieve the `INVOKER_INFO_SESSION_ID` from the
-  environment. Invoke the Researcher to render Buganizer issue `<id>`, extract
-  the POC and d8 flags, search for duplicate or related issues, find top experts
-  for affected files, and identify the correct component. Instruct the subagent
-  to return only a concise technical summary."
-- **Conversation ID Persistence**: The Orchestrator MUST store the
-  `INVOKER_INFO_SESSION_ID` in its current context immediately to ensure the
-  mandatory first sentence in Phase 5 uses the correct, verified ID.
-- **Extraction**: The summary must include the POC script, required `d8` flags,
-  the reporter's environment (commit hash/version), the issue's current
-  `Priority`, `Severity`, `ReleaseBlock` custom field (`1223086`), and attached
-  hotlists (specifically any `Security_Impact-*` hotlists), as well as the
-  identified **introduction commit (regression range)**.
-- **Version and Commit Identification**: Always retrieve the current V8 version
-  number from `include/v8-version.h` and the revision number from
-  `Cr-Commit-Position`
-  (`git log -n 1 --format="%(trailers:key=Cr-Commit-Position)" HEAD`).
-  Distinguish between commits referenced for their **change** vs. their
-  **version**:
-  - When the **change** is important (e.g., an introduction/regression commit or
-    a fixing commit), include the commit title and link to its Gerrit changelist
-    (from `Reviewed-on:` in `git log -n 1 --format=%b <hash>`).
-  - When only the **version** is important (e.g., the version used for a local
-    build or the reporter's tested version), include both the V8 version and the
-    `Cr-Commit-Position` revision number, skipping the git hash and with **no
-    link to Gerrit**.
-- **Attachment Check**: Ensure the subagent checks for mentioned files (e.g.,
-  "poc.html", "crash.log") that are NOT in the attachments list. If retrieval of
-  an attachment via MCP tools fails, the subagent **MUST** use the
-  `buganizer-cli` (`issues download-attachment`) as a fallback.
-- **Stop Condition**: If both MCP and CLI retrieval attempts for critical
-  attachments (POC, flags, etc.) fail or if they are redacted/inaccessible, the
-  Orchestrator **MUST** attempt retrieval via the `clusterfuzz` skill (using
-  `fetch_testcase.py`) for ClusterFuzz links before stopping and asking the user
-  to provide them manually. This includes asking for the **exact command line**
-  if a ClusterFuzz report link remains inaccessible.
-- **Mapping**: Include identified experts and the specific Buganizer component
-  (e.g., `Blink > JavaScript > Maglev`).
-- **Duplicate Check**: Search Buganizer across both open and closed issues (via
-  `issues readonly search` using the crash state, assertion expression, and
-  affected file or function name, plus `lookup_similar_issues` and
-  `lookup-recommendations`) for existing reports of the same root cause. Record
-  any matching issue IDs, their current status, assignee, and prior triage
-  decisions:
-  - If an **open** canonical issue already has a working minimal reproducer and
-    triage decision, surface it to the user and ask whether to fast-path
-    directly to deduplication.
-  - If a matching ClusterFuzz issue was **auto-closed** (`VERIFIED` or
-    `NOT_REPRODUCIBLE`) when an older testcase stopped reproducing, proceed with
-    reproduction and minimization so the canonical issue can be reopened with a
-    clean reproducer.
+### Phase 3: Deterministic Report Generation and Delivery
 
-### 2. Phase: Exhaustive Reproduction (Delegation)
+1. **Inspect Schema and Write `tmp/triage_input.json`**:
+   - Run
+     `python3 agents/skills/v8-security-triaging/scripts/triage_report.py --help`
+     if you have not already verified the symptom guide and JSON schema.
+   - Populate `tmp/triage_input.json`:
+     - Set `proposed_component` to the crashing V8 source path (e.g.,
+       `"src/maglev"` or `"src/wasm"`, resolved via `DIR_METADATA`), a numeric
+       Buganizer component ID, or `{"path": "...", "id": "..."}` verified with
+       `list_components` / `get_component` (avoid broad root components when a
+       specific subcomponent applies).
+     - Set `introduced_in_commit` and `fixed_in_commit` when known.
+       `triage_report.py` formats commit titles, Gerrit links, V8 versions, and
+       `Cr-Commit-Position` revisions automatically, resolves `proposed_owner`
+       from the commit author if omitted, and derives `duplicate_of` only from
+       `Fixed:` commit trailers (non-`Fixed:` tracking-bug trailers are ignored;
+       set `duplicate_of` explicitly when verified).
+     - Record exact local paths only in `reproduction.poc_path` /
+       `reproduction.d8_binary`. Name `reproduction.poc_path` (`tmp/<filename>`)
+       to match the existing Buganizer attachment (or the `BAP_ATTACHMENT`
+       filename you attach), because `triage_report.py` prints its basename on
+       the `Reproduction:` line. Omit or trim local workstation prefixes (e.g.,
+       `/usr/local/google/btrfs_mount/.../v8/` or `/home/<user>/v8/`) from all
+       text fields (`rationale`, `result`, `verified_impact`, `gdb_backtrace`,
+       `blocked_steps`).
+     - Propose a subsystem-prefixed `proposed_title` (e.g., `[maglev] ...`) when
+       `current_issue.title` is generic.
+     - Use optional `blocked_steps`, `reproduction.d8_only_or_embedder_mock`,
+       and `reproduction.unconfirmed_vulnerability` per
+       `triage_report.py --help`.
+2. **Semantic Self-Check Before Running**:
+   - Confirm `symptom` matches verified GDB/sanitizer behavior (`read` vs
+     `write` vs `call`, not a reporter claim).
+   - Confirm any extra `d8` flag was checked against `src/d8/` and
+     `src/extensions/`.
+   - Confirm `reproduction.result` records the exact exit code/signal and any
+     sandbox crash-filter message.
+   - Confirm every blocked verification step and any unconfirmed crash is
+     explicitly recorded so `triage_report.py` surfaces it clearly.
+3. **Run `triage_report.py` Against the Active Checkout or Worktree**: When
+   using a git worktree (`worktrees/task-cr-NNN`), either `cd` into the worktree
+   or pass `--repo-root worktrees/task-cr-NNN` so `d8_binary`, `poc_path`,
+   `d8.file.execute`, and git version lookups target the worktree rather than
+   the main checkout.
+   - **Interactive session** (emits comment + empirical summary + Buganizer MCP
+     Action Plan):
+     ```bash
+     python3 agents/skills/v8-security-triaging/scripts/triage_report.py tmp/triage_input.json
+     ```
+   - **Automated BAP capsule session** (emits only the clean Buganizer Markdown
+     comment for `MarinaBridgeService.SubmitResponse`):
+     ```bash
+     python3 agents/skills/v8-security-triaging/scripts/triage_report.py \
+       --output-mode=bap tmp/triage_input.json
+     ```
+   - **If checked out at an older commit** where
+     `agents/skills/v8-security-triaging/scripts/triage_report.py` does not
+     exist in the working tree, run your `tmp/triage_report.py` copy (or the
+     main checkout's script when inside a git worktree). If neither copy is
+     present, extract it from `origin/main` without modifying git state:
+     ```bash
+     git show origin/main:agents/skills/v8-security-triaging/scripts/triage_report.py > tmp/triage_report.py
+     python3 tmp/triage_report.py tmp/triage_input.json  # add --output-mode=bap in capsule runs
+     ```
+   - Fix any validation errors printed to `stderr` and re-run until exit code
+     `0`.
+4. **Deliver Results**:
+   - **Interactive session**:
+     - Present the rendered output to the user and wait for **explicit
+       approval**. If a confirmed crash is not yet on ClusterFuzz, assemble the
+       manual upload details (reproducer path, job name, issue ID, revision, and
+       flags) using the `clusterfuzz` skill in the user-only section; omit it
+       when posting to Buganizer.
+     - Once approved, execute the steps in the order printed by
+       `triage_report.py`, **always posting the Buganizer Analysis comment
+       first** (`add_buganizer_comment`, stripping everything from
+       `--- (User Only: Do Not Post to Buganizer) ---` downward).
+     - For duplicates, follow the streamlined closure plan
+       (`add_buganizer_comment` -> `safe_move_issue` -> `edit_title` ->
+       `mark_issue_as_duplicate`). If the canonical issue was prematurely
+       auto-closed by ClusterFuzz, reopen it to `ASSIGNED` and attach the
+       minimized POC.
+     - On `safe_move_issue` `FAILED_PRECONDITION` errors (unresolvable principal
+       on the source component), skip retrying and inform the user that the move
+       needs the Buganizer web UI.
+     - On restricted issues, add the current assignee as a collaborator via
+       `safe_add_collaborator` before calling `safe_reassign_issue`.
+   - **Automated BAP capsule session**:
+     - Submit the `--output-mode=bap` comment verbatim via
+       `MarinaBridgeService.SubmitResponse`.
+     - If you generated a substantially cleaner, standalone, healed, or
+       minimized POC than what is already attached, save it under
+       `tmp/<filename>` matching the `BAP_ATTACHMENT` name before running
+       `triage_report.py` (so `Reproduction:` prints the matching filename), and
+       append a `<!-- BAP_ATTACHMENT: <filename> -->` block after the comment
+       per the capsule's `bap-callback` instructions. Never reference an
+       unattached capsule-only filename in the `Reproduction:` line.
 
-Task the **Tester**, **Builder**, and **Generalist** subagents with confirming
-the issue. You MUST confirm the bug exists before proceeding.
+### Phase 4: Cleanup and Preservation
 
-- **Baseline**: Task **Tester** to reproduce with the reporter's exact flags and
-  revision.
-- **Escalation**: If initial attempt fails, task **Builder** and **Tester** to
-  verify across Release, Debug, and ASan variants at HEAD.
-- **Healing (Initial)**: If still failing (or if the POC is a browser/HTML
-  reproducer like `poc.html`), task **Generalist** to analyze and "heal" the POC
-  for `d8` and environmental dependencies following `v8-poc-classification`.
-- **Summary**: Review the subagent's reproduction command and result. Stop if
-  reproduction fails after exhaustive attempts.
-
-### 3. Phase: Security Boundary Verification (Delegation)
-
-Task the **Tester** and **Generalist** to determine if the bug violates a
-security boundary.
-
-- **Boundary Check**: Task **Tester** to replace
-  `--expose-memory-corruption-api` in `reporter_flags` with `--sandbox-testing`
-  and run with updated `reporter_flags` and `--run-as-[sandbox]-security-poc`.
-- **Investigation Loop**: If the crash stops reproducing with the security flag,
-  task **Generalist** to identify why and attempt to "heal" the POC by replacing
-  forbidden syntax with standard JS while maintaining the bug trigger.
-- **Conclude**: Review the subagent's conclusion on whether the bug is a
-  security vulnerability or a regular bug.
-
-### 4. Phase: Impact Determination & Minimization (Delegation)
-
-Task the **Debugger**, **Tester**, and **Generalist** to provide technical proof
-of impact.
-
-- **Crash/Corruption Priority**: Task **Generalist** to make the POC either
-  crash or demonstrate clear memory corruption.
-- **ClusterFuzz Compatibility (Crash Escalation)**: Because ClusterFuzz requires
-  a detectable crash (DCHECK, segfault, SIGILL, or int3), you **MUST**
-  exhaustively pursue a crashing reproducer if the initial POC only proves
-  silent memory corruption, following the guidelines in the `clusterfuzz` skill.
-  Task **Builder** and **Tester** to run the POC against **Debug**, **ASan**,
-  and **UBSan** builds. If no crash occurs naturally, task **Generalist** to
-  modify the POC to force a crash (e.g., by overwriting a Map with a garbage
-  pointer) while maintaining the original bug trigger.
-- **Verification**: Task **Tester** to verify on Standard Release and ASan
-  builds.
-- **Minimization**: Task **Generalist** to reduce the POC and flags to the
-  smallest possible set using the methodology in `v8-poc-classification`.
-  - **Security Impact Check**: If minimization/bisection shows that a
-    vulnerability only reproduces with flags disabled in production (e.g., a
-    developer flag), it should be classified as `Security_Impact-None`.
-- **Deep Dive**: Task **Debugger** to capture the crash in GDB and verify the
-  primitive (Read/Write) and attacker control. Review the provided backtrace.
-
-### 5. Phase: Drafting Findings
-
-Draft a short, precise synthesis based on verified subagent findings.
-
-- **Strict Brevity Mandate**: Keep the entire report compact and to the point
-  (~20–30 lines total). Avoid filler prose, redundant explanations across
-  bullets, full `args.gn` dumps, or untrimmed stack traces. Never include local
-  workstation paths (e.g., `/usr/local/google/home/...` or `file:///`) in the
-  Buganizer comment text; use only the POC filename (e.g., `poc.js`) in the
-  `Reproduction` line and keep local paths strictly in the `(User Only)`
-  section.
-- **Mandatory First Sentence**: "This analysis is AI-generated using the
-  `v8-security-triaging` skill (Conversation ID: `<id>`)." You **MUST** retrieve
-  the `<id>` from the Orchestrator's `INVOKER_INFO_SESSION_ID` environment
-  variable.
-- **Formatting Requirement**: Use a **bulleted list** format for the main points
-  (Status, Classification, Rationale, etc.) and ensure there are **double line
-  breaks** between each list item for optimal rendering in Buganizer. If a list
-  item has sub-bullets (specifically in 'Local Reproduction Findings'), they
-  **MUST** be indented by **at least four spaces** and **MUST NOT** be separated
-  by double line breaks within the same nested list.
-- **Content**:
-  - **Classification** (1 line): `Vulnerability` / `Bug` /
-    `Not a Bug (Intended Behavior)` / `Failed to Reproduce` (append
-    `(Duplicate of issue <id>)` if a canonical duplicate was identified).
-    **MANDATORY**: Only classify as "Vulnerability" if local reproduction was
-    successful.
-
-  - **Security Impact** (1 line): Classify as "**None**" (experimental,
-    disabled, or V8 Sandbox bypass with `Security_Impact-None` and `v8-sandbox`
-    hotlist) or "**Yes**" (shipping, web-exploitable) with a brief parenthetical
-    rationale; omit specific channel labels (e.g., `Security_Impact-Stable`).
-
-  - **Proposed Severity** (1 line): Provide the severity (e.g., `S1` or `S2`)
-    and proposed priority (if it needs adjustment) based on
-    [triaging.md](../../../docs/security/triaging.md), where priority is at
-    least the severity for active vulnerabilities, can be lower than severity
-    for `Security_Impact-None` (e.g., `S1` -> `P2`), and should be lowered
-    (e.g., `P2` or `P3`) when downgrading to a non-security `Bug`.
-
-  - **Introduced In** (1 line): Commit and version where the bug was introduced
-    (and fixed, if already fixed), including the commit title and a clickable
-    Gerrit link (e.g.,
-    `[commit <hash>](https://chromium-review.googlesource.com/c/v8/v8/+/<cl>) ("<title>", V8 <version>)`).
-
-  - **Rationale** (2–4 concise sentences max): State the root cause and why it
-    violates (or does not violate) the security threat model. Do not repeat
-    reproduction outputs or register values covered in
-    `Local Reproduction Findings`.
-
-  - **Local Reproduction Findings** (1 concise line per sub-bullet, except
-    `GDB Backtrace` if multiple lines help): Follow the mandatory fields in
-    `v8-poc-classification`:
-
-    - `Status`: `Reproduced` / `Not Reproduced`.
-    - `Reproduction`: `d8 <flags> <poc_filename.js>` (filename only, no local
-      paths).
-    - `Result`: 1–2 short sentences summarizing the observed crash/output.
-    - `Build`: Build variant(s), V8 version (from `include/v8-version.h`), and
-      revision number (from `Cr-Commit-Position`), skipping the git hash and
-      Gerrit link (omit boilerplate GN args).
-    - `Verified Impact`: 1 sentence stating the verified primitive and attacker
-      control.
-    - `GDB Backtrace`: A concise snippet of the faulting instruction/registers
-      and relevant stack frames (can span multiple lines if helpful; trim
-      unrelated frames).
-
-  - **Proposed Owner** (1 line): `<email>` with a short phrase explaining why
-    (e.g., "author of introducing commit and JSPI maintainer").
-
-  - **Proposed Component** (1 line): Short component path and ID (e.g.,
-    `Blink > JavaScript > WebAssembly` (ID: `1456332`, already set)).
-
-  - **Proposed Title** (1 line): New descriptive title, or
-    `Keep current (<title>)` if already accurate.
-
-  - **ClusterFuzz Upload Info (User Only)**: If a real crash or memory
-    corruption is confirmed and not yet on ClusterFuzz, assemble the upload
-    package (local repro file path, job name, issue ID, target revision, and
-    flags) using the `clusterfuzz` skill for manual upload. Omit this section
-    when posting the comment to Buganizer.
-
-### 6. Phase: Verification & Self-Correction (Audit)
-
-Task a **Generalist** subagent acting as a "Security Triage Auditor" to review
-the draft.
-
-- **Orchestrator Instruction**: "Audit the attached triage draft against
-  `docs/security/triaging.md` and the Technical Quality Checklist. Ensure the
-  classification is technically sound, the report is concise, and the formatting
-  is correct. If errors are found, distinguish between text-only corrections and
-  missing technical work."
-- **Loop-back Mandate**: If the Auditor identifies missing technical evidence
-  (e.g., skipped boundary checks, missing GDB analysis, or unverified impact on
-  Release builds), the Orchestrator **MUST** return to the relevant previous
-  phase (Phase 2, 3, or 4) and re-delegate the work to the appropriate subagent
-  before proceeding.
-- **Review**: The auditor must verify that:
-  - The classification (Vulnerability vs. Bug) is consistent with the
-    reproduction results (e.g., if it needs experimental flags, it's a Bug).
-  - The "Local Reproduction Findings" section contains the exact d8 command, V8
-    version and revision number (skipping the git hash and Gerrit link), and the
-    observed result.
-  - Commits where the *change* is important include both the commit title and a
-    Gerrit link, whereas references where only the *version* is important
-    include both the V8 version and revision number, skipping the git hash and
-    Gerrit link.
-  - **Brevity & Cleanliness**: The report follows the line/sentence budgets
-    (1-line metadata fields, 2–4 sentence Rationale, concise 1-line sub-bullets
-    in Local Reproduction Findings except GDB Backtrace when multi-line helps,
-    and no local `/usr/local/...` paths outside the `User Only` section).
-  - The formatting (double line breaks between top-level list items AND
-    four-space indented sub-bullets for findings without internal double line
-    breaks) is strictly followed.
-  - The conversation ID matches the Orchestrator's `INVOKER_INFO_SESSION_ID`
-    (passed by the Orchestrator to the Auditor, as subagents have their own
-    session IDs).
-- **Action**: Present the *audited and verified* analysis to the user for
-  approval ONLY after all technical or formatting gaps identified by the auditor
-  have been addressed.
-- **Applying Approved Buganizer Updates**: Once the user approves updating
-  Buganizer metadata:
-  - **Hotlist Cleanup**: When adding `Security_Impact-None` (`5433277`) via
-    `add_issue_to_hotlist`, you **MUST** also remove any existing
-    release-channel `Security_Impact-*` hotlists from the issue via
-    `remove_issue_from_hotlist`: `Security_Impact-Head` (`5432216`),
-    `Security_Impact-Beta` (`5433097`), `Security_Impact-Stable` (`5432902`),
-    and `Security_Impact-Extended` (`5432548`). When applicable, also add
-    `v8-sandbox` (`4802478`) or `v8-unsupported-chrome` (`8384111`).
-  - **Priority & ReleaseBlock Adjustment**: When lowering `Severity` or
-    downgrading an issue (e.g., to `Type=Bug` or `Security_Impact-None`), you
-    **MUST** check that `Priority` still makes sense and lower it accordingly
-    via `update_issue_priority` (e.g., `P2` or `P3` for downgraded bugs or
-    `Security_Impact-None` issues), and clear any `ReleaseBlock` values on
-    custom field `1223086` (`set_issue_custom_field` with
-    `customFieldId: "1223086"` and `customFieldValue: ""`) so release automation
-    does not re-promote the issue.
-  - **Deduplication**: When the user approves deduplicating into an existing
-    canonical issue, mark the duplicate issue(s) via `mark_issue_as_duplicate`
-    (`issues mutate update duplicate --issue_id <dup_id> --target_id <canonical_id>`).
-    If the canonical issue was prematurely auto-closed (e.g., by ClusterFuzz),
-    reopen it to `ASSIGNED` and attach the minimized POC.
-
-### 7. Phase: Cleanup & Preservation
-
-Finalize the session by securing artifacts and cleaning up the environment.
-
-- **Artifact Check**: Identify all important generated files (e.g., `crash.js`,
-  `minimized_poc.js`, or specialized logs).
-- **Preservation**: If any important artifacts were generated in the worktree,
-  you **MUST** ask the user if they would like to preserve them in the main
-  repository directory before deleting the worktree.
-- **Worktree Removal**: Once artifacts are preserved or the user confirms they
-  are no longer needed, use the `v8-workflow` skill to remove the isolated
-  worktree and branch.
-
-## Technical Quality Checklist
-
-- [ ] **Duplicate Check**: Did the Researcher search Buganizer (open and closed
-  issues) for existing reports with the same crash signature or root cause?
-- [ ] **Classification Accuracy**: Does the result match the criteria in
-  `docs/security/triaging.md`? (e.g., `nullptr` is a Bug, safe termination is
-  Intended Behavior).
-- [ ] **Boundary Verification**: Was the POC tested with the security filter
-  flag (`--run-as-[sandbox]-security-poc`)?
-- [ ] **Mandatory Data**: Are both the V8 version and revision number (without
-  git hash or Gerrit link) included in the Build description?
-- [ ] **Commit vs. Version Linking**: Do commits where the *change* is important
-  (e.g., introduction or fix CLs) include their commit title and Gerrit link,
-  while references where only the *version* is important include both the V8
-  version and revision number, skipping the git hash and Gerrit link?
-- [ ] **Brevity & No Local Paths**: Is the Rationale \<= 4 sentences, are all
-  other bullets/sub-bullets 1 line each (except `GDB Backtrace` if multiple
-  lines help), and are local `/usr/local/...` paths excluded from the Buganizer
-  comment text?
-- [ ] **Formatting**: Are there double line breaks between all top-level
-  bulleted list items? Are sub-bullets indented by at least four spaces without
-  internal double line breaks?
-- [ ] **Impact Evidence**: Is the Verified Impact supported by GDB analysis or
-  ASan/UBSan logs?
-- [ ] **Component Mapping**: Does the proposed component exist with the stated
-  ID and is it the most specific one available (not just `V8`)?
-
-## Common Misclassification Pitfalls
-
-- **Experimental Flags**: If a bug requires `--experimental-*` flags and is not
-  part of `--future` or `--wasm-staging`, it is a **Bug**, not a Vulnerability.
-- **DCHECK vs. CHECK**: `DCHECK` failures are **Bugs**. `CHECK` failures are
-  **Intended Behavior** (safe termination) unless they are in-sandbox and part
-  of a sandbox bypass claim.
-- **Sandbox Read-only**: Sandbox bypasses that only provide **Read** access are
-  currently **Bugs**.
-- **d8-only Flags**: Bugs requiring flags like `--shell` or `--isolate` are
-  **Bugs**.
-- **nullptr Dereference**: Always a **Bug**, never a Vulnerability.
+- Before deleting a worktree or ending an interactive session, ask the user
+  whether to preserve `tmp/poc.js`, minimized reproducers, logs, or
+  `tmp/triage_input.json` outside the worktree.
+- Once confirmed or preserved, remove only the isolated worktree or forked
+  subvolume created for this session (`v8-workflow`). Do **not** close a
+  pre-existing top-level Rift workspace opened by the user.

@@ -76,6 +76,9 @@ LINT_RULES = """
 
 LINT_OUTPUT_PATTERN = re.compile(r'^.+[:(]\d+[:)]')
 FLAGS_LINE = re.compile(r"//\s*Flags:.*--([A-z0-9-])+_[A-z0-9].*\n")
+WRAPPED_FLAGS_LINE = re.compile(
+    r"//\s*Flags:[^\n]*\n[ \t]*//[ \t]+--[a-zA-Z0-9_-]+(?:=[^\s]+)?"
+    r"(?:[ \t]+--[a-zA-Z0-9_-]+(?:=[^\s]+)?)*[ \t]*\n")
 ASSERT_OPTIMIZED_PATTERN = re.compile("assertOptimized")
 FLAGS_ENABLE_MAGLEV = re.compile(r"//\s*Flags:.*--maglev[^-].*\n")
 FLAGS_ENABLE_TURBOLEV = re.compile(r"//\s*Flags:.*--turbolev[^-].*\n")
@@ -413,7 +416,7 @@ class CppLintProcessor(CacheableSourceFileProcessor):
 
   def GetPathsToSearch(self):
     dirs = ['include', 'samples', 'src']
-    test_dirs = ['cctest', 'common', 'fuzzer', 'inspector', 'unittests']
+    test_dirs = ['common', 'fuzzer', 'inspector', 'unittests']
     return dirs + [join('test', dir) for dir in test_dirs]
 
   def GetProcessorWorker(self):
@@ -513,7 +516,7 @@ class ClangFormatProcessor(CacheableSourceFileProcessor):
 
   def GetPathsToSearch(self):
     dirs = ['include', 'samples', 'src']
-    test_dirs = ['cctest', 'common', 'fuzzer', 'inspector', 'unittests']
+    test_dirs = ['common', 'fuzzer', 'inspector', 'unittests']
     return dirs + [join('test', dir) for dir in test_dirs]
 
   def GetProcessorWorker(self):
@@ -668,6 +671,11 @@ class SourceProcessor(SourceFileProcessor):
       if match:
         print("%s Flags should use '-' (not '_')" % name)
         result = False
+      if WRAPPED_FLAGS_LINE.search(contents):
+        print(
+            "%s Continuation of '// Flags:' must also start with '// Flags:'" %
+            name)
+        result = False
       if (not "mjsunit/mjsunit.js" in name and
           not "mjsunit/mjsunit_numfuzz.js" in name):
         if ASSERT_OPTIMIZED_PATTERN.search(contents) and \
@@ -807,7 +815,7 @@ class GCMoleProcessor(SourceFileProcessor):
     # TODO(https://crbug.com/v8/12660): These should be directories according
     # to the API, but in order to find the toplevel BUILD.gn, we'd need to walk
     # the entire project.
-    return ['BUILD.gn', 'test/cctest/BUILD.gn']
+    return ['BUILD.gn']
 
   def ProcessFiles(self, files):
     success = True

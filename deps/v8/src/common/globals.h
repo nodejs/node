@@ -140,6 +140,10 @@ namespace internal {
 #define V8_CAN_CREATE_SHARED_HEAP_BOOL false
 #endif
 
+#ifndef V8_USE_OPENSSL
+#define V8_USE_OPENSSL 0
+#endif
+
 #ifdef V8_LOWER_LIMITS_MODE
 #define V8_LOWER_LIMITS_MODE_BOOL true
 #else
@@ -181,7 +185,15 @@ namespace internal {
 #if V8_TARGET_ARCH_ARM
 // Set stack limit lower for ARM than for other architectures because stack
 // allocating MacroAssembler takes 120K bytes.  See issue crbug.com/405338
+#if V8_OS_ANDROID
+// On 32-bit Android, Bionic's default pthread stack size
+// (PTHREAD_STACK_SIZE_DEFAULT) is 1008 KB (1 MB minus 16 KB for
+// SIGNAL_STACK_SIZE_WITHOUT_GUARD). Leave the same 160 KB margin as on
+// 1 MB stack systems.
+#define V8_DEFAULT_STACK_SIZE_KB 848
+#else
 #define V8_DEFAULT_STACK_SIZE_KB 864
+#endif
 #define V8_STACK_LIMIT_MARGIN_KB 160
 #elif V8_TARGET_ARCH_IA32
 // As of crrev.com/c/2461589, Chrome creates some threads (at least worker
@@ -270,12 +282,37 @@ const size_t kShortBuiltinCallsOldSpaceSizeThreshold = size_t{2} * GB;
 #define V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL false
 #endif
 
+#ifdef V8_ADD_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+#define V8_ADD_DESCRIPTOR_ARRAY_LOOKUP_TABLE_BOOL true
+#else
+#define V8_ADD_DESCRIPTOR_ARRAY_LOOKUP_TABLE_BOOL false
+#endif  // V8_ADD_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+#define V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE_BOOL true
+#else
+#define V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE_BOOL false
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+
+static_assert(!V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE_BOOL ||
+              V8_ADD_DESCRIPTOR_ARRAY_LOOKUP_TABLE_BOOL);
+
 // Determine whether dict property constness tracking feature is enabled.
 #ifdef V8_DICT_PROPERTY_CONST_TRACKING
 #define V8_DICT_PROPERTY_CONST_TRACKING_BOOL true
 #else
 #define V8_DICT_PROPERTY_CONST_TRACKING_BOOL false
 #endif
+
+// Determine whether dictionary mode prototypes feature (keeping prototypes in
+// dictionary mode and tracking validity cell dependencies) is enabled.
+#ifdef V8_DICT_PROTOTYPES
+#define V8_DICT_PROTOTYPES_BOOL true
+#else
+#define V8_DICT_PROTOTYPES_BOOL false
+#endif
+
+static_assert(!V8_DICT_PROTOTYPES_BOOL || V8_DICT_PROPERTY_CONST_TRACKING_BOOL);
 
 #ifdef V8_EXTERNAL_CODE_SPACE
 #define V8_EXTERNAL_CODE_SPACE_BOOL true
@@ -697,7 +734,7 @@ static_assert(kPointerSize == (1 << kPointerSizeLog2));
 // This type defines the raw storage type for external (or off-V8 heap) pointers
 // stored on V8 heap.
 constexpr int kExternalPointerSlotSize = sizeof(ExternalPointer_t);
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
 static_assert(kExternalPointerSlotSize == kTaggedSize);
 #else
 static_assert(kExternalPointerSlotSize == kSystemPointerSize);
@@ -1540,7 +1577,8 @@ constexpr bool IsAnyNewSpace(AllocationSpace space) {
 }
 constexpr bool IsAnyLargeSpace(AllocationSpace space) {
   return space == NEW_LO_SPACE || space == LO_SPACE || space == CODE_LO_SPACE ||
-         space == SHARED_LO_SPACE || space == TRUSTED_LO_SPACE;
+         space == SHARED_LO_SPACE || space == TRUSTED_LO_SPACE ||
+         space == SHARED_TRUSTED_LO_SPACE;
 }
 
 constexpr const char* ToString(AllocationSpace space) {
@@ -2900,6 +2938,15 @@ enum class IsolateExecutionModeFlag : uint8_t {
   kCheckSideEffects = 1 << 1,
 };
 
+enum class IsolateMarkingFlag : uint8_t {
+  kNoMarking = 0,
+  kLocalMajorMarking = 1 << 0,
+  kLocalMinorMarking = 1 << 1,
+  kSharedMarking = 1 << 2,
+};
+using IsolateMarkingFlags = base::Flags<IsolateMarkingFlag>;
+DEFINE_OPERATORS_FOR_FLAGS(IsolateMarkingFlags)
+
 // Flags for the runtime function kDefineKeyedOwnPropertyInLiteral.
 // - Whether the function name should be set or not.
 enum class DefineKeyedOwnPropertyInLiteralFlag {
@@ -3406,12 +3453,10 @@ struct AcquireLoadTag {};
 struct RelaxedLoadTag {};
 struct ReleaseStoreTag {};
 struct RelaxedStoreTag {};
-struct SeqCstAccessTag {};
 static constexpr AcquireLoadTag kAcquireLoad;
 static constexpr RelaxedLoadTag kRelaxedLoad;
 static constexpr ReleaseStoreTag kReleaseStore;
 static constexpr RelaxedStoreTag kRelaxedStore;
-static constexpr SeqCstAccessTag kSeqCstAccess;
 
 static constexpr int kAdd_StringConstant_Internalize_CacheSlotOffset = 1;
 

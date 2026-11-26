@@ -85,7 +85,6 @@ absl_source_set("strings") {
     # :string_view.
     ":string_view",
   ]
-  check_includes_strict = CHECK_INCLUDES_STRICT_PUBLIC_INCLUDES_PRIVATE
 }
 
 absl_source_set("internal") {
@@ -434,7 +433,6 @@ absl_source_set("cord") {
     "//third_party/abseil-cpp/absl/types:optional",
     "//third_party/abseil-cpp/absl/types:span",
   ]
-  check_includes_strict = CHECK_INCLUDES_STRICT_PUBLIC_INCLUDES_PRIVATE
 }
 
 absl_source_set("cordz_handle") {
@@ -1023,7 +1021,6 @@ absl_source_set("generic_printer") {
     "//third_party/abseil-cpp/absl/log/internal:container",
     "//third_party/abseil-cpp/absl/meta:requires",
   ]
-  check_includes_strict = CHECK_INCLUDES_STRICT_PUBLIC_INCLUDES_PRIVATE
 }
 
 absl_test("generic_printer_test") {

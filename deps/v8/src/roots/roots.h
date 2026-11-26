@@ -194,7 +194,6 @@ class RootVisitor;
   IF_WASM(V, Map, wasm_type_info_map, WasmTypeInfoMap)                         \
   V(Map, weak_array_list_map, WeakArrayListMap)                                \
   V(Map, ephemeron_hash_table_map, EphemeronHashTableMap)                      \
-  V(Map, embedder_data_array_map, EmbedderDataArrayMap)                        \
   V(Map, weak_cell_map, WeakCellMap)                                           \
   V(Map, uninitialized_heap_number_map, UninitializedHeapNumberMap)            \
   TRUSTED_OBJECT_MAP_ROOT_LIST(V)                                              \
@@ -234,8 +233,6 @@ class RootVisitor;
   V(Map, null_map, NullMap)                                                    \
   V(Map, boolean_map, BooleanMap)                                              \
   V(Map, hole_map, HoleMap)                                                    \
-  /* Shared space object maps */                                               \
-  V(Map, js_shared_array_map, JSSharedArrayMap)                                \
   V(Map, descriptor_array_map, DescriptorArrayMap)                             \
   V(Map, on_heap_basic_block_profiler_data_map,                                \
     OnHeapBasicBlockProfilerDataMap)                                           \
@@ -423,49 +420,49 @@ class RootVisitor;
   TRUSTED_ROOT_LIST(V)
 
 // These root references can be updated by the mutator.
-#define STRONG_MUTABLE_MOVABLE_ROOT_LIST(V)                                 \
-  /* Caches */                                                              \
-  V(SmiStringCache, smi_string_cache, SmiStringCache)                       \
-  V(DoubleStringCache, double_string_cache, DoubleStringCache)              \
-  /* Allocated on first use, so it must be loaded rather than baked in. */  \
-  V(FixedArray, regexp_split_cache, RegExpSplitCache)                       \
-  /* undefined or BigInt. Caching divisors used for modulo divisions. */    \
-  V(Object, cached_bigint_divisor, CachedBigIntDivisor)                     \
-  V(Object, next_cached_bigint_divisor, NextCachedBigIntDivisor)            \
-  /* Lists and dictionaries */                                              \
-  V(RegisteredSymbolTable, public_symbol_table, PublicSymbolTable)          \
-  V(RegisteredSymbolTable, api_symbol_table, ApiSymbolTable)                \
-  V(RegisteredSymbolTable, api_private_symbol_table, ApiPrivateSymbolTable) \
-  V(WeakArrayList, script_list, ScriptList)                                 \
-  V(FixedArray, materialized_objects, MaterializedObjects)                  \
-  V(WeakArrayList, detached_contexts, DetachedContexts)                     \
-  /* Feedback vectors that we need for code coverage or type profile */     \
-  V(Object, feedback_vectors_for_profiling_tools,                           \
-    FeedbackVectorsForProfilingTools)                                       \
-  V(HeapObject, serialized_objects, SerializedObjects)                      \
-  V(FixedArray, serialized_global_proxy_sizes, SerializedGlobalProxySizes)  \
-  V(ArrayList, message_listeners, MessageListeners)                         \
-  /* Support for async stack traces */                                      \
-  V(HeapObject, current_microtask, CurrentMicrotask)                        \
-  /* KeepDuringJob set for JS WeakRefs */                                   \
-  V(HeapObject, weak_refs_keep_during_job, WeakRefsKeepDuringJob)           \
-  V(Object, functions_marked_for_manual_optimization,                       \
-    FunctionsMarkedForManualOptimization)                                   \
-  V(Object, functions_marked_for_disabled_eager_inlining,                   \
-    FunctionsMarkedForDisabledEagerInlining)                                \
-  V(ArrayList, basic_block_profiling_data, BasicBlockProfilingData)         \
-  V(WeakArrayList, shared_wasm_memories, SharedWasmMemories)                \
-  /* EphemeronHashTable for debug scopes (local debug evaluate) */          \
-  V(HeapObject, locals_block_list_cache, DebugLocalsBlockListCache)         \
-  IF_WASM(V, WeakFixedArray, js_to_wasm_wrappers, JSToWasmWrappers)         \
-  IF_WASM(V, WeakFixedArray, wasm_canonical_rtts, WasmCanonicalRtts)        \
-  /* Only updated/used on the shared-space isolate */                       \
-  IF_WASM(V, WeakFixedArray, wasm_shared_canonical_rtts,                    \
-          WasmSharedCanonicalRtts)                                          \
-  /* Internal SharedFunctionInfos */                                        \
-  V(FunctionTemplateInfo, error_stack_getter_fun_template,                  \
-    ErrorStackGetterSharedFun)                                              \
-  V(FunctionTemplateInfo, error_stack_setter_fun_template,                  \
+#define STRONG_MUTABLE_MOVABLE_ROOT_LIST(V)                                  \
+  /* Caches */                                                               \
+  V(SmiStringCache, smi_string_cache, SmiStringCache)                        \
+  V(DoubleStringCache, double_string_cache, DoubleStringCache)               \
+  /* Allocated on first use, so it must be loaded rather than baked in. */   \
+  V(FixedArray, regexp_split_cache, RegExpSplitCache)                        \
+  /* undefined or BigInt. Caching divisors used for modulo divisions. */     \
+  V(Object, cached_bigint_divisor, CachedBigIntDivisor)                      \
+  V(Object, next_cached_bigint_divisor, NextCachedBigIntDivisor)             \
+  /* Lists and dictionaries */                                               \
+  V(RegisteredSymbolTable, public_symbol_table, PublicSymbolTable)           \
+  V(RegisteredSymbolTable, api_symbol_table, ApiSymbolTable)                 \
+  V(RegisteredSymbolTable, api_private_symbol_table, ApiPrivateSymbolTable)  \
+  V(WeakArrayList, script_list, ScriptList)                                  \
+  V(FixedArray, materialized_objects, MaterializedObjects)                   \
+  V(WeakArrayList, detached_contexts, DetachedContexts)                      \
+  /* Feedback vectors that we need for code coverage or type profile */      \
+  V(Object, feedback_vectors_for_profiling_tools,                            \
+    FeedbackVectorsForProfilingTools)                                        \
+  V(HeapObject, serialized_objects, SerializedObjects)                       \
+  V(FixedArray, serialized_global_proxy_sizes, SerializedGlobalProxySizes)   \
+  V(ArrayList, message_listeners, MessageListeners)                          \
+  /* Support for async stack traces */                                       \
+  V(HeapObject, current_microtask, CurrentMicrotask)                         \
+  /* KeepDuringJob set for JS WeakRefs */                                    \
+  V(HeapObject, weak_refs_keep_during_job, WeakRefsKeepDuringJob)            \
+  V(Object, functions_marked_for_manual_optimization,                        \
+    FunctionsMarkedForManualOptimization)                                    \
+  V(Object, functions_marked_for_disabled_eager_inlining,                    \
+    FunctionsMarkedForDisabledEagerInlining)                                 \
+  V(ArrayList, basic_block_profiling_data, BasicBlockProfilingData)          \
+  V(WeakArrayList, shared_wasm_memories, SharedWasmMemories)                 \
+  /* EphemeronHashTable for debug scopes (local debug evaluate) */           \
+  V(HeapObject, locals_block_list_cache, DebugLocalsBlockListCache)          \
+  IF_WASM(V, ProtectedWeakFixedArray, js_to_wasm_wrappers, JSToWasmWrappers) \
+  IF_WASM(V, WeakFixedArray, wasm_canonical_rtts, WasmCanonicalRtts)         \
+  /* Only updated/used on the shared-space isolate */                        \
+  IF_WASM(V, WeakFixedArray, wasm_shared_canonical_rtts,                     \
+          WasmSharedCanonicalRtts)                                           \
+  /* Internal SharedFunctionInfos */                                         \
+  V(FunctionTemplateInfo, error_stack_getter_fun_template,                   \
+    ErrorStackGetterSharedFun)                                               \
+  V(FunctionTemplateInfo, error_stack_setter_fun_template,                   \
     ErrorStackSetterSharedFun)
 
 // Entries in this list are limited to Smis and are not visited during GC.
@@ -526,7 +523,7 @@ class RootVisitor;
   PUBLIC_SYMBOL_ROOT_LIST(V)                        \
   WELL_KNOWN_SYMBOL_ROOT_LIST(V)                    \
   STRUCT_MAPS_LIST(V)                               \
-  ALLOCATION_SITE_MAPS_LIST(V)                      \
+  V(Map, allocation_site_map, AllocationSiteMap)    \
   NAME_FOR_PROTECTOR_ROOT_LIST(V)                   \
   DATA_HANDLER_MAPS_LIST(V)                         \
   /* Maps */                                        \
@@ -574,7 +571,7 @@ enum class RootIndex : uint16_t {
 
   // Keep this in sync with the first map allocated by
   // Heap::CreateLateReadOnlyJSReceiverMaps.
-  kFirstJSReceiverMapRoot = kJSSharedArrayMap,
+  kFirstJSReceiverMapRoot = kJSMessageObjectMap,
 
   kSingleCharacterStringRootsCount =
       SINGLE_CHARACTER_INTERNALIZED_STRING_LIST_GENERATOR(COUNT_ROOT, n/a),

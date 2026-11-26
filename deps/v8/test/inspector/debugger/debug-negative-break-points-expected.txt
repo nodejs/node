@@ -1,0 +1,23 @@
+Tests conditional breakpoints at debugger statements and throw locations.
+initial: breaks=0, exceptions=0
+after f(0): breaks=1, exceptions=0
+after g(0): breaks=1, exceptions=0
+after setPauseOnExceptions f(0): breaks=2, exceptions=0
+after setPauseOnExceptions g(0): breaks=2, exceptions=1
+after bp(f, x == 1) f(1): breaks=3, exceptions=1
+after bp(f, x == 1) f(2): breaks=3, exceptions=1
+after bp(f, x == 1) f(1) again: breaks=4, exceptions=1
+dup bp on f error: true
+after dup bp(f) f(1): breaks=5, exceptions=1
+after dup bp(f) f(0): breaks=5, exceptions=1
+after bp(g, 1 == 2) g(1): breaks=5, exceptions=1
+dup bp on g (x == 1) error: true
+after dup bp(g, x == 1) g(1): breaks=5, exceptions=1
+after dup bp(g, x == 1) g(2): breaks=5, exceptions=1
+after dup bp(g, x == 1) g(1) again: breaks=5, exceptions=1
+dup bp on g (x > 0) error: true
+after dup bp(g, x > 0) g(1): breaks=5, exceptions=1
+after dup bp(g, x > 0) g(0): breaks=5, exceptions=1
+after h(0): breaks=5, exceptions=2
+after bp(h, x > 0) h(1): breaks=6, exceptions=3
+after bp(h, x > 0) h(0): breaks=6, exceptions=3

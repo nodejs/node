@@ -1,0 +1,243 @@
+<!-- Copyright 2026 the V8 project authors. All rights reserved.
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file. -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>V8 C++ Dataflow Explorer — v8-dataflow</title>
+  <meta name="description" content="Interactive C++ AST & Dataflow Graph Explorer for V8 using Monaco Editor, CSR mmap indexing, and synchronized Tree & Directed Graph (DAG) views." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <!-- Top Command Header -->
+  <header id="app-header" class="app-header">
+    <div class="brand-cluster">
+      <div class="brand-mark" aria-hidden="true">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="5" cy="6" r="3" />
+          <circle cx="19" cy="6" r="3" />
+          <circle cx="12" cy="18" r="3" />
+          <path d="M7.5 7.5L10.5 15.5M16.5 7.5L13.5 15.5M8 6h8" />
+        </svg>
+      </div>
+      <div class="brand-titles">
+        <h1 class="app-title">V8 Dataflow Explorer</h1>
+        <span id="workspace-status-pill" class="workspace-pill">Connecting to v8-dataflow CSR index…</span>
+      </div>
+    </div>
+
+    <!-- Omnibox Search & Preset Selector -->
+    <div class="search-cluster">
+      <div class="omnibox-wrapper" id="omnibox-wrapper">
+        <svg class="omnibox-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8" />
+          <line x1="21" y1="21" x2="16.65" y2="16.65" />
+        </svg>
+        <input
+          id="omnibox-input"
+          type="text"
+          class="omnibox-input"
+          placeholder="Search V8 files (e.g. js-objects.cc) or symbols (e.g. simple_transition)…"
+          autocomplete="off"
+        />
+        <kbd class="omnibox-kbd">/</kbd>
+        <div id="omnibox-dropdown" class="omnibox-dropdown hidden"></div>
+      </div>
+
+      <div class="preset-wrapper">
+        <label for="preset-select" class="sr-only">Curated V8 Traces</label>
+        <select id="preset-select" class="preset-select" title="Jump to verified V8 dataflow traces">
+          <option value="">⚡ Quick-Jump V8 Trace Presets…</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Query Direction & Cycle Controls -->
+    <div class="controls-cluster">
+      <div class="mode-segmented" role="group" aria-label="Dataflow Query Mode">
+        <button id="mode-from-leaves" class="mode-btn active" data-method="query/from-leaves" title="Trace forward from allocation/origin leaves to target symbol">
+          <span class="mode-dot dot-emerald"></span>Origins → Target
+        </button>
+        <button id="mode-incoming" class="mode-btn" data-method="query/incoming" title="Trace backward from target symbol to its upstream inputs">
+          <span class="mode-dot dot-cyan"></span>Target ← Inputs
+        </button>
+        <button id="mode-outgoing" class="mode-btn" data-method="query/outgoing" title="Trace forward from target symbol to all downstream sinks and uses">
+          <span class="mode-dot dot-amber"></span>Target → Sinks
+        </button>
+      </div>
+
+      <label class="toggle-pill" title="Prune back-edges in Strongly Connected Components (cycles)">
+        <input type="checkbox" id="prune-cycles-checkbox" checked />
+        <span>Prune Cycles</span>
+      </label>
+
+      <button id="btn-theme-toggle" class="theme-toggle-btn" type="button" title="Toggle Light / Dark theme">
+        <span id="theme-toggle-icon" aria-hidden="true">☀️</span>
+        <span id="theme-toggle-label">Light</span>
+      </button>
+
+      <div id="query-stats-badge" class="query-stats-badge">Ready</div>
+    </div>
+  </header>
+
+  <!-- Active Path Stepper Bar (Steps along Root <-> Selected Node) -->
+  <section id="path-stepper-bar" class="path-stepper-bar" aria-label="Active Dataflow Path Stepper">
+    <div class="stepper-controls">
+      <button id="btn-prev-step" class="stepper-nav-btn" title="Previous step along active path (Shortcut: [)" disabled>
+        ◀ Prev <kbd>[</kbd>
+      </button>
+      <span id="stepper-counter" class="stepper-counter">Step 0 / 0</span>
+      <button id="btn-next-step" class="stepper-nav-btn" title="Next step along active path (Shortcut: ])" disabled>
+        Next ▶ <kbd>]</kbd>
+      </button>
+    </div>
+    <div id="stepper-crumbs" class="stepper-crumbs">
+      <span class="stepper-placeholder">Click any DFG symbol in Monaco or choose a V8 preset to trace cross-file dataflow.</span>
+    </div>
+  </section>
+
+  <!-- Main Split Workspace: Left = Monaco Source Viewer | Right = Tree & DAG Graph Explorer -->
+  <main class="workspace-split">
+    <!-- Left Pane: Monaco Editor + File Tabs + Cursor Inspector -->
+    <section class="editor-pane" id="editor-pane">
+      <div class="editor-topbar">
+        <div id="file-tabs-bar" class="file-tabs-bar" role="tablist"></div>
+      </div>
+
+      <div id="monaco-container" class="monaco-container"></div>
+
+      <!-- Bottom Cursor Symbol Inspector & Action Bar -->
+      <div id="cursor-inspector-bar" class="cursor-inspector-bar">
+        <div class="inspector-left">
+          <span id="inspector-kind-badge" class="node-kind-badge kind-Variable">Symbol</span>
+          <span id="inspector-symbol-name" class="inspector-symbol-name">Click any C++ symbol in editor</span>
+          <span id="inspector-symbol-type" class="inspector-symbol-type"></span>
+          <span id="inspector-symbol-loc" class="inspector-symbol-loc"></span>
+        </div>
+        <div class="inspector-actions">
+          <button id="btn-trace-origins-here" class="action-btn btn-emerald" disabled title="Run query/from-leaves at selected symbol">
+            Trace Origins → Here
+          </button>
+          <button id="btn-trace-incoming-here" class="action-btn btn-cyan" disabled title="Run query/incoming at selected symbol">
+            Trace ← Inputs
+          </button>
+          <button id="btn-trace-outgoing-here" class="action-btn btn-amber" disabled title="Run query/outgoing at selected symbol">
+            Trace → Sinks
+          </button>
+        </div>
+      </div>
+
+      <div class="editor-statusbar">
+        <div class="editor-legend">
+          <span class="legend-chip legend-active-node">● Active Step</span>
+          <span class="legend-chip legend-path-node">◆ On Active Path</span>
+          <span class="legend-chip legend-trace-node">◇ In Trace</span>
+          <span class="legend-chip legend-dfg-token">⋯ Indexed DFG Symbol (Alt+Click to Trace · Double-click tab to pin)</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Right Pane: Synchronized Tree View & Directed Graph (DAG) View -->
+    <aside class="flow-pane" id="flow-pane">
+      <div class="flow-pane-header">
+        <div class="view-tabs" role="tablist">
+          <button id="tab-split-view" class="view-tab active" data-view="split">Split (Graph + Tree)</button>
+          <button id="tab-graph-view" class="view-tab" data-view="graph">DAG Graph View</button>
+          <button id="tab-tree-view" class="view-tab" data-view="tree">Tree View</button>
+        </div>
+
+        <div class="flow-toolbar">
+          <div class="flow-toolbar-row">
+            <input
+              id="tree-filter-input"
+              type="text"
+              class="tree-filter-input"
+              placeholder="Filter nodes / files / types / ranges (e.g. 8188)…"
+            />
+            <label class="leaves-only-toggle" title="Show only terminal origin/sink leaves in list">
+              <input type="checkbox" id="leaves-only-checkbox" />
+              <span>Leaves Only</span>
+            </label>
+          </div>
+          <div class="flow-toolbar-row flow-filter-selects">
+            <select id="taint-filter-select" class="tree-filter-select" title="Filter leaves/branches by heap or embedder taint">
+              <option value="all">Taint: All Leaves</option>
+              <option value="leaf-tainted">Taint: Tainted Leaf (Direct)</option>
+              <option value="leaf-sandbox">Taint: Leaf heap:sandbox</option>
+              <option value="leaf-embedder">Taint: Leaf embedder</option>
+              <option value="leaf-trusted">Taint: Leaf heap:trusted</option>
+              <option value="path-tainted">Taint: Tainted Path (Any)</option>
+              <option value="path-sandbox">Taint: Path heap:sandbox</option>
+              <option value="path-embedder">Taint: Path embedder</option>
+              <option value="path-trusted">Taint: Path heap:trusted</option>
+              <option value="untainted-path">Taint: Untainted Path</option>
+              <option value="untainted-leaf">Taint: Untainted Leaf</option>
+            </select>
+            <select id="range-filter-select" class="tree-filter-select" title="Filter leaves/branches by contribution to target value range or liveness">
+              <option value="all">Range: All Contributions</option>
+              <option value="live">Range: Live Only (Exclude Dead)</option>
+              <option value="dead">Range: Dead / Uncalled Only</option>
+              <option value="unclobbered">Range: Unclobbered Only</option>
+              <option value="bounds">Range: Target Min/Max Bounds</option>
+              <option value="max-bound">Range: Reaches Target Max</option>
+              <option value="min-bound">Range: Reaches Target Min</option>
+              <option value="interval">Range: Interval (min &lt; max)</option>
+              <option value="constant">Range: Constant (min = max)</option>
+              <option value="clobbered">Range: Clobbered by Heap Read</option>
+              <option value="none">Range: No Integral Range</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Interactive SVG DAG Graph Container -->
+      <div id="graph-view-panel" class="graph-view-panel">
+        <div class="graph-overlay-controls">
+          <div class="graph-title-chip" id="graph-summary-chip">Directed Dataflow Graph (DAG)</div>
+          <div class="graph-btn-group">
+            <button id="btn-graph-orientation" class="graph-ctrl-btn" title="Toggle Top-Down vs Left-Right DAG layout">Layout: TD</button>
+            <button id="btn-graph-zoom-in" class="graph-ctrl-btn" title="Zoom In">+</button>
+            <button id="btn-graph-zoom-out" class="graph-ctrl-btn" title="Zoom Out">−</button>
+            <button id="btn-graph-fit" class="graph-ctrl-btn" title="Fit Graph to Viewport">Fit</button>
+          </div>
+        </div>
+        <svg id="dag-svg" class="dag-svg" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="arrow-default" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#4b6478" />
+            </marker>
+            <marker id="arrow-active" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+              <path d="M 0 1 L 9 5 L 0 9 z" fill="#10b981" />
+            </marker>
+            <marker id="arrow-selected" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+              <path d="M 0 1 L 9 5 L 0 9 z" fill="#38bdf8" />
+            </marker>
+          </defs>
+          <g id="dag-viewport"></g>
+        </svg>
+      </div>
+
+      <!-- Hierarchical Tree View Container -->
+      <div id="tree-view-panel" class="tree-view-panel">
+        <div class="tree-subbar">
+          <span id="tree-summary-label" class="tree-summary-label">Hierarchy</span>
+          <div class="tree-subbar-btns">
+            <button id="btn-expand-all" class="tree-mini-btn" title="Expand tree nodes">Expand</button>
+            <button id="btn-collapse-all" class="tree-mini-btn" title="Collapse to depth 2">Collapse</button>
+          </div>
+        </div>
+        <div id="flow-tree-root" class="flow-tree-root" role="tree"></div>
+      </div>
+    </aside>
+  </main>
+
+  <!-- Monaco Loader from Local Server -->
+  <script src="/vs/loader.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>

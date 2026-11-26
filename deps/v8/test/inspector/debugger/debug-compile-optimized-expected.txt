@@ -1,0 +1,5 @@
+Tests that setting a breakpoint deoptimizes a function and prevents re-optimization until cleared.
+Before breakpoint, isOptimized(f): true
+Immediately after setBreakpoint, isOptimized(f): false
+After optimizeF() with breakpoint, isOptimized(f): false
+After removeBreakpoint and re-optimize, isOptimized(f): true

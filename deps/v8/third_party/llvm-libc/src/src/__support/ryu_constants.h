@@ -10,21 +10,25 @@
 #define LLVM_LIBC_SRC___SUPPORT_RYU_CONSTANTS_H
 
 #include "hdr/stdint_proxy.h"
+#include "src/__support/macros/attributes.h"
+#include "src/__support/macros/config.h"
 #include <stddef.h>
+
+namespace LIBC_NAMESPACE_DECL {
 
 constexpr size_t TABLE_SHIFT_CONST = 120;
 constexpr size_t IDX_SIZE = 16;
 
 constexpr size_t MID_INT_SIZE = 192;
 
-constexpr uint16_t POW10_OFFSET[64] = {
+LIBC_INLINE_VAR constexpr uint16_t POW10_OFFSET[64] = {
     0,   2,   5,   8,   12,  16,  21,   26,   32,   39,   46,   54,  62,
     71,  80,  90,  100, 111, 122, 134,  146,  159,  173,  187,  202, 217,
     233, 249, 266, 283, 301, 319, 338,  357,  377,  397,  418,  440, 462,
     485, 508, 532, 556, 581, 606, 632,  658,  685,  712,  740,  769, 798,
     828, 858, 889, 920, 952, 984, 1017, 1050, 1084, 1118, 1153, 1188};
 
-constexpr uint64_t POW10_SPLIT[1224][3] = {
+LIBC_INLINE_VAR constexpr uint64_t POW10_SPLIT[1224][3] = {
     {1u, 72057594037927936u, 0u},
     {699646928636035157u, 72057594u, 0u},
     {1u, 0u, 256u},
@@ -1251,7 +1255,7 @@ constexpr uint64_t POW10_SPLIT[1224][3] = {
     {8310173728816391804u, 197658u, 0u},
 };
 
-constexpr uint16_t POW10_OFFSET_2[69] = {
+LIBC_INLINE_VAR constexpr uint16_t POW10_OFFSET_2[69] = {
     0,    2,    6,    12,   20,   29,   40,   52,   66,   80,   95,   112,
     130,  150,  170,  192,  215,  240,  265,  292,  320,  350,  381,  413,
     446,  480,  516,  552,  590,  629,  670,  712,  755,  799,  845,  892,
@@ -1259,13 +1263,13 @@ constexpr uint16_t POW10_OFFSET_2[69] = {
     1613, 1678, 1743, 1810, 1878, 1947, 2017, 2088, 2161, 2235, 2311, 2387,
     2465, 2544, 2625, 2706, 2789, 2873, 2959, 3046, 3133};
 
-constexpr uint8_t MIN_BLOCK_2[69] = {
+LIBC_INLINE_VAR constexpr uint8_t MIN_BLOCK_2[69] = {
     0,  0,  0,  0,  0,  0,  1,  1,  2,  3,  3,  4,  4,  5,  5,  6,  6,  7,
     7,  8,  8,  9,  9,  10, 11, 11, 12, 12, 13, 13, 14, 14, 15, 15, 16, 16,
     17, 17, 18, 19, 19, 20, 20, 21, 21, 22, 22, 23, 23, 24, 24, 25, 26, 26,
     27, 27, 28, 28, 29, 29, 30, 30, 31, 31, 32, 32, 33, 34, 0};
 
-constexpr uint64_t POW10_SPLIT_2[3133][3] = {
+LIBC_INLINE_VAR constexpr uint64_t POW10_SPLIT_2[3133][3] = {
     {0u, 0u, 3906250u},
     {0u, 0u, 202000000000u},
     {0u, 11153727427136454656u, 59u},
@@ -4400,5 +4404,7 @@ constexpr uint64_t POW10_SPLIT_2[3133][3] = {
     {0u, 0u, 241525390625u},
     {0u, 0u, 33000000000u},
 };
+
+} // namespace LIBC_NAMESPACE_DECL
 
 #endif // LLVM_LIBC_SRC___SUPPORT_RYU_CONSTANTS_H

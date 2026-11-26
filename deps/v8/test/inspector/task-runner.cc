@@ -90,13 +90,17 @@ void TaskRunner::RunMessageLoop(bool only_protocol) {
     // This can be removed once https://crbug.com/v8/10747 is fixed.
     // TODO(10748): Enable --stress-incremental-marking after the existing
     // tests are fixed.
-    if (!i::v8_flags.stress_incremental_marking &&
-        !isolate()->IsExecutionTerminating()) {
-      while (v8::platform::PumpMessageLoop(
-          v8::internal::V8::GetCurrentPlatform(), isolate(),
-          isolate()->HasPendingBackgroundTasks()
-              ? platform::MessageLoopBehavior::kWaitForWork
-              : platform::MessageLoopBehavior::kDoNotWait)) {
+    if (!i::v8_flags.stress_incremental_marking) {
+      while (!isolate()->IsExecutionTerminating() &&
+             v8::platform::PumpMessageLoop(
+                 v8::internal::V8::GetCurrentPlatform(), isolate(),
+                 isolate()->HasPendingBackgroundTasks()
+                     ? platform::MessageLoopBehavior::kWaitForWork
+                     : platform::MessageLoopBehavior::kDoNotWait)) {
+        // Break before try_catch.Reset() so a caught termination exception is
+        // not cleared before the next loop-condition check.
+        if (isolate()->IsExecutionTerminating()) break;
+        if (try_catch.HasCaught()) try_catch.Reset();
       }
     }
   }

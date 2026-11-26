@@ -28,7 +28,6 @@ if (v8_gcmole) {
       "../../buildtools/third_party/libc++/",
       "../../include/",
       "../../src/",
-      "../../test/cctest/",
       "../../test/common/",
       "../../testing/gtest/include/gtest/gtest_prod.h",
       "../../third_party/abseil-cpp/",
@@ -62,6 +61,9 @@ if (v8_gcmole) {
       # We use the bundled sysroot with gcmole.
       sysroot,
     ]
+    if (v8_use_openssl && !(defined(build_with_node) && build_with_node)) {
+      data += [ "../../third_party/boringssl/src/include/" ]
+    }
   }
 
   # Only prepare gcmole args if gcmole is activated by a gn arg.

@@ -45,7 +45,7 @@ Once loaded, the plugins append JavaScript annotations to candidate V8 frames
 when you print a backtrace via `bt`, and adds a `v8` command. Currently, `v8` supports the following subcommands:
 
 ```
-v8 inspect <addr>|this|[N] [--type T] [--depth N] [--array-length N]
+v8 inspect <addr>|this|[N]|<param-name> [--type T] [--depth N] [--array-length N]
 v8 args [frame#]
 v8 isolate
 v8 source [frame#] [--max-lines N]
@@ -56,14 +56,19 @@ v8 source [frame#] [--max-lines N]
 The annotation format for frames displayed in `bt` is:
 
 ```
-[<function_name> @ <script_name>:<line>:<column>] (this=0x..., [0]=<Smi: 1>, ...)
+[<function_name> @ <script_name>:<line>:<column>] (this=0x..., [0]=<Smi: 1>, name=..., ...)
 ```
 
-The annotation shows the receiver and a preview of the first few
-arguments, labeled positionally as `[N]`. To see the full list
-of arguments, use `v8 args <frame#>`. If the argument count is
-unreadable, the annotation is `(this=0x..., argc=?)`.
-If the receiver slot is unreadable, it will be omitted.
+The annotation shows the this value and a preview of the first few arguments.
+Arguments are labeled with their parameter names when those can be recovered,
+usually when a closure captures them, and with the positional `[N]` index
+otherwise.
+The previews show the arguments as passed at the call site, not the value
+in the function scope if the function reassigns them.
+
+To see the full list of arguments, use `v8 args <frame#>`. If the argument
+count is unreadable, the annotation displays `(this=0x..., argc=?)`. If the
+this value is unreadable, it will be omitted.
 
 If source text cannot be recovered but the script name still can, the
 annotation degrades to:
@@ -78,11 +83,13 @@ normally the `(` of the parameter list (or position 1:1 for the top-level
 script scope), not where the function is called, which we cannot
 reliably recover in the debugger.
 
-#### `v8 inspect <addr>|this|[N]`
+#### `v8 inspect <addr>|this|[N]|<param-name>`
 
-Inspects a tagged V8 object at `<addr>` and prints its properties. Instead of
-an address, `this` and `[N]` refer to the receiver or the Nth argument of the
-selected JS frame.
+Inspects a tagged V8 object at `<addr>` and prints its properties.
+If `this` is used, it refers to the this value of the selected JS frame.
+If `[N]` or a recovered parameter name is used, it refers to one of the
+arguments of the selected JS frame. If the name does not match a recovered
+parameter, the plugin falls back to the debugger's own expression evaluation.
 
 ```
 (gdb) v8 inspect 0x34f49880471
@@ -111,12 +118,11 @@ frame number shown by `bt` and defaults to the selected frame.
 
 ```
 (gdb) v8 args 5
-#5  test_func_3 @ throw.js:15:21
+#5  outer @ captured-args.js:5:15
 this = 0x1d190100497d <JSGlobalProxy>
-[0] = <Smi: 44>
-[1] = 0x1d1900000071 <Oddball: TrueValue>
-[2] = 0x1d19010492dd <JSObject>
-[3] = 0x1d19010492ed <SeqOneByteString: "hello!">
+a = <Smi: 1>
+[1] = <Smi: 2>
+c = <Smi: 3>
 ```
 
 #### `v8 isolate`

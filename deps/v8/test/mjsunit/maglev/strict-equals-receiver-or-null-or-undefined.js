@@ -42,6 +42,11 @@ assertTrue(strictEquals(undetectable, undetectable));
 
 assertMaglevved(strictEquals);
 
-// Passing an unexpected object deopts.
+// Passing a non-receiver/null/undefined as the second operand returns false
+// without deopting.
 assertFalse(strictEquals({}, ""));
+assertMaglevved(strictEquals);
+
+// Passing an unexpected first operand deopts.
+assertTrue(strictEquals("", ""));
 assertNotMaglevved(strictEquals);

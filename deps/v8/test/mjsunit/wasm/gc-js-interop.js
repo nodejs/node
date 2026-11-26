@@ -2,22 +2,46 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --turbofan --allow-natives-syntax
+// Flags: --turbofan --allow-natives-syntax --wasm-custom-descriptors
 
 d8.file.execute('test/mjsunit/wasm/gc-js-interop-helpers.js');
 
 let {struct, array} = CreateWasmObjects();
-for (const wasm_obj of [struct, array]) {
+// Also run on a sealed empty JS object to verify consistency with Wasm objects.
+let sealed_js_obj = Object.seal({__proto__: null});
+for (const wasm_obj of [struct, array, sealed_js_obj]) {
   repeated(() => assertSame(undefined, wasm_obj.foo));
-  testThrowsRepeated(() => wasm_obj.foo = 42, TypeError);
+  repeated(() => assertEquals(42, wasm_obj.foo = 42));
+  repeated(() => assertSame(undefined, wasm_obj.foo));
+  testThrowsRepeated(() => {
+    'use strict';
+    wasm_obj.foo = 42;
+  }, TypeError);
   repeated(() => assertSame(undefined, wasm_obj[0]));
-  testThrowsRepeated(() => wasm_obj[0] = undefined, TypeError);
+  repeated(() => assertSame(undefined, wasm_obj[0] = undefined));
+  repeated(() => assertEquals(42, wasm_obj[0] = 42));
+  repeated(() => assertSame(undefined, wasm_obj[0]));
+  testThrowsRepeated(() => {
+    'use strict';
+    wasm_obj[0] = undefined;
+  }, TypeError);
   repeated(() => assertSame(undefined, wasm_obj.__proto__));
   repeated(() => assertSame(
       null, Object.prototype.__lookupGetter__("__proto__").call(wasm_obj)));
   testThrowsRepeated(
       () => Object.prototype.__proto__.call(wasm_obj), TypeError);
-  testThrowsRepeated(() => wasm_obj.__proto__ = null, TypeError);
+  repeated(() => assertSame(null, wasm_obj.__proto__ = null));
+  repeated(() => assertSame(undefined, wasm_obj.__proto__));
+  testThrowsRepeated(() => {
+    'use strict';
+    wasm_obj.__proto__ = null;
+  }, TypeError);
+  repeated(() => assertSame(
+      undefined,
+      Object.prototype.__lookupSetter__('__proto__').call(wasm_obj, null)));
+  testThrowsRepeated(
+      () => Object.prototype.__lookupSetter__('__proto__').call(wasm_obj, {}),
+      TypeError);
   // Wasm objects have no properties.
   repeated(() => { for (let p in wasm_obj) { assertUnreachable(); } });
   testThrowsRepeated(() => {
@@ -27,7 +51,13 @@ for (const wasm_obj of [struct, array]) {
   testThrowsRepeated(() => wasm_obj.valueOf(), TypeError);
   testThrowsRepeated(() => '' + wasm_obj, TypeError);
   testThrowsRepeated(() => 0 + wasm_obj, TypeError);
-  testThrowsRepeated(() => { delete wasm_obj.foo; }, TypeError);
+  repeated(() => assertTrue(delete wasm_obj.foo));
+  repeated(() => assertTrue(delete wasm_obj[0]));
+  repeated(() => {
+    'use strict';
+    assertTrue(delete wasm_obj.foo);
+    assertTrue(delete wasm_obj[0]);
+  });
 
   {
     let js_obj = {};
@@ -225,12 +255,19 @@ for (const wasm_obj of [struct, array]) {
 
   testThrowsRepeated(() => JSON.parse(wasm_obj), TypeError);
   repeated(() => assertEquals({x: 1}, JSON.parse('{"x": 1}', wasm_obj)));
-  repeated(() => assertEquals(undefined, JSON.stringify(wasm_obj)));
+  repeated(() => assertEquals('{}', JSON.stringify(wasm_obj)));
   repeated(() => assertEquals('{"x":1}', JSON.stringify({x: 1}, wasm_obj)));
   repeated(
       () => assertEquals('{"x":1}', JSON.stringify({x: 1}, null, wasm_obj)));
   repeated(
-      () => assertEquals("{}", JSON.stringify({wasm_obj})));
+      () => assertEquals('{"wasm_obj":{}}', JSON.stringify({wasm_obj})));
+  repeated(() => assertEquals('[{}]', JSON.stringify([wasm_obj])));
+  repeated(
+      () => assertEquals('{}', JSON.stringify(wasm_obj, ['a'])));
+  repeated(
+      () => assertEquals(
+          '{"a":1,"wasm_obj":{}}',
+          JSON.stringify({a: 1, wasm_obj}, (k, v) => v)));
 
   // Yielding wasm objects from a generator function is valid.
   repeated(() => {
@@ -279,5 +316,6 @@ for (const wasm_obj of [struct, array]) {
   });
 
   // Ensure no statement re-assigned wasm_obj by accident.
-  assertTrue(wasm_obj == struct || wasm_obj == array);
+  assertTrue(
+      wasm_obj == struct || wasm_obj == array || wasm_obj == sealed_js_obj);
 }

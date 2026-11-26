@@ -23,6 +23,22 @@
 #define LIBC_HAS_MEMORY_SANITIZER
 #endif
 
+#if LIBC_HAS_FEATURE(thread_sanitizer) || defined(__SANITIZE_THREAD__)
+#define LIBC_HAS_THREAD_SANITIZER
+#endif
+
+#if LIBC_HAS_FEATURE(hwaddress_sanitizer) || defined(__SANITIZE_HWADDRESS__)
+#define LIBC_HAS_HWADDRESS_SANITIZER
+#endif
+
+// Shadow-memory sanitizers (ASan, MSan, TSan, HWASan).
+#if defined(LIBC_HAS_ADDRESS_SANITIZER) ||                                     \
+    defined(LIBC_HAS_MEMORY_SANITIZER) ||                                      \
+    defined(LIBC_HAS_THREAD_SANITIZER) ||                                      \
+    defined(LIBC_HAS_HWADDRESS_SANITIZER)
+#define LIBC_HAS_SANITIZER
+#endif
+
 #ifdef LIBC_HAS_MEMORY_SANITIZER
 // Only perform MSAN unpoison in non-constexpr context.
 #include <sanitizer/msan_interface.h>

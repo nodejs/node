@@ -13,6 +13,7 @@ add_object_library(
     libc.src.__support.threads.linux.tcb
     libc.src.string.memory_utils.inline_memcpy
   COMPILE_OPTIONS
+    ${libc_opt_high_flag}
     -fno-stack-protector
     -fno-omit-frame-pointer
     -ffreestanding

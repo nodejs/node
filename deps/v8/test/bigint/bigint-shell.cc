@@ -39,6 +39,7 @@ int PrintHelp(char** argv) {
   V(FFT, "fft")                     \
   V(FromString, "fromstring")       \
   V(FromStringBase2, "fromstring2") \
+  V(Interrupts, "interrupts")       \
   V(Karatsuba, "karatsuba")         \
   V(Toom, "toom")                   \
   V(ToString, "tostring")
@@ -479,6 +480,39 @@ class ThresholdRunner {
   RNG& rng_;
 };
 
+class InterruptingPlatform final : public Platform {
+ public:
+  explicit InterruptingPlatform(int interrupt_on_call)
+      : interrupt_on_call_(interrupt_on_call) {}
+
+  void set_processor(ProcessorImpl* impl) { impl_ = impl; }
+
+  digit_t* Allocate(size_t count) final {
+    digit_t* ptr = new digit_t[count];
+    // Poison buffers so missing should_terminate() checks that read
+    // uninitialized/partial data are caught deterministically.
+    memset(ptr, 0xAA, count * sizeof(digit_t));
+    return ptr;
+  }
+  void Free(digit_t* ptr) final { delete[] ptr; }
+
+  bool InterruptRequested() final {
+    if (++calls_ >= interrupt_on_call_) return true;
+    // Re-prime the work estimate so the very next AddWorkEstimate() call
+    // triggers another InterruptRequested() check, allowing small inputs to
+    // exercise every interrupt point quickly and deterministically.
+    impl_->AddWorkEstimate(ProcessorImpl::kWorkEstimateThreshold - 1);
+    return false;
+  }
+
+  int calls() const { return calls_; }
+
+ private:
+  ProcessorImpl* impl_ = nullptr;
+  int interrupt_on_call_;
+  int calls_ = 0;
+};
+
 class Runner {
  public:
   Runner() = default;
@@ -561,6 +595,177 @@ class Runner {
     if (error_) return 1;
     std::cout << count << " tests run, no error reported.\n";
     return 0;
+  }
+
+  template <typename Fn>
+  void RunWithInterrupts(const Fn& fn, int* count) {
+    auto run_once = [&](int interrupt_on_call, Status expected_status) {
+      auto* platform = new InterruptingPlatform(interrupt_on_call);
+      std::unique_ptr<Processor, Processor::Destroyer> proc(
+          Processor::New(platform));
+      auto* impl = static_cast<ProcessorImpl*>(proc.get());
+      platform->set_processor(impl);
+      impl->AddWorkEstimate(ProcessorImpl::kWorkEstimateThreshold - 1);
+      fn(impl);
+      Status status = impl->get_and_clear_status();
+      CHECK(status == expected_status);
+      (*count)++;
+      return platform->calls();
+    };
+
+    int total_calls = run_once(std::numeric_limits<int>::max(), Status::kOk);
+    CHECK(total_calls > 0);
+    for (int interrupt_at = 1; interrupt_at <= total_calls; interrupt_at++) {
+      run_once(interrupt_at, Status::kInterrupted);
+    }
+  }
+
+  void TestInterrupts(int* count) {
+#if V8_ADVANCED_BIGINT_ALGORITHMS
+    // Multi-chunk Barrett division where the first chunk produces a non-zero
+    // top quotient digit (Qi[n] == 1) and the second chunk is interrupted.
+    {
+      constexpr uint32_t n = 100;
+      ScratchDigits B(n, platform_);
+      B.Clear();
+      B[0] = 1;
+      B[n - 1] = digit_t{1} << (kDigitBits - 1);
+      ScratchDigits A(3 * n, platform_);
+      A.Clear();
+      A[3 * n - 1] = digit_t{1} << (kDigitBits - 1);
+      A[2 * n] = 1;
+      A[2 * n - 1] = 1;
+      for (uint32_t i = 0; i < n; i++) A[i] = ~digit_t{0};
+      RunWithInterrupts(
+          [&](ProcessorImpl* impl) {
+            ScratchDigits Q(2 * n + 1, impl->platform());
+            ScratchDigits R(n, impl->platform());
+            impl->DivideBarrett(Q, R, A, B);
+          },
+          count);
+    }
+
+    // Interruption during InvertBasecase inside Invert() and InvertNewton().
+    for (uint32_t vn :
+         {uint32_t{10}, config::kNewtonInversionThreshold + uint32_t{10}}) {
+      ScratchDigits V(vn, platform_);
+      GenerateRandom(V);
+      V[vn - 1] = V[vn - 1] | (digit_t{1} << (kDigitBits - 1));
+      RunWithInterrupts(
+          [&](ProcessorImpl* impl) {
+            ScratchDigits Z(vn + 1, impl->platform());
+            ScratchDigits scratch(InvertScratchSpace(vn), impl->platform());
+            impl->Invert(Z, V, scratch);
+          },
+          count);
+    }
+
+    // Interruption during FFT multiplication.
+    {
+      constexpr uint32_t n = config::kFftThreshold;
+      ScratchDigits A(n, platform_);
+      ScratchDigits B(n, platform_);
+      GenerateRandom(A);
+      GenerateRandom(B);
+      RunWithInterrupts(
+          [&](ProcessorImpl* impl) {
+            ScratchDigits Z(2 * n, impl->platform());
+            impl->MultiplyFFT(Z, A, B);
+          },
+          count);
+    }
+
+    // Interruption during fast ToString (CreateLevels, ComputeInverse,
+    // ProcessLevel).
+    {
+      constexpr uint32_t n = 100;
+      ScratchDigits X(n, platform_);
+      GenerateRandom(X);
+      uint32_t chars_required = ToStringResultLength(X, 10, false);
+      std::unique_ptr<char[]> out(new char[chars_required]);
+      RunWithInterrupts(
+          [&](ProcessorImpl* impl) {
+            uint32_t out_len = chars_required;
+            impl->ToStringImpl(out.get(), &out_len, X, 10, false, true);
+          },
+          count);
+    }
+#else
+    // Karatsuba and classic ToString only check for interrupts when advanced
+    // algorithms are disabled.
+
+    // Interruption during Karatsuba multiplication (including all recursive
+    // calls P0, P2, P1). KaratsubaLength(102) == 104 > n, and setting the
+    // upper half to all ones ensures Z.len() < 2 * k overflows (overflow == 1)
+    // until P1 cancels it.
+    {
+      constexpr uint32_t n = 3 * config::kKaratsubaThreshold;
+      ScratchDigits A(n, platform_);
+      ScratchDigits B(n, platform_);
+      GenerateRandomBits(rng_, A);
+      GenerateRandomBits(rng_, B);
+      for (uint32_t i = n / 2; i < n; i++) {
+        A[i] = ~digit_t{0};
+        B[i] = ~digit_t{0};
+      }
+      RunWithInterrupts(
+          [&](ProcessorImpl* impl) {
+            ScratchDigits Z(2 * n, impl->platform());
+            impl->MultiplyKaratsuba(Z, A, B);
+          },
+          count);
+    }
+
+    // Interruption during classic ToString (negative input).
+    {
+      constexpr uint32_t n = 100;
+      ScratchDigits X(n, platform_);
+      GenerateRandom(X);
+      uint32_t chars_required = ToStringResultLength(X, 10, true);
+      std::unique_ptr<char[]> out(new char[chars_required]);
+      RunWithInterrupts(
+          [&](ProcessorImpl* impl) {
+            uint32_t out_len = chars_required;
+            impl->ToStringImpl(out.get(), &out_len, X, 10, true, false);
+          },
+          count);
+    }
+#endif  // V8_ADVANCED_BIGINT_ALGORITHMS
+
+    // Interruption during Burnikel-Ziegler division.
+    {
+      constexpr uint32_t n = 2 * config::kBurnikelThreshold;
+      ScratchDigits A(3 * n, platform_);
+      ScratchDigits B(n, platform_);
+      GenerateRandom(A);
+      GenerateRandom(B);
+      uint32_t q_len = DivideResultLength(A, B);
+      RunWithInterrupts(
+          [&](ProcessorImpl* impl) {
+            ScratchDigits Q(q_len, impl->platform());
+            ScratchDigits R(n, impl->platform());
+            impl->DivideBurnikelZiegler(Q, R, A, B);
+          },
+          count);
+    }
+
+    // Interruption during FromStringLarge.
+    {
+      constexpr uint32_t kMaxDigits = 1 << 20;
+      constexpr uint32_t n = 2 * config::kFromStringLargeThreshold;
+      int num_chars =
+          static_cast<int>(std::round(n * kDigitBits / std::log2(10)));
+      std::unique_ptr<char[]> chars(new char[num_chars]);
+      GenerateRandomString(chars.get(), num_chars, 10);
+      RunWithInterrupts(
+          [&](ProcessorImpl* impl) {
+            FromStringAccumulator accumulator(kMaxDigits, impl->platform());
+            accumulator.Parse(chars.get(), chars.get() + num_chars, 10);
+            ScratchDigits result(accumulator.ResultLength(), impl->platform());
+            impl->FromStringLarge(result, &accumulator);
+          },
+          count);
+    }
   }
 
   void TestKaratsuba(int* count) {

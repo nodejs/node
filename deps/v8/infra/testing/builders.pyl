@@ -422,6 +422,7 @@
       {'name': 'v8testing', 'variant': 'default', 'shards': 8},
     ],
   },
+  # Used by v8-internal (Fuzzilli).
   'v8_linux64_fuzzilli_imports_rel': {
     'swarming_dimensions' : {
       'cpu': 'x86-64-avx2',
@@ -642,7 +643,7 @@
   },
   'v8_linux64_pku_dbg': {
     'swarming_dimensions' : {
-      'os': 'Ubuntu-22.04',
+      'os': 'Ubuntu-24.04',
       'cpu': 'x86-64-avx2',
       'pool': 'v8.tests',
       'host_class': 'pku',
@@ -656,7 +657,7 @@
   },
   'v8_linux64_pku_rel': {
     'swarming_dimensions' : {
-      'os': 'Ubuntu-22.04',
+      'os': 'Ubuntu-24.04',
       'cpu': 'x86-64-avx2',
       'pool': 'v8.tests',
       'host_class': 'pku',
@@ -924,6 +925,24 @@
     ],
   },
   'v8_linux64_riscv64_pointer_compression_rel': {
+    'swarming_dimensions': {
+      'os': 'Ubuntu-22.04',
+    },
+    'tests': [
+      {'name': 'v8testing', 'shards': 4},
+    ],
+  },
+  ##############################################################################
+  # Linux with IBM simulators
+  'v8_linux64_ppc64_rel': {
+    'swarming_dimensions': {
+      'os': 'Ubuntu-22.04',
+    },
+    'tests': [
+      {'name': 'v8testing', 'shards': 4},
+    ],
+  },
+  'v8_linux64_s390x_rel': {
     'swarming_dimensions': {
       'os': 'Ubuntu-22.04',
     },
@@ -1615,7 +1634,7 @@
   },
   'V8 Linux64 - PKU': {
     'swarming_dimensions' : {
-      'os': 'Ubuntu-22.04',
+      'os': 'Ubuntu-24.04',
       'cpu': 'x86-64-avx2',
       'pool': 'v8.tests',
       'host_class': 'pku',
@@ -1629,10 +1648,23 @@
   },
   'V8 Linux64 - PKU - debug': {
     'swarming_dimensions' : {
-      'os': 'Ubuntu-22.04',
+      'os': 'Ubuntu-24.04',
       'cpu': 'x86-64-avx2',
       'pool': 'v8.tests',
       'host_class': 'pku',
+    },
+    'tests': [
+      {'name': 'v8testing',
+       'variant': 'default',
+       'test_args': ['--extra-flags', '--force-memory-protection-keys']
+      },
+    ],
+  },
+  'V8 Linux64 - PKU - dev': {
+    'swarming_dimensions' : {
+      'os': 'Ubuntu-22.04',
+      'cpu': 'x86-64-avx2',
+      'pool': 'chromium.tests',
     },
     'tests': [
       {'name': 'v8testing',

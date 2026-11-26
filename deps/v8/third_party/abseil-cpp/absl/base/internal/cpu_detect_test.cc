@@ -22,6 +22,26 @@ ABSL_NAMESPACE_BEGIN
 namespace base_internal {
 namespace {
 
+TEST(CpuDetectTest, SupportsArmSHA3) {
+#if defined(__aarch64__) || defined(_M_ARM64)
+  (void)SupportsArmSHA3();
+#else
+  EXPECT_FALSE(SupportsArmSHA3());
+#endif
+}
+
+TEST(CpuDetectTest, SupportsAvx2) {
+#if defined(__x86_64__) || defined(_M_X64)
+#if ABSL_HAVE_BUILTIN(__builtin_cpu_supports) && defined(__linux__)
+  EXPECT_EQ(SupportsAvx2(), __builtin_cpu_supports("avx2") != 0);
+#else
+  (void)SupportsAvx2();
+#endif
+#else
+  EXPECT_FALSE(SupportsAvx2());
+#endif
+}
+
 TEST(CpuDetectTest, SupportsBmi2) {
 #if defined(__x86_64__) || defined(_M_X64)
 #if ABSL_HAVE_BUILTIN(__builtin_cpu_supports) && defined(__linux__)

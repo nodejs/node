@@ -87,7 +87,7 @@ LIBC_INLINE float hypotf(float x, float y) {
 
     double a = y_a_smaller ? x_sq : y_sq;
     double b = y_a_smaller ? y_sq : x_sq;
-    double e = b - fputil::multiply_add(r_d, r_d, -a);
+    double e = b - fputil::multiply_sub(r_d, r_d, a);
     if (e == 0.0)
       return r_f;
 
@@ -98,7 +98,7 @@ LIBC_INLINE float hypotf(float x, float y) {
     // We use FastTwoSum algorithm to compute those errors and then combine.
 #ifdef LIBC_TARGET_CPU_HAS_FMA_DOUBLE
     double sum_sq_lo = (b - (sum_sq - a));
-    double err = sum_sq_lo - fputil::multiply_add(r, r, -sum_sq);
+    double err = sum_sq_lo - fputil::multiply_sub(r, r, sum_sq);
 #else
     fputil::DoubleDouble r_sq = fputil::exact_mult(r, r);
     double sum_sq_lo = (b - (sum_sq - a));

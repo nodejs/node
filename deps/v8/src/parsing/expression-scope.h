@@ -251,10 +251,9 @@ class ExpressionScope {
     return base::IsInRange(type_, kParameterDeclaration, kLexicalDeclaration);
   }
 
-  int SetInitializers(int variable_index, int peek_position) {
+  int SetInitializers(int variable_index) {
     if (CanBeArrowParameterDeclaration()) {
-      return AsExpressionParsingScope()->SetInitializers(variable_index,
-                                                         peek_position);
+      return AsExpressionParsingScope()->SetInitializers(variable_index);
     }
     return variable_index;
   }
@@ -628,10 +627,14 @@ class ExpressionParsingScope : public ExpressionScope<Types> {
     variable_list_.at(variable_list_.length() - 1).first->set_is_assigned();
   }
 
-  int SetInitializers(int first_variable_index, int position) {
+  int SetInitializers(int first_variable_index) {
     int len = variable_list_.length();
     if (len == 0) return 0;
 
+    // Record end_position() (the end of the last token of the parameter or
+    // its initializer, before trailing whitespace or comments) to match
+    // ParserBase::ParseFormalParameter on lazy reparse.
+    int position = this->parser()->end_position();
     int end = len - 1;
     for (int i = end; i >= first_variable_index &&
                       variable_list_.at(i).second == kNoSourcePosition;

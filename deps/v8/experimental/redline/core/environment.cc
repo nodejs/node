@@ -49,18 +49,19 @@ Environment::Environment() {
         F("sort", 0, 1, T::kArray, T::kFunction),
         F("indexOf", 1, 2, T::kNumber),
         F("includes", 1, 2, T::kBoolean),
-        F("map", 1, 1, T::kArray, T::kFunction),
-        F("filter", 1, 1, T::kArray, T::kFunction),
-        F("forEach", 1, 1, T::kNullish, T::kFunction),
+        F("map", 1, 2, T::kArray, T::kFunction, T::kObject),
+        F("filter", 1, 2, T::kArray, T::kFunction, T::kObject),
+        F("forEach", 1, 2, T::kNullish, T::kFunction, T::kObject),
         F("reduce", 1, 2, T::kUnknown, T::kFunction),
-        F("some", 1, 1, T::kBoolean, T::kFunction),
-        F("every", 1, 1, T::kBoolean, T::kFunction),
-        F("find", 1, 1, T::kUnknown, T::kFunction),
-        F("findIndex", 1, 1, T::kNumber, T::kFunction),
-        F("findLast", 1, 1, T::kUnknown, T::kFunction),
+        F("some", 1, 2, T::kBoolean, T::kFunction, T::kObject),
+        F("every", 1, 2, T::kBoolean, T::kFunction, T::kObject),
+        F("find", 1, 2, T::kUnknown, T::kFunction, T::kObject),
+        F("findIndex", 1, 2, T::kNumber, T::kFunction, T::kObject),
+        F("findLast", 1, 2, T::kUnknown, T::kFunction, T::kObject),
+        F("findLastIndex", 1, 2, T::kNumber, T::kFunction, T::kObject),
         F("fill", 1, 3, T::kArray, T::kUnknown, T::kNumber, T::kNumber),
         F("flat", 0, 1, T::kArray, T::kNumber),
-        F("flatMap", 1, 1, T::kArray, T::kFunction),
+        F("flatMap", 1, 2, T::kArray, T::kFunction, T::kObject),
         F("at", 1, 1, T::kUnknown, T::kNumber),
         F("keys", 0, 0, T::kObject),
         F("values", 0, 0, T::kObject),
@@ -132,20 +133,22 @@ Environment::Environment() {
       {T::kRegExp,
        {F("test", 1, 1, T::kBoolean, T::kString),
         F("exec", 1, 1, T::kUnknown, T::kString),
+        F("compile", 1, 1, T::kRegExp, T::kRegExp),
         F("toString", 0, 0, T::kString)},
-       {"lastIndex", "source", "flags", "global", "sticky"}},
+       {"lastIndex", "source", "flags", "global", "sticky", "dotAll",
+        "hasIndices", "ignoreCase", "multiline", "unicode", "unicodeSets"}},
       {T::kMap,
        {F("get", 1, 1, T::kUnknown), F("set", 2, 2, T::kMap),
         F("has", 1, 1, T::kBoolean), F("delete", 1, 1, T::kBoolean),
         F("clear", 0, 0, T::kNullish), F("keys", 0, 0, T::kObject),
         F("values", 0, 0, T::kObject), F("entries", 0, 0, T::kObject),
-        F("forEach", 1, 1, T::kNullish, T::kFunction)},
+        F("forEach", 1, 2, T::kNullish, T::kFunction, T::kObject)},
        {"size"}},
       {T::kSet,
        {F("add", 1, 1, T::kSet), F("has", 1, 1, T::kBoolean),
         F("delete", 1, 1, T::kBoolean), F("clear", 0, 0, T::kNullish),
         F("values", 0, 0, T::kObject),
-        F("forEach", 1, 1, T::kNullish, T::kFunction),
+        F("forEach", 1, 2, T::kNullish, T::kFunction, T::kObject),
         F("union", 1, 1, T::kSet, T::kSet),
         F("intersection", 1, 1, T::kSet, T::kSet)},
        {"size"}},
@@ -159,18 +162,19 @@ Environment::Environment() {
         F("set", 1, 2, T::kNullish, T::kArray, T::kNumber),
         F("subarray", 0, 2, T::kTypedArray, T::kNumber, T::kNumber),
         F("slice", 0, 2, T::kTypedArray, T::kNumber, T::kNumber),
-        F("map", 1, 1, T::kTypedArray, T::kFunction),
+        F("map", 1, 2, T::kTypedArray, T::kFunction, T::kObject),
         F("sort", 0, 1, T::kTypedArray),
         F("indexOf", 1, 1, T::kNumber, T::kNumber), F("join", 0, 1, T::kString),
         F("reverse", 0, 0, T::kTypedArray),
         F("at", 1, 1, T::kNumber, T::kNumber),
         F("copyWithin", 2, 3, T::kTypedArray, T::kNumber, T::kNumber)},
        {"length", "byteLength", "byteOffset", "buffer", "0", "1"}},
+      // No resize() and grow(): they throw for the buffers that are not
+      // resizable. The ResizableBuffer generator calls them on buffers
+      // that are.
       {T::kArrayBuffer,
        {F("slice", 0, 2, T::kArrayBuffer, T::kNumber, T::kNumber),
-        F("resize", 1, 1, T::kNullish, T::kNumber),
-        F("transfer", 0, 1, T::kArrayBuffer, T::kNumber),
-        F("grow", 1, 1, T::kNullish, T::kNumber)},
+        F("transfer", 0, 1, T::kArrayBuffer, T::kNumber)},
        {"byteLength", "maxByteLength", "resizable", "detached", "growable"}},
       {T::kDate,
        {F("getTime", 0, 0, T::kNumber), F("getFullYear", 0, 0, T::kNumber),
@@ -183,6 +187,29 @@ Environment::Environment() {
        {"message", "name", "stack"}},
       {T::kSymbol, {F("toString", 0, 0, T::kString)}, {"description"}},
   };
+  // A store to a getter of a prototype does nothing (or throws in strict
+  // code). These properties are data properties that a store changes.
+  for (BuiltinType& type : types_) {
+    switch (type.type) {
+      case T::kArray:
+        type.writable = {"length", "0", "1"};
+        break;
+      case T::kRegExp:
+        type.writable = {"lastIndex"};
+        break;
+      case T::kTypedArray:
+        type.writable = {"0", "1"};
+        break;
+      case T::kFunction:
+        type.writable = {"prototype"};
+        break;
+      case T::kError:
+        type.writable = {"message", "name"};
+        break;
+      default:
+        break;
+    }
+  }
 
   // --- globals --------------------------------------------------------------
   globals_ = {
@@ -331,10 +358,17 @@ Environment::Environment() {
        {F("groupBy", 2, 2, T::kMap, T::kArray, T::kFunction)},
        {}},
       {"Set", T::kClass, true, T::kSet, 0, 1, {}, {}},
-      {"WeakMap", T::kClass, true, T::kMap, 0, 1, {}, {}},
-      {"WeakSet", T::kClass, true, T::kSet, 0, 1, {}, {}},
-      {"WeakRef", T::kClass, true, T::kObject, 1, 1, {}, {}},
-      {"FinalizationRegistry", T::kClass, true, T::kObject, 1, 1, {}, {}},
+      {"WeakMap", T::kClass, true, T::kWeakMap, 0, 1, {}, {}},
+      {"WeakSet", T::kClass, true, T::kWeakSet, 0, 1, {}, {}},
+      {"WeakRef", T::kClass, true, T::kWeakRef, 1, 1, {}, {}},
+      {"FinalizationRegistry",
+       T::kClass,
+       true,
+       T::kFinalizationRegistry,
+       1,
+       1,
+       {},
+       {}},
       {"Promise",
        T::kClass,
        true,
@@ -376,8 +410,15 @@ Environment::Environment() {
        2,
        {F("isView", 1, 1, T::kBoolean)},
        {}},
-      {"SharedArrayBuffer", T::kClass, true, T::kArrayBuffer, 1, 2, {}, {}},
-      {"DataView", T::kClass, true, T::kObject, 1, 3, {}, {}},
+      {"SharedArrayBuffer",
+       T::kClass,
+       true,
+       T::kSharedArrayBuffer,
+       1,
+       2,
+       {},
+       {}},
+      {"DataView", T::kClass, true, T::kDataView, 1, 3, {}, {}},
       {"Uint8Array",
        T::kClass,
        true,
@@ -446,9 +487,15 @@ Environment::Environment() {
       {"CompileBaseline", 1, T::kFunction},
       {"DeoptimizeFunction", 1, T::kFunction},
       {"DeoptimizeNow", 0, T::kUnknown},
+      {"_DeoptimizeNow", 0, T::kUnknown},
       {"NeverOptimizeFunction", 1, T::kFunction},
       {"OptimizeOsr", 0, T::kUnknown},
       {"BaselineOsr", 0, T::kUnknown},
+      {"SetForceSlowPath", 1, T::kBoolean},
+      {"DisableEagerInlining", 1, T::kFunction},
+      {"ShareObject", 1, T::kUnknown},
+      {"GetUndetectable", 0, T::kUnknown},
+      {"ArrayBufferSetDetachKey", 2, T::kArrayBuffer},
       {"SimulateNewspaceFull", 0, T::kUnknown},
       {"ArrayBufferDetach", 1, T::kArrayBuffer},
       {"HaveSameMap", 2, T::kObject},
@@ -464,8 +511,20 @@ Environment::Environment() {
       {"ConstructSlicedString", 2, T::kString},
       {"FlattenString", 1, T::kString},
       {"IsBeingInterpreted", 0, T::kUnknown},
-      {"PretenureAllocationSite", 1, T::kObject},
       {"SetAllocationTimeout", 2, T::kNumber},
+      // Special values and GC natives of Fuzzilli's V8 profile. The
+      // NativeCall generator gives several of them a fixed argument shape
+      // (generators/values_generators.cc).
+      {"WasmStruct", 0, T::kUnknown},
+      {"WasmArray", 0, T::kUnknown},
+      {"GetHoleNaN", 0, T::kUnknown},
+      {"GetUndefinedNaN", 0, T::kUnknown},
+      {"AllocateHeapNumberWithValue", 1, T::kNumber},
+      {"ConstructThinString", 1, T::kString},
+      {"ConstructInternalizedString", 1, T::kString},
+      {"MajorGCForCompilerTesting", 0, T::kUnknown},
+      {"SetDispatchTableGCInterval", 1, T::kNumber},
+      {"VerifyType", 1, T::kUnknown},
   };
 
   property_names_ = {"a",
@@ -540,6 +599,10 @@ Environment::Environment() {
               1e6,
               16777215,
               16777216,
+              1073741823,   // the largest Smi with 31-bit Smis
+              1073741824,   // one more: a heap number with 31-bit Smis
+              -1073741824,  // the smallest Smi with 31-bit Smis
+              -1073741825,  // one less
               2147483647,
               2147483648,
               -2147483648,
@@ -547,14 +610,30 @@ Environment::Environment() {
               4294967295,
               4294967296,
               1e10,
+              268435439,
+              268435440,
+              268435441,
+              536870887,
+              536870888,
+              536870889,
+              -268435456,
+              -536870912,
               9007199254740991,
               9007199254740992,
               -9007199254740991,
+              -9007199254740992,
               1e21,
               1e300,
               1.7976931348623157e308,
+              -1.7976931348623157e308,
               5e-324,
+              -5e-324,
               2.2250738585072014e-308,
+              -2.2250738585072014e-308,
+              2.220446049250313e-16,
+              -2.220446049250313e-16,
+              1e-15,
+              -1e-15,
               0.1,
               0.5,
               1.5,
@@ -600,24 +679,181 @@ Environment::Environment() {
               {"^$", "m"},  {"[a-z]+", "gi"}, {"(?<x>a)\\k<x>", ""},
               {".", "s"},   {"a*?", "y"},     {"\\p{L}", "v"},
               {"(?:)", "d"}};
+  AddTypedModel();
+  BuildLookupTables();
 }  // NOLINT(readability/fn_size)
 
-const BuiltinType* Environment::ForType(JsType type) const {
-  for (const BuiltinType& t : types_) {
-    if (t.type == type) {
-      return &t;
+void Environment::BuildLookupTables() {
+  for (size_t i = 0; i < types_.size(); ++i) {
+    type_index_[types_[i].type] = i;
+    for (const BuiltinFunction& m : types_[i].methods) {
+      method_return_types_[{types_[i].type, m.name}] = m.result;
+    }
+    for (const PropertyInfo& p : types_[i].property_types) {
+      property_types_[{types_[i].type, p.name}] = p.type;
     }
   }
-  return nullptr;
+  for (size_t i = 0; i < globals_.size(); ++i) {
+    const BuiltinGlobal& g = globals_[i];
+    global_index_[g.name] = i;
+    const size_t dot = g.name.rfind('.');
+    if (g.constructible) {
+      if (dot == std::string_view::npos) {
+        global_ctor_types_[g.name] = g.instance_type;
+      } else {
+        namespace_ctor_types_[{g.name.substr(0, dot), g.name.substr(dot + 1)}] =
+            g.instance_type;
+      }
+    }
+    if (dot == std::string_view::npos) {
+      if (g.type == JsType::kFunction ||
+          (g.type == JsType::kClass && !g.constructible &&
+           g.name != "Iterator") ||
+          g.name == "Array" || g.name == "Object" || g.name == "Function" ||
+          g.name == "RegExp" || g.name == "Error" || g.name == "TypeError" ||
+          g.name == "RangeError" || g.name == "SyntaxError" ||
+          g.name == "ReferenceError" || g.name == "EvalError" ||
+          g.name == "URIError" || g.name == "AggregateError") {
+        global_call_types_[g.name] = g.instance_type;
+      } else if (g.name == "Date") {
+        global_call_types_[g.name] = JsType::kString;
+      }
+    }
+    for (const BuiltinFunction& f : g.static_methods) {
+      namespace_call_types_[{g.name, f.name}] = f.result;
+    }
+  }
+  // Keep `Promise.reject` typed even though generators skip it.
+  namespace_call_types_.try_emplace({"Promise", "reject"}, JsType::kPromise);
+
+  for (const DiscoveredSignatureEntry& e : discovered_signatures_) {
+    if (e.prototype) {
+      if (const BuiltinGlobal* g = Global(e.path)) {
+        method_return_types_.try_emplace({g->instance_type, e.member},
+                                         e.function.result);
+      }
+      continue;
+    }
+    if (e.member.empty()) {
+      // Skip known globals so constructor-only entries stay out of
+      // `global_call_types_`.
+      if (e.path.find('.') == std::string_view::npos &&
+          e.function.result != JsType::kUnknown &&
+          global_index_.find(e.path) == global_index_.end()) {
+        global_call_types_.try_emplace(e.path, e.function.result);
+      }
+      continue;
+    }
+    namespace_call_types_.try_emplace({e.path, e.member}, e.function.result);
+  }
+
+  for (const char* prop : {"PI", "E", "LN2", "LN10", "SQRT2"}) {
+    namespace_property_types_[{"Math", prop}] = JsType::kNumber;
+  }
+  for (const char* prop :
+       {"MAX_SAFE_INTEGER", "MIN_SAFE_INTEGER", "MAX_VALUE", "MIN_VALUE",
+        "EPSILON", "NaN", "POSITIVE_INFINITY", "NEGATIVE_INFINITY"}) {
+    namespace_property_types_[{"Number", prop}] = JsType::kNumber;
+  }
+  for (const char* prop :
+       {"iterator", "asyncIterator", "hasInstance", "toPrimitive",
+        "toStringTag", "species", "isConcatSpreadable", "match", "matchAll",
+        "replace", "search", "split", "unscopables", "dispose",
+        "asyncDispose"}) {
+    namespace_property_types_[{"Symbol", prop}] = JsType::kSymbol;
+  }
+  for (const char* prop :
+       {"$1", "$2", "$3", "$4", "$5", "$6", "$7", "$8", "$9", "$_", "input",
+        "lastMatch", "lastParen", "leftContext"}) {
+    namespace_property_types_[{"RegExp", prop}] = JsType::kString;
+  }
+  namespace_property_types_[{"Error", "stackTraceLimit"}] = JsType::kNumber;
+  for (const char* ta :
+       {"Uint8Array", "Int8Array", "Uint8ClampedArray", "Int16Array",
+        "Uint16Array", "Int32Array", "Uint32Array", "Float16Array",
+        "Float32Array", "Float64Array", "BigInt64Array", "BigUint64Array"}) {
+    namespace_property_types_[{ta, "BYTES_PER_ELEMENT"}] = JsType::kNumber;
+  }
+}
+
+const BuiltinType* Environment::ForType(JsType type) const {
+  auto it = type_index_.find(type);
+  return it != type_index_.end() ? &types_[it->second] : nullptr;
 }
 
 const BuiltinGlobal* Environment::Global(std::string_view name) const {
-  for (const BuiltinGlobal& g : globals_) {
-    if (g.name == name) {
-      return &g;
+  auto it = global_index_.find(name);
+  return it != global_index_.end() ? &globals_[it->second] : nullptr;
+}
+
+JsType Environment::LookupGlobalCtorType(std::string_view name) const {
+  if (name.empty()) {
+    return JsType::kUnknown;
+  }
+  auto it = global_ctor_types_.find(name);
+  return it != global_ctor_types_.end() ? it->second : JsType::kUnknown;
+}
+
+JsType Environment::LookupNamespaceCtorType(std::string_view ns,
+                                            std::string_view name) const {
+  if (ns.empty() || name.empty()) {
+    return JsType::kUnknown;
+  }
+  auto it = namespace_ctor_types_.find({ns, name});
+  return it != namespace_ctor_types_.end() ? it->second : JsType::kUnknown;
+}
+
+JsType Environment::LookupGlobalCallReturnType(std::string_view name) const {
+  if (name.empty()) {
+    return JsType::kUnknown;
+  }
+  auto it = global_call_types_.find(name);
+  return it != global_call_types_.end() ? it->second : JsType::kUnknown;
+}
+
+JsType Environment::LookupNamespaceCallReturnType(std::string_view ns,
+                                                  std::string_view name) const {
+  if (ns.empty() || name.empty()) {
+    return JsType::kUnknown;
+  }
+  auto it = namespace_call_types_.find({ns, name});
+  return it != namespace_call_types_.end() ? it->second : JsType::kUnknown;
+}
+
+JsType Environment::LookupMethodReturnType(JsType recv,
+                                           std::string_view method_name) const {
+  if (recv == JsType::kUnknown || method_name.empty()) {
+    return JsType::kUnknown;
+  }
+  auto it = method_return_types_.find({recv, method_name});
+  if (it != method_return_types_.end()) {
+    return it->second;
+  }
+  if (recv != JsType::kNullish && recv != JsType::kObject) {
+    auto obj_it = method_return_types_.find({JsType::kObject, method_name});
+    if (obj_it != method_return_types_.end()) {
+      return obj_it->second;
     }
   }
-  return nullptr;
+  return JsType::kUnknown;
+}
+
+JsType Environment::LookupPropertyType(JsType recv,
+                                       std::string_view prop_name) const {
+  if (recv == JsType::kUnknown || prop_name.empty()) {
+    return JsType::kUnknown;
+  }
+  auto it = property_types_.find({recv, prop_name});
+  return it != property_types_.end() ? it->second : JsType::kUnknown;
+}
+
+JsType Environment::LookupNamespacePropertyType(
+    std::string_view ns, std::string_view prop_name) const {
+  if (ns.empty() || prop_name.empty()) {
+    return JsType::kUnknown;
+  }
+  auto it = namespace_property_types_.find({ns, prop_name});
+  return it != namespace_property_types_.end() ? it->second : JsType::kUnknown;
 }
 
 std::vector<const BuiltinGlobal*> Environment::ConstructorsOf(
@@ -650,25 +886,28 @@ std::string_view Environment::IntrospectionScript() {
   // "s": [["supportedLocalesOf", 1]], "m": [["format", 1], ...], "g":
   // ["<getter name>", ...]}, ...]. Kinds: F function, C constructor, N
   // namespace object. Shell I/O, process control, threads and WebAssembly
-  // are left out on purpose.
+  // are left out on purpose. The deny list names globals and members
+  // (`d8.terminateNow`). A call of d8.terminateNow() ends the script, and no
+  // try/catch can stop it.
   static constexpr char kScript[] = R"js((function() {
   const out = [];
   const seen = new Set();
   const deny = new Set(['print', 'printErr', 'write', 'quit', 'load', 'read', 'readline',
-    'readbuffer', 'os', 'version', 'Worker', 'fuzzilli', 'testRunner',
+    'readbuffer', 'os', 'version', 'Worker', 'redline', 'fuzzilli', 'testRunner',
     'globalThis', 'setTimeout', 'queueMicrotask', 'arguments', '__redline_explore',
-    'd8.file', 'd8.log', 'd8.terminate', 'd8.quit', 'd8.debugger', 'd8.profiler', 'd8.dom', 'd8.wasm',
+    'd8.file', 'd8.log', 'd8.terminate', 'd8.terminateNow', 'd8.quit', 'd8.debugger',
+    'd8.profiler', 'd8.dom', 'd8.wasm', 'd8.promise.setHooks',
     'Realm.dispose', 'Realm.navigate', 'Realm.detachGlobal', 'performance.measureMemory',
-    'Atomics.wait', 'Atomics.waitAsync', 'Atomics.pause']);
+    'Atomics.wait']);
   function isConstructor(f) {
     try { Reflect.construct(function() {}, [], f); return true; } catch (e) { return false; }
   }
-  function members(o, skip) {
+  function members(o, path) {
     const statics = [], getters = [];
     let names;
     try { names = Object.getOwnPropertyNames(o); } catch (e) { return [statics, getters]; }
     for (const n of names) {
-      if (skip.has(n) || n === 'constructor' || n === 'prototype' || n === '__proto__' ||
+      if (deny.has(path + '.' + n) || n === 'constructor' || n === 'prototype' || n === '__proto__' ||
           n === 'caller' || n === 'callee' || n === 'arguments' || n === 'length' ||
           n === 'name') continue;
       let d;
@@ -688,19 +927,19 @@ std::string_view Environment::IntrospectionScript() {
     if (t === 'function') {
       seen.add(v);
       const ctor = isConstructor(v);
-      const [statics] = members(v, new Set());
+      const [statics] = members(v, path);
       let methods = [], getters = [];
       if (ctor) {
         let proto;
         try { proto = v.prototype; } catch (e) {}
         if (proto && typeof proto === 'object') {
-          [methods, getters] = members(proto, new Set());
+          [methods, getters] = members(proto, path + '.prototype');
           // Subclasses (typed arrays, errors) inherit their methods from an
           // intermediate prototype (%TypedArray%.prototype, Error.prototype).
           let parent = null;
           try { parent = Object.getPrototypeOf(proto); } catch (e) {}
           if (parent && parent !== Object.prototype && parent !== Function.prototype) {
-            const [pm, pg] = members(parent, new Set());
+            const [pm, pg] = members(parent, path + '.prototype');
             methods = methods.concat(pm);
             getters = getters.concat(pg);
           }
@@ -710,7 +949,7 @@ std::string_view Environment::IntrospectionScript() {
       if (depth < 1) nested(path, v, depth);
     } else if (t === 'object' && v !== null) {
       seen.add(v);
-      const [statics, getters] = members(v, new Set());
+      const [statics, getters] = members(v, path);
       out.push({p: path, k: 'N', a: 0, s: statics, m: [], g: getters});
       if (depth < 2) nested(path, v, depth);
     }
@@ -747,7 +986,8 @@ std::string_view Environment::IntrospectionScript() {
     if (!d || !('value' in d)) continue;
     describe(n, d.value, 0);
   }
-  fuzzilli('FUZZILLI_PRINT', JSON.stringify(out));
+  if (typeof redline === 'function') redline('REDLINE_PRINT', JSON.stringify(out));
+  else if (typeof fuzzilli === 'function') fuzzilli('FUZZILLI_PRINT', JSON.stringify(out));
 })();
 )js";
   return kScript;
@@ -816,6 +1056,20 @@ std::unique_ptr<Environment> Environment::WithDiscovered(
   if (env->discovered_.empty()) {
     *error = "introspection found no usable globals";
     return nullptr;
+  }
+  // A static that the target also reported as a constructor of its own
+  // (Intl.Locale, Temporal.PlainDate) needs `new`.
+  for (DiscoveredApi& api : env->discovered_) {
+    for (DiscoveredMember& m : api.statics) {
+      std::string path = std::string(api.path) + "." + std::string(m.name);
+      for (const DiscoveredApi& other : env->discovered_) {
+        if (other.kind == DiscoveredApi::Kind::kConstructor &&
+            other.path == path) {
+          m.constructor = true;
+          break;
+        }
+      }
+    }
   }
   return env;
 }

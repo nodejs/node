@@ -1,0 +1,5 @@
+Tests changing local variables in OSR frame via Debugger.setVariableValue.
+r1 (changed=true): result
+r2 (changed=true): result
+r3 (changed=true): result0.1
+r4 (changed=true): 101

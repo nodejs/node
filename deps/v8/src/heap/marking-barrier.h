@@ -57,6 +57,11 @@ class MarkingBarrier {
 
   inline void MarkValue(Tagged<HeapObject> host, Tagged<HeapObject> value);
 
+  bool is_activated() const { return is_activated_; }
+
+  // True for client isolates iff incremental marking is enabled on the main isolate.
+  bool is_shared() const { return shared_heap_worklists_.has_value(); }
+
   bool is_minor() const { return marking_mode_ == MarkingMode::kMinorMarking; }
 
   bool is_not_major() const {

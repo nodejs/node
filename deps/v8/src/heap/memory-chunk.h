@@ -70,23 +70,20 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
     // Chunk in the to-space or a young large page that was scavenged.
     TO_PAGE = 1u << 4,
 
-    // Indicates whether incremental marking is currently enabled.
-    INCREMENTAL_MARKING = 1u << 5,
-
     // Chunk was allocated during major incremental marking. Only contains old
     // objects.
-    BLACK_ALLOCATED = 1u << 6,
+    BLACK_ALLOCATED = 1u << 5,
 
     // The chunk represents a large chunk of non-uniform size.
-    LARGE_PAGE = 1u << 7,
+    LARGE_PAGE = 1u << 6,
 
     // The chunk was selected as evacuation candidate, meaning that objects on
     // this chunk are being relocated.
-    EVACUATION_CANDIDATE = 1u << 8,
+    EVACUATION_CANDIDATE = 1u << 7,
 
     // The chunk is in the new space of the young generation and already
     // survived at least one garbage collection cycle.
-    NEW_SPACE_BELOW_AGE_MARK = 1u << 9,
+    NEW_SPACE_BELOW_AGE_MARK = 1u << 8,
 
 #if !CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
     // Chunk belongs to the read-only heap and does not participate in garbage
@@ -94,17 +91,17 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
     //
     // Note that read-only chunks have no owner so this is required for checking
     // space identity for these chunks.
-    READ_ONLY_HEAP = 1u << 10,
+    READ_ONLY_HEAP = 1u << 9,
 #endif  // !CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
 
 #if V8_ENABLE_STICKY_MARK_BITS_BOOL
     // Sticky markbits only: Used to mark chunks belonging to spaces that do not
     // support young generation objects.
-    STICKY_MARK_BIT_CONTAINS_ONLY_OLD = 1u << 11,
+    STICKY_MARK_BIT_CONTAINS_ONLY_OLD = 1u << 10,
 
     // Sticky markbits only: Used in young generation checks. When sticky
     // mark-bits are enabled and major GC in progress, treat all objects as old.
-    STICKY_MARK_BIT_IS_MAJOR_GC_IN_PROGRESS = 1u << 12,
+    STICKY_MARK_BIT_IS_MAJOR_GC_IN_PROGRESS = 1u << 11,
 #endif
   };
 
@@ -121,7 +118,6 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
       MainThreadFlags(FROM_PAGE) | MainThreadFlags(TO_PAGE);
   static constexpr MainThreadFlags kIsLargePageMask = LARGE_PAGE;
   static constexpr MainThreadFlags kInSharedHeap = IN_WRITABLE_SHARED_SPACE;
-  static constexpr MainThreadFlags kIncrementalMarking = INCREMENTAL_MARKING;
   static constexpr MainThreadFlags kSkipEvacuationSlotsRecordingMask =
       MainThreadFlags(kEvacuationCandidateMask) |
       MainThreadFlags(kIsInYoungGenerationMask);
@@ -192,8 +188,6 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
 
   V8_INLINE BasePage* MetadataNoIsolateCheck();
   V8_INLINE const BasePage* MetadataNoIsolateCheck() const;
-
-  V8_INLINE bool IsMarking() const { return IsFlagSet(INCREMENTAL_MARKING); }
 
   V8_INLINE bool InWritableSharedSpace() const {
     return IsFlagSet(IN_WRITABLE_SHARED_SPACE);
@@ -321,8 +315,6 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
     return IsolateGroup::current()->metadata_pointer_table();
   }
 
-  // For MetadataIndexOffset().
-  friend class debug_helper_internal::ReadStringVisitor;
   // For MetadataTableAddress().
   friend class ExternalReference;
   friend class TestDebugHelper;
@@ -334,6 +326,9 @@ class V8_EXPORT_PRIVATE MemoryChunk final {
   }
 
 #endif  // !V8_ENABLE_SANDBOX
+
+  // For MetadataIndexOffset() / MetadataOffset().
+  friend class debug_helper_internal::ReadStringVisitor;
 
   template <bool check_isolate>
   BasePage* MetadataImpl(const Isolate* isolate);

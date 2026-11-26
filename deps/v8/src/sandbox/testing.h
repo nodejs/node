@@ -10,11 +10,17 @@
 #include "src/base/flags.h"
 #include "src/common/globals.h"
 #include "src/objects/instance-type.h"
+#include "src/objects/tagged.h"
 
 namespace v8 {
 namespace internal {
 
 #ifdef V8_ENABLE_SANDBOX
+
+#if defined(V8_ENABLE_MEMORY_CORRUPTION_API) && defined(V8_OS_LINUX) && \
+    V8_TARGET_ARCH_X64
+#define V8_ENABLE_HARDWARE_WATCHPOINT_SUPPORT
+#endif
 
 // Infrastructure for testing the security properties of the sandbox.
 class SandboxTesting : public AllStatic {
@@ -115,6 +121,16 @@ class SandboxTesting : public AllStatic {
   V8_EXPORT_PRIVATE static void UnregisterSafeMemoryRegion(Address start);
 #endif  // V8_ENABLE_MEMORY_CORRUPTION_API
 
+#ifdef V8_ENABLE_HARDWARE_WATCHPOINT_SUPPORT
+  using IsWatchedObjectCallback = bool (*)(Tagged<HeapObject> object);
+  V8_EXPORT_PRIVATE static void SetIsWatchedObjectCallback(
+      IsWatchedObjectCallback callback);
+  static bool IsWatchedObject(Tagged<HeapObject> object) {
+    return V8_UNLIKELY(is_watched_object_callback_ != nullptr) &&
+           is_watched_object_callback_(object);
+  }
+#endif  // V8_ENABLE_HARDWARE_WATCHPOINT_SUPPORT
+
   // The current sandbox testing mode.
   static Mode mode() { return mode_; }
 
@@ -137,6 +153,9 @@ class SandboxTesting : public AllStatic {
 
  private:
   static Mode mode_;
+#ifdef V8_ENABLE_HARDWARE_WATCHPOINT_SUPPORT
+  static IsWatchedObjectCallback is_watched_object_callback_;
+#endif  // V8_ENABLE_HARDWARE_WATCHPOINT_SUPPORT
 };
 
 #endif  // V8_ENABLE_SANDBOX

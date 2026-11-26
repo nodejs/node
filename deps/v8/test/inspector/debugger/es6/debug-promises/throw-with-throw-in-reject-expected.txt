@@ -1,0 +1,11 @@
+Tests debug events when an exception is thrown in Promise and reject handler.
+Paused on exception: uncaught=true
+Exception message: caught
+At event line: true
+Paused on exception: uncaught=true
+Exception message: reject
+At event line: true
+Total exception events: 2
+Test done: true
+Test error: null
+Log: ["resolve","end main","throw caught"]

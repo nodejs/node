@@ -89,13 +89,8 @@ enum class ProcessResult {
                    // is stitched in before the truncation point (the visited
                    // node and the tail are dropped; the subgraph's exit takes
                    // the original control, which becomes a dead edge).
-  kHoist,          // Hoist the current instruction to the parent basic block
-                   // and reset the current instruction to the beginning of the
-                   // block. Parent block must be dominating.
   kAbort,      // Stop processing now, do not process subsequent nodes/blocks.
                // Should not be used when processing Constants.
-  kSkipBlock,  // Stop processing this block and skip the remaining nodes (no
-               // MultiProcessor support).
 };
 
 class ProcessingState {
@@ -145,6 +140,21 @@ inline LocalHeap* GetLocalHeapForSafepointPolling(Graph* graph) {
   return graph->broker()->local_isolate_or_isolate()->heap();
 }
 
+namespace detail {
+template <typename Processor, typename... Args>
+ProcessResult DispatchNodeBase(Processor& processor, NodeBase* node,
+                               const Args&... args) {
+  switch (node->opcode()) {
+#define CASE(OPCODE)      \
+  case Opcode::k##OPCODE: \
+    return processor.Process(node->Cast<OPCODE>(), args...);
+    NODE_BASE_LIST(CASE)
+#undef CASE
+  }
+  UNREACHABLE();
+}
+}  // namespace detail
+
 template <typename NodeProcessor>
 class GraphProcessor {
  public:
@@ -175,9 +185,7 @@ class GraphProcessor {
             it = map.erase(it);
             break;
           case ProcessResult::kTruncateBlock:
-          case ProcessResult::kHoist:
           case ProcessResult::kAbort:
-          case ProcessResult::kSkipBlock:
             UNREACHABLE();
         }
       }
@@ -231,10 +239,7 @@ class GraphProcessor {
               break;
             case ProcessResult::kAbort:
               return;
-            case ProcessResult::kSkipBlock:
-              goto skip_block;
             case ProcessResult::kTruncateBlock:
-            case ProcessResult::kHoist:
               UNREACHABLE();
           }
         }
@@ -302,22 +307,8 @@ class GraphProcessor {
             node_it_ = block->nodes().end();
             graph_->set_may_have_unreachable_blocks(true);
             break;
-          case ProcessResult::kHoist: {
-            DCHECK(block->predecessor_count() == 1 ||
-                   (block->predecessor_count() == 2 && block->is_loop()));
-            BasicBlock* target = block->predecessor_at(0);
-            DCHECK_EQ(target->successors().size(), 1);
-            Node* cur = *node_it_;
-            cur->set_owner(target);
-            *node_it_ = nullptr;
-            target->nodes().push_back(cur);
-            node_it_ = block->nodes().begin();
-            break;
-          }
           case ProcessResult::kAbort:
             return;
-          case ProcessResult::kSkipBlock:
-            goto skip_block;
         }
       }
 
@@ -331,17 +322,13 @@ class GraphProcessor {
           case ProcessResult::kRevisit:
             process_control_block = true;
             break;
-          case ProcessResult::kSkipBlock:
-            break;
           case ProcessResult::kAbort:
             return;
           case ProcessResult::kRemove:
           case ProcessResult::kTruncateBlock:
-          case ProcessResult::kHoist:
             UNREACHABLE();
         }
       }
-    skip_block:
       BlockProcessResult post_action =
           node_processor_.PostProcessBasicBlock(block);
       switch (post_action) {
@@ -372,19 +359,8 @@ class GraphProcessor {
   }
 
   ProcessResult ProcessNodeBase(NodeBase* node, const ProcessingState& state) {
-    switch (node->opcode()) {
-#define CASE(OPCODE)                                        \
-  case Opcode::k##OPCODE:                                   \
-    PreProcess(node->Cast<OPCODE>(), state);                \
-    return node_processor_.Process(node->Cast<OPCODE>(), state);
-
-      NODE_BASE_LIST(CASE)
-#undef CASE
-    }
-    UNREACHABLE();
+    return detail::DispatchNodeBase(node_processor_, node, state);
   }
-
-  void PreProcess(NodeBase* node, const ProcessingState& state) {}
 
   // The NodeProcessor supports the SpliceAndContinue protocol.
   template <typename NP>
@@ -514,8 +490,6 @@ class GraphBackwardProcessor {
           case ProcessResult::kRevisit:
           case ProcessResult::kRemove:
           case ProcessResult::kTruncateBlock:
-          case ProcessResult::kHoist:
-          case ProcessResult::kSkipBlock:
             UNREACHABLE();
         }
       }
@@ -532,8 +506,6 @@ class GraphBackwardProcessor {
           case ProcessResult::kRevisit:
           case ProcessResult::kRemove:
           case ProcessResult::kTruncateBlock:
-          case ProcessResult::kHoist:
-          case ProcessResult::kSkipBlock:
             UNREACHABLE();
         }
       }
@@ -554,8 +526,6 @@ class GraphBackwardProcessor {
               return;
             case ProcessResult::kTruncateBlock:
             case ProcessResult::kRevisit:
-            case ProcessResult::kSkipBlock:
-            case ProcessResult::kHoist:
               UNREACHABLE();
           }
         }
@@ -575,10 +545,8 @@ class GraphBackwardProcessor {
             it = map.erase(it);
             break;
           case ProcessResult::kRevisit:
-          case ProcessResult::kHoist:
           case ProcessResult::kAbort:
           case ProcessResult::kTruncateBlock:
-          case ProcessResult::kSkipBlock:
             UNREACHABLE();
         }
       }
@@ -603,14 +571,7 @@ class GraphBackwardProcessor {
 
  private:
   ProcessResult ProcessNodeBase(NodeBase* node) {
-    switch (node->opcode()) {
-#define CASE(OPCODE)      \
-  case Opcode::k##OPCODE: \
-    return node_processor_.Process(node->Cast<OPCODE>());
-      NODE_BASE_LIST(CASE)
-#undef CASE
-    }
-    UNREACHABLE();
+    return detail::DispatchNodeBase(node_processor_, node);
   }
 
   NodeProcessor node_processor_;
@@ -653,12 +614,23 @@ class NodeMultiProcessor<Processor, Processors...>
   explicit NodeMultiProcessor(Args&&... processors)
       : Base(std::forward<Args>(processors)...) {}
 
-  // Forwards Process calls to each processor in the chain.
-  // Forward processors receive (Node* node, const ProcessingState& state),
-  // whereas backward processors receive only (Node* node).
-  template <typename Node, typename... Args>
-  ProcessResult Process(Node* node, const Args&... args) {
-    auto res = processor_.Process(node, args...);
+  // Dispatches each processor in the chain over `NodeBase*` independently so
+  // `NodeMultiProcessor<Processors...>` does not instantiate a combined
+  // `Process<NodeT>` across `NODE_BASE_LIST` for each multi-processor tuple.
+  // Forward processors receive (NodeBase* node, const ProcessingState& state),
+  // whereas backward processors receive only (NodeBase* node).
+  template <typename... Args>
+  ProcessResult Process(NodeBase* node, const Args&... args) {
+#ifdef DEBUG
+    const Opcode initial_opcode = node->opcode();
+#endif
+    ProcessResult res = detail::DispatchNodeBase(processor_, node, args...);
+    if constexpr (sizeof...(Processors) > 0) {
+      // If there are subsequent processors in the chain, mutating the node in
+      // place and returning kContinue would pass a stale node to them.
+      DCHECK_IMPLIES(res == ProcessResult::kContinue,
+                     node->opcode() == initial_opcode);
+    }
     switch (res) {
       [[likely]] case ProcessResult::kContinue:
         return Base::Process(node, args...);
@@ -667,11 +639,6 @@ class NodeMultiProcessor<Processor, Processors...>
       case ProcessResult::kRemove:
       case ProcessResult::kTruncateBlock:
         return res;
-      case ProcessResult::kHoist:
-      case ProcessResult::kSkipBlock:
-        // TODO(olivf): How to combine these with multiple processors depends on
-        // the needs of the actual processors. Implement once needed.
-        UNREACHABLE();
     }
     UNREACHABLE();
   }

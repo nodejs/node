@@ -96,12 +96,12 @@ void GraphReducer::ReduceNode(Node* node) {
 
 void GraphReducer::ReduceGraph() { ReduceNode(graph()->end()); }
 
-
-Reduction GraphReducer::Reduce(Node* const node) {
+Reduction GraphReducer::Reduce(Node* const node, NodeId* max_id) {
   auto skip = reducers_.end();
   for (auto i = reducers_.begin(); i != reducers_.end();) {
     if (i != skip) {
       tick_counter_->TickAndMaybeEnterSafepoint();
+      *max_id = static_cast<NodeId>(graph()->NodeCount() - 1);
       Reduction reduction = (*i)->Reduce(node, observe_node_manager_);
       if (!reduction.Changed()) {
         // No change from this reducer.
@@ -144,7 +144,6 @@ Reduction GraphReducer::Reduce(Node* const node) {
   return Reducer::Changed(node);
 }
 
-
 void GraphReducer::ReduceTop() {
   NodeState& entry = stack_.top();
   Node* node = entry.node;
@@ -172,10 +171,11 @@ void GraphReducer::ReduceTop() {
   }
 
   // Remember the max node id before reduction.
-  NodeId const max_id = static_cast<NodeId>(graph()->NodeCount() - 1);
+  NodeId const initial_max_id = static_cast<NodeId>(graph()->NodeCount() - 1);
+  NodeId max_id = initial_max_id;
 
   // All inputs should be visited or on stack. Apply reductions to node.
-  Reduction reduction = Reduce(node);
+  Reduction reduction = Reduce(node, &max_id);
 
   // If there was no reduction, pop {node} and continue.
   if (!reduction.Changed()) return Pop();
@@ -205,6 +205,11 @@ void GraphReducer::ReduceTop() {
   // Check if we have a new replacement.
   if (replacement != node) {
     Replace(node, replacement, max_id);
+    if (replacement->id() > initial_max_id && replacement->id() <= max_id) {
+      // {replacement} was created by an earlier reducer in this Reduce() step,
+      // so it has not been reduced yet.
+      Recurse(replacement);
+    }
   }
 }
 

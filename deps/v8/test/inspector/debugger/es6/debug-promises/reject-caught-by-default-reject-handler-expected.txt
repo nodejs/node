@@ -1,0 +1,6 @@
+Test debug events when we only listen to uncaught exceptions and there is only a default reject handler for the to-be-rejected Promise.
+Paused on exception: uncaught=true
+Exception message: 123
+At event line: true
+Total exception events: 1
+Log: ["resolve q","end main","resolve p","p0.then"]

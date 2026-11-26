@@ -98,6 +98,9 @@ class V8_EXPORT_PRIVATE BytecodeArrayIterator {
   BytecodeArrayIterator(Handle<BytecodeArray> bytecode_array,
                         int initial_offset,
                         DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND);
+  BytecodeArrayIterator(Tagged<BytecodeArray> bytecode_array,
+                        int initial_offset,
+                        DisallowGarbageCollection& no_gc V8_LIFETIME_BOUND);
   ~BytecodeArrayIterator();
 
   BytecodeArrayIterator(const BytecodeArrayIterator&) = delete;
@@ -154,7 +157,10 @@ class V8_EXPORT_PRIVATE BytecodeArrayIterator {
     return next_bytecode;
   }
   OperandScale current_operand_scale() const { return operand_scale_; }
-  DirectHandle<BytecodeArray> bytecode_array() const { return bytecode_array_; }
+  DirectHandle<BytecodeArray> bytecode_array() const {
+    DCHECK(!bytecode_array_.is_null());
+    return bytecode_array_;
+  }
 
   uint32_t GetFlag8Operand(int operand_index) const;
   uint32_t GetFlag16Operand(int operand_index) const;

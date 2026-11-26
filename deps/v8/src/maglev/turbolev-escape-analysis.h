@@ -140,11 +140,18 @@ struct EscapeAnalysisData {
   // handlers predecessors in a side table fairly easily.
   bool has_exception_handler = false;
 
-  // When the CandidateAnalyzer encounters a LoadTaggedField, it must resolve it
-  // right away, rather than resolving it once its users are visited, so that if
-  // we have a store in between the load and its users, users still see the
-  // right value (cf escape-analysis-regress-531021852-1.js for an example).
-  ZoneAbslFlatHashMap<LoadTaggedField*, ValueNode*> loaded_values;
+  // When the CandidateAnalyzer encounters a LoadTaggedField,
+  // LoadContextSlotNoCells, or LoadContextSlot, it must resolve it right away,
+  // rather than resolving it once its users are visited, so that if we have a
+  // store in between the load and its users, users still see the right value
+  // (cf escape-analysis-regress-531021852-1.js for an example).
+  ZoneAbslFlatHashMap<ValueNode*, ValueNode*> loaded_values;
+
+  void RecordLoadedValue(ValueNode* load, ValueNode* resolved) {
+    DCHECK(load->Is<LoadTaggedField>() || load->Is<LoadContextSlotNoCells>() ||
+           load->Is<LoadContextSlot>());
+    loaded_values.insert_or_assign(load, resolved);
+  }
 
   // If there is a key `alloc1` with values `{ alloc2, alloc3 }`, then it means
   // that if `alloc1` cannot be elided, then neither can `alloc2` and `alloc3`.
@@ -246,12 +253,12 @@ struct EscapeAnalysisData {
   // track additional load opcodes in loaded_values.
   ValueNode* GetFieldValue(Key key) {
     ValueNode* value = field_values.Get(key);
-    return value ? value->UnwrapIdentities() : nullptr;
+    return value ? value->UnwrapAliases() : nullptr;
   }
   ValueNode* GetPredecessorFieldValue(Key key, int predecessor_index) {
     DCHECK_GE(predecessor_index, 0);
     ValueNode* value = field_values.GetPredecessorValue(key, predecessor_index);
-    return value ? value->UnwrapIdentities() : nullptr;
+    return value ? value->UnwrapAliases() : nullptr;
   }
 
   ValueNode* Get(InlinedAllocation* base, int field);

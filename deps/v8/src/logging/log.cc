@@ -1250,7 +1250,7 @@ template <StateTag tag>
 class VMStateIfMainThread {
  public:
   explicit VMStateIfMainThread(Isolate* isolate) {
-    if (ThreadId::Current() == isolate->thread_id()) {
+    if (base::ThreadId::Current() == isolate->thread_id()) {
       vm_state_.emplace(isolate);
     }
   }
@@ -2189,20 +2189,30 @@ EnumerateCompiledFunctions(Heap* heap) {
        obj = iterator.Next()) {
     if (IsSharedFunctionInfo(obj)) {
       Tagged<SharedFunctionInfo> sfi = Cast<SharedFunctionInfo>(obj);
-      // We have to skip over a special case here: Wasm functions created by
-      // instantiation attempts that failed to complete have inaccessible
-      // WasmFunctionData. They are also unreachable, but since we're walking
-      // the entire heap here, we may still find them if no GC has cleaned them
-      // up yet. See crbug.com/385341243 and the associated fix for context.
-      if (sfi->HasUnpublishedTrustedData(isolate)) continue;
-#if V8_ENABLE_WEBASSEMBLY
-      // Wasm functions don't store wrapper code on the SFI; exported Wasm
-      // functions are recorded via their JSFunction below.
-      if (sfi->HasWasmFunctionData(isolate)) continue;
-#endif  // V8_ENABLE_WEBASSEMBLY
+      // Skip partially deserialized SFIs whose script field has not been
+      // initialized yet.
+      if (IsSmi(sfi->raw_script(kAcquireLoad))) continue;
+      // Bytecode, baseline, and Wasm SFIs store function data in
+      // trusted_function_data_ and are recorded via Script::Iterator or
+      // JSFunction below. Skipping SFIs with trusted data (published or
+      // unpublished) also avoids reading unpublished trusted data
+      // (crbug.com/385341243), while checking the untrusted compiled cases
+      // directly skips off-thread deserialized SFIs whose deferred
+      // trusted_function_data_ has not been populated yet
+      // (untrusted_function_data_ == -1).
+      if (sfi->HasUnpublishedTrustedData(isolate) ||
+          !IsSmi(sfi->GetTrustedData(isolate))) {
+        continue;
+      }
 
-      if (sfi->is_compiled() && !sfi->HasBytecodeArray()) {
-        record(sfi, Cast<AbstractCode>(sfi->abstract_code(isolate)));
+      bool has_untrusted_code =
+          (sfi->HasBuiltinId() && sfi->builtin_id() != Builtin::kCompileLazy) ||
+          sfi->IsApiFunction();
+#if V8_ENABLE_WEBASSEMBLY
+      has_untrusted_code = has_untrusted_code || sfi->HasWasmResumeData();
+#endif  // V8_ENABLE_WEBASSEMBLY
+      if (has_untrusted_code) {
+        record(sfi, Cast<AbstractCode>(sfi->GetCode(isolate)));
       }
     } else if (IsJSFunction(obj)) {
       // Given that we no longer iterate over all optimized JSFunctions, we need
@@ -2614,7 +2624,7 @@ void ExistingCodeLogger::LogCodeObject(Tagged<AbstractCode> object) {
       tag = CodeTag::kRegExp;
       break;
     case CodeKind::BYTECODE_HANDLER:
-      description = isolate_->builtins()->name(abstract_code->builtin_id());
+      description = Builtins::name(abstract_code->builtin_id());
       tag = CodeTag::kBytecodeHandler;
       break;
     case CodeKind::BUILTIN:

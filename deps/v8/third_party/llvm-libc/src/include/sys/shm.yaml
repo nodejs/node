@@ -1,0 +1,166 @@
+header: sys/shm.h
+public_includes:
+  - sys/ipc.h
+standards:
+  - posix
+macros:
+  - macro_name: SHM_RDONLY
+    macro_header: sys-shm-macros.h
+  - macro_name: SHM_RND
+    macro_header: sys-shm-macros.h
+  - macro_name: SHMLBA
+    macro_header: sys-shm-macros.h
+  - macro_name: SHM_FAILED
+    macro_header: sys-shm-macros.h
+  - macro_name: SHM_R
+    macro_header: sys-shm-macros.h
+    standards:
+      - linux
+  - macro_name: SHM_W
+    macro_header: sys-shm-macros.h
+    standards:
+      - linux
+  - macro_name: SHM_REMAP
+    macro_header: sys-shm-macros.h
+    standards:
+      - linux
+  - macro_name: SHM_EXEC
+    macro_header: sys-shm-macros.h
+    standards:
+      - linux
+  - macro_name: SHM_LOCK
+    macro_header: sys-shm-macros.h
+    standards:
+      - linux
+  - macro_name: SHM_UNLOCK
+    macro_header: sys-shm-macros.h
+    standards:
+      - linux
+  - macro_name: SHM_STAT
+    macro_header: sys-shm-macros.h
+    standards:
+      - linux
+  - macro_name: SHM_INFO
+    macro_header: sys-shm-macros.h
+    standards:
+      - linux
+  - macro_name: SHM_STAT_ANY
+    macro_header: sys-shm-macros.h
+    standards:
+      - linux
+  - macro_name: SHM_DEST
+    macro_header: sys-shm-macros.h
+    standards:
+      - linux
+  - macro_name: SHM_LOCKED
+    macro_header: sys-shm-macros.h
+    standards:
+      - linux
+  - macro_name: SHM_HUGETLB
+    macro_header: sys-shm-macros.h
+    standards:
+      - linux
+  - macro_name: SHM_NORESERVE
+    macro_header: sys-shm-macros.h
+    standards:
+      - linux
+  - macro_name: SHM_HUGE_SHIFT
+    macro_header: sys-shm-macros.h
+    standards:
+      - linux
+  - macro_name: SHM_HUGE_MASK
+    macro_header: sys-shm-macros.h
+    standards:
+      - linux
+  - macro_name: SHM_HUGE_16KB
+    macro_header: sys-shm-macros.h
+    standards:
+      - linux
+  - macro_name: SHM_HUGE_64KB
+    macro_header: sys-shm-macros.h
+    standards:
+      - linux
+  - macro_name: SHM_HUGE_512KB
+    macro_header: sys-shm-macros.h
+    standards:
+      - linux
+  - macro_name: SHM_HUGE_1MB
+    macro_header: sys-shm-macros.h
+    standards:
+      - linux
+  - macro_name: SHM_HUGE_2MB
+    macro_header: sys-shm-macros.h
+    standards:
+      - linux
+  - macro_name: SHM_HUGE_8MB
+    macro_header: sys-shm-macros.h
+    standards:
+      - linux
+  - macro_name: SHM_HUGE_16MB
+    macro_header: sys-shm-macros.h
+    standards:
+      - linux
+  - macro_name: SHM_HUGE_32MB
+    macro_header: sys-shm-macros.h
+    standards:
+      - linux
+  - macro_name: SHM_HUGE_256MB
+    macro_header: sys-shm-macros.h
+    standards:
+      - linux
+  - macro_name: SHM_HUGE_512MB
+    macro_header: sys-shm-macros.h
+    standards:
+      - linux
+  - macro_name: SHM_HUGE_1GB
+    macro_header: sys-shm-macros.h
+    standards:
+      - linux
+  - macro_name: SHM_HUGE_2GB
+    macro_header: sys-shm-macros.h
+    standards:
+      - linux
+  - macro_name: SHM_HUGE_16GB
+    macro_header: sys-shm-macros.h
+    standards:
+      - linux
+types:
+  - type_name: intptr_t
+  - type_name: pid_t
+  - type_name: shmatt_t
+  - type_name: size_t
+  - type_name: struct_shmid_ds
+  - type_name: time_t
+enums: []
+objects: []
+functions:
+  - name: shmat
+    standards:
+      - posix
+    return_type: void *
+    arguments:
+      - type: int
+      - type: const void *
+      - type: int
+  - name: shmctl
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+      - type: int
+      - type: struct shmid_ds *
+  - name: shmdt
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: const void *
+  - name: shmget
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: key_t
+      - type: size_t
+      - type: int

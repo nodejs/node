@@ -320,10 +320,9 @@ void ToStringFormatter::BasePowerOfTwo() {
 
 class RecursionLevel {
  public:
-  static RecursionLevel* CreateLevels(digit_t base_divisor,
-                                      uint32_t base_char_count,
-                                      uint32_t target_bit_length,
-                                      ProcessorImpl* processor);
+  static std::unique_ptr<RecursionLevel> CreateLevels(
+      digit_t base_divisor, uint32_t base_char_count,
+      uint32_t target_bit_length, ProcessorImpl* processor);
   ~RecursionLevel() { delete next_; }
 
   void ComputeInverse(ProcessorImpl* proc, uint32_t dividend_length = 0);
@@ -360,13 +359,12 @@ class RecursionLevel {
 };
 
 // static
-RecursionLevel* RecursionLevel::CreateLevels(digit_t base_divisor,
-                                             uint32_t base_char_count,
-                                             uint32_t target_bit_length,
-                                             ProcessorImpl* processor) {
+std::unique_ptr<RecursionLevel> RecursionLevel::CreateLevels(
+    digit_t base_divisor, uint32_t base_char_count, uint32_t target_bit_length,
+    ProcessorImpl* processor) {
   Platform* platform = processor->platform();
-  RecursionLevel* level =
-      new RecursionLevel(base_divisor, base_char_count, platform);
+  std::unique_ptr<RecursionLevel> level(
+      new RecursionLevel(base_divisor, base_char_count, platform));
   // We can stop creating levels when the next level's divisor, which is the
   // square of the current level's divisor, would be strictly bigger (in terms
   // of its numeric value) than the input we're formatting. Since computing that
@@ -378,18 +376,16 @@ RecursionLevel* RecursionLevel::CreateLevels(digit_t base_divisor,
   // - when squaring, the bit length sometimes doubles (e.g. 0b11² == 0b1001),
   //   but usually we "lose" a bit (e.g. 0b10² == 0b100).
   while (BitLength(level->divisor_) * 2 - 1 <= target_bit_length) {
-    RecursionLevel* prev = level;
-    level = new RecursionLevel(prev, platform);
+    RecursionLevel* prev = level.release();
+    level.reset(new RecursionLevel(prev, platform));
     processor->Multiply(level->divisor_, prev->divisor_, prev->divisor_);
-    if (processor->should_terminate()) {
-      delete level;
-      return nullptr;
-    }
+    if (processor->should_terminate()) return nullptr;
     level->divisor_.Normalize();
     // Left-shifting the divisor must only happen after it's been used to
     // compute the next divisor.
     prev->LeftShiftDivisor();
     prev->ComputeInverse(processor);
+    if (processor->should_terminate()) return nullptr;
   }
   level->LeftShiftDivisor();
   // Not calling info->ComputeInverse here so that it can take the input's
@@ -414,6 +410,7 @@ void RecursionLevel::ComputeInverse(ProcessorImpl* processor,
   RWDigits inverse_initializer(inv_storage->get(), inverse_len + 1);
   Digits input(divisor_, divisor_.len() - inverse_len, inverse_len);
   processor->Invert(inverse_initializer, input, scratch);
+  if (processor->should_terminate()) return;
   inverse_initializer.TrimOne();
   inverse_ = inverse_initializer;
 }
@@ -426,8 +423,9 @@ Digits RecursionLevel::GetInverse(uint32_t dividend_length) {
 }
 
 void ToStringFormatter::Fast() {
-  std::unique_ptr<RecursionLevel> recursion_levels(RecursionLevel::CreateLevels(
-      chunk_divisor_, chunk_chars_, BitLength(digits_), processor_));
+  std::unique_ptr<RecursionLevel> recursion_levels =
+      RecursionLevel::CreateLevels(chunk_divisor_, chunk_chars_,
+                                   BitLength(digits_), processor_);
   if (processor_->should_terminate()) return;
   out_ = ProcessLevel(recursion_levels.get(), digits_, out_, true);
 }
@@ -469,6 +467,7 @@ char* ToStringFormatter::ProcessLevel(RecursionLevel* level, Digits chunk,
   if (normalized.len() < level->divisor_.len()) {
     char* right_boundary = out;
     out = ProcessLevel(level->next_, chunk, out, is_last_on_level);
+    if (processor_->should_terminate()) return out;
     return FillWithZeros(level, right_boundary, out, is_last_on_level);
   }
   // Step 2: Prepare the chunk.
@@ -492,6 +491,7 @@ char* ToStringFormatter::ProcessLevel(RecursionLevel* level, Digits chunk,
       // ...and otherwise undo the {chunk = chunk_shifted} assignment above.
       chunk = original_chunk;
       out = ProcessLevel(level->next_, chunk, out, is_last_on_level);
+      if (processor_->should_terminate()) return out;
     } else {
       DCHECK(comparison == 0);
       // If the chunk is equal to the divisor, we know that the right half
@@ -515,6 +515,7 @@ char* ToStringFormatter::ProcessLevel(RecursionLevel* level, Digits chunk,
   uint32_t inverse_len = chunk.len() - level->divisor_.len();
   if (inverse_len == 0) {
     processor_->DivideSchoolbook(left, right, chunk, level->divisor_);
+    if (processor_->should_terminate()) return out;
   } else if (level->divisor_.len() == 1) {
     DivideSingle(left, right.digits(), chunk, level->divisor_[0]);
     for (uint32_t i = 1; i < right.len(); i++) right[i] = 0;
@@ -574,7 +575,6 @@ void ProcessorImpl::ToStringImpl(char* out, uint32_t* out_length, Digits& X,
   } else if (fast) {
     formatter.Start();
     formatter.Fast();
-    if (should_terminate()) return;
 #else
     USE(fast);
 #endif  // V8_ADVANCED_BIGINT_ALGORITHMS
@@ -582,6 +582,7 @@ void ProcessorImpl::ToStringImpl(char* out, uint32_t* out_length, Digits& X,
     formatter.Start();
     formatter.Classic();
   }
+  if (should_terminate()) return;
   uint32_t excess = formatter.Finish();
   *out_length -= excess;
   memset(out + *out_length, 0, excess);
@@ -599,7 +600,7 @@ uint32_t ToStringResultLength(Digits X, int radix, bool sign) {
   uint32_t result;
   if (IsPowerOfTwo(radix)) {
     const uint32_t bits_per_char = CountTrailingZeros(radix);
-    result = DIV_CEIL(bit_length, bits_per_char) + sign;
+    result = DIV_CEIL(bit_length, bits_per_char);
   } else {
     // Maximum number of bits we can represent with one character.
     const uint8_t max_bits_per_char = kMaxBitsPerChar[radix];

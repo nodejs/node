@@ -319,7 +319,7 @@ void Assembler::set_target_address_at(Address pc, Address constant_pool,
       // IIHF
       instr_1 >>= 32;  // Zero out the lower 32-bits
       instr_1 <<= 32;
-      instr_1 |= reinterpret_cast<uint64_t>(target) >> 32;
+      instr_1 |= static_cast<uint64_t>(target) >> 32;
 
       Instruction::SetInstructionBits<SixByteInstr>(
           reinterpret_cast<uint8_t*>(pc), instr_1, jit_allocation);
@@ -327,7 +327,7 @@ void Assembler::set_target_address_at(Address pc, Address constant_pool,
       // IILF
       instr_2 >>= 32;
       instr_2 <<= 32;
-      instr_2 |= reinterpret_cast<uint64_t>(target) & 0xFFFFFFFF;
+      instr_2 |= static_cast<uint64_t>(target) & 0xFFFFFFFF;
 
       Instruction::SetInstructionBits<SixByteInstr>(
           reinterpret_cast<uint8_t*>(pc + instr1_length), instr_2,

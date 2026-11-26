@@ -108,6 +108,9 @@ MaybeDirectHandle<Object> DebugEvaluate::Local(
 
   CHECK(it.is_javascript());
   JavaScriptFrame* frame = it.javascript_frame();
+  if (!FrameSummary::Get(frame, inlined_jsframe_index).IsJavaScript()) {
+    return {};
+  }
   // This is not a lot different than DebugEvaluate::Global, except that
   // variables accessible by the function we are evaluating from are
   // materialized and included on top of the native context. Changes to
@@ -249,6 +252,24 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
         scope_iterator_.DeclaresLocals(ScopeIterator::Mode::STACK)) {
       context_chain_element.materialized_object =
           scope_iterator_.ScopeObject(ScopeIterator::Mode::STACK);
+      DirectHandle<FixedArray> keys =
+          KeyAccumulator::GetKeys(
+              isolate_, context_chain_element.materialized_object,
+              KeyCollectionMode::kOwnOnly, ENUMERABLE_STRINGS,
+              GetKeysConversion::kConvertToString, false, true)
+              .ToHandleChecked();
+      uint32_t keys_len = keys->ulength().value();
+      context_chain_element.original_values.reserve(keys_len);
+      for (uint32_t i = 0; i < keys_len; i++) {
+        DCHECK(IsString(keys->get(i)));
+        Handle<String> key(Cast<String>(keys->get(i)), isolate_);
+        LookupIterator it(isolate_, context_chain_element.materialized_object,
+                          PropertyKey(isolate_, key),
+                          LookupIterator::OWN_SKIP_INTERCEPTOR);
+        if (it.state() != LookupIterator::DATA) continue;
+        context_chain_element.original_values.emplace_back(key,
+                                                           it.GetDataValue());
+      }
     }
     if (scope_iterator_.HasContext()) {
       context_chain_element.wrapped_context = scope_iterator_.CurrentContext();
@@ -321,22 +342,14 @@ void DebugEvaluate::ContextBuilder::UpdateValues() {
   scope_iterator_.AdvanceToScopeNumber(scope_index_);
   for (ContextChainElement& element : context_chain_) {
     if (!element.materialized_object.is_null()) {
-      DirectHandle<FixedArray> keys =
-          KeyAccumulator::GetKeys(
-              isolate_, element.materialized_object,
-              KeyCollectionMode::kOwnOnly, ENUMERABLE_STRINGS,
-              GetKeysConversion::kConvertToString, false, true)
-              .ToHandleChecked();
-
-      uint32_t keys_len = keys->ulength().value();
-      for (uint32_t i = 0; i < keys_len; i++) {
-        DCHECK(IsString(keys->get(i)));
-        Handle<String> key(Cast<String>(keys->get(i)), isolate_);
+      for (const auto& [key, original_value] : element.original_values) {
         LookupIterator it(isolate_, element.materialized_object,
                           PropertyKey(isolate_, key),
                           LookupIterator::OWN_SKIP_INTERCEPTOR);
         if (it.state() != LookupIterator::DATA) continue;
-        scope_iterator_.SetVariableValue(key, it.GetDataValue());
+        DirectHandle<Object> new_value = it.GetDataValue();
+        if (Object::SameValue(*new_value, *original_value)) continue;
+        scope_iterator_.SetVariableValue(key, new_value);
       }
     }
     scope_iterator_.Next();
@@ -385,7 +398,6 @@ bool DebugEvaluate::IsSideEffectFreeIntrinsic(Runtime::FunctionId id) {
   V(StringSubstring)                     \
   V(StringToNumber)                      \
   /* BigInts */                          \
-  V(BigIntEqualToBigInt)                 \
   V(BigIntToNumber)                      \
   /* Literals */                         \
   V(CreateArrayLiteral)                  \
@@ -940,6 +952,16 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
 #if V8_ENABLE_WEBASSEMBLY
     case Builtin::kWasmAllocateInYoungGeneration:
     case Builtin::kWasmAllocateInOldGeneration:
+    case Builtin::kWebAssemblyException:
+    case Builtin::kWebAssemblyGlobal:
+    // TODO(crbug.com/573914678): Instantiating a Wasm module can have side
+    // effects via active segments or a Wasm start function.
+    case Builtin::kWebAssemblyInstance:
+    case Builtin::kWebAssemblyMemory:
+    case Builtin::kWebAssemblyModule:
+    case Builtin::kWebAssemblySuspending:
+    case Builtin::kWebAssemblyTable:
+    case Builtin::kWebAssemblyTag:
 #endif  // V8_ENABLE_WEBASSEMBLY
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
     case Builtin::kGetContinuationPreservedEmbedderData:

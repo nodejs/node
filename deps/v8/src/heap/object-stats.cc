@@ -461,6 +461,7 @@ Isolate* ObjectStats::isolate() { return heap()->isolate(); }
 class ObjectStatsCollectorImpl {
  public:
   enum Phase {
+    kPhase0,
     kPhase1,
     kPhase2,
   };
@@ -882,6 +883,11 @@ void ObjectStatsCollectorImpl::CollectStatistics(
   SBXCHECK_IMPLIES(InstanceTypeChecker::IsTrustedObject(instance_type),
                    OutsideSandboxOrInReadonlySpace(obj));
   switch (phase) {
+    case kPhase0:
+      if (InstanceTypeChecker::IsAllocationSite(instance_type)) {
+        RecordVirtualAllocationSiteDetails(Cast<AllocationSite>(obj));
+      }
+      break;
     case kPhase1:
       if (InstanceTypeChecker::IsFeedbackVector(instance_type)) {
         RecordVirtualFeedbackVectorDetails(Cast<FeedbackVector>(obj));
@@ -942,14 +948,6 @@ void ObjectStatsCollectorImpl::CollectStatistics(
 }
 
 void ObjectStatsCollectorImpl::CollectGlobalStatistics() {
-  // Iterate boilerplates first to disambiguate them from regular JS objects.
-  Tagged<Object> list = heap_->allocation_sites_list();
-  Tagged<AllocationSiteWithWeakNext> site;
-  while (TryCast(list, &site)) {
-    RecordVirtualAllocationSiteDetails(site);
-    list = site->weak_next();
-  }
-
   // FixedArray.
   RecordSimpleVirtualObjectStats({}, heap_->serialized_objects(),
                                  StatsEnum::SERIALIZED_OBJECTS_TYPE);
@@ -1085,7 +1083,7 @@ void ObjectStatsCollectorImpl::RecordVirtualScriptDetails(
     // them manually. The on-heap String object is recorded independently in
     // the normal pass.
     Tagged<ExternalString> string = Cast<ExternalString>(raw_source);
-    Address resource = string->resource_as_address(isolate());
+    Address resource = reinterpret_cast<Address>(string->resource(isolate()));
     size_t off_heap_size = string->ExternalPayloadSize();
     RecordExternalResourceStats(
         resource,
@@ -1107,7 +1105,7 @@ void ObjectStatsCollectorImpl::RecordVirtualExternalStringDetails(
     Tagged<ExternalString> string) {
   // Track the external string resource size in a separate category.
 
-  Address resource = string->resource_as_address(isolate());
+  Address resource = reinterpret_cast<Address>(string->resource(isolate()));
   size_t off_heap_size = string->ExternalPayloadSize();
   RecordExternalResourceStats(
       resource,

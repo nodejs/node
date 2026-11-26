@@ -16,15 +16,16 @@
 #include "src/base/macros.h"
 #include "src/base/numbers/double.h"
 #include "src/base/strong-alias.h"
+#include "src/base/synchronization-point-support.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/pending-optimization-table.h"
 #include "src/common/globals.h"
-#include "src/common/synchronization-point-support.h"
 #include "src/compiler-dispatcher/lazy-compile-dispatcher.h"
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/debug/debug-evaluate.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/arguments-inl.h"
+#include "src/execution/execution.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
 #include "src/execution/protectors-inl.h"
@@ -32,7 +33,7 @@
 #include "src/flags/flags.h"
 #include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
-#include "src/heap/pretenuring-handler-inl.h"
+#include "src/heap/local-heap-inl.h"
 #include "src/ic/stub-cache.h"
 #include "src/objects/abstract-code-inl.h"
 #include "src/objects/bytecode-array.h"
@@ -47,9 +48,11 @@
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-function-inl.h"
 #include "src/objects/js-regexp-inl.h"
+#include "src/objects/managed-inl.h"
 #include "src/objects/smi.h"
 #include "src/profiler/heap-snapshot-generator.h"
 #include "src/regexp/regexp.h"
+#include "src/snapshot/code-serializer.h"
 #include "src/snapshot/snapshot.h"
 
 #ifdef V8_ENABLE_MAGLEV
@@ -103,15 +106,6 @@ V8_WARN_UNUSED_RESULT bool CheckMarkedForManualOptimization(
     return false;
   }
   return true;
-}
-
-// Returns |value| unless correctness-fuzzer-supressions is enabled,
-// otherwise returns undefined_value.
-V8_WARN_UNUSED_RESULT Tagged<Object> ReturnFuzzSafe(Tagged<Object> value,
-                                                    Isolate* isolate) {
-  return v8_flags.correctness_fuzzer_suppressions
-             ? ReadOnlyRoots(isolate).undefined_value()
-             : value;
 }
 
 // Assert that the given argument is a number within the Int32 range
@@ -202,19 +196,15 @@ RUNTIME_FUNCTION(Runtime_ConstructInternalizedString) {
       isolate->factory()->InternalizeString(string);
   // The argument was either already an internalized string or it is now a thin
   // string to an internalized string.
-  // For shared strings, one of the following happens:
-  // 1) With `--shared-string-table` the string is inserted into the
-  //    `StringForwardingTable` to reduce the overhead of repeated
-  //    internalization.
-  // 2) Without `--shared-string-table` the original string gets copied on each
-  //    internalization inte the unshared heap and from there it needs to be
-  //    internalized each time.
-  // In either case, the input shared string does not change its shape on
+  // For shared strings, the original string gets copied on each internalization
+  // into the unshared heap and from there it needs to be internalized each
+  // time, so the input shared string does not change its shape on
   // internalization.
   CHECK(IsInternalizedString(*string) ||
         (IsThinString(*string) &&
          IsInternalizedString(Cast<ThinString>(*string)->actual())) ||
-        HeapLayout::InAnySharedSpace(*string));
+        HeapLayout::InAnySharedSpace(*string) ||
+        isolate->is_executing_api_interrupt());
   CHECK(IsInternalizedString(*internalized));
   return *internalized;
 }
@@ -227,12 +217,13 @@ RUNTIME_FUNCTION(Runtime_ConstructThinString) {
   if (IsThinString(*string)) {
     return *string;
   }
+  CHECK_UNLESS_FUZZING(!isolate->is_executing_api_interrupt());
   if (!IsConsString(*string)) {
     CHECK_UNLESS_FUZZING(string->length() >= ConsString::kMinLength);
     string = isolate->factory()->NewConsString(
         isolate->factory()->empty_string(), string, string->length(),
         string->IsOneByteRepresentation(),
-        // Pretenure to ensure it stays thin.
+        // Allocate in old space to ensure it stays thin.
         AllocationType::kOld);
   }
   CHECK(IsConsString(*string));
@@ -291,12 +282,23 @@ RUNTIME_FUNCTION(Runtime_DeoptimizeNow) {
 }
 
 RUNTIME_FUNCTION(Runtime_LeakHole) {
-  HandleScope scope(isolate);
+  SealHandleScope shs(isolate);
+  CHECK_UNLESS_FUZZING(args.length() <= 1);
 
-  // TODO(chromium:1445008): once we have multiple different hole values, we
-  // could make this function take a number as argument and return the nth hole
-  // value, or a random hole if the argument is undefined.
-  return ReadOnlyRoots(isolate).the_hole_value();
+  static constexpr RootIndex kHoleRoots[] = {
+#define HOLE_ROOT(Name, name, Root) RootIndex::k##Root,
+      HOLE_LIST(HOLE_ROOT)
+#undef HOLE_ROOT
+  };
+  static_assert(kHoleRoots[0] == RootIndex::kTheHoleValue);
+
+  uint32_t index = 0;
+  if (args.length() == 1 && !IsUndefined(args[0])) {
+    CHECK_UNLESS_FUZZING(Object::ToUint32(args[0], &index));
+    CHECK_UNLESS_FUZZING(index < arraysize(kHoleRoots));
+  }
+
+  return ReadOnlyRoots(isolate).object_at(kHoleRoots[index]);
 }
 
 RUNTIME_FUNCTION(Runtime_RunningInSimulator) {
@@ -943,7 +945,8 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
     status |= static_cast<int>(OptimizationStatus::kNeverOptimize);
   }
   if (v8_flags.deopt_every_n_times || v8_flags.stress_flush_code ||
-      v8_flags.gc_interval > 0 || v8_flags.random_gc_interval > 0) {
+      v8_flags.gc_interval > 0 || v8_flags.random_gc_interval > 0 ||
+      v8_flags.stress_concurrent_allocation) {
     status |= static_cast<int>(OptimizationStatus::kMaybeDeopted);
   }
   if (v8_flags.optimize_on_next_call_optimizes_to_maglev) {
@@ -1120,7 +1123,7 @@ void call_as_function(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   auto context = isolate->GetCurrentContext();
   auto global = context->Global();
-  auto target_function_name = info.DataV2().As<v8::Value>().As<v8::String>();
+  auto target_function_name = info.Data().As<v8::Value>().As<v8::String>();
   v8::Local<v8::Function> target;
   {
     Local<Value> result;
@@ -1814,32 +1817,6 @@ RUNTIME_FUNCTION(Runtime_InYoungGeneration) {
   CHECK_UNLESS_FUZZING(args.length() == 1);
   Tagged<Object> obj = args[0];
   return isolate->heap()->ToBoolean(HeapLayout::InYoungGeneration(obj));
-}
-
-// Force pretenuring for the allocation site the passed object belongs to.
-RUNTIME_FUNCTION(Runtime_PretenureAllocationSite) {
-  DisallowGarbageCollection no_gc;
-
-  CHECK_UNLESS_FUZZING(args.length() == 1);
-  Tagged<Object> arg = args[0];
-  CHECK_UNLESS_FUZZING(IsJSObject(arg));
-  Tagged<JSObject> object = Cast<JSObject>(arg);
-
-  if (!v8_flags.sticky_mark_bits && !HeapLayout::InYoungGeneration(object)) {
-    // Object is not in new space, thus there is no memento and nothing to do.
-    return ReturnFuzzSafe(ReadOnlyRoots(isolate).false_value(), isolate);
-  }
-
-  Heap* heap = isolate->heap();
-  PretenuringHandler* pretenuring_handler = heap->pretenuring_handler();
-  Tagged<AllocationMemento> memento = PretenuringHandler::FindAllocationMemento<
-      PretenuringHandler::kForRuntime>(heap, object->map(), object);
-  if (memento.is_null()) {
-    return ReturnFuzzSafe(ReadOnlyRoots(isolate).false_value(), isolate);
-  }
-  Tagged<AllocationSite> site = memento->GetAllocationSite();
-  pretenuring_handler->PretenureAllocationSiteOnNextCollection(site);
-  return ReturnFuzzSafe(ReadOnlyRoots(isolate).true_value(), isolate);
 }
 
 namespace {
@@ -2908,6 +2885,122 @@ RUNTIME_FUNCTION(Runtime_InstallBytecode) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+namespace {
+
+// The header, trusted section and source of a code cache made by
+// %GetCodeCache.
+struct CodeCacheForTesting {
+  static constexpr ManagedTypeId kTypeID = ManagedTypeId::kCodeCacheForTesting;
+  std::vector<base::uc16> source;
+  std::vector<uint8_t> header_and_trusted_section;
+};
+
+}  // namespace
+
+// Compiles and serializes a script. Returns {cache, untrusted}: a handle to the
+// header and trusted section, and a copy of the untrusted section, for
+// %ConsumeCodeCache.
+RUNTIME_FUNCTION(Runtime_GetCodeCache) {
+  HandleScope scope(isolate);
+  CHECK_UNLESS_FUZZING(v8_flags.code_cache_fuzzing);
+  CHECK_UNLESS_FUZZING(args.length() == 1);
+  CHECK_UNLESS_FUZZING(IsString(args[0]));
+  Handle<String> source = String::Flatten(isolate, args.at<String>(0));
+  ScriptDetails script_details;
+  ScriptCompiler::CompilationDetails compilation_details;
+  DirectHandle<SharedFunctionInfo> shared;
+  if (!Compiler::GetSharedFunctionInfoForScript(
+           isolate, source, script_details, ScriptCompiler::kNoCompileOptions,
+           ScriptCompiler::kNoCacheNoReason, NOT_NATIVES_CODE,
+           &compilation_details)
+           .ToHandle(&shared)) {
+    return ReadOnlyRoots(isolate).exception();
+  }
+  std::unique_ptr<ScriptCompiler::CachedData> cached_data(
+      CodeSerializer::Serialize(isolate, handle(*shared, isolate)));
+  if (!cached_data) return ReadOnlyRoots(isolate).undefined_value();
+  base::Vector<const uint8_t> cache(cached_data->data, cached_data->length);
+  base::Vector<const uint8_t> untrusted_payload =
+      CodeSerializer::UntrustedPayloadForTesting(cache);
+
+  auto entry = std::make_shared<CodeCacheForTesting>();
+  const uint32_t source_length = source->length();
+  entry->source.resize(source_length);
+  String::WriteToFlat(*source, entry->source.data(), 0, source_length);
+  entry->header_and_trusted_section.assign(cache.begin(),
+                                           untrusted_payload.begin());
+  size_t estimated_size = entry->header_and_trusted_section.size() +
+                          entry->source.size() * sizeof(base::uc16);
+  DirectHandle<CppGCManaged<CodeCacheForTesting>> managed =
+      CppGCManaged<CodeCacheForTesting>::Create(isolate, estimated_size,
+                                                std::move(entry));
+
+  Handle<JSArrayBuffer> untrusted =
+      isolate->factory()
+          ->NewJSArrayBufferAndBackingStore(untrusted_payload.size(),
+                                            InitializedFlag{false})
+          .ToHandleChecked();
+  memcpy(untrusted->backing_store(), untrusted_payload.begin(),
+         untrusted_payload.size());
+
+  Handle<JSObject> result =
+      isolate->factory()->NewJSObject(isolate->object_function());
+  JSObject::AddProperty(isolate, result, "cache", managed,
+                        PropertyAttributes::NONE);
+  JSObject::AddProperty(isolate, result, "untrusted", untrusted,
+                        PropertyAttributes::NONE);
+  return *result;
+}
+
+// Consumes the header and trusted section of a %GetCodeCache result with the
+// given untrusted section, and runs the script. Returns its completion value,
+// or undefined if the cache was rejected.
+RUNTIME_FUNCTION(Runtime_ConsumeCodeCache) {
+  HandleScope scope(isolate);
+  CHECK_UNLESS_FUZZING(v8_flags.code_cache_fuzzing);
+  CHECK_UNLESS_FUZZING(args.length() == 2);
+  CHECK_UNLESS_FUZZING(IsCppGCManagedBase(args[0]));
+  CHECK_UNLESS_FUZZING(IsJSArrayBuffer(args[1]));
+  // Checks that the handle refers to a CodeCacheForTesting.
+  CppGCManaged<CodeCacheForTesting>::Ptr entry =
+      Cast<CppGCManaged<CodeCacheForTesting>>(args[0])->ptr();
+  DirectHandle<JSArrayBuffer> buffer = args.at<JSArrayBuffer>(1);
+  DirectHandle<String> source =
+      isolate->factory()
+          ->NewStringFromTwoByte(base::VectorOf(entry->source))
+          .ToHandleChecked();
+
+  // Copy the untrusted section out of the sandbox first.
+  std::vector<uint8_t> cache = CodeSerializer::WithUntrustedPayloadForTesting(
+      base::VectorOf(entry->header_and_trusted_section),
+      base::Vector<const uint8_t>(
+          static_cast<const uint8_t*>(buffer->backing_store()),
+          buffer->GetByteLength()));
+
+  MaybeDirectHandle<SharedFunctionInfo> maybe_shared;
+  {
+    GuardedCodeCacheForTesting guarded_cache(cache.data(),
+                                             static_cast<int>(cache.size()));
+    AlignedCachedData cached_data(guarded_cache.data(), guarded_cache.length());
+    ScriptDetails script_details;
+    maybe_shared = CodeSerializer::Deserialize(isolate, &cached_data, source,
+                                               script_details);
+  }
+
+  DirectHandle<SharedFunctionInfo> shared;
+  if (!maybe_shared.ToHandle(&shared)) {
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
+  // Run it like a script: calling the top-level function directly would skip
+  // setting up the script context.
+  DirectHandle<JSFunction> function =
+      Factory::JSFunctionBuilder{isolate, shared, isolate->native_context()}
+          .Build();
+  RETURN_RESULT_OR_FAILURE(
+      isolate, Execution::CallScript(isolate, function, isolate->global_proxy(),
+                                     isolate->factory()->empty_fixed_array()));
+}
+
 RUNTIME_FUNCTION(Runtime_AllocateHeapNumberWithValue) {
   HandleScope scope(isolate);
   CHECK_UNLESS_FUZZING(args.length() == 1);
@@ -2937,8 +3030,8 @@ RUNTIME_FUNCTION(Runtime_BlockAt) {
   DirectHandle<String> phase_name = args.at<String>(0);
   base::TimeDelta timeout =
       base::TimeDelta::FromMilliseconds(args.smi_value_at(1));
-  SynchronizationPointSupport::Get()->RequestBlockAt(phase_name->ToStdString(),
-                                                     timeout);
+  base::SynchronizationPointSupport::Get()->RequestBlockAt(
+      phase_name->ToStdString(), timeout);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
@@ -2951,8 +3044,8 @@ RUNTIME_FUNCTION(Runtime_Resume) {
   DCHECK_EQ(1, args.length());
   CHECK_UNLESS_FUZZING(IsString(args[0]));
   DirectHandle<String> phase_name = args.at<String>(0);
-  bool success =
-      SynchronizationPointSupport::Get()->Resume(phase_name->ToStdString());
+  bool success = base::SynchronizationPointSupport::Get()->Resume(
+      phase_name->ToStdString());
   return isolate->heap()->ToBoolean(success);
 }
 
@@ -2970,8 +3063,12 @@ RUNTIME_FUNCTION(Runtime_WaitUntilBlocked) {
   base::TimeDelta timeout =
       base::TimeDelta::FromMilliseconds(args.smi_value_at(1));
 
-  bool success = SynchronizationPointSupport::Get()->WaitUntilBlocked(
-      phase_name->ToStdString(), timeout);
+  std::string phase_name_str = phase_name->ToStdString();
+  bool success = false;
+  isolate->main_thread_local_heap()->ExecuteWhileParked([&]() {
+    success = base::SynchronizationPointSupport::Get()->WaitUntilBlocked(
+        phase_name_str, timeout);
+  });
   return isolate->heap()->ToBoolean(success);
 }
 

@@ -32,14 +32,21 @@ class SharedCoverage {
 
   // Called by every worker after its target started. The first call sizes
   // the state; later calls only check that the target is the same binary.
-  bool Initialize(uint32_t num_edges, uint32_t bitmap_size, std::string* error);
+  // `num_edges` is the size of the feature index space (CoverageMap::
+  // num_edges()). Only features 1..counted_edges count for found_edges() and
+  // coverage_fraction(). Crash deduplication reads only the edges
+  // 1..real_edges (CoverageMap::real_edges()), not the bucket features. Zero
+  // means num_edges.
+  bool Initialize(uint32_t num_edges, uint32_t bitmap_size, std::string* error,
+                  uint32_t counted_edges = 0, uint32_t real_edges = 0);
   bool initialized() const { return words_ != 0; }
 
   uint32_t num_edges() const { return num_edges_; }
   uint32_t found_edges() const {
     return found_edges_.load(std::memory_order_relaxed);
   }
-  // found_edges() / (num_edges() + 1), the ratio Fuzzilli reports.
+  // (found_edges() - suppressed_flaky_edges()) / (counted_edges + 1): the
+  // ratio Fuzzilli reports, without the suppressed flaky edges.
   double coverage_fraction() const;
 
   // Claims every edge set in `bitmap` that nobody claimed before and
@@ -54,6 +61,9 @@ class SharedCoverage {
   void MarkSeen(const std::vector<uint32_t>& edges);
   // Whether `edge` is currently claimed.
   bool IsSeen(uint32_t edge) const;
+  // Number of seen features in [first, last], for the statistics. It scans
+  // the virgin bits.
+  uint32_t CountSeen(uint32_t first, uint32_t last) const;
 
   // Like ClaimNewEdges for the crash bits; returns whether the crash reached
   // edges no earlier crash reached (i.e. it is probably a new crash).
@@ -62,17 +72,35 @@ class SharedCoverage {
   // Records that `edge` was reached by a program but not reproducibly.
   // Returns true if the edge has now failed `threshold` times: the caller
   // should keep it claimed (so that it stops costing determinism re-runs)
-  // instead of releasing it.
+  // instead of releasing it. It ignores an edge outside 1..num_edges() and
+  // returns false for it.
   bool RecordFlaky(uint32_t edge, int threshold);
+  // Whether `edge` reached the flaky threshold (suppressed).
+  bool IsSuppressed(uint32_t edge) const;
+  // Removes the suppressed edges from `edges`, for example from
+  // Program::hit_edges.
+  void RemoveSuppressed(std::vector<uint32_t>* edges) const;
+  // Whether RecordFlaky() recorded one of `edges` before. It reads one bit
+  // for each edge and takes no lock. The determinism check uses it to decide
+  // if a candidate can stop after fewer reruns.
+  bool AnyFlaky(const std::vector<uint32_t>& edges) const;
+  // The number of counted edges (1..counted_edges) that reached the flaky
+  // threshold. Like found_edges(), it does not include the other features.
   uint64_t suppressed_flaky_edges() const {
     return suppressed_.load(std::memory_order_relaxed);
   }
 
  private:
   uint32_t num_edges_ = 0;
+  uint32_t counted_edges_ = 0;
   uint32_t words_ = 0;
+  uint32_t edge_words_ = 0;
   std::unique_ptr<std::atomic<uint64_t>[]> virgin_;
   std::unique_ptr<std::atomic<uint64_t>[]> crash_virgin_;
+  // One bit for each edge that RecordFlaky() recorded at least once.
+  std::unique_ptr<std::atomic<uint64_t>[]> flaky_bits_;
+  // One bit for each edge that reached the flaky threshold.
+  std::unique_ptr<std::atomic<uint64_t>[]> suppressed_bits_;
   std::atomic<uint32_t> found_edges_{0};
   std::mutex flaky_mutex_;
   std::unordered_map<uint32_t, int> flaky_counts_;

@@ -121,6 +121,8 @@ TEST(WasmTypeCheckConfigTest, EqualityAndHash) {
   WasmTypeCheckConfig c1{kWasmAnyRef, kWasmFuncRef, kMayBeSubtype};
   WasmTypeCheckConfig c2{kWasmAnyRef, kWasmFuncRef, kMayBeSubtype};
   WasmTypeCheckConfig c_diff_from{kWasmExternRef, kWasmFuncRef, kMayBeSubtype};
+  WasmTypeCheckConfig c_diff_from_no_i31{kWasmAnyRef.AsNonI31(), kWasmFuncRef,
+                                         kMayBeSubtype};
   WasmTypeCheckConfig c_diff_to{kWasmAnyRef, kWasmEqRef, kMayBeSubtype};
   WasmTypeCheckConfig c_diff_exact1{kWasmAnyRef, kWasmFuncRef, kExactMatchOnly};
   WasmTypeCheckConfig c_diff_exact2{kWasmAnyRef, kWasmFuncRef,
@@ -131,6 +133,9 @@ TEST(WasmTypeCheckConfigTest, EqualityAndHash) {
 
   EXPECT_NE(c1, c_diff_from);
   EXPECT_NE(hash_value(c1), hash_value(c_diff_from));
+
+  EXPECT_NE(c1, c_diff_from_no_i31);
+  EXPECT_NE(hash_value(c1), hash_value(c_diff_from_no_i31));
 
   EXPECT_NE(c1, c_diff_to);
   EXPECT_NE(hash_value(c1), hash_value(c_diff_to));

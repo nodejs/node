@@ -144,10 +144,8 @@ void ExternalPointerTableEntry::Evacuate(ExternalPointerTableEntry& dest,
   DCHECK(payload.ContainsPointer());
 
   switch (mode) {
-    case EvacuateMarkMode::kTransferMark:
-      break;
     case EvacuateMarkMode::kLeaveUnmarked:
-      DCHECK(!payload.HasMarkBitSet());
+      SBXCHECK(!payload.HasMarkBitSet());
       break;
     case EvacuateMarkMode::kClearMark:
       DCHECK(payload.HasMarkBitSet());
@@ -183,23 +181,18 @@ Address ExternalPointerTable::Get(ExternalPointerHandle handle,
 void ExternalPointerTable::Set(ExternalPointerHandle handle, Address value,
                                ExternalPointerTag tag) {
   DCHECK_NE(kNullExternalPointerHandle, handle);
+  DCHECK(!IsManagedExternalPointerType(tag));
   uint32_t index = HandleToIndex(handle);
-  // TODO(saelo): This works for now, but once we actually free the external
-  // object here, this will probably become awkward: it's likely not intuitive
-  // that a set_foo() call on some object causes another object to be freed.
-  // Probably at that point we should instead just forbid re-setting the
-  // external pointers if they are managed (via a DCHECK).
   FreeManagedResourceIfPresent(index);
-  TakeOwnershipOfManagedResourceIfNecessary(value, handle, tag);
   at(index).SetExternalPointer(value, tag);
 }
 
 Address ExternalPointerTable::Exchange(ExternalPointerHandle handle,
                                        Address value, ExternalPointerTag tag) {
   DCHECK_NE(kNullExternalPointerHandle, handle);
+  DCHECK_IMPLIES(IsManagedExternalPointerType(tag), value == kNullAddress);
   uint32_t index = HandleToIndex(handle);
   FreeManagedResourceIfPresent(index);
-  TakeOwnershipOfManagedResourceIfNecessary(value, handle, tag);
   return at(index).ExchangeExternalPointer(value, tag);
 }
 
@@ -323,10 +316,8 @@ ExternalPointerHandle ExternalPointerTable::Evacuate(
                .payload_.compare_exchange_strong(old_payload, zapped_payload,
                                                  std::memory_order_acq_rel));
   switch (mode) {
-    case EvacuateMarkMode::kTransferMark:
-      break;
     case EvacuateMarkMode::kLeaveUnmarked:
-      DCHECK(!old_payload.HasMarkBitSet());
+      SBXCHECK(!old_payload.HasMarkBitSet());
       break;
     case EvacuateMarkMode::kClearMark:
       DCHECK(old_payload.HasMarkBitSet());
@@ -406,6 +397,15 @@ void ExternalPointerTable::Space::NotifyExternalPointerFieldInvalidated(
 void ExternalPointerTable::ManagedResource::ZapExternalPointerTableEntry() {
   if (owning_table_) {
     owning_table_->Zap(ept_entry_);
+  }
+  ept_entry_ = kNullExternalPointerHandle;
+}
+
+void ExternalPointerTable::ManagedResource::ClearExternalPointerTableEntry() {
+  if (owning_table_ && ept_entry_ != kNullExternalPointerHandle) {
+    uint32_t index = HandleToIndex(ept_entry_);
+    owning_table_->at(index).SetExternalPointer(
+        kNullAddress, owning_table_->GetTag(ept_entry_));
   }
   ept_entry_ = kNullExternalPointerHandle;
 }

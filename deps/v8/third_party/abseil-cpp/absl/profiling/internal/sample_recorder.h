@@ -184,13 +184,10 @@ T* SampleRecorder<T>::PopDead(Targs... args) {
     // preparation.
   }
   // `sample` is detached from the graveyard and will not be used in PopDead.
-  // SampleRecorder<T>::Iterate will acquire per sample lock, so there will be
-  // no data race either.
-  absl::MutexLock sample_lock(sample->init_mu);
-  // Note: consider PrepareForSampling out of the lock.
-  // Currently many clients have PrepareForSampling marked as
-  // ABSL_EXCLUSIVE_LOCKS_REQUIRED.
+  // SampleRecorder<T>::Iterate will only read `dead` that is still non-null.
   sample->PrepareForSampling(std::forward<Targs>(args)...);
+  // SampleRecorder<T>::Iterate acquires the same lock before access to `dead`.
+  absl::MutexLock sample_lock(sample->init_mu);
   sample->dead = nullptr;
   return sample;
 }

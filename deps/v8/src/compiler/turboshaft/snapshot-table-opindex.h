@@ -62,6 +62,7 @@ class SparseOpIndexSnapshotTable : public SnapshotTable<Value, KeyData> {
 
   auto begin() { return indices_to_keys_.begin(); }
   auto end() { return indices_to_keys_.end(); }
+  bool empty() const { return indices_to_keys_.empty(); }
 
  private:
   Key GetOrCreateKey(OpIndex idx) {

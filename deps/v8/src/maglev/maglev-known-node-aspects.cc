@@ -11,6 +11,7 @@
 #include "include/v8-internal.h"
 #include "src/base/logging.h"
 #include "src/handles/handles-inl.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/maglev/maglev-compilation-info.h"
 #include "src/maglev/maglev-compilation-unit.h"
 #include "src/maglev/maglev-graph-printer.h"
@@ -132,28 +133,24 @@ class IgnoreListCursor {
 
 // Decides whether a cached property fact provably survives a loop whose
 // writes are summarized by `loop_effects`. StartKey must be called with
-// ascending keys, and ObjectInvariant with ascending objects per key.
+// ascending keys.
 class LoopInvariantPropertyFilter {
  public:
   LoopInvariantPropertyFilter(const LoopEffects* loop_effects,
-                              const ZoneSet<ValueNode*>& objects_written,
                               const KnownNodeAspects* aspects)
       : loop_effects_(loop_effects),
         keys_cleared_(loop_effects->keys_cleared),
-        objects_written_(objects_written),
         aspects_(aspects) {}
 
   bool StartKey(PropertyKey key) {
     key_cleared_ = keys_cleared_.Contains(key);
     check_elements_transition_ = loop_effects_->elements_kind_transitioned &&
                                  key == PropertyKey::Elements();
-    objects_written_.Reset();
     return !key_cleared_;
   }
 
   bool ObjectInvariant(ValueNode* obj) {
     if (key_cleared_) return false;
-    if (objects_written_.Contains(obj)) return false;
     if (check_elements_transition_ && !aspects_->TryGetInfoWithFreshMaps(obj)) {
       return false;
     }
@@ -163,7 +160,6 @@ class LoopInvariantPropertyFilter {
  private:
   const LoopEffects* loop_effects_;
   IgnoreListCursor<PropertyKey> keys_cleared_;
-  IgnoreListCursor<ValueNode*> objects_written_;
   const KnownNodeAspects* aspects_;
   bool key_cleared_ = false;
   bool check_elements_transition_ = false;
@@ -231,7 +227,7 @@ bool NodeInfoTypeIs(const NodeInfo& before, const NodeInfo& after) {
 bool SameValue(ValueNode* before, ValueNode* after) {
   // Nodes from loop headers can contain identities since the KnownNodeAspects
   // constructor used in CloneForLoopHeader does not unwrap them.
-  return before == after || (before && before->UnwrapIdentities() == after);
+  return before == after || (before && before->UnwrapAliases() == after);
 }
 
 }  // namespace
@@ -249,6 +245,11 @@ void NodeInfo::TraceSetPossibleMaps(const KnownNodeAspects& known_node_aspects,
   std::cout << std::endl;
 }
 
+// Note: `KnaMap::CanSkipSharedRange` skips shared roots and leaves during
+// `DestructivelyIntersect` based on the survival and side-effect invariants of
+// the merge callbacks below; keep `CanSkipSharedRange` in sync if these
+// callbacks change.
+// LINT.IfChange(KnaMergeSkipShared)
 void KnownNodeAspects::Merge(const KnownNodeAspects& other, Zone* zone) {
   bool side_effects_require_invalidation = false;
   DestructivelyIntersect(
@@ -301,6 +302,7 @@ void KnownNodeAspects::Merge(const KnownNodeAspects& other, Zone* zone) {
       may_have_aliasing_contexts_, other.may_have_aliasing_contexts());
   DestructivelyIntersect(loaded_context_slots_, other.loaded_context_slots_);
 }
+// LINT.ThenChange(maglev-kna-map.h:KnaMergeSkipShared)
 
 // Loop-header variant of Merge. The forward (LHS) predecessor dominates the
 // loop body, so its facts hold throughout the loop: keep them instead of
@@ -310,6 +312,11 @@ void KnownNodeAspects::Merge(const KnownNodeAspects& other, Zone* zone) {
 void KnownNodeAspects::MergeForLoop(const KnownNodeAspects& backedge,
                                     Zone* zone, const LoopEffects* loop_effects,
                                     bool loop_has_effects) {
+  // The backedge snapshot drops node infos and expressions. Reading them would
+  // first require remapping their keys in UnwrapIdentitiesAndPhisInKeys and
+  // RemapLoopHeaderPhis.
+  DCHECK(backedge.node_infos_.empty());
+  DCHECK(backedge.available_expressions_.empty());
   if (side_effects_require_invalidation_ &&
       (loop_effects == nullptr || loop_effects->unstable_aspects_cleared ||
        loop_effects->elements_kind_transitioned)) {
@@ -338,8 +345,7 @@ void KnownNodeAspects::MergeForLoop(const KnownNodeAspects& backedge,
       loop_effects != nullptr && !loop_effects->unstable_aspects_cleared;
   auto same_load = [](ValueNode* lhs, ValueNode* rhs) {
     return lhs != nullptr && rhs != nullptr &&
-           lhs->UnwrapIdentities()->IsStructurallyEqualTo(
-               rhs->UnwrapIdentities());
+           lhs->UnwrapAliases()->IsStructurallyEqualTo(rhs->UnwrapAliases());
   };
   auto merge_constant_properties = [&](PropertyKey key, PropertyObjectMap& lhs,
                                        const PropertyObjectMap& rhs) {
@@ -349,26 +355,20 @@ void KnownNodeAspects::MergeForLoop(const KnownNodeAspects& backedge,
                            });
     return !lhs.empty();
   };
-  ZoneSet<ValueNode*> objects_written(zone);
-  if (keep_invariant_loads) {
-    for (ValueNode* obj : loop_effects->objects_written) {
-      objects_written.insert(obj->UnwrapIdentities());
-    }
-  }
   std::optional<LoopInvariantPropertyFilter> filter;
   if (keep_invariant_loads) {
-    filter.emplace(loop_effects, objects_written, this);
+    filter.emplace(loop_effects, this);
   }
   auto entry_invariant = [&](ValueNode* obj) {
     return filter.has_value() && filter->ObjectInvariant(obj);
   };
   auto keep_forward_fact = [&](ValueNode* obj, ValueNode*& l) {
-    if (l) l = l->UnwrapIdentities();
+    if (l) l = l->UnwrapAliases();
     return l != nullptr && entry_invariant(obj);
   };
   auto merge_object_fact = [&](ValueNode* obj, ValueNode*& l, ValueNode* r) {
-    if (l) l = l->UnwrapIdentities();
-    if (r) r = r->UnwrapIdentities();
+    if (l) l = l->UnwrapAliases();
+    if (r) r = r->UnwrapAliases();
     if (!r) return l != nullptr && entry_invariant(obj);
     return l == r || (entry_invariant(obj) && same_load(l, r));
   };
@@ -427,24 +427,16 @@ void KnownNodeAspects::MergeForLoop(const KnownNodeAspects& backedge,
       });
 }
 
-void KnownNodeAspects::UnwrapIdentitiesAndPhisInKeys(Zone* zone) {
-  auto unwrap = [](ValueNode* node) -> ValueNode* {
-    return node == nullptr ? nullptr : node->UnwrapIdentitiesAndPhis();
+template <bool kRemapValues, typename RemapFn>
+void KnownNodeAspects::RemapPropertyAndContextNodes(RemapFn&& remap) {
+  auto remap_value = [&](const auto&, ValueNode*& value) {
+    value = remap(value);
   };
 
-  // node_infos_ is keyed by value node.
-  node_infos_.RemapKeys(unwrap, [](NodeInfo& dst, const NodeInfo& src) {
-    // A phi and its single input normalize to the same node; both entries
-    // then describe the same value, so combine their facts.
-    dst.CombineSameValueFrom(src);
-  });
-
-  // Cached property loads: key -> object -> value. Only the object is a node
-  // key; values are left as-is (the merge already unwraps identities on value
-  // comparison, and available_expressions_ is not remapped at all).
   auto remap_loaded_properties = [&](LoadedPropertyMap& map) {
     map.MutateValues([&](PropertyKey, PropertyObjectMap& objects) {
-      objects.RemapKeys(unwrap);
+      objects.RemapKeys(remap);
+      if constexpr (kRemapValues) objects.MutateValues(remap_value);
     });
   };
   remap_loaded_properties(loaded_properties_);
@@ -452,18 +444,55 @@ void KnownNodeAspects::UnwrapIdentitiesAndPhisInKeys(Zone* zone) {
 
   loaded_tagged_keyed_properties_.RemapKeys(
       [&](std::pair<ValueNode*, ValueNode*> key) {
-        return std::make_pair(unwrap(key.first), unwrap(key.second));
+        return std::make_pair(remap(key.first), remap(key.second));
       });
+  if constexpr (kRemapValues) {
+    loaded_tagged_keyed_properties_.MutateValues(remap_value);
+  }
 
-  // Context slot loads: (context node, offset) -> value. Only the context node
-  // in the key is remapped.
   auto remap_context_slots = [&](LoadedContextSlots& m) {
     m.RemapKeys([&](const LoadedContextSlotsKey& key) {
-      return LoadedContextSlotsKey{unwrap(std::get<0>(key)), std::get<1>(key)};
+      return LoadedContextSlotsKey{remap(std::get<0>(key)), std::get<1>(key)};
     });
+    if constexpr (kRemapValues) m.MutateValues(remap_value);
   };
   remap_context_slots(loaded_context_constants_);
   remap_context_slots(loaded_context_slots_);
+}
+
+KnownNodeAspects::Ptr KnownNodeAspects::CloneForLoopBackedge() const {
+  Ptr snapshot = Clone();
+  snapshot->node_infos_.clear();
+  snapshot->available_expressions_.clear();
+  return snapshot;
+}
+
+void KnownNodeAspects::UnwrapIdentitiesAndPhisInKeys() {
+  auto unwrap = [](ValueNode* node) -> ValueNode* {
+    return node == nullptr ? nullptr : node->UnwrapAliases();
+  };
+
+  // The saved backedge KNA only keeps the property and context maps (see
+  // CloneForLoopBackedge), and values are unwrapped on comparison during the
+  // merge.
+  RemapPropertyAndContextNodes</*kRemapValues=*/false>(unwrap);
+}
+
+void KnownNodeAspects::RemapLoopHeaderPhis(
+    const ZoneAbslFlatHashMap<Phi*, Phi*>& replacements) {
+  if (replacements.empty()) return;
+  auto remap = [&](ValueNode* node) -> ValueNode* {
+    if (node == nullptr) return nullptr;
+    ValueNode* unwrapped = node->UnwrapAliases();
+    if (Phi* phi = unwrapped->TryCast<Phi>()) {
+      auto it = replacements.find(phi);
+      if (it != replacements.end()) return it->second;
+    }
+    return node;
+  };
+  // MergeForLoop only reads the property and context maps from the saved
+  // backedge KNA (not node_infos_ or available_expressions_).
+  RemapPropertyAndContextNodes</*kRemapValues=*/true>(remap);
 }
 
 void KnownNodeAspects::UpdateMayHaveAliasingContexts(
@@ -561,8 +590,8 @@ void KnownNodeAspects::ClearUnstableNodeAspectsForStoreMap(
 }
 
 void KnownNodeAspects::ClearUnstableNodeAspectsForMigration(
-    Node* node, bool is_tracing_enabled) {
-  if (MarkSingleMapAsStale(node->input_node(0), is_tracing_enabled)) {
+    ValueNode* object, bool is_tracing_enabled) {
+  if (MarkSingleMapAsStale(object, is_tracing_enabled)) {
     return;
   }
 
@@ -596,8 +625,10 @@ void KnownNodeAspects::ClearUnstableNodeAspectsForElementsTransition(
   // A transitioning object's elements store may be reallocated; drop cached
   // elements for any node that may alias a source-mapped object (including
   // nodes whose map is unknown or already stale).
+  auto const_it =
+      std::as_const(loaded_properties_).find(PropertyKey::Elements());
+  if (const_it == loaded_properties_.end() || const_it->second.empty()) return;
   auto it = loaded_properties_.find(PropertyKey::Elements());
-  if (it == loaded_properties_.end()) return;
   bool dropped_any = it->second.EraseIf([&](ValueNode* obj, ValueNode* const&) {
     const NodeInfo* info = TryGetInfoWithFreshMaps(obj);
     if (!info) return true;
@@ -636,26 +667,26 @@ void KnownNodeAspects::ClearUnstableNodeAspects(bool is_tracing_enabled) {
   may_have_aliasing_contexts_ = KnownNodeAspects::ContextSlotLoadsAlias::kNever;
 }
 
-KnownNodeAspects* KnownNodeAspects::CloneForLoopHeader(
-    bool optimistic, LoopEffects* loop_effects, Zone* zone) const {
-  return zone->New<KnownNodeAspects>(*this, optimistic, loop_effects, zone);
+KnownNodeAspects::Ptr KnownNodeAspects::CloneForLoopHeader(
+    bool optimistic, LoopEffects* loop_effects) const {
+  return pool_->New(*this, optimistic, loop_effects);
 }
 
 KnownNodeAspects::KnownNodeAspects(const KnownNodeAspects& other,
                                    bool optimistic_initial_state,
-                                   LoopEffects* loop_effects, Zone* zone)
-    : loaded_constant_properties_(other.loaded_constant_properties_),
-      loaded_properties_(zone),
-      loaded_tagged_keyed_properties_(zone),
+                                   LoopEffects* loop_effects)
+    : pool_(other.pool_),
+      loaded_constant_properties_(other.loaded_constant_properties_),
+      loaded_properties_(&pool_->loaded_property_pool),
+      loaded_tagged_keyed_properties_(&pool_->tagged_keyed_pool),
       loaded_context_constants_(other.loaded_context_constants_),
-      loaded_context_slots_(zone),
-      available_expressions_(zone),
+      loaded_context_slots_(&pool_->context_slots_pool),
+      available_expressions_(&pool_->available_expressions_pool),
       side_effects_require_invalidation_(false),
       may_have_aliasing_contexts_(
           KnownNodeAspects::ContextSlotLoadsAlias::kNever),
       effect_epoch_(other.effect_epoch_),
-      node_infos_(zone),
-      virtual_objects_(other.virtual_objects_) {
+      node_infos_(&pool_->node_infos_pool) {
   if (!other.side_effects_require_invalidation_) {
     node_infos_ = other.node_infos_;
 #ifdef DEBUG
@@ -678,13 +709,11 @@ KnownNodeAspects::KnownNodeAspects(const KnownNodeAspects& other,
   if (optimistic_initial_state && !loop_effects->unstable_aspects_cleared) {
     // IMPORTANT: Whatever we clone here needs to be checked for consistency
     // in when we try to terminate the loop in `IsCompatibleWithLoopHeader`.
-    if (loop_effects->objects_written.empty() &&
-        loop_effects->keys_cleared.empty() &&
+    if (loop_effects->keys_cleared.empty() &&
         !loop_effects->elements_kind_transitioned) {
       loaded_properties_ = other.loaded_properties_;
     } else {
-      LoopInvariantPropertyFilter filter(loop_effects,
-                                         loop_effects->objects_written, this);
+      LoopInvariantPropertyFilter filter(loop_effects, this);
       loaded_properties_ = other.loaded_properties_;
       loaded_properties_.EraseIf(
           [&](const PropertyKey& key, PropertyObjectMap& props_for_key) {
@@ -702,7 +731,7 @@ KnownNodeAspects::KnownNodeAspects(const KnownNodeAspects& other,
           loop_effects->context_slot_written);
       for (auto loaded : other.loaded_context_slots_) {
         if (!loaded.second) continue;
-        loaded.second = loaded.second->UnwrapIdentities();
+        loaded.second = loaded.second->UnwrapAliases();
         if (!slot_written.Contains(loaded.first)) {
           loaded_context_slots_.emplace(loaded);
         }
@@ -728,14 +757,11 @@ KnownNodeAspects::KnownNodeAspects(const KnownNodeAspects& other,
       available_expressions_.emplace(e);
     }
   }
-
-  virtual_objects_.Snapshot();
 }
 
 // LINT.IfChange(IsCompatibleWithLoopHeader)
 bool KnownNodeAspects::IsCompatibleWithLoopHeader(
     const KnownNodeAspects& loop_header) const {
-
   // Analysis state can change with loads.
   if (!loop_header.loaded_context_slots_.empty() &&
       loop_header.may_have_aliasing_contexts() !=
@@ -862,7 +888,7 @@ KnownNodeAspects::ClearAliasedContextSlotsFor(Graph* graph, ValueNode* context,
 bool KnownNodeAspects::SetContextCachedValue(ValueNode* context, int offset,
                                              ValueNode* value,
                                              MaybeAssignedFlag assigned) {
-  value = value->UnwrapIdentities();
+  value = value->UnwrapAliases();
   if (assigned == kNotAssigned) {
     if (auto* root_const = value->TryCast<RootConstant>()) {
 #ifdef V8_ENABLE_TDZ_HOLE
@@ -904,7 +930,7 @@ KnownNodeAspects::ContextStoreResult KnownNodeAspects::RecordContextSlotStore(
 
 bool KnownNodeAspects::MarkSingleMapAsStale(ValueNode* node,
                                             bool is_tracing_enabled) {
-  if (NodeInfo* node_info = TryGetInfoFor(node)) {
+  if (const NodeInfo* node_info = TryGetInfoFor(node)) {
     if (node_info->possible_maps_are_known() && !node_info->maps_are_stale() &&
         node_info->possible_maps().size() == 1) {
       compiler::MapRef old_map = node_info->possible_maps().at(0);
@@ -930,6 +956,24 @@ V8_EXPORT_PRIVATE bool IsStringRootIndex(RootIndex index) {
   ReadOnlyRoots roots = GetReadOnlyRoots();
   Tagged<Object> obj = roots.object_at(index);
   return IsInternalizedString(obj);
+}
+
+V8_EXPORT_PRIVATE bool CouldHaveBeenNonInternalizedStringConstant(
+    ValueNode* node) {
+  auto constant = node->TryCast<HeapConstant>();
+  if (!constant || !constant->ref().IsString()) {
+    // RootConstants that are strings are always internalized strings in
+    // ReadOnlySpace.
+    return false;
+  }
+  if (!constant->ref().IsInternalizedString()) return true;
+  // `String` is `NEVER_SERIALIZED` in `JSHeapBroker`, so a string
+  // `HeapConstant` observed as non-internalized earlier can spontaneously
+  // transition to internalized in-place on another thread.
+  if (!v8_flags.concurrent_recompilation) {
+    return false;
+  }
+  return !HeapLayout::InReadOnlySpace(*constant->ref().object());
 }
 #endif
 
@@ -1020,11 +1064,6 @@ void KnownNodeAspects::Print(std::ostream& os) const {
          << ": " << kGreen << PrintNodeLabel(expr.node) << kReset
          << " (epoch: " << expr.effect_epoch << ")\n";
     }
-  }
-
-  if (!virtual_objects_.is_empty()) {
-    os << kBold << "Virtual Objects:" << kReset << "\n";
-    virtual_objects_.Print(os, "  ");
   }
 }
 

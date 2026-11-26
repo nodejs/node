@@ -46,9 +46,10 @@ class btree_container {
   // `key_arg<K>` evaluates to `K` when the functors are transparent and to
   // `key_type` otherwise. It permits template argument deduction on `K` for the
   // transparent case.
+  // TODO(ezb): we can also pass by value whenever beneficial.
   template <class K>
   using key_arg =
-      typename KeyArg<params_type::kIsKeyCompareTransparent>::template type<
+      typename KeyArg<params_type::kIsKeyCompareTransparent>::template Select<
           K, typename Tree::key_type>;
 
  public:

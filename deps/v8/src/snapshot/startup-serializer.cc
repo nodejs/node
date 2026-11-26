@@ -142,8 +142,7 @@ void StartupSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
     info->RemoveCallbackRedirectionForSerialization(isolate());
     function_template_infos_.Push(*info);
   } else if (IsScript(*obj) && Cast<Script>(obj)->IsUserJavaScript()) {
-    Cast<Script>(obj)->set_context_data(
-        ReadOnlyRoots(isolate()).uninitialized_symbol());
+    Cast<Script>(obj)->set_is_embedded(true);
   } else if (IsSharedFunctionInfo(*obj)) {
     // Clear inferred name for native functions.
     auto shared = Cast<SharedFunctionInfo>(obj);

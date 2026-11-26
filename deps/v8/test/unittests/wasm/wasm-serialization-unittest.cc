@@ -54,12 +54,11 @@ class WasmSerializationTester {
 
   static void BuildWireBytes(Zone* zone, ZoneBuffer* buffer) {
     WasmModuleBuilder* builder = zone->New<WasmModuleBuilder>(zone);
-    TestSignatures sigs;
 
     // Generate 3 functions, and export the last one with the name "increment".
     WasmFunctionBuilder* f;
     for (int i = 0; i < 3; ++i) {
-      f = builder->AddFunction(sigs.i_i());
+      f = builder->AddFunction(TestSignatures::i_i());
       f->EmitCode({WASM_LOCAL_GET(0), kExprI32Const, 1, kExprI32Add, kExprEnd});
     }
     builder->AddExport(kFunctionName, f);
@@ -575,10 +574,9 @@ TEST_F(WasmSerializationTest, DeserializeIndirectCallWithDifferentCanonicalId) {
   ZoneBuffer zone_buffer(&zone);
   {
     WasmModuleBuilder builder{&zone};
-    TestSignatures sigs;
 
     // Add the "call_indirect" function which calls table0[0].
-    ModuleTypeIndex sig_id = builder.AddSignature(sigs.i_i(), true);
+    ModuleTypeIndex sig_id = builder.AddSignature(TestSignatures::i_i(), true);
     WasmFunctionBuilder* f = builder.AddFunction(sig_id);
     f->EmitCode({// (i) => i != 0 ? f(i-1) : 42
                  WASM_IF_ELSE_I(
@@ -674,9 +672,8 @@ TEST_F(WasmSerializationTest, DeserializeIndirectCallWithDifferentCanonicalId) {
   {
     ZoneBuffer buffer(&zone);
     WasmModuleBuilder builder{&zone};
-    TestSignatures sigs;
 
-    ModuleTypeIndex sig_id = builder.AddSignature(sigs.v_v(), true);
+    ModuleTypeIndex sig_id = builder.AddSignature(TestSignatures::v_v(), true);
     WasmFunctionBuilder* f = builder.AddFunction(sig_id);
     f->EmitByte(kExprEnd);
     builder.WriteTo(&buffer);

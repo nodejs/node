@@ -8,6 +8,7 @@
 #include "src/objects/contexts.h"
 #include "src/snapshot/serializer.h"
 #include "src/snapshot/snapshot-source-sink.h"
+#include "src/snapshot/trusted-section-serializer.h"
 
 namespace v8 {
 namespace internal {
@@ -31,6 +32,11 @@ class V8_EXPORT_PRIVATE ContextSerializer : public Serializer {
 
  private:
   void SerializeObjectImpl(Handle<HeapObject> o, SlotType slot_type) override;
+  TrustedSectionSerializer* trusted_serializer() override {
+    return &trusted_serializer_;
+  }
+  bool SerializeUsingObjectCache(SnapshotByteSink* sink,
+                                 Handle<HeapObject> obj) override;
   bool ShouldBeInTheStartupObjectCache(Tagged<HeapObject> o);
   void CheckRehashability(Tagged<HeapObject> obj);
 
@@ -57,6 +63,7 @@ class V8_EXPORT_PRIVATE ContextSerializer : public Serializer {
   SnapshotByteSink embedder_fields_sink_;
   // Used to store serialized data for API wrappers.
   SnapshotByteSink api_wrapper_sink_;
+  TrustedSectionSerializer trusted_serializer_;
 };
 
 }  // namespace internal

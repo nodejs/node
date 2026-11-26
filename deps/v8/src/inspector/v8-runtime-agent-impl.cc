@@ -118,6 +118,38 @@ bool wrapEvaluateResultAsync(InjectedScript* injectedScript,
   return false;
 }
 
+// Side-effect-free evaluation (`throwOnSideEffect`) does not run microtasks,
+// since awaiting a promise or assimilating an arbitrary thenable would run
+// user code outside of the side-effect check. Instead, only unwrap the result
+// if it is an already fulfilled `v8::Promise` (e.g. an `async` function or a
+// REPL mode script that completed synchronously), and report a possible side
+// effect otherwise.
+v8::MaybeLocal<v8::Value> unwrapPromiseForSideEffectFreeEvaluate(
+    InjectedScript::Scope& scope, v8::MaybeLocal<v8::Value> maybeResultValue,
+    bool replMode) {
+  v8::Local<v8::Value> value;
+  if (!maybeResultValue.ToLocal(&value) || !value->IsPromise() ||
+      value.As<v8::Promise>()->State() != v8::Promise::kFulfilled) {
+    v8::debug::ThrowSideEffectError(scope.context());
+    return v8::MaybeLocal<v8::Value>();
+  }
+  v8::Local<v8::Value> result = value.As<v8::Promise>()->Result();
+  if (replMode) {
+    v8::Isolate* isolate = scope.injectedScript()->context()->isolate();
+    v8::debug::SideEffectCheckScope sideEffectCheckScope(isolate);
+    v8::Local<v8::Object> object;
+    if (!result->ToObject(scope.context()).ToLocal(&object)) {
+      return v8::MaybeLocal<v8::Value>();
+    }
+    v8::Local<v8::String> dotReplResult =
+        toV8StringInternalized(isolate, ".repl_result");
+    if (!object->Get(scope.context(), dotReplResult).ToLocal(&result)) {
+      return v8::MaybeLocal<v8::Value>();
+    }
+  }
+  return result;
+}
+
 void innerCallFunctionOn(
     V8InspectorSessionImpl* session, InjectedScript::Scope& scope,
     v8::Local<v8::Value> recv, const String16& expression,
@@ -155,8 +187,10 @@ void innerCallFunctionOn(
   if (inspector
           ->compileScript(scope.context(), "(" + expression + ")", String16())
           .ToLocal(&functionScript)) {
-    v8::MicrotasksScope microtasksScope(scope.context(),
-                                        v8::MicrotasksScope::kRunMicrotasks);
+    v8::MicrotasksScope microtasksScope(
+        scope.context(), throwOnSideEffect
+                             ? v8::MicrotasksScope::kDoNotRunMicrotasks
+                             : v8::MicrotasksScope::kRunMicrotasks);
     maybeFunctionValue = functionScript->Run(scope.context());
   }
   // Re-initialize after running client's code, as it could have destroyed
@@ -185,8 +219,10 @@ void innerCallFunctionOn(
 
   v8::MaybeLocal<v8::Value> maybeResultValue;
   {
-    v8::MicrotasksScope microtasksScope(scope.context(),
-                                        v8::MicrotasksScope::kRunMicrotasks);
+    v8::MicrotasksScope microtasksScope(
+        scope.context(), throwOnSideEffect
+                             ? v8::MicrotasksScope::kDoNotRunMicrotasks
+                             : v8::MicrotasksScope::kRunMicrotasks);
     maybeResultValue = v8::debug::CallFunctionOn(
         scope.context(), functionValue.As<v8::Function>(), recv,
         v8::base::VectorOf(args), throwOnSideEffect);
@@ -199,6 +235,20 @@ void innerCallFunctionOn(
     return;
   }
 
+  if (awaitPromise && throwOnSideEffect && !scope.tryCatch().HasCaught()) {
+    // Keep reporting an internal error for an empty result without a caught
+    // exception (e.g. when the evaluation timed out).
+    if (maybeResultValue.IsEmpty()) {
+      callback->sendFailure(Response::InternalError());
+      return;
+    }
+    maybeResultValue = unwrapPromiseForSideEffectFreeEvaluate(
+        scope, maybeResultValue, false /* replMode */);
+    wrapEvaluateResultAsync(scope.injectedScript(), maybeResultValue,
+                            scope.tryCatch(), objectGroup, *wrapOptions,
+                            throwOnSideEffect, callback.get());
+    return;
+  }
   if (!awaitPromise || scope.tryCatch().HasCaught()) {
     wrapEvaluateResultAsync(scope.injectedScript(), maybeResultValue,
                             scope.tryCatch(), objectGroup, *wrapOptions,
@@ -206,9 +256,10 @@ void innerCallFunctionOn(
     return;
   }
 
+  DCHECK(!throwOnSideEffect);
   scope.injectedScript()->addPromiseCallback(
       session, maybeResultValue, objectGroup, std::move(wrapOptions),
-      false /* replMode */, throwOnSideEffect,
+      false /* replMode */,
       EvaluateCallbackWrapper<V8RuntimeAgentImpl::CallFunctionOnCallback>::wrap(
           std::move(callback)));
 }
@@ -411,8 +462,10 @@ void V8RuntimeAgentImpl::evaluate(
         return;
       }
     }
-    v8::MicrotasksScope microtasksScope(scope.context(),
-                                        v8::MicrotasksScope::kRunMicrotasks);
+    v8::MicrotasksScope microtasksScope(
+        scope.context(), throwOnSideEffect.value_or(false)
+                             ? v8::MicrotasksScope::kDoNotRunMicrotasks
+                             : v8::MicrotasksScope::kRunMicrotasks);
     v8::debug::EvaluateGlobalMode mode =
         v8::debug::EvaluateGlobalMode::kDefault;
     if (throwOnSideEffect.value_or(false)) {
@@ -445,6 +498,22 @@ void V8RuntimeAgentImpl::evaluate(
 
   // REPL mode always returns a promise that must be awaited.
   const bool await = replMode || maybeAwaitPromise.value_or(false);
+  if (await && throwOnSideEffect.value_or(false) &&
+      !scope.tryCatch().HasCaught()) {
+    // Keep reporting an internal error for an empty result without a caught
+    // exception (e.g. when the evaluation timed out).
+    if (maybeResultValue.IsEmpty()) {
+      callback->sendFailure(Response::InternalError());
+      return;
+    }
+    maybeResultValue = unwrapPromiseForSideEffectFreeEvaluate(
+        scope, maybeResultValue, replMode);
+    wrapEvaluateResultAsync(scope.injectedScript(), maybeResultValue,
+                            scope.tryCatch(), objectGroup.value_or(""),
+                            *wrapOptions, true /* throwOnSideEffect */,
+                            callback.get());
+    return;
+  }
   if (!await || scope.tryCatch().HasCaught()) {
     wrapEvaluateResultAsync(scope.injectedScript(), maybeResultValue,
                             scope.tryCatch(), objectGroup.value_or(""),
@@ -452,9 +521,10 @@ void V8RuntimeAgentImpl::evaluate(
                             callback.get());
     return;
   }
+  DCHECK(!throwOnSideEffect.value_or(false));
   scope.injectedScript()->addPromiseCallback(
       m_session, maybeResultValue, objectGroup.value_or(""),
-      std::move(wrapOptions), replMode, throwOnSideEffect.value_or(false),
+      std::move(wrapOptions), replMode,
       EvaluateCallbackWrapper<EvaluateCallback>::wrap(std::move(callback)));
 }
 
@@ -486,7 +556,6 @@ void V8RuntimeAgentImpl::awaitPromise(
   scope.injectedScript()->addPromiseCallback(
       m_session, scope.object(), scope.objectGroupName(),
       std::move(wrapOptions), false /* replMode */,
-      false /* throwOnSideEffect */,
       EvaluateCallbackWrapper<AwaitPromiseCallback>::wrap(std::move(callback)));
 }
 
@@ -652,9 +721,6 @@ Response V8RuntimeAgentImpl::runIfWaitingForDebugger() {
     m_debuggerBarrier.reset();
     return Response::Success();
   }
-  // TODO(chromium:1352175): the below is provisional until client-side changes
-  // land. The call should come through the barrier only once client properly
-  // communicates whether the session is waiting for debugger.
   m_inspector->client()->runIfWaitingForDebugger(m_session->contextGroupId());
   return Response::Success();
 }
@@ -812,7 +878,6 @@ void V8RuntimeAgentImpl::runScript(
   scope.injectedScript()->addPromiseCallback(
       m_session, maybeResultValue.ToLocalChecked(), objectGroup.value_or(""),
       std::move(wrapOptions), false /* replMode */,
-      false /* throwOnSideEffect */,
       EvaluateCallbackWrapper<RunScriptCallback>::wrap(std::move(callback)));
 }
 
@@ -894,9 +959,30 @@ void V8RuntimeAgentImpl::terminateExecution(
     return;
   }
   v8::HandleScope handles(m_inspector->isolate());
-  v8::Local<v8::Context> defaultContext =
-      m_inspector->client()->ensureDefaultContextInGroup(
+  v8::Local<v8::Context> defaultContext;
+  if (m_inspector->isolate()->InContext()) {
+    v8::Local<v8::Context> currentContext =
+        m_inspector->isolate()->GetCurrentContext();
+    if (m_inspector->contextGroupId(currentContext) ==
+        m_session->contextGroupId()) {
+      defaultContext = currentContext;
+    }
+  }
+  if (defaultContext.IsEmpty()) {
+    if (v8::debug::IsJavascriptExecutionAllowed(m_inspector->isolate())) {
+      defaultContext = m_inspector->client()->ensureDefaultContextInGroup(
           m_session->contextGroupId());
+    } else if (m_inspector->isolate()->InContext()) {
+      defaultContext = m_inspector->isolate()->GetCurrentContext();
+    } else {
+      m_inspector->forEachContext(m_session->contextGroupId(),
+                                  [&](InspectedContext* context) {
+                                    if (defaultContext.IsEmpty()) {
+                                      defaultContext = context->context();
+                                    }
+                                  });
+    }
+  }
 
   m_inspector->debugger()->terminateExecution(defaultContext,
                                               std::move(callback));
@@ -978,7 +1064,7 @@ void V8RuntimeAgentImpl::bindingCallback(
   int contextGroupId = inspector->contextGroupId(contextId);
 
   String16 name =
-      toProtocolString(isolate, info.DataV2().As<v8::Value>().As<v8::String>());
+      toProtocolString(isolate, info.Data().As<v8::Value>().As<v8::String>());
   String16 payload = toProtocolString(isolate, info[0].As<v8::String>());
 
   inspector->forEachSession(

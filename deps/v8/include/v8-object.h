@@ -5,8 +5,11 @@
 #ifndef INCLUDE_V8_OBJECT_H_
 #define INCLUDE_V8_OBJECT_H_
 
+#include <type_traits>
+
 #include "cppgc/garbage-collected.h"
 #include "cppgc/name-provider.h"
+#include "cppgc/type-traits.h"
 #include "v8-internal.h"           // NOLINT(build/include_directory)
 #include "v8-local-handle.h"       // NOLINT(build/include_directory)
 #include "v8-maybe.h"              // NOLINT(build/include_directory)
@@ -198,14 +201,13 @@ using AccessorNameGetterCallback =
  * See Object::SetNativeDataProperty and
  * ObjectTemplate::SetNativeDataProperty methods.
  */
-using AccessorNameSetterCallbackV2 =
+using AccessorNameSetterCallback =
     void (*)(Local<Name> property, Local<Value> value,
              const PropertyCallbackInfo<Boolean>& info);
 // TODO(https://crbug.com/348660658): deprecate and remove.
-using AccessorNameSetterCallback  //
-    V8_DEPRECATED("Use AccessorNameSetterCallbackV2 instead.") =
-        void (*)(Local<Name> property, Local<Value> value,
-                 const PropertyCallbackInfo<void>& info);
+using AccessorNameSetterCallbackV2  //
+    V8_DEPRECATE_SOON("Use AccessorNameSetterCallback instead.") =
+        AccessorNameSetterCallback;
 
 /**
  * Property filter bits. They can be or'ed to build a composite filter.
@@ -425,7 +427,7 @@ class V8_EXPORT Object : public Value {
   V8_WARN_UNUSED_RESULT Maybe<bool> SetNativeDataProperty(
       Local<Context> context, Local<Name> name,
       AccessorNameGetterCallback getter,
-      AccessorNameSetterCallbackV2 setter = nullptr,
+      AccessorNameSetterCallback setter = nullptr,
       Local<Data> data = Local<Data>(), PropertyAttribute attributes = None,
       SideEffectType getter_side_effect_type = SideEffectType::kHasSideEffect,
       SideEffectType setter_side_effect_type = SideEffectType::kHasSideEffect);
@@ -440,7 +442,7 @@ class V8_EXPORT Object : public Value {
    */
   V8_WARN_UNUSED_RESULT Maybe<bool> SetLazyDataProperty(
       Local<Context> context, Local<Name> name,
-      AccessorNameGetterCallback getter, Local<Value> data = Local<Value>(),
+      AccessorNameGetterCallback getter, Local<Data> data = Local<Data>(),
       PropertyAttribute attributes = None,
       SideEffectType getter_side_effect_type = SideEffectType::kHasSideEffect,
       SideEffectType setter_side_effect_type = SideEffectType::kHasSideEffect);
@@ -566,12 +568,30 @@ class V8_EXPORT Object : public Value {
                                                      int index,
                                                      EmbedderDataTypeTag tag);
 
+  /**
+   * Gets a pointer to a GarbageCollected object from an internal field. This
+   * field must have been set by SetPointerInInternalField, everything else
+   * leads to undefined behavior.
+   */
+  template <typename T>
+    requires cppgc::IsGarbageCollectedTypeV<T>
+  V8_INLINE T* GetPointerFromInternalField(v8::Isolate* isolate, int index,
+                                           CppHeapPointerTag tag);
+
   /** Same as above, but works for PersistentBase. */
   V8_INLINE static void* GetAlignedPointerFromInternalField(
       const PersistentBase<Object>& object, int index,
       EmbedderDataTypeTag tag) {
     return object.template value<Object>()->GetAlignedPointerFromInternalField(
         index, tag);
+  }
+  template <typename T>
+    requires cppgc::IsGarbageCollectedTypeV<T>
+  V8_INLINE static T* GetPointerFromInternalField(
+      v8::Isolate* isolate, const PersistentBase<Object>& object, int index,
+      CppHeapPointerTag tag) {
+    return object.template value<Object>()->GetPointerFromInternalField<T>(
+        isolate, index, tag);
   }
 
   /** Same as above, but works for TracedReference. */
@@ -581,6 +601,14 @@ class V8_EXPORT Object : public Value {
     return object.template value<Object>()->GetAlignedPointerFromInternalField(
         index, tag);
   }
+  template <typename T>
+    requires cppgc::IsGarbageCollectedTypeV<T>
+  V8_INLINE static T* GetPointerFromInternalField(
+      v8::Isolate* isolate, const BasicTracedReference<Object>& object,
+      int index, CppHeapPointerTag tag) {
+    return object.template value<Object>()->GetPointerFromInternalField<T>(
+        isolate, index, tag);
+  }
 
   /**
    * Sets a 2-byte-aligned native pointer in an internal field. To retrieve such
@@ -589,6 +617,17 @@ class V8_EXPORT Object : public Value {
    */
   void SetAlignedPointerInInternalField(int index, void* value,
                                         EmbedderDataTypeTag tag);
+
+  /**
+   * Sets a pointer to a GarbageCollected object in an internal field. To
+   * retrieve such a field, GetPointerFromInternalField must be used, everything
+   * else leads to undefined behavior.
+   */
+  template <typename T>
+    requires(!std::is_void_v<T>) && cppgc::IsGarbageCollectedTypeV<T>
+  void SetPointerInInternalField(int index, T* value, CppHeapPointerTag tag) {
+    SetPointerInInternalFieldInternal(index, static_cast<void*>(value), tag);
+  }
 
   // Type information for a Wrappable object that got wrapped with
   // `v8::Object::Wrap()`.
@@ -928,6 +967,10 @@ class V8_EXPORT Object : public Value {
                                                EmbedderDataTypeTag tag);
   void* SlowGetAlignedPointerFromInternalField(v8::Isolate* isolate, int index,
                                                EmbedderDataTypeTag tag);
+  void* SlowGetPointerFromInternalField(v8::Isolate* isolate, int index,
+                                        CppHeapPointerTag tag);
+  void SetPointerInInternalFieldInternal(int index, void* value,
+                                         CppHeapPointerTag tag);
 };
 
 // --- Implementation ---
@@ -970,6 +1013,28 @@ void* Object::GetAlignedPointerFromInternalField(v8::Isolate* isolate,
 void* Object::GetAlignedPointerFromInternalField(int index,
                                                  EmbedderDataTypeTag tag) {
   return SlowGetAlignedPointerFromInternalField(index, tag);
+}
+
+template <typename T>
+  requires cppgc::IsGarbageCollectedTypeV<T>
+T* Object::GetPointerFromInternalField(v8::Isolate* isolate, int index,
+                                       CppHeapPointerTag tag) {
+#if !defined(V8_ENABLE_CHECKS)
+  using A = internal::Address;
+  using I = internal::Internals;
+  A obj = internal::ValueHelper::ValueAsAddress(this);
+  // Fast path: If the object is a plain JSObject, which is the common case, we
+  // know where to find the internal fields and can return the value directly.
+  auto instance_type = I::GetInstanceType(obj);
+  if (V8_LIKELY(I::CanHaveInternalField(instance_type))) {
+    int offset = I::kJSAPIObjectWithEmbedderSlotsHeaderSize +
+                 (I::kEmbedderDataSlotSize * index) +
+                 I::kEmbedderDataSlotCppHeapPointerOffset;
+    return internal::ReadCppHeapPointerField<T>(
+        isolate, obj, offset, CppHeapPointerTagRange(tag, tag));
+  }
+#endif
+  return static_cast<T*>(SlowGetPointerFromInternalField(isolate, index, tag));
 }
 
 // static

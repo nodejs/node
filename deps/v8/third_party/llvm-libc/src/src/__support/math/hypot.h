@@ -9,13 +9,15 @@
 #ifndef LLVM_LIBC_SRC___SUPPORT_MATH_HYPOT_H
 #define LLVM_LIBC_SRC___SUPPORT_MATH_HYPOT_H
 
+#include "hdr/fenv_macros.h"
+#include "hdr/stdint_proxy.h"
 #include "src/__support/FPUtil/FEnvImpl.h"
 #include "src/__support/FPUtil/FPBits.h"
 #include "src/__support/FPUtil/Hypot.h"
 #include "src/__support/FPUtil/double_double.h"
 #include "src/__support/FPUtil/multiply_add.h"
 #include "src/__support/FPUtil/sqrt.h"
-#include "src/__support/common.h"
+#include "src/__support/macros/attributes.h"
 #include "src/__support/macros/config.h"
 #include "src/__support/macros/optimization.h"
 
@@ -82,7 +84,7 @@ LIBC_INLINE double hypot_denorm(double a, double b) {
     r.hi -= correction;
     // Raise underflow if needed:
     if ((r.hi < 1.0 && r.lo != 0.0) || (r.hi == 1.0 && r.lo < 0.0))
-      fputil::raise_except_if_required(FE_UNDERFLOW | FE_INEXACT);
+      fputil::raise_underflow_except_if_required<double>();
 
     return r.hi * SCALE_BACK;
 #endif // LIBC_MATH_HAS_NO_EXCEPT
@@ -272,7 +274,7 @@ LIBC_INLINE double hypot(double x, double y) {
 
   // Ziv's rounding test.
   double upper = r_hi + fputil::multiply_add(r_hi, ERR, r_lo);
-  double lower = r_hi + fputil::multiply_add(r_hi, -ERR, r_lo);
+  double lower = r_hi + fputil::sub_multiply(r_lo, r_hi, ERR);
 
   if (LIBC_LIKELY(upper == lower)) {
     return upper * scale_back;

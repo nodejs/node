@@ -5,7 +5,7 @@
 #ifndef V8_COMPILER_TURBOSHAFT_REGISTER_ALLOCATION_PHASE_H_
 #define V8_COMPILER_TURBOSHAFT_REGISTER_ALLOCATION_PHASE_H_
 
-#include "src/common/synchronization-point-support.h"
+#include "src/base/synchronization-point-support.h"
 #ifdef BUILTIN_BLOCK_POSITION
 #include "src/compiler/backend/block-position.h"
 #endif
@@ -93,16 +93,6 @@ struct AllocateSimd128RegistersPhase {
     RegAllocator allocator(data->register_allocation_data(),
                            RegisterKind::kSimd128, temp_zone);
     allocator.AllocateRegisters();
-  }
-};
-
-struct DecideSpillingModePhase {
-  DECL_TURBOSHAFT_PHASE_CONSTANTS_WITH_LEGACY_NAME(DecideSpillingMode)
-  static constexpr bool kOutputIsTraceableGraph = false;
-
-  void Run(PipelineData* data, Zone* temp_zone) {
-    OperandAssigner assigner(data->register_allocation_data());
-    assigner.DecideSpillingMode();
   }
 };
 

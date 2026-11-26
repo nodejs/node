@@ -1,0 +1,20 @@
+add_header_library(
+  netlink
+  HDRS
+    netlink.h
+  DEPENDS
+    libc.hdr.errno_macros
+    libc.hdr.net_if_macros
+    libc.hdr.sys_socket_macros
+    libc.hdr.types.ssize_t
+    libc.src.__support.CPP.functional
+    libc.src.__support.CPP.scope
+    libc.src.__support.CPP.span
+    libc.src.__support.CPP.string_view
+    libc.src.__support.CPP.unique_ptr
+    libc.src.__support.checked_ptr
+    libc.src.__support.common
+    libc.src.__support.error_or
+    libc.src.__support.libc_assert
+    libc.src.string.string_utils
+)

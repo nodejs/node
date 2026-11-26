@@ -6,15 +6,16 @@
 
 #include "src/api/api.h"
 #include "src/base/logging.h"
+#include "src/base/thread-id.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/execution/isolate.h"
-#include "src/execution/thread-id.h"
 #include "src/handles/handle-scope-implementer-inl.h"
 #include "src/handles/maybe-handles.h"
 #include "src/heap/base/stack.h"
 #include "src/heap/heap-layout-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/roots/roots-inl.h"
+#include "src/sandbox/hardware-support.h"
 #include "src/utils/address-map.h"
 #include "src/utils/identity-map.h"
 
@@ -89,9 +90,6 @@ bool HandleBase::IsDereferenceAllowed() const {
   if (isolate->IsBuiltinTableHandleLocation(location_)) return true;
   if (!AllowHandleDereference::IsAllowed()) return false;
 
-  // Allocations in the shared heap may be dereferenced by multiple threads.
-  if (HeapLayout::InWritableSharedSpace(heap_object)) return true;
-
   // Deref is explicitly allowed from any thread. Used for running internal GC
   // epilogue callbacks in the safepoint after a GC.
   if (AllowHandleUsageOnAllThreads::IsAllowed()) return true;
@@ -105,6 +103,12 @@ bool HandleBase::IsDereferenceAllowed() const {
     return false;
   }
 
+  // Allocations in the shared heap may be dereferenced by multiple threads.
+  {
+    AllowSandboxAccess sandbox_access("InWritableSharedSpace check");
+    if (HeapLayout::InWritableSharedSpace(heap_object)) return true;
+  }
+
   // We are pretty strict with handle dereferences on background threads: A
   // background local heap is only allowed to dereference its own local or
   // persistent handles.
@@ -116,7 +120,7 @@ bool HandleBase::IsDereferenceAllowed() const {
   // If LocalHeap::Current() is null, we're on the main thread -- if we were to
   // check main thread HandleScopes here, we should additionally check the
   // main-thread LocalHeap.
-  DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
+  DCHECK_EQ(base::ThreadId::Current(), isolate->thread_id());
 
   // TODO(leszeks): Check if the main thread owns this handle.
   return true;
@@ -132,9 +136,6 @@ bool DirectHandleBase::IsDereferenceAllowed() const {
   Isolate* isolate = Isolate::Current();
   if (!AllowHandleDereference::IsAllowed()) return false;
 
-  // Allocations in the shared heap may be dereferenced by multiple threads.
-  if (HeapLayout::InWritableSharedSpace(heap_object)) return true;
-
   // Deref is explicitly allowed from any thread. Used for running internal GC
   // epilogue callbacks in the safepoint after a GC.
   if (AllowHandleUsageOnAllThreads::IsAllowed()) return true;
@@ -148,15 +149,23 @@ bool DirectHandleBase::IsDereferenceAllowed() const {
     return false;
   }
 
+  // Allocations in the shared heap may be dereferenced by multiple threads.
+  {
+    AllowSandboxAccess sandbox_access("InWritableSharedSpace check");
+    if (HeapLayout::InWritableSharedSpace(heap_object)) return true;
+  }
+
   // We are pretty strict with handle dereferences on background threads: A
   // background local heap is only allowed to dereference its own local handles.
-  if (!local_heap->is_main_thread())
-    return ::heap::base::Stack::IsOnStack(this);
+  if (!local_heap->is_main_thread()) {
+    return ::heap::base::Stack::IsOnStack(this) ||
+           local_heap->ContainsStrongRoot(FullObjectSlot(&obj_));
+  }
 
   // If LocalHeap::Current() is null, we're on the main thread -- if we were to
   // check main thread HandleScopes here, we should additionally check the
   // main-thread LocalHeap.
-  DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
+  DCHECK_EQ(base::ThreadId::Current(), isolate->thread_id());
 
   return true;
 }

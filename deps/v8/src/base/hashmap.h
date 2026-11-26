@@ -137,6 +137,7 @@ class TemplateHashMapImpl {
   Entry* map_end() const { return impl_.map_ + impl_.capacity_; }
   template <typename LookupKey>
   Entry* Probe(const LookupKey& key, uint32_t hash) const;
+  Entry* ProbeEmpty(uint32_t hash) const;
   Entry* FillEmptyEntry(Entry* entry, const Key& key, const Value& value,
                         uint32_t hash);
   void Resize();
@@ -389,21 +390,42 @@ TemplateHashMapImpl<Key, Value, MatchFun, AllocationPolicy>::Probe(
 template <typename Key, typename Value, typename MatchFun,
           class AllocationPolicy>
 typename TemplateHashMapImpl<Key, Value, MatchFun, AllocationPolicy>::Entry*
+TemplateHashMapImpl<Key, Value, MatchFun, AllocationPolicy>::ProbeEmpty(
+    uint32_t hash) const {
+  DCHECK(base::bits::IsPowerOfTwo(capacity()));
+  size_t i = hash & (capacity() - 1);
+  DCHECK(i < capacity());
+
+  DCHECK(occupancy() < capacity());  // Guarantees loop termination.
+  Entry* map = impl_.map_;
+  while (map[i].exists()) {
+    i = (i + 1) & (capacity() - 1);
+  }
+
+  return &map[i];
+}
+
+template <typename Key, typename Value, typename MatchFun,
+          class AllocationPolicy>
+typename TemplateHashMapImpl<Key, Value, MatchFun, AllocationPolicy>::Entry*
 TemplateHashMapImpl<Key, Value, MatchFun, AllocationPolicy>::FillEmptyEntry(
     Entry* entry, const Key& key, const Value& value, uint32_t hash) {
-  DCHECK(!entry->exists());
+  CHECK(!entry->exists());
+
+  // Grow the map before inserting if we will reach >= 80% occupancy.
+  // Probing for an empty slot directly after Resize() avoids re-running
+  // MatchFun on potentially mutated in-sandbox keys.
+  uint32_t new_occupancy = occupancy() + 1;
+  if (new_occupancy + new_occupancy / 4 >= capacity()) {
+    Resize();
+    entry = ProbeEmpty(hash);
+  }
 
   // The entry stores hash in 31 bits; mask the top bit to match Probe's
   // masking and avoid base::BitField's CHECK on overflow.
   hash &= Entry::kHashValueMask;
   new (entry) Entry(key, value, hash);
   impl_.occupancy_++;
-
-  // Grow the map if we reached >= 80% occupancy.
-  if (occupancy() + occupancy() / 4 >= capacity()) {
-    Resize();
-    entry = Probe(key, hash);
-  }
 
   return entry;
 }
@@ -427,20 +449,27 @@ template <typename Key, typename Value, typename MatchFun,
 void TemplateHashMapImpl<Key, Value, MatchFun, AllocationPolicy>::Resize() {
   Entry* old_map = impl_.map_;
   uint32_t old_capacity = capacity();
-  uint32_t n = occupancy();
+  uint32_t old_occupancy = occupancy();
 
   // Allocate larger map.
   Initialize(capacity() * 2);
 
-  // Rehash all current entries.
-  for (Entry* entry = old_map; n > 0; entry++) {
+  // Rehash all current entries by probing only for empty slots in the new map.
+  // Entries in |old_map| were already verified to be distinct on insertion;
+  // avoiding MatchFun during rehashing is both faster and prevents in-sandbox
+  // key/hash mutations from causing collisions that corrupt |occupancy_|.
+  // Bounding the loop by |old_end| ensures we never scan past |old_map|.
+  Entry* old_end = old_map + old_capacity;
+  for (Entry* entry = old_map; entry < old_end; entry++) {
     if (entry->exists()) {
-      Entry* new_entry = Probe(entry->key, entry->hash());
-      new_entry =
-          FillEmptyEntry(new_entry, entry->key, entry->value, entry->hash());
-      n--;
+      uint32_t hash = entry->hash();
+      Entry* new_entry = ProbeEmpty(hash);
+      new (new_entry) Entry(entry->key, entry->value, hash);
+      impl_.occupancy_++;
     }
   }
+  DCHECK_EQ(old_occupancy, occupancy());
+  USE(old_occupancy);
 
   // Delete old map.
   impl_.allocator().DeleteArray(old_map, old_capacity);

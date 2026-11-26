@@ -21,9 +21,10 @@
 #include "src/__support/CPP/string_view.h"
 #include "src/__support/common.h"
 #include "src/__support/ctype_utils.h"
-#include "src/__support/endian_internal.h"
 #include "src/__support/fixedvector.h"
 #include "src/__support/libc_assert.h"
+#include "src/__support/net/byte_order.h"
+#include "src/__support/net/hex.h"
 #include "src/__support/str_to_integer.h"
 #include "src/string/memory_utils/inline_bzero.h"
 #include "src/string/memory_utils/inline_memcpy.h"
@@ -122,18 +123,9 @@ namespace net {
       break;
     }
 
-    if (internal::isspace(src[0]) || src[0] == '+' || src[0] == '-' ||
-        src.starts_with("0x") || src.starts_with("0X"))
+    cpp::optional<uint16_t> word = consume_hex<uint16_t>(src);
+    if (!word || !parts[part_idx].push_back(hton(*word)))
       return false;
-
-    auto result = internal::strtointeger<uint16_t>(src.data(), 16, src.size());
-    if (result.has_error() || result.parsed_len == 0 || result.parsed_len > 4)
-      return false;
-
-    if (!parts[part_idx].push_back(Endian::to_big_endian(result.value)))
-      return false;
-
-    src.remove_prefix(static_cast<size_t>(result.parsed_len));
   }
 
   if (part_idx > 0) {
@@ -199,7 +191,7 @@ cpp::optional<in_addr_t> inet_addr(cpp::string_view src) {
     result |= parts[i] << shift;
   }
 
-  return Endian::to_big_endian(result);
+  return hton(result);
 }
 
 namespace {
@@ -261,7 +253,7 @@ size_t ipv6_to_str_unchecked(const struct in6_addr &src, cpp::span<char> dst) {
 
   size_t pos = 0;
   auto append_word = [&](unsigned i) {
-    uint16_t word = Endian::from_big_endian(src.s6_addr16[i]);
+    uint16_t word = ntoh(src.s6_addr16[i]);
     // This isn't using int_to_b36_char because it's large intermediate
     // representation prevents append_word from being inlined.
     static constexpr char DIGITS[] = "0123456789abcdef";

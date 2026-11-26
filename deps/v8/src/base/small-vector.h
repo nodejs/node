@@ -111,7 +111,7 @@ class alignas(std::max(alignof(T), alignof(T*))) SmallVector {
         std::uninitialized_copy(other.begin_ + to_copy, other.end_,
                                 begin_ + to_copy);
       } else {
-        std::destroy_n(begin_ + to_copy, size() - to_copy);
+        DestroyRange(begin_ + to_copy, end_);
       }
     }
     end_ = begin_ + other_size;
@@ -139,7 +139,7 @@ class alignas(std::max(alignof(T), alignof(T*))) SmallVector {
           std::uninitialized_move(other.begin_ + to_move, other.end_,
                                   begin_ + to_move);
         } else {
-          std::destroy_n(begin_ + to_move, size() - to_move);
+          DestroyRange(begin_ + to_move, end_);
         }
       }
       end_ = begin_ + other_size;
@@ -226,7 +226,7 @@ class alignas(std::max(alignof(T), alignof(T*))) SmallVector {
   void pop_back(size_t count = 1) {
     DCHECK_GE(size(), count);
     end_ -= count;
-    std::destroy_n(end_, count);
+    DestroyRange(end_, end_ + count);
   }
 
   T* insert(T* pos, const T& value) V8_LIFETIME_BOUND {
@@ -276,7 +276,7 @@ class alignas(std::max(alignof(T), alignof(T*))) SmallVector {
     DCHECK_LE(erase_start, erase_end);
     DCHECK_LE(erase_end, end_);
     T* new_end = std::move(erase_end, end_, erase_start);
-    std::destroy(new_end, end_);
+    DestroyRange(new_end, end_);
     end_ = new_end;
     return erase_start;
   }
@@ -304,7 +304,7 @@ class alignas(std::max(alignof(T), alignof(T*))) SmallVector {
     if (new_end > end_) {
       std::uninitialized_default_construct(end_, new_end);
     } else {
-      std::destroy(new_end, end_);
+      DestroyRange(new_end, end_);
     }
     end_ = new_end;
   }
@@ -315,7 +315,7 @@ class alignas(std::max(alignof(T), alignof(T*))) SmallVector {
     if (new_end > end_) {
       std::uninitialized_fill(end_, new_end, initial_value);
     } else {
-      std::destroy(new_end, end_);
+      DestroyRange(new_end, end_);
     }
     end_ = new_end;
   }
@@ -326,7 +326,7 @@ class alignas(std::max(alignof(T), alignof(T*))) SmallVector {
 
   // Clear without reverting back to inline storage.
   void clear() {
-    std::destroy(begin_, end_);
+    DestroyRange(begin_, end_);
     end_ = begin_;
   }
 
@@ -374,17 +374,30 @@ class alignas(std::max(alignof(T), alignof(T*))) SmallVector {
     return allocator_.allocate(number_of_elements);
   }
 
-  V8_NOINLINE V8_PRESERVE_MOST void FreeStorage() {
-    std::destroy(begin_, end_);
-    if (is_big()) allocator_.deallocate(begin_, end_of_storage_ - begin_);
+  // Destroys the elements in [first, last). This is a no-op for trivially
+  // destructible types. We avoid calling {std::destroy} in that case, because
+  // hardened libc++ adds a null check per element to {std::destroy_at}, which
+  // prevents the compiler from eliminating the (otherwise empty) loop.
+  static V8_INLINE void DestroyRange(T* first, T* last) {
+    if constexpr (!std::is_trivially_destructible_v<T>) {
+      std::destroy(first, last);
+    }
+  }
+
+  V8_NOINLINE V8_PRESERVE_MOST void FreeDynamicStorage() {
+    DCHECK(is_big());
+    allocator_.deallocate(begin_, end_of_storage_ - begin_);
+  }
+
+  void FreeStorage() {
+    DestroyRange(begin_, end_);
+    if (V8_UNLIKELY(is_big())) FreeDynamicStorage();
   }
 
   // Clear and go back to inline storage. Dynamic storage is *not* freed. For
   // internal use only.
   void reset_to_inline_storage() {
-    if constexpr (!kHasTrivialElement) {
-      if (!is_big()) std::destroy(begin_, end_);
-    }
+    if (!is_big()) DestroyRange(begin_, end_);
     begin_ = inline_storage_begin();
     end_ = begin_;
     end_of_storage_ = begin_ + kInlineSize;

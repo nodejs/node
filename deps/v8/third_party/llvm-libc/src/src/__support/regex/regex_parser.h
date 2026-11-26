@@ -24,7 +24,10 @@ namespace LIBC_NAMESPACE_DECL {
 namespace regex {
 
 // Parses an Extended Regular Expression (ERE) into the given ExprPool.
-ErrorOr<ExprId> parse_ere(cpp::string_view pattern, int cflags, ExprPool &pool);
+// Optionally populates out_re_nsub with the count of parenthesized
+// subexpressions.
+ErrorOr<ExprId> parse_ere(cpp::string_view pattern, int cflags, ExprPool &pool,
+                          size_t *out_re_nsub = nullptr);
 
 } // namespace regex
 } // namespace LIBC_NAMESPACE_DECL

@@ -1,17 +1,23 @@
-//===-- A self contained equivalent of std::bitset --------------*- C++ -*-===//
+//===----------------------------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
+///
+/// \file
+/// A self-contained equivalent of std::bitset.
+///
+//===----------------------------------------------------------------------===//
 
 #ifndef LLVM_LIBC_SRC___SUPPORT_CPP_BITSET_H
 #define LLVM_LIBC_SRC___SUPPORT_CPP_BITSET_H
 
+#include "hdr/types/size_t.h"
+#include "src/__support/CPP/span.h"
 #include "src/__support/macros/attributes.h"
 #include "src/__support/macros/config.h"
-#include <stddef.h> // For size_t.
 
 namespace LIBC_NAMESPACE_DECL {
 namespace cpp {
@@ -25,8 +31,8 @@ template <size_t NumberOfBits> struct bitset {
   }
 
   LIBC_INLINE constexpr void reset() {
-    for (size_t i = 0; i < NUMBER_OF_UNITS; ++i)
-      Data[i] = 0;
+    for (size_t &unit : Data)
+      unit = 0;
   }
 
   LIBC_INLINE constexpr void reset(size_t Index) {
@@ -38,8 +44,8 @@ template <size_t NumberOfBits> struct bitset {
   }
 
   LIBC_INLINE constexpr void flip() {
-    for (size_t i = 0; i < NUMBER_OF_UNITS; ++i)
-      Data[i] = ~Data[i];
+    for (size_t &unit : Data)
+      unit = ~unit;
   }
 
   // This function sets all bits in the range from Start to End (inclusive) to
@@ -61,8 +67,9 @@ template <size_t NumberOfBits> struct bitset {
           ~((size_t(1) << (Start - (start_index * BITS_PER_UNIT))) - 1);
       Data[start_index] |= low_bit_mask;
 
-      for (size_t i = start_index + 1; i < end_index; ++i)
-        Data[i] = ~size_t(0);
+      for (size_t &unit : span<size_t>(Data).subspan(
+               start_index + 1, end_index - start_index - 1))
+        unit = ~size_t(0);
 
       // Same as above, by splitting the shift the behavior is more consistent.
       size_t high_bit_mask =
@@ -78,6 +85,13 @@ template <size_t NumberOfBits> struct bitset {
         return false;
     }
     return true;
+  }
+
+  LIBC_INLINE constexpr bitset<NumberOfBits> &
+  operator|=(const bitset<NumberOfBits> &other) {
+    for (size_t i = 0; i < NUMBER_OF_UNITS; ++i)
+      Data[i] |= other.Data[i];
+    return *this;
   }
 
 private:

@@ -76,16 +76,16 @@ class ProfileGenerator {
     const std::unordered_map<uint32_t, FunctionTypeFeedback>&
         feedback_for_function = module_->type_feedback.feedback_for_function;
     const uint32_t initial_budget = v8_flags.wasm_tiering_budget;
-    for (uint32_t declared_index = 0;
-         declared_index < module_->num_declared_functions; ++declared_index) {
-      uint32_t func_index = declared_index + module_->num_imported_functions;
+    for (uint32_t defined_index = 0;
+         defined_index < module_->num_defined_functions; ++defined_index) {
+      uint32_t func_index = defined_index + module_->num_imported_functions;
       auto feedback_it = feedback_for_function.find(func_index);
       int prio = feedback_it == feedback_for_function.end()
                      ? 0
                      : feedback_it->second.tierup_priority;
       DCHECK_LE(0, prio);
       uint32_t remaining_budget =
-          tiering_budget_array_[declared_index].load(std::memory_order_relaxed);
+          tiering_budget_array_[defined_index].load(std::memory_order_relaxed);
       DCHECK_GE(initial_budget, remaining_budget);
 
       bool was_tiered_up = prio > 0;
@@ -110,7 +110,7 @@ void DeserializeTypeFeedback(Decoder& decoder, const WasmModule* module) {
   std::unordered_map<uint32_t, FunctionTypeFeedback>& feedback_for_function =
       module->type_feedback.feedback_for_function;
   uint32_t num_entries = decoder.consume_u32v("num function entries");
-  CHECK_LE(num_entries, module->num_declared_functions);
+  CHECK_LE(num_entries, module->num_defined_functions);
   for (uint32_t missing_entries = num_entries; missing_entries > 0;
        --missing_entries) {
     FunctionTypeFeedback function_feedback;
@@ -167,7 +167,7 @@ std::unique_ptr<ProfileInformation> DeserializeTieringInformation(
   std::vector<uint32_t> executed_functions;
   std::vector<uint32_t> tiered_up_functions;
   uint32_t start = module->num_imported_functions;
-  uint32_t end = start + module->num_declared_functions;
+  uint32_t end = start + module->num_defined_functions;
   for (uint32_t func_index = start; func_index < end; ++func_index) {
     uint8_t tiering_info = decoder.consume_u8("tiering info");
     CHECK_EQ(0, tiering_info & ~3);
@@ -210,9 +210,9 @@ void DumpProfileToFile(const WasmModule* module,
   base::UniqueArray<uint8_t> profile_data = profile_generator.GetProfileData();
 
   PrintF(
-      "Dumping Wasm PGO data to file '%s' (module size %zu, %u declared "
+      "Dumping Wasm PGO data to file '%s' (module size %zu, %u defined "
       "functions, %zu bytes PGO data)\n",
-      filename.data(), wire_bytes.size(), module->num_declared_functions,
+      filename.data(), wire_bytes.size(), module->num_defined_functions,
       profile_data.size());
   if (FILE* file = base::OS::FOpen(filename.data(), "wb")) {
     size_t written = fwrite(profile_data.begin(), 1, profile_data.size(), file);

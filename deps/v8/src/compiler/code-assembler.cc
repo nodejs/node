@@ -173,7 +173,7 @@ void CodeAssembler::BuiltinCompilationScheduler::CompileCode(
 #endif  // V8_USE_ADDRESS_SANITIZER
 
   // This must be called from the main thread.
-  DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
+  DCHECK_EQ(base::ThreadId::Current(), isolate->thread_id());
 
   DCHECK(job->compilation_info()->code_kind() == CodeKind::BUILTIN ||
          job->compilation_info()->code_kind() == CodeKind::BYTECODE_HANDLER);
@@ -353,7 +353,7 @@ void CodeAssembler::CanonicalizeEmbeddedBuiltinsConstantIfNeeded(
     Handle<HeapObject> object) {
   // This must be called on the main thread so that the builtins constant
   // indices are reproducible from run to run of mksnapshot.
-  DCHECK_EQ(ThreadId::Current(), isolate()->thread_id());
+  DCHECK_EQ(base::ThreadId::Current(), isolate()->thread_id());
   RootIndex dummy_root;
   Builtin dummy_builtin;
   if (isolate()->IsGeneratingEmbeddedBuiltins() &&
@@ -520,6 +520,21 @@ TNode<Context> CodeAssembler::GetJSContextParameter() {
       static_cast<int>(call_descriptor->JSParameterCount())));
 }
 
+#ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
+TNode<JSDispatchHandleT> CodeAssembler::GetJSDispatchHandleParameter() {
+  auto call_descriptor = raw_assembler()->call_descriptor();
+  DCHECK(call_descriptor->IsJSFunctionCall());
+  // In JS call descriptors, implicit register parameters (new.target, argc,
+  // dispatch_handle, context) are indexed immediately after the formal JS stack
+  // parameters (0 .. JSParameterCount() - 1).
+  return UncheckedParameter<JSDispatchHandleT>(
+      Linkage::GetJSCallDispatchHandleParamIndex(
+          static_cast<int>(call_descriptor->JSParameterCount())));
+}
+#endif
+
+bool CodeAssembler::IsAtStart() const { return raw_assembler()->IsAtStart(); }
+
 bool CodeAssembler::HasDynamicJSParameterCount() {
   return raw_assembler()->dynamic_js_parameter_count() != nullptr;
 }
@@ -531,14 +546,12 @@ TNode<Uint16T> CodeAssembler::DynamicJSParameterCount() {
 
 void CodeAssembler::SetDynamicJSParameterCount(TNode<Uint16T> parameter_count) {
   DCHECK(!HasDynamicJSParameterCount());
-  // For code to support a dynamic parameter count, it's static parameter count
-  // must currently be zero, i.e. varargs. Otherwise we'd also need to ensure
-  // that the dynamic parameter count is not smaller than the static one.
-  //
-  // TODO(saelo): it would probably be a bit nicer if we could assert here that
-  // IsJSFunctionCall() is true and then use the JSParameterCount() of the
-  // descriptor instead, but that doesn't work because not all users of this
-  // feature are TFJ builtins (some are TFC builtins).
+  DCHECK(IsJSFunctionCall());
+  // For code to support a dynamic parameter count, its static parameter count
+  // must currently be zero (kDontAdaptArgumentsSentinel), i.e. varargs.
+  // Otherwise we'd also need to ensure that the dynamic parameter count is not
+  // smaller than the static one.
+  DCHECK_EQ(raw_assembler()->call_descriptor()->JSParameterCount(), 0);
   DCHECK_EQ(raw_assembler()->call_descriptor()->ParameterSlotCount(), 0);
   raw_assembler()->set_dynamic_js_parameter_count(parameter_count);
 }
@@ -1565,7 +1578,7 @@ void CodeAssembler::TailCallJSCode(TNode<Code> code, TNode<Context> context,
                                    TNode<JSDispatchHandleT> dispatch_handle) {
   JSTrampolineDescriptor descriptor;
   auto call_descriptor = Linkage::GetStubCallDescriptor(
-      zone(), descriptor, descriptor.GetStackParameterCount(),
+      zone(), descriptor, JSTrampolineDescriptor::GetStackParameterCount(),
       CallDescriptor::kFixedTargetRegister, Operator::kNoProperties,
       StubCallMode::kCallCodeObject);
 

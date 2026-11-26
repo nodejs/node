@@ -9,6 +9,7 @@
 #ifndef LLVM_LIBC_SRC___SUPPORT_FPUTIL_AARCH64_FENVIMPL_H
 #define LLVM_LIBC_SRC___SUPPORT_FPUTIL_AARCH64_FENVIMPL_H
 
+#include "src/__support/CPP/type_traits.h"
 #include "src/__support/macros/attributes.h" // LIBC_INLINE
 #include "src/__support/macros/config.h"
 #include "src/__support/macros/properties/architectures.h"
@@ -213,20 +214,24 @@ LIBC_INLINE int raise_except(int excepts) {
   return result;
 }
 
-LIBC_INLINE int get_round() {
-  uint32_t roundingMode =
-      (FEnv::getControlWord() >> FEnv::RoundingControlBitPosition) & 0x3;
-  switch (roundingMode) {
-  case FEnv::TONEAREST:
+LIBC_INLINE LIBC_CONSTEXPR_DEFAULT int get_round() {
+  if (cpp::is_constant_evaluated()) {
     return FE_TONEAREST;
-  case FEnv::DOWNWARD:
-    return FE_DOWNWARD;
-  case FEnv::UPWARD:
-    return FE_UPWARD;
-  case FEnv::TOWARDZERO:
-    return FE_TOWARDZERO;
-  default:
-    return -1; // Error value.
+  } else {
+    uint32_t roundingMode =
+        (FEnv::getControlWord() >> FEnv::RoundingControlBitPosition) & 0x3;
+    switch (roundingMode) {
+    case FEnv::TONEAREST:
+      return FE_TONEAREST;
+    case FEnv::DOWNWARD:
+      return FE_DOWNWARD;
+    case FEnv::UPWARD:
+      return FE_UPWARD;
+    case FEnv::TOWARDZERO:
+      return FE_TOWARDZERO;
+    default:
+      return -1; // Error value.
+    }
   }
 }
 

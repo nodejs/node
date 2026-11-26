@@ -148,14 +148,7 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
   // capacity and the size when it is encountered.  As free spaces are
   // discovered during the sweeping they are subtracted from the size and added
   // to the available and wasted totals. The free list is cleared as well.
-  void ClearAllocatorState() {
-    accounting_stats_.ClearSize();
-    if (v8_flags.black_allocated_pages) {
-      free_list_->ResetForNonBlackAllocatedPages();
-    } else {
-      free_list_->Reset();
-    }
-  }
+  inline void ClearAllocatorState();
 
   // Available bytes without growing.  These are the bytes on the free list.
   // The bytes in the linear allocation area are not included in this total
@@ -353,9 +346,6 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
   friend class IncrementalMarking;
   friend class MarkCompactCollector;
   friend class PagedSpaceAllocatorPolicy;
-
-  // Used in cctest.
-  friend class heap::HeapTester;
 };
 
 class V8_EXPORT_PRIVATE PagedSpace : public PagedSpaceBase {

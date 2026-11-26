@@ -46,6 +46,7 @@ class SubgraphBase;
 class ReduceResult;
 
 enum class CpuOperation {
+  kFloat16RawBitsConversion,
   kFloat64Round,
   kMathClz32,
 };
@@ -56,6 +57,20 @@ enum class StringAtOOBMode { kElement, kCharAt };
 
 inline bool IsSupported(CpuOperation op) {
   switch (op) {
+    case CpuOperation::kFloat16RawBitsConversion:
+#if defined(V8_TARGET_ARCH_X64)
+      return CpuFeatures::IsSupported(F16C) && CpuFeatures::IsSupported(AVX);
+#elif defined(V8_TARGET_ARCH_ARM64)
+      return true;
+#elif defined(V8_TARGET_ARCH_IA32) || defined(V8_TARGET_ARCH_ARM) ||      \
+    defined(V8_TARGET_ARCH_PPC64) || defined(V8_TARGET_ARCH_S390X) ||     \
+    defined(V8_TARGET_ARCH_RISCV64) || defined(V8_TARGET_ARCH_RISCV32) || \
+    defined(V8_TARGET_ARCH_LOONG64) || defined(V8_TARGET_ARCH_MIPS64)
+      return false;
+#else
+#error "V8 does not support this architecture."
+#endif
+
     case CpuOperation::kFloat64Round:
 #if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_IA32)
       return CpuFeatures::IsSupported(SSE4_1) || CpuFeatures::IsSupported(AVX);
@@ -89,6 +104,14 @@ inline bool IsSupported(CpuOperation op) {
   }
   UNREACHABLE();
 }
+
+enum class BranchResult {
+  kDefault,
+  kAlwaysTrue,
+  kAlwaysFalse,
+  // Bailed out before evaluating the condition.
+  kAbort,
+};
 
 class V8_NODISCARD MaybeReduceResult {
  public:
@@ -171,6 +194,15 @@ class V8_NODISCARD ReduceResult : public MaybeReduceResult {
   // NOLINTNEXTLINE
   ReduceResult(Node* node) : MaybeReduceResult(node) {}
 
+  // NOLINTNEXTLINE
+  ReduceResult(BranchResult branch_result)
+      : MaybeReduceResult(branch_result == BranchResult::kAbort
+                              ? kDoneWithAbort
+                              : kDoneWithoutPayload) {
+    DCHECK(branch_result == BranchResult::kDefault ||
+           branch_result == BranchResult::kAbort);
+  }
+
   explicit ReduceResult(const MaybeReduceResult& other)
       : MaybeReduceResult(other.GetPayload()) {
     CHECK(!IsFail());
@@ -204,6 +236,12 @@ inline ReduceResult MaybeReduceResult::Checked() { return ReduceResult(*this); }
     if ((result).IsDoneWithAbort()) {       \
       return ReduceResult::DoneWithAbort(); \
     }                                       \
+  } while (false)
+
+#define CHECK_NO_ABORT(result)        \
+  do {                                \
+    MaybeReduceResult res = (result); \
+    CHECK(res.IsDoneWithoutAbort());  \
   } while (false)
 
 #define RETURN_IF_NOT_DONE_WITHOUT_ABORT(result) \
@@ -247,6 +285,15 @@ inline ReduceResult MaybeReduceResult::Checked() { return ReduceResult(*this); }
       return ReduceResult::DoneWithAbort();                            \
     }                                                                  \
     DCHECK(res.IsDoneWithValue());                                     \
+    using T = std::remove_pointer_t<std::decay_t<decltype(variable)>>; \
+    variable = res.value()->Cast<T>();                                 \
+  } while (false)
+
+// Like GET_VALUE_OR_ABORT, but also returns if {result} is a Fail.
+#define GET_VALUE_OR_BAIL(variable, result)                            \
+  do {                                                                 \
+    MaybeReduceResult res = (result);                                  \
+    if (!res.IsDoneWithValue()) return res;                            \
     using T = std::remove_pointer_t<std::decay_t<decltype(variable)>>; \
     variable = res.value()->Cast<T>();                                 \
   } while (false)
@@ -300,9 +347,11 @@ template <typename BaseT>
 concept ReducerBaseWithKNA = requires(BaseT* b) { b->known_node_aspects(); };
 
 template <typename BaseT>
-concept ReducerBaseWithKNASetter = requires(BaseT* b, KnownNodeAspects* kna) {
-  b->set_known_node_aspects(kna);
-};
+concept ReducerBaseWithKNASetter =
+    requires(BaseT* b, KnownNodeAspects::Ptr kna) {
+      { b->TakeKnownNodeAspects() } -> std::same_as<KnownNodeAspects::Ptr>;
+      b->set_known_node_aspects(std::move(kna));
+    };
 
 // Bases that can emit eager deopting nodes provide both an eager deopt frame
 // and a predicate telling whether one is available at the current position.
@@ -325,7 +374,7 @@ concept ReducerBaseWithLazyDeopt = requires(BaseT* b) {
 
 template <typename BaseT>
 concept ReducerBaseWithDeoptFrameScopeHooks = requires(BaseT* b) {
-  b->OnBeginDeoptFrameScope();
+  b->OnBeginEagerDeoptFrameScope();
   b->OnEndDeoptFrameScope();
 };
 
@@ -352,26 +401,13 @@ concept ReducerBaseHasTracing = requires(BaseT* b) { b->is_tracing(); };
 
 template <typename BaseT>
 concept ReducerBaseWithAllocationTracking = requires(BaseT* b) {
-  b->TryBuildStoreTaggedFieldToAllocation(std::declval<ValueNode*>(),
-                                          std::declval<ValueNode*>(),
-                                          std::declval<int>());
   b->TryBuildLoadTaggedFieldFromAllocation(std::declval<ValueNode*>(),
                                            std::declval<int>());
-  b->TryBuildLoadFixedDoubleArrayElementFromAllocation(
-      std::declval<ValueNode*>(), std::declval<int>());
   b->TryElideWriteBarrierForAllocation(std::declval<ValueNode*>(),
                                        std::declval<ValueNode*>());
 };
 
 enum class UseReprHintRecording { kRecord, kDoNotRecord };
-
-enum class BranchResult {
-  kDefault,
-  kAlwaysTrue,
-  kAlwaysFalse,
-  // Bailed out before evaluating the condition.
-  kAbort,
-};
 
 enum class BranchType { kBranchIfTrue, kBranchIfFalse };
 enum class BranchSpecializationMode { kDefault, kAlwaysBoolean };
@@ -532,7 +568,9 @@ class CallArguments {
         node_view_receiver_(call->ReceiverInput().node()) {}
 
   ValueNode* receiver() const {
-    if (storage_ == Storage::kNodeView) return node_view_receiver_;
+    if (storage_ == Storage::kNodeView) {
+      return node_view_receiver_ ? node_view_receiver_->Unwrap() : nullptr;
+    }
     if (receiver_mode_ == ConvertReceiverMode::kNullOrUndefined) {
       return nullptr;
     }
@@ -551,7 +589,8 @@ class CallArguments {
     if (storage_ == Storage::kNodeView) {
       if (i >= static_cast<size_t>(node_view_args_count_)) return nullptr;
       return node_view_call_->input(node_view_args_start_ + static_cast<int>(i))
-          .node();
+          .node()
+          ->Unwrap();
     }
     i += index_offset();
     if (i >= args_.size()) return nullptr;
@@ -724,10 +763,16 @@ class MaglevReducer {
   // re-executing the current bytecode.
   class V8_NODISCARD EagerDeoptFrameScope {
    public:
+    // Eager continuations never chain. By default a scope must not be created
+    // while another one is live. kShadowEnclosing replaces the enclosing scope
+    // for this scope's lifetime.
+    enum Nesting { kMustBeOutermost, kShadowEnclosing };
+
     EagerDeoptFrameScope(MaglevReducer* reducer, ValueNode* context,
                          Builtin continuation,
                          compiler::OptionalJSFunctionRef maybe_js_target = {},
-                         base::Vector<ValueNode* const> parameters = {});
+                         base::Vector<ValueNode* const> parameters = {},
+                         Nesting nesting = kMustBeOutermost);
     ~EagerDeoptFrameScope();
 
     LazyDeoptFrameScope* parent() const { return parent_; }
@@ -740,6 +785,8 @@ class MaglevReducer {
     // continuation, because we want to continue _after_ the eager deopt
     // continuation completes.
     LazyDeoptFrameScope* parent_;
+    // The shadowed enclosing scope, restored on destruction.
+    EagerDeoptFrameScope* previous_;
   };
 
   LazyDeoptFrameScope* current_lazy_deopt_scope() const {
@@ -917,6 +964,9 @@ class MaglevReducer {
 
   ReduceResult BuildTaggedEqual(ValueNode* lhs, ValueNode* rhs);
   ReduceResult BuildTaggedEqual(ValueNode* lhs, RootIndex rhs_index);
+  ReduceResult BuildReceiverOrNullOrUndefinedEqual(ValueNode* lhs,
+                                                   ValueNode* rhs);
+  ReduceResult BuildTestUndetectable(ValueNode* value);
 
   ReduceResult BuildSameValue(ValueNode* lhs, ValueNode* rhs);
   ReduceResult BuildNumberSameValue(ValueNode* lhs, ValueNode* rhs);
@@ -988,7 +1038,7 @@ class MaglevReducer {
       compiler::FeedbackSource const& feedback_source);
 
 #if V8_ENABLE_WEBASSEMBLY
-  bool ShouldWrapArgsForWasmInlining(JSDispatchHandle dispatch_handle);
+  bool CanInlineJSToWasmWrapper(JSDispatchHandle dispatch_handle);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   compiler::OptionalStringRef GetStringFromInt32(int32_t value);
@@ -1018,7 +1068,21 @@ class MaglevReducer {
                                        ValueNode* iterated_object,
                                        IterationKind kind);
   VirtualObject* CreateJSConstructor(compiler::JSFunctionRef constructor);
+  VirtualObject* CreateJSFunction(
+      compiler::MapRef map,
+      compiler::SharedFunctionInfoRef shared_function_info,
+      compiler::FeedbackCellRef feedback_cell, ValueNode* context,
+      ValueNode* dispatch_handle,
+      compiler::OptionalContextRef specialization_context,
+      ContextScopeInfo context_scope_info);
   VirtualObject* CreateFixedArray(base::Vector<ValueNode* const> values);
+  // Picks VirtualHoleyFixedDoubleArrayShape iff any value is a HoleyFloat64
+  // (i.e. a hole or undefined constant), VirtualFixedDoubleArrayShape
+  // otherwise.
+  VirtualObject* CreateFixedDoubleArray(base::Vector<ValueNode* const> values);
+  // Shape must be VirtualFixedDoubleArrayShape when values cannot contain
+  // holes, or VirtualHoleyFixedDoubleArrayShape otherwise.
+  template <typename Shape>
   VirtualObject* CreateFixedDoubleArray(base::Vector<ValueNode* const> values);
   VirtualObject* CreateContext(compiler::MapRef map, int length,
                                compiler::ScopeInfoRef scope_info,
@@ -1082,8 +1146,9 @@ class MaglevReducer {
   ReduceResult BuildStoreMap(ValueNode* object, compiler::MapRef map,
                              StoreMap::Kind kind);
 
-  ReduceResult BuildInlinedAllocation(VirtualObject* object,
-                                      AllocationType allocation);
+  ReduceResult BuildInlinedAllocation(
+      VirtualObject* object,
+      AllocationType allocation_type = AllocationType::kYoung);
   ReduceResult BuildAndAllocateJSArrayIterator(ValueNode* array,
                                                IterationKind iteration_kind);
   void ClearCurrentAllocationBlock();
@@ -1175,7 +1240,7 @@ class MaglevReducer {
   }
 
   void RegisterNode(NodeBase* node) {
-    graph_labeller()->RegisterNode(node, &current_provenance_);
+    graph_labeller()->RegisterNode(node, current_provenance_);
   }
 
   bool has_graph_labeller() const { return graph()->has_graph_labeller(); }
@@ -1241,6 +1306,7 @@ class MaglevReducer {
   V(ArrayPrototypeEntries)                     \
   V(ArrayPrototypeKeys)                        \
   V(ArrayPrototypeValues)                      \
+  V(DataViewPrototypeGetFloat16)               \
   V(DataViewPrototypeGetFloat32)               \
   V(DataViewPrototypeGetFloat64)               \
   V(DataViewPrototypeGetInt16)                 \
@@ -1249,6 +1315,7 @@ class MaglevReducer {
   V(DataViewPrototypeGetUint16)                \
   V(DataViewPrototypeGetUint32)                \
   V(DataViewPrototypeGetUint8)                 \
+  V(DataViewPrototypeSetFloat16)               \
   V(DataViewPrototypeSetFloat32)               \
   V(DataViewPrototypeSetFloat64)               \
   V(DataViewPrototypeSetInt16)                 \
@@ -1267,6 +1334,7 @@ class MaglevReducer {
   V(DatePrototypeGetTime)                      \
   V(FunctionPrototypeHasInstance)              \
   V(MapPrototypeEntries)                       \
+  V(MapPrototypeHas)                           \
   V(MapPrototypeKeys)                          \
   V(MapPrototypeValues)                        \
   V(MathAbs)                                   \
@@ -1281,11 +1349,13 @@ class MaglevReducer {
   V(MathSign)                                  \
   V(MathSqrt)                                  \
   V(MathTrunc)                                 \
+  V(NumberIsInteger)                           \
   V(ObjectIs)                                  \
   V(ObjectPrototypeIsPrototypeOf)              \
   V(PromisePrototypeCatch)                     \
   V(PromisePrototypeThen)                      \
   V(PromiseResolveTrampoline)                  \
+  V(RegExpPrototypeExec)                       \
   V(RegExpPrototypeTest)                       \
   V(ReturnReceiver)                            \
   V(StringFromCharCode)                        \
@@ -1293,13 +1363,17 @@ class MaglevReducer {
   V(StringPrototypeCharCodeAt)                 \
   V(StringPrototypeCodePointAt)                \
   V(StringPrototypeSlice)                      \
+  V(StringPrototypeSubstr)                     \
   V(StringPrototypeSubstring)                  \
   V(StringPrototypeIndexOf)                    \
   V(StringPrototypeIncludes)                   \
   V(StringPrototypeIterator)                   \
+  V(StringPrototypeMatch)                      \
   IEEE_754_UNARY_LIST(V)                       \
   IEEE_754_BINARY_LIST(V)                      \
   IF_INTL(V, StringPrototypeLocaleCompareIntl) \
+  IF_INTL(V, StringPrototypeToLowerCaseIntl)   \
+  IF_INTL(V, StringPrototypeToUpperCaseIntl)   \
   CONTINUATION_PRESERVED_EMBEDDER_DATA_LIST(V)
 
 #define DECLARE_BUILTIN_REDUCER(Name, ...)                          \
@@ -1309,6 +1383,26 @@ class MaglevReducer {
   MAGLEV_REDUCER_BUILTIN(DECLARE_BUILTIN_REDUCER)
 #undef DECLARE_BUILTIN_REDUCER
 
+  // Whether {name} on instances of {regexp_initial_map} is still {original}
+  // from RegExp.prototype. Records the dependencies that keep it that way.
+  bool IsOriginalRegExpPrototypeMethod(compiler::MapRef regexp_initial_map,
+                                       compiler::NameRef name,
+                                       compiler::JSFunctionRef original);
+  // Deopts unless {regexp}.lastIndex is a non-negative Smi, which the fast
+  // regexp builtins require, and returns it as an Int32.
+  ReduceResult BuildCheckRegExpLastIndex(ValueNode* regexp);
+  // Reduces a call to a RegExp.prototype method on a receiver with the initial
+  // RegExp map to a fast builtin. {call_builtin} emits that call, given the
+  // native context, the regexp and the string argument. Pass {original_exec}
+  // for a method that looks up exec, which then must be unmodified.
+  template <typename CallBuiltin>
+  MaybeReduceResult TryReduceFastRegExpPrototypeMethod(
+      CallArguments& args, std::string_view method_name,
+      compiler::OptionalJSFunctionRef original_exec,
+      CallBuiltin&& call_builtin);
+
+  MaybeReduceResult TryBuildLoadJSCollectionTable(CallArguments& args,
+                                                  InstanceType instance_type);
   MaybeReduceResult TryReduceMapIteratorCreation(CallArguments& args,
                                                  IterationKind iteration_kind);
 
@@ -1349,6 +1443,8 @@ class MaglevReducer {
   MaybeReduceResult TryBuildStoreDataView(const CallArguments& args,
                                           ExternalArrayType type,
                                           Function&& getValue);
+  MaybeReduceResult TryBuildStoreDoubleDataView(const CallArguments& args,
+                                                ExternalArrayType type);
   ReduceResult BuildLoadJSDataViewByteLength(ValueNode* js_data_view);
   ReduceResult BuildLoadJSDataViewDataPointer(ValueNode* js_data_view);
   ReduceResult BuildLoadElements(
@@ -1423,6 +1519,11 @@ class MaglevReducer {
       return value ? BranchResult::kAlwaysTrue : BranchResult::kAlwaysFalse;
     }
 
+    BranchResult BuildAbort(AbortReason reason) const {
+      CHECK(sub_->BuildAbort(reason).IsDoneWithAbort());
+      return this->Abort();
+    }
+
     template <typename ControlNodeT, typename... Args>
     BranchResult Build(std::initializer_list<ValueNode*> inputs,
                        Args&&... args);
@@ -1463,7 +1564,12 @@ class MaglevReducer {
                                                      ValueNode* node);
 #endif  // V8_ENABLE_UNDEFINED_DOUBLE
   template <typename BranchBuilderT>
+  BranchResult BuildBranchIfReferenceEqual(BranchBuilderT& b, ValueNode* lhs,
+                                           ValueNode* rhs);
+  template <typename BranchBuilderT>
   BranchResult BuildBranchIfJSReceiver(BranchBuilderT& b, ValueNode* value);
+  template <typename BranchBuilderT>
+  BranchResult BuildBranchIfUndefined(BranchBuilderT& b, ValueNode* node);
   template <typename BranchBuilderT>
   BranchResult BuildBranchIfUndefinedOrNull(BranchBuilderT& b, ValueNode* node);
 
@@ -1471,6 +1577,12 @@ class MaglevReducer {
   template <typename CondFn>
   ReduceResult Select(CondFn cond, base::FunctionRef<ReduceResult()> if_true,
                       base::FunctionRef<ReduceResult()> if_false);
+
+  // Like Select, but returns the result as an Int32.
+  template <typename CondFn>
+  ReduceResult SelectInt32(CondFn cond,
+                           base::FunctionRef<ReduceResult()> if_true,
+                           base::FunctionRef<ReduceResult()> if_false);
 
   struct PendingSplice {
     BasicBlock* entry;
@@ -1588,6 +1700,7 @@ class MaglevReducer {
                                   ConvertReceiverMode mode);
   bool CanInlineCall(const MaglevCompilationUnit* current_unit,
                      compiler::SharedFunctionInfoRef shared,
+                     compiler::FeedbackCellRef feedback_cell,
                      float call_frequency, base::Vector<ValueNode*> arguments,
                      UseRepresentationSet use_repr_hints);
 
@@ -1763,14 +1876,22 @@ class MaglevReducer {
   bool is_turbolev() const {
     return graph()->compilation_info()->is_turbolev();
   }
+  bool CanInlineFloat16() const {
+    return is_turbolev() ||
+           IsSupported(CpuOperation::kFloat16RawBitsConversion);
+  }
 
   KnownNodeAspects& known_node_aspects() {
     static_assert(ReducerBaseWithKNA<BaseT>);
     return base_->known_node_aspects();
   }
-  void set_known_node_aspects(KnownNodeAspects* kna) {
+  KnownNodeAspects::Ptr TakeKnownNodeAspects() {
     static_assert(ReducerBaseWithKNASetter<BaseT>);
-    base_->set_known_node_aspects(kna);
+    return base_->TakeKnownNodeAspects();
+  }
+  void set_known_node_aspects(KnownNodeAspects::Ptr kna) {
+    static_assert(ReducerBaseWithKNASetter<BaseT>);
+    base_->set_known_node_aspects(std::move(kna));
   }
 
   friend class Subgraph<BaseT>;
@@ -1804,6 +1925,9 @@ class MaglevReducer {
   // TODO(marja): When we have C++26, `inputs` can be std::span<ValueNode*>,
   // since std::intializer_list can be converted to std::span.
   template <typename NodeT, typename InputsT>
+  ReduceResult ConvertNodeInputs(
+      InputsT raw_inputs, std::array<ValueNode*, NodeT::kInputCount>& inputs);
+  template <typename NodeT, typename InputsT>
   void SetNodeInputsNoConversion(NodeT* node, InputsT inputs);
   template <typename NodeT>
   NodeT* AttachExtraInfoAndAddToGraph(NodeT* node);
@@ -1826,22 +1950,22 @@ class MaglevReducer {
 
   InlinedAllocation* ExtendOrReallocateCurrentAllocationBlock(
       AllocationType allocation_type, VirtualObject* value);
-  ReduceResult ConvertForField(ValueNode* value, const vobj::Field& desc,
-                               AllocationType allocation_type);
+
+  // Converts a VirtualObject slot value to the ValueRepresentation expected by
+  // BuildInitializeStore for `desc.type`.
+  ReduceResult ConvertForField(ValueNode* value, const vobj::Field& desc);
   ReduceResult BuildInitializeStore(
-      vobj::Field desc, InlinedAllocation* alloc,
-      AllocationType allocation_type, ValueNode* value,
+      vobj::Field desc, InlinedAllocation* alloc, ValueNode* value,
       StoreTaggedMode store_mode,
       MaybeAssignedFlag maybe_assigned = kMaybeAssigned);
   ReduceResult BuildInitializeStore_Tagged(vobj::Field desc,
                                            InlinedAllocation* alloc,
-                                           AllocationType allocation_type,
                                            ValueNode* value,
                                            StoreTaggedMode store_mode,
                                            MaybeAssignedFlag maybe_assigned);
-  ReduceResult BuildInitializeStore_TrustedPointer(
-      vobj::Field desc, InlinedAllocation* alloc,
-      AllocationType allocation_type, ValueNode* value);
+  ReduceResult BuildInitializeStore_TrustedPointer(vobj::Field desc,
+                                                   InlinedAllocation* alloc,
+                                                   ValueNode* value);
 
   template <typename T>
   friend class MapInference;
@@ -1854,6 +1978,16 @@ class MaglevReducer {
   template <typename NodeT, typename... Args>
   ReduceResult EmitAbruptBlockEnd(std::initializer_list<ValueNode*> inputs,
                                   Args&&... args);
+
+  // Converts {lhs} and {rhs} to Int32 in place and branches on lhs < rhs.
+  BranchResult BuildBranchIfInt32LessThan(BranchBuilder& b, ValueNode** lhs,
+                                          ValueNode** rhs);
+
+  template <typename CondFn, typename FinishFn>
+  ReduceResult SelectImpl(CondFn cond,
+                          base::FunctionRef<ReduceResult()> if_true,
+                          base::FunctionRef<ReduceResult()> if_false,
+                          FinishFn finish);
 
   // Use TryGetConstant instead.
   compiler::OptionalHeapObjectRef TryGetHeapObjectConstant(
@@ -2006,9 +2140,27 @@ class SubgraphBase {
     static_cast<DerivedT*>(this)->Goto(label);
   }
 
+  // Default upper bound on the number of branches a WithFallback fast path may
+  // emit into its fallback label; unused predecessors are trimmed when binding.
+  static constexpr int kMaxFallbackPredecessors = 4;
+
   void ReducePredecessorCount(Label* label, unsigned num = 1);
 
   V8_NODISCARD ReduceResult TrimPredecessorsAndBind(Label* label);
+
+  // Emits `fast_path_fn(&fallback)`, followed by `fallback_fn()` if `fallback`
+  // is reachable, merging `vars` at the join point. Both the `fallback` and
+  // join labels are always bound or trimmed even when `fast_path_fn` or
+  // `fallback_fn` aborts.
+  template <typename FFast, typename FSlow>
+  V8_NODISCARD ReduceResult
+  WithFallback(std::initializer_list<Variable*> vars, FFast&& fast_path_fn,
+               FSlow&& fallback_fn,
+               int max_fallback_predecessors = kMaxFallbackPredecessors);
+
+  ReduceResult BuildAbort(AbortReason reason) {
+    return reducer_->BuildAbort(reason);
+  }
 
  protected:
   SubgraphBase(MaglevReducer<BaseT>* reducer, MaglevCompilationUnit* dummy_unit)
@@ -2029,6 +2181,8 @@ class SubgraphBase {
   MaglevCompilationUnit* dummy_unit_;
   InterpreterFrameState variable_frame_;
 };
+
+bool IsFloat64OrHeapNumberConstant(ValueNode* node);
 
 bool IsSmallFunction(int bytecode_length, base::Vector<ValueNode*> arguments,
                      UseRepresentationSet use_repr_hints,

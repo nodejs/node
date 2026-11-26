@@ -5,6 +5,7 @@
 #include "cbor.h"
 
 #include <array>
+#include <bit>
 #include <clocale>
 #include <cmath>
 #include <cstdlib>
@@ -46,7 +47,7 @@ TEST(CheckCBORMessage, SmallestValidExample) {
   // an empty dictionary inside of an envelope.
   std::vector<uint8_t> empty_dict = {
       0xd8, 0x5a, 0, 0, 0, 2, EncodeIndefiniteLengthMapStart(), EncodeStop()};
-  Status status = CheckCBORMessage(SpanFrom(empty_dict));
+  Status status = CheckCBORMessage(SpanFrom(empty_dict)).status();
   EXPECT_THAT(status, StatusIsOk());
 }
 
@@ -66,13 +67,13 @@ TEST(CheckCBORMessage, ValidCBORButNotValidMessage) {
   EXPECT_EQ("7", json);
 
   // ... but it's not a message.
-  EXPECT_THAT(CheckCBORMessage(SpanFrom(not_a_message)),
+  EXPECT_THAT(CheckCBORMessage(SpanFrom(not_a_message)).status(),
               StatusIs(Error::CBOR_INVALID_START_BYTE, 0));
 }
 
 TEST(CheckCBORMessage, EmptyMessage) {
   std::vector<uint8_t> empty;
-  Status status = CheckCBORMessage(SpanFrom(empty));
+  Status status = CheckCBORMessage(SpanFrom(empty)).status();
   EXPECT_THAT(status, StatusIs(Error::CBOR_UNEXPECTED_EOF_IN_ENVELOPE, 0));
 }
 
@@ -80,32 +81,41 @@ TEST(CheckCBORMessage, InvalidStartByte) {
   // Here we test that some actual json, which usually starts with {, is not
   // considered CBOR. CBOR messages must start with 0xd8, 0x5a, the envelope
   // start bytes.
-  Status status = CheckCBORMessage(SpanFrom("{\"msg\": \"Hello, world.\"}"));
+  Status status =
+      CheckCBORMessage(SpanFrom("{\"msg\": \"Hello, world.\"}")).status();
   EXPECT_THAT(status, StatusIs(Error::CBOR_INVALID_START_BYTE, 0));
 }
 
 TEST(CheckCBORMessage, InvalidEnvelopes) {
   std::vector<uint8_t> bytes = {0xd8, 0x5a};
-  EXPECT_THAT(CheckCBORMessage(SpanFrom(bytes)),
+  EXPECT_THAT(CheckCBORMessage(SpanFrom(bytes)).status(),
               StatusIs(Error::CBOR_UNEXPECTED_EOF_IN_ENVELOPE, 2));
   bytes = {0xd8, 0x5a, 0};
-  EXPECT_THAT(CheckCBORMessage(SpanFrom(bytes)),
+  EXPECT_THAT(CheckCBORMessage(SpanFrom(bytes)).status(),
               StatusIs(Error::CBOR_UNEXPECTED_EOF_IN_ENVELOPE, 3));
   bytes = {0xd8, 0x5a, 0, 0};
-  EXPECT_THAT(CheckCBORMessage(SpanFrom(bytes)),
+  EXPECT_THAT(CheckCBORMessage(SpanFrom(bytes)).status(),
               StatusIs(Error::CBOR_UNEXPECTED_EOF_IN_ENVELOPE, 4));
   bytes = {0xd8, 0x5a, 0, 0, 0};
-  EXPECT_THAT(CheckCBORMessage(SpanFrom(bytes)),
+  EXPECT_THAT(CheckCBORMessage(SpanFrom(bytes)).status(),
               StatusIs(Error::CBOR_UNEXPECTED_EOF_IN_ENVELOPE, 5));
   bytes = {0xd8, 0x5a, 0, 0, 0, 0};
-  EXPECT_THAT(CheckCBORMessage(SpanFrom(bytes)),
+  EXPECT_THAT(CheckCBORMessage(SpanFrom(bytes)).status(),
               StatusIs(Error::CBOR_MAP_OR_ARRAY_EXPECTED_IN_ENVELOPE, 6));
 }
 
 TEST(CheckCBORMessage, MapStartExpected) {
   std::vector<uint8_t> bytes = {0xd8, 0x5a, 0, 0, 0, 1};
-  EXPECT_THAT(CheckCBORMessage(SpanFrom(bytes)),
+  EXPECT_THAT(CheckCBORMessage(SpanFrom(bytes)).status(),
               StatusIs(Error::CBOR_ENVELOPE_CONTENTS_LENGTH_MISMATCH, 6));
+}
+
+TEST(CheckCBORMessage, ReturnsOuterSize) {
+  std::vector<uint8_t> empty_dict = {
+      0xd8, 0x5a, 0, 0, 0, 2, EncodeIndefiniteLengthMapStart(), EncodeStop()};
+  auto result = CheckCBORMessage(SpanFrom(empty_dict));
+  ASSERT_THAT(result.status(), StatusIsOk());
+  EXPECT_EQ(*result, empty_dict.size());
 }
 
 // =============================================================================
@@ -323,23 +333,13 @@ TEST(EncodeDecodeString16Test, RoundtripsEmpty) {
   // Reverse direction: decode with CBORTokenizer.
   CBORTokenizer tokenizer(SpanFrom(encoded));
   EXPECT_EQ(CBORTokenTag::STRING16, tokenizer.TokenTag());
-  span<uint8_t> decoded_string16_wirerep = tokenizer.GetString16WireRep();
-  EXPECT_TRUE(decoded_string16_wirerep.empty());
+  span<uint16_t> decoded_string16 = tokenizer.GetString16View();
+  EXPECT_TRUE(decoded_string16.empty());
+  EXPECT_EQ(
+      reinterpret_cast<uintptr_t>(decoded_string16.data()) % alignof(uint16_t),
+      0u);
   tokenizer.Next();
   EXPECT_EQ(CBORTokenTag::DONE, tokenizer.TokenTag());
-}
-
-// On the wire, we STRING16 is encoded as little endian (least
-// significant byte first). The host may or may not be little endian,
-// so this routine follows the advice in
-// https://commandcenter.blogspot.com/2012/04/byte-order-fallacy.html.
-std::vector<uint16_t> String16WireRepToHost(span<uint8_t> in) {
-  // must be even number of bytes.
-  CHECK_EQ(in.size() & 1, 0u);
-  std::vector<uint16_t> host_out;
-  for (size_t ii = 0; ii < in.size(); ii += 2)
-    host_out.push_back(in[ii + 1] << 8 | in[ii]);
-  return host_out;
 }
 
 TEST(EncodeDecodeString16Test, RoundtripsHelloWorld) {
@@ -362,16 +362,16 @@ TEST(EncodeDecodeString16Test, RoundtripsHelloWorld) {
   // Now decode to complete the roundtrip.
   CBORTokenizer tokenizer(SpanFrom(encoded));
   EXPECT_EQ(CBORTokenTag::STRING16, tokenizer.TokenTag());
-  std::vector<uint16_t> decoded =
-      String16WireRepToHost(tokenizer.GetString16WireRep());
+  span<uint16_t> decoded = tokenizer.GetString16View();
+  EXPECT_EQ(reinterpret_cast<uintptr_t>(decoded.data()) % alignof(uint16_t),
+            0u);
   EXPECT_THAT(decoded, ElementsAreArray(msg));
+  // For bonus points, we look at the decoded message in UTF8 as well so we can
+  // easily see it on the terminal screen. Must be consumed before Next().
+  std::string utf8_decoded = UTF16ToUTF8(decoded);
+  EXPECT_EQ("Hello, 🌎.", utf8_decoded);
   tokenizer.Next();
   EXPECT_EQ(CBORTokenTag::DONE, tokenizer.TokenTag());
-
-  // For bonus points, we look at the decoded message in UTF8 as well so we can
-  // easily see it on the terminal screen.
-  std::string utf8_decoded = UTF16ToUTF8(SpanFrom(decoded));
-  EXPECT_EQ("Hello, 🌎.", utf8_decoded);
 }
 
 TEST(EncodeDecodeString16Test, Roundtrips500) {
@@ -397,11 +397,112 @@ TEST(EncodeDecodeString16Test, Roundtrips500) {
   // Now decode to complete the roundtrip.
   CBORTokenizer tokenizer(SpanFrom(encoded));
   EXPECT_EQ(CBORTokenTag::STRING16, tokenizer.TokenTag());
-  std::vector<uint16_t> decoded =
-      String16WireRepToHost(tokenizer.GetString16WireRep());
+  span<uint16_t> decoded = tokenizer.GetString16View();
+  EXPECT_EQ(reinterpret_cast<uintptr_t>(decoded.data()) % alignof(uint16_t),
+            0u);
   EXPECT_THAT(decoded, ElementsAreArray(two_fifty));
   tokenizer.Next();
   EXPECT_EQ(CBORTokenTag::DONE, tokenizer.TokenTag());
+}
+
+TEST(EncodeDecodeString16Test, AlignmentAndFastPath) {
+  // Buffer starts on a 2-byte boundary; a 1-byte CBOR header leaves the
+  // payload misaligned.
+  alignas(uint16_t) const uint8_t misaligned[] = {0x44, 0x3d, 0xd8, 0x00, 0xde};
+  ASSERT_NE(reinterpret_cast<uintptr_t>(misaligned + 1) % alignof(uint16_t),
+            0u);
+  {
+    CBORTokenizer tokenizer(misaligned);
+    ASSERT_EQ(CBORTokenTag::STRING16, tokenizer.TokenTag());
+    span<uint16_t> view1 = tokenizer.GetString16View();
+    EXPECT_EQ(reinterpret_cast<uintptr_t>(view1.data()) % alignof(uint16_t),
+              0u);
+    EXPECT_THAT(view1,
+                ElementsAreArray(std::array<uint16_t, 2>{0xd83d, 0xde00}));
+    // Repeated calls for the same token return the same aligned buffer without
+    // reallocating or invalidating previous views.
+    span<uint16_t> view2 = tokenizer.GetString16View();
+    EXPECT_EQ(view1.data(), view2.data());
+    EXPECT_EQ(view1.size(), view2.size());
+  }
+
+  // Starting the token at an odd address aligns the payload after the 1-byte
+  // CBOR header.
+  alignas(uint16_t)
+      const uint8_t aligned_storage[] = {0x00, 0x44, 0x3d, 0xd8, 0x00, 0xde};
+  span<uint8_t> aligned = span<uint8_t>(aligned_storage).subspan(1);
+  ASSERT_EQ(reinterpret_cast<uintptr_t>(aligned.data() + 1) % alignof(uint16_t),
+            0u);
+  {
+    CBORTokenizer tokenizer(aligned);
+    ASSERT_EQ(CBORTokenTag::STRING16, tokenizer.TokenTag());
+    span<uint16_t> view = tokenizer.GetString16View();
+    EXPECT_EQ(reinterpret_cast<uintptr_t>(view.data()) % alignof(uint16_t), 0u);
+    EXPECT_THAT(view,
+                ElementsAreArray(std::array<uint16_t, 2>{0xd83d, 0xde00}));
+    if constexpr (std::endian::native == std::endian::little) {
+      // Zero-copy fast path: span points directly into the underlying bytes.
+      EXPECT_EQ(reinterpret_cast<const uint8_t*>(view.data()),
+                aligned.data() + 1);
+    }
+  }
+}
+
+TEST(EncodeDecodeString16Test, ConsecutiveString16Tokens) {
+  // Indefinite-length array containing misaligned, aligned, empty, and another
+  // misaligned STRING16 token to verify scratch buffer reuse/clearing across
+  // Next().
+  alignas(uint16_t) const uint8_t bytes[] = {
+      EncodeIndefiniteLengthArrayStart(),  // offset 0 (1 byte)
+      0x42,
+      0xe9,
+      0x00,  // offset 1: payload at 2 (aligned)
+      0x44,
+      0x3d,
+      0xd8,
+      0x00,
+      0xde,  // offset 4: payload at 5 (misaligned)
+      0x40,  // offset 9: empty, payload at 10
+      0x42,
+      0x3c,
+      0xd8,  // offset 10: payload at 11 (misaligned)
+      EncodeStop(),
+  };
+  CBORTokenizer tokenizer(bytes);
+  ASSERT_EQ(CBORTokenTag::ARRAY_START, tokenizer.TokenTag());
+
+  tokenizer.Next();
+  ASSERT_EQ(CBORTokenTag::STRING16, tokenizer.TokenTag());
+  span<uint16_t> first = tokenizer.GetString16View();
+  EXPECT_EQ(reinterpret_cast<uintptr_t>(first.data()) % alignof(uint16_t), 0u);
+  EXPECT_THAT(first, ElementsAreArray(std::array<uint16_t, 1>{0x00e9}));
+  if constexpr (std::endian::native == std::endian::little) {
+    EXPECT_EQ(reinterpret_cast<const uint8_t*>(first.data()), bytes + 2);
+  }
+
+  tokenizer.Next();
+  ASSERT_EQ(CBORTokenTag::STRING16, tokenizer.TokenTag());
+  span<uint16_t> second = tokenizer.GetString16View();
+  EXPECT_EQ(reinterpret_cast<uintptr_t>(second.data()) % alignof(uint16_t), 0u);
+  EXPECT_THAT(second,
+              ElementsAreArray(std::array<uint16_t, 2>{0xd83d, 0xde00}));
+
+  tokenizer.Next();
+  ASSERT_EQ(CBORTokenTag::STRING16, tokenizer.TokenTag());
+  span<uint16_t> third = tokenizer.GetString16View();
+  EXPECT_TRUE(third.empty());
+  EXPECT_EQ(reinterpret_cast<uintptr_t>(third.data()) % alignof(uint16_t), 0u);
+
+  tokenizer.Next();
+  ASSERT_EQ(CBORTokenTag::STRING16, tokenizer.TokenTag());
+  span<uint16_t> fourth = tokenizer.GetString16View();
+  EXPECT_EQ(reinterpret_cast<uintptr_t>(fourth.data()) % alignof(uint16_t), 0u);
+  EXPECT_THAT(fourth, ElementsAreArray(std::array<uint16_t, 1>{0xd83c}));
+
+  tokenizer.Next();
+  ASSERT_EQ(CBORTokenTag::STOP, tokenizer.TokenTag());
+  tokenizer.Next();
+  ASSERT_EQ(CBORTokenTag::DONE, tokenizer.TokenTag());
 }
 
 TEST(EncodeDecodeString16Test, ErrorCases) {
@@ -522,9 +623,7 @@ TEST(EncodeFromUTF16Test, EncodesAsString16IfNeeded) {
 
   CBORTokenizer tokenizer(SpanFrom(encoded));
   EXPECT_EQ(CBORTokenTag::STRING16, tokenizer.TokenTag());
-  std::vector<uint16_t> decoded =
-      String16WireRepToHost(tokenizer.GetString16WireRep());
-  std::string utf8_decoded = UTF16ToUTF8(SpanFrom(decoded));
+  std::string utf8_decoded = UTF16ToUTF8(tokenizer.GetString16View());
   EXPECT_EQ("Hello, 🌎.", utf8_decoded);
 }
 
@@ -1621,6 +1720,283 @@ TEST(GetString8ValueFromMapTest, HandlesEmptyValuesWithDuplicates) {
   EXPECT_TRUE(result.empty());
 }
 
+TEST(GetString8ValueFromMapTest, RejectsMixedEncodingDuplicateMethod) {
+  std::vector<uint16_t> method16 = {'m', 'e', 't', 'h', 'o', 'd'};
+
+  // The STRING8 key comes first. A client that uses the last duplicate key
+  // reads Target.attachedToTarget.
+  {
+    std::vector<uint8_t> encoded;
+    EnvelopeEncoder envelope;
+    envelope.EncodeStart(&encoded);
+    encoded.push_back(EncodeIndefiniteLengthMapStart());
+
+    EncodeString8(SpanFrom("method"), &encoded);
+    EncodeString8(SpanFrom("Page.loadEventFired"), &encoded);
+
+    EncodeString16(SpanFrom(method16), &encoded);
+    EncodeString8(SpanFrom("Target.attachedToTarget"), &encoded);
+
+    encoded.push_back(EncodeStop());
+    envelope.EncodeStop(&encoded);
+
+    // The full parser accepts the message, with both keys.
+    std::string json;
+    EXPECT_THAT(json::ConvertCBORToJSON(SpanFrom(encoded), &json),
+                StatusIsOk());
+    EXPECT_EQ(
+        "{\"method\":\"Page.loadEventFired\","
+        "\"method\":\"Target.attachedToTarget\"}",
+        json);
+
+    span<uint8_t> result =
+        GetString8ValueFromMap(SpanFrom(encoded), SpanFrom("method"));
+    EXPECT_TRUE(result.empty());
+  }
+
+  // The STRING16 key comes first.
+  {
+    std::vector<uint8_t> encoded;
+    EnvelopeEncoder envelope;
+    envelope.EncodeStart(&encoded);
+    encoded.push_back(EncodeIndefiniteLengthMapStart());
+
+    EncodeString16(SpanFrom(method16), &encoded);
+    EncodeString8(SpanFrom("Target.attachedToTarget"), &encoded);
+
+    EncodeString8(SpanFrom("method"), &encoded);
+    EncodeString8(SpanFrom("Page.loadEventFired"), &encoded);
+
+    encoded.push_back(EncodeStop());
+    envelope.EncodeStop(&encoded);
+
+    span<uint8_t> result =
+        GetString8ValueFromMap(SpanFrom(encoded), SpanFrom("method"));
+    EXPECT_TRUE(result.empty());
+  }
+}
+
+TEST(GetString8ValueFromMapTest, RejectsMixedEncodingDuplicateSessionId) {
+  std::vector<uint16_t> session_id16 = {'s', 'e', 's', 's', 'i',
+                                        'o', 'n', 'I', 'd'};
+
+  // The STRING8 key comes first.
+  {
+    std::vector<uint8_t> encoded;
+    EnvelopeEncoder envelope;
+    envelope.EncodeStart(&encoded);
+    encoded.push_back(EncodeIndefiniteLengthMapStart());
+
+    EncodeString8(SpanFrom("sessionId"), &encoded);
+    EncodeString8(SpanFrom("session1"), &encoded);
+
+    EncodeString16(SpanFrom(session_id16), &encoded);
+    EncodeString8(SpanFrom("session2"), &encoded);
+
+    encoded.push_back(EncodeStop());
+    envelope.EncodeStop(&encoded);
+
+    span<uint8_t> result =
+        GetString8ValueFromMap(SpanFrom(encoded), SpanFrom("sessionId"));
+    EXPECT_TRUE(result.empty());
+  }
+
+  // The STRING16 key comes first.
+  {
+    std::vector<uint8_t> encoded;
+    EnvelopeEncoder envelope;
+    envelope.EncodeStart(&encoded);
+    encoded.push_back(EncodeIndefiniteLengthMapStart());
+
+    EncodeString16(SpanFrom(session_id16), &encoded);
+    EncodeString8(SpanFrom("session2"), &encoded);
+
+    EncodeString8(SpanFrom("sessionId"), &encoded);
+    EncodeString8(SpanFrom("session1"), &encoded);
+
+    encoded.push_back(EncodeStop());
+    envelope.EncodeStop(&encoded);
+
+    span<uint8_t> result =
+        GetString8ValueFromMap(SpanFrom(encoded), SpanFrom("sessionId"));
+    EXPECT_TRUE(result.empty());
+  }
+}
+
+TEST(GetString8ValueFromMapTest, RejectsDuplicateString16Keys) {
+  std::vector<uint8_t> encoded;
+  EnvelopeEncoder envelope;
+  envelope.EncodeStart(&encoded);
+  encoded.push_back(EncodeIndefiniteLengthMapStart());
+
+  std::vector<uint16_t> key16 = {'k', 'e', 'y'};
+  EncodeString16(SpanFrom(key16), &encoded);
+  EncodeString8(SpanFrom("value1"), &encoded);
+
+  EncodeString16(SpanFrom(key16), &encoded);
+  EncodeString8(SpanFrom("value2"), &encoded);
+
+  encoded.push_back(EncodeStop());
+  envelope.EncodeStop(&encoded);
+
+  span<uint8_t> result =
+      GetString8ValueFromMap(SpanFrom(encoded), SpanFrom("key"));
+  EXPECT_TRUE(result.empty());
+}
+
+TEST(GetString8ValueFromMapTest, RejectsString16Key) {
+  std::vector<uint8_t> encoded;
+  EnvelopeEncoder envelope;
+  envelope.EncodeStart(&encoded);
+  encoded.push_back(EncodeIndefiniteLengthMapStart());
+
+  EncodeString8(SpanFrom("key1"), &encoded);
+  EncodeString8(SpanFrom("value1"), &encoded);
+
+  std::vector<uint16_t> key16 = {'k', 'e', 'y', '2'};
+  EncodeString16(SpanFrom(key16), &encoded);
+  EncodeString8(SpanFrom("value2"), &encoded);
+
+  encoded.push_back(EncodeStop());
+  envelope.EncodeStop(&encoded);
+
+  // A decoder that looks only for STRING8 keys does not find "key2".
+  span<uint8_t> result2 =
+      GetString8ValueFromMap(SpanFrom(encoded), SpanFrom("key2"));
+  EXPECT_TRUE(result2.empty());
+
+  // A STRING16 key does not affect the lookup of a different key.
+  span<uint8_t> result1 =
+      GetString8ValueFromMap(SpanFrom(encoded), SpanFrom("key1"));
+  EXPECT_EQ("value1", std::string(result1.begin(), result1.end()));
+}
+
+TEST(GetString8ValueFromMapTest, RejectsInvalidUTF8Keys) {
+  // Each key is ill-formed UTF8. The JSON encoder drops the ill-formed bytes.
+  std::vector<std::string> invalid_keys = {
+      "\x80key",  // Continuation byte without a leading byte.
+      "\xc1\xab"
+      "ey",  // Overlong encoding of 'k'.
+      "\xe0\x81\xab"
+      "ey",                // Overlong 3 byte encoding of 'k'.
+      "key\xc3",           // Truncated 2 byte sequence.
+      "\xed\xa0\x80key",   // Surrogate U+D800.
+      "\xf4\x90\x80\x80",  // Code point above U+10FFFF.
+      "\xff",              // Invalid leading byte.
+  };
+  for (const std::string& invalid_key : invalid_keys) {
+    // The ill-formed key is the only key.
+    {
+      std::vector<uint8_t> encoded;
+      EnvelopeEncoder envelope;
+      envelope.EncodeStart(&encoded);
+      encoded.push_back(EncodeIndefiniteLengthMapStart());
+
+      EncodeString8(SpanFrom(invalid_key), &encoded);
+      EncodeString8(SpanFrom("value"), &encoded);
+
+      encoded.push_back(EncodeStop());
+      envelope.EncodeStop(&encoded);
+
+      span<uint8_t> result =
+          GetString8ValueFromMap(SpanFrom(encoded), SpanFrom("key"));
+      EXPECT_TRUE(result.empty());
+    }
+    // The ill-formed key comes after a well-formed key.
+    {
+      std::vector<uint8_t> encoded;
+      EnvelopeEncoder envelope;
+      envelope.EncodeStart(&encoded);
+      encoded.push_back(EncodeIndefiniteLengthMapStart());
+
+      EncodeString8(SpanFrom("key"), &encoded);
+      EncodeString8(SpanFrom("value1"), &encoded);
+
+      EncodeString8(SpanFrom(invalid_key), &encoded);
+      EncodeString8(SpanFrom("value2"), &encoded);
+
+      encoded.push_back(EncodeStop());
+      envelope.EncodeStop(&encoded);
+
+      span<uint8_t> result =
+          GetString8ValueFromMap(SpanFrom(encoded), SpanFrom("key"));
+      EXPECT_TRUE(result.empty());
+    }
+  }
+}
+
+TEST(GetString8ValueFromMapTest, InvalidUTF8KeyIsDuplicateInJSON) {
+  std::vector<uint8_t> encoded;
+  EnvelopeEncoder envelope;
+  envelope.EncodeStart(&encoded);
+  encoded.push_back(EncodeIndefiniteLengthMapStart());
+
+  EncodeString8(SpanFrom("method"), &encoded);
+  EncodeString8(SpanFrom("Page.loadEventFired"), &encoded);
+
+  EncodeString8(SpanFrom("\x80method"), &encoded);
+  EncodeString8(SpanFrom("Target.attachedToTarget"), &encoded);
+
+  encoded.push_back(EncodeStop());
+  envelope.EncodeStop(&encoded);
+
+  // The JSON encoder drops the 0x80 byte, so the JSON has a duplicate key.
+  std::string json;
+  EXPECT_THAT(json::ConvertCBORToJSON(SpanFrom(encoded), &json), StatusIsOk());
+  EXPECT_EQ(
+      "{\"method\":\"Page.loadEventFired\","
+      "\"method\":\"Target.attachedToTarget\"}",
+      json);
+
+  span<uint8_t> result =
+      GetString8ValueFromMap(SpanFrom(encoded), SpanFrom("method"));
+  EXPECT_TRUE(result.empty());
+}
+
+TEST(GetString8ValueFromMapTest, RejectsInvalidUTF8Value) {
+  std::vector<uint8_t> encoded;
+  EnvelopeEncoder envelope;
+  envelope.EncodeStart(&encoded);
+  encoded.push_back(EncodeIndefiniteLengthMapStart());
+
+  EncodeString8(SpanFrom("method"), &encoded);
+  EncodeString8(SpanFrom("\x80Target.attachedToTarget"), &encoded);
+
+  encoded.push_back(EncodeStop());
+  envelope.EncodeStop(&encoded);
+
+  // The JSON encoder drops the 0x80 byte from the value.
+  std::string json;
+  EXPECT_THAT(json::ConvertCBORToJSON(SpanFrom(encoded), &json), StatusIsOk());
+  EXPECT_EQ("{\"method\":\"Target.attachedToTarget\"}", json);
+
+  span<uint8_t> result =
+      GetString8ValueFromMap(SpanFrom(encoded), SpanFrom("method"));
+  EXPECT_TRUE(result.empty());
+}
+
+TEST(GetString8ValueFromMapTest, AcceptsValidUTF8KeysAndValues) {
+  std::vector<uint8_t> encoded;
+  EnvelopeEncoder envelope;
+  envelope.EncodeStart(&encoded);
+  encoded.push_back(EncodeIndefiniteLengthMapStart());
+
+  // U+00E1 (2 bytes), U+20AC (3 bytes), U+1F600 (4 bytes).
+  const std::string valid = "\xc3\xa1\xe2\x82\xac\xf0\x9f\x98\x80";
+  EncodeString8(SpanFrom(valid), &encoded);
+  EncodeString8(SpanFrom("value1"), &encoded);
+
+  EncodeString8(SpanFrom("key"), &encoded);
+  EncodeString8(SpanFrom(valid), &encoded);
+
+  encoded.push_back(EncodeStop());
+  envelope.EncodeStop(&encoded);
+
+  span<uint8_t> result =
+      GetString8ValueFromMap(SpanFrom(encoded), SpanFrom("key"));
+  EXPECT_EQ(valid, std::string(result.begin(), result.end()));
+}
+
 TEST(GetString8ValueFromMapTest, RejectsTruncatedMap) {
   std::vector<uint8_t> encoded;
   EnvelopeEncoder envelope;
@@ -1791,6 +2167,103 @@ TEST(HasKeyInMapTest, HandlesTruncation) {
 
   // "key2" is not found because it is not in the map (and map is truncated).
   EXPECT_FALSE(HasKeyInMap(SpanFrom(encoded), SpanFrom("key2")));
+}
+
+TEST(HasKeyInMapTest, FindsString16Key) {
+  std::vector<uint8_t> encoded;
+  EnvelopeEncoder envelope;
+  envelope.EncodeStart(&encoded);
+  encoded.push_back(EncodeIndefiniteLengthMapStart());
+
+  std::vector<uint16_t> key16 = {'k', 'e', 'y', '1'};
+  EncodeString16(SpanFrom(key16), &encoded);
+  EncodeString8(SpanFrom("value1"), &encoded);
+
+  EncodeString8(SpanFrom("key2"), &encoded);
+  EncodeInt32(42, &encoded);
+
+  encoded.push_back(EncodeStop());
+  envelope.EncodeStop(&encoded);
+
+  EXPECT_TRUE(HasKeyInMap(SpanFrom(encoded), SpanFrom("key1")));
+  EXPECT_TRUE(HasKeyInMap(SpanFrom(encoded), SpanFrom("key2")));
+}
+
+TEST(HasKeyInMapTest, DoesNotFindNonAsciiString16Key) {
+  std::vector<uint8_t> encoded;
+  EnvelopeEncoder envelope;
+  envelope.EncodeStart(&encoded);
+  encoded.push_back(EncodeIndefiniteLengthMapStart());
+
+  // "key_á" where á is U+00E1
+  std::vector<uint16_t> key16 = {'k', 'e', 'y', '_', 0x00e1};
+  EncodeString16(SpanFrom(key16), &encoded);
+  EncodeString8(SpanFrom("value1"), &encoded);
+
+  encoded.push_back(EncodeStop());
+  envelope.EncodeStop(&encoded);
+
+  // Searching with UTF-8 "key_á" should fail because it's non-ASCII.
+  // UTF-8 for á is \xc3\xa1
+  EXPECT_FALSE(HasKeyInMap(SpanFrom(encoded), SpanFrom("key_\xc3\xa1")));
+
+  // Searching with ASCII "key_a" should also fail.
+  EXPECT_FALSE(HasKeyInMap(SpanFrom(encoded), SpanFrom("key_a")));
+}
+
+TEST(HasKeyInMapTest, ReportsInvalidUTF8Key) {
+  std::vector<std::string> invalid_keys = {
+      "\x80key",  // Continuation byte without a leading byte.
+      "\xc1\xab"
+      "ey",  // Overlong encoding of 'k'.
+      "\xe0\x81\xab"
+      "ey",       // Overlong 3 byte encoding of 'k'.
+      "\xff",     // Ill-formed key that has no relation to the search key.
+      "key\xc3",  // Truncated 2 byte sequence.
+  };
+  for (const std::string& invalid_key : invalid_keys) {
+    std::vector<uint8_t> encoded;
+    EnvelopeEncoder envelope;
+    envelope.EncodeStart(&encoded);
+    encoded.push_back(EncodeIndefiniteLengthMapStart());
+
+    EncodeString8(SpanFrom("other"), &encoded);
+    EncodeInt32(42, &encoded);
+
+    EncodeString8(SpanFrom(invalid_key), &encoded);
+    EncodeInt32(24, &encoded);
+
+    encoded.push_back(EncodeStop());
+    envelope.EncodeStop(&encoded);
+
+    // The JSON encoder drops the ill-formed bytes and writes the key "key".
+    EXPECT_TRUE(HasKeyInMap(SpanFrom(encoded), SpanFrom("key")));
+  }
+}
+
+TEST(HasKeyInMapTest, IgnoresInvalidUTF8InValuesAndNestedKeys) {
+  std::vector<uint8_t> encoded;
+  EnvelopeEncoder envelope;
+  envelope.EncodeStart(&encoded);
+  encoded.push_back(EncodeIndefiniteLengthMapStart());
+
+  EncodeString8(SpanFrom("key1"), &encoded);
+  EncodeString8(SpanFrom("\x80key"), &encoded);
+
+  EncodeString8(SpanFrom("key2"), &encoded);
+  encoded.push_back(EncodeIndefiniteLengthMapStart());
+  EncodeString8(SpanFrom("\x80key"), &encoded);
+  EncodeInt32(42, &encoded);
+  encoded.push_back(EncodeStop());
+
+  // Valid UTF8 for U+00E1.
+  EncodeString8(SpanFrom("\xc3\xa1"), &encoded);
+  EncodeInt32(24, &encoded);
+
+  encoded.push_back(EncodeStop());
+  envelope.EncodeStop(&encoded);
+
+  EXPECT_FALSE(HasKeyInMap(SpanFrom(encoded), SpanFrom("key")));
 }
 
 TEST(HasKeyInMapTest, InvalidMessage) {

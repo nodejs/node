@@ -7,9 +7,9 @@
 #include "src/ast/ast-source-ranges.h"
 #include "src/ast/ast.h"
 #include "src/base/strong-alias.h"
+#include "src/base/synchronization-point-support.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
-#include "src/common/synchronization-point-support.h"
 #include "src/execution/local-isolate.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/factory.h"
@@ -369,8 +369,8 @@ Handle<Script> FactoryBase<Impl>::NewScriptWithId(
 template <typename Impl>
 DirectHandle<SloppyArgumentsElements>
 FactoryBase<Impl>::NewSloppyArgumentsElements(
-    uint32_t length, DirectHandle<Context> context,
-    DirectHandle<FixedArray> arguments, AllocationType allocation) {
+    uint32_t length, MaybeDirectHandle<Context> maybe_context,
+    MaybeDirectHandle<FixedArray> maybe_arguments, AllocationType allocation) {
   Tagged<SloppyArgumentsElements> result =
       Cast<SloppyArgumentsElements>(AllocateRawWithImmortalMap(
           SloppyArgumentsElements::SizeFor(length), allocation,
@@ -384,8 +384,20 @@ FactoryBase<Impl>::NewSloppyArgumentsElements(
 #if TAGGED_SIZE_8_BYTES
   result->clear_optional_padding();
 #endif  // TAGGED_SIZE_8_BYTES
-  result->set_context(*context, write_barrier_mode);
-  result->set_arguments(*arguments, write_barrier_mode);
+  static_assert(offsetof(SloppyArgumentsElements, arguments_) ==
+                offsetof(SloppyArgumentsElements, context_) + kTaggedSize);
+  MemsetTagged(result->RawField(offsetof(SloppyArgumentsElements, context_)),
+               read_only_roots().undefined_value(), 2);
+  DirectHandle<Context> context;
+  if (maybe_context.ToHandle(&context)) {
+    result->set_context(*context, write_barrier_mode);
+  }
+  DirectHandle<FixedArray> arguments;
+  if (maybe_arguments.ToHandle(&arguments)) {
+    result->set_arguments(*arguments, write_barrier_mode);
+  }
+  MemsetTagged(result->RawField(SloppyArgumentsElements::OffsetOfElementAt(0)),
+               read_only_roots().the_hole_value(), length);
   return direct_handle(result, isolate());
 }
 
@@ -690,17 +702,15 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
 
 template <typename Impl>
 Handle<InternalizedString> FactoryBase<Impl>::InternalizeString(
-    base::Vector<const uint8_t> string, bool convert_encoding) {
-  SequentialStringKey<uint8_t> key(string, HashSeed(read_only_roots()),
-                                   convert_encoding);
+    base::Vector<const uint8_t> string) {
+  SequentialStringKey<uint8_t> key(string, HashSeed(read_only_roots()));
   return InternalizeStringWithKey(&key);
 }
 
 template <typename Impl>
 Handle<InternalizedString> FactoryBase<Impl>::InternalizeString(
-    base::Vector<const uint16_t> string, bool convert_encoding) {
-  SequentialStringKey<uint16_t> key(string, HashSeed(read_only_roots()),
-                                    convert_encoding);
+    base::Vector<const uint16_t> string) {
+  SequentialStringKey<uint16_t> key(string, HashSeed(read_only_roots()));
   return InternalizeStringWithKey(&key);
 }
 
@@ -720,6 +730,7 @@ Handle<InternalizedString> FactoryBase<Impl>::NewOneByteInternalizedString(
 template <typename Impl>
 Handle<InternalizedString> FactoryBase<Impl>::NewTwoByteInternalizedString(
     base::Vector<const base::uc16> str, uint32_t raw_hash_field) {
+  DCHECK(!String::IsOneByte(str.begin(), str.length()));
   Handle<SeqTwoByteString> result =
       AllocateRawTwoByteInternalizedString(str.length(), raw_hash_field);
   // No synchronization is needed since the shared string hasn't yet escaped to
@@ -1151,10 +1162,23 @@ Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfo(
 
 template <typename Impl>
 Handle<DescriptorArray> FactoryBase<Impl>::NewDescriptorArray(
-    int number_of_descriptors, int slack, AllocationType allocation) {
+    int number_of_descriptors, int slack, AllocationType allocation
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+    ,
+    bool allocate_lookup_table
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+) {
   int number_of_all_descriptors = number_of_descriptors + slack;
   // Zero-length case must be handled outside.
   DCHECK_LT(0, number_of_all_descriptors);
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+  DirectHandle<DescriptorLookupTable> lookup_table;
+  if (allocate_lookup_table &&
+      number_of_descriptors > DescriptorArray::kMaxElementsForLinearSearch) {
+    lookup_table = DescriptorLookupTable::NewUninitialized(
+        isolate(), number_of_all_descriptors, allocation);
+  }
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
   int size = DescriptorArray::SizeFor(number_of_all_descriptors);
   Tagged<HeapObject> obj = AllocateRawWithImmortalMap(
       size, allocation, read_only_roots().descriptor_array_map());
@@ -1163,6 +1187,11 @@ Handle<DescriptorArray> FactoryBase<Impl>::NewDescriptorArray(
   array->Initialize(read_only_roots().empty_enum_cache(),
                     read_only_roots().undefined_value(), number_of_descriptors,
                     slack);
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+  if (!lookup_table.is_null()) {
+    array->set_lookup_table(*lookup_table);
+  }
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
   return handle(array, isolate());
 }
 

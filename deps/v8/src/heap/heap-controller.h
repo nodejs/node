@@ -225,8 +225,6 @@ class V8_EXPORT_PRIVATE HeapLimits {
 
   Heap* const heap_;
 
-  perfetto::NamedTrack tracing_track_;
-
   size_t initial_max_old_generation_size_ = 0;
   size_t initial_old_generation_size_ = 0;
 

@@ -55,7 +55,6 @@ export const CATEGORIES = new Map([
       'V8.TFCommitAssignment',
       'V8.TFConnectRanges',
       'V8.TFControlFlowOptimization',
-      'V8.TFDecideSpillingMode',
       'V8.TFDecompressionOptimization',
       'V8.TFEarlyOptimization',
       'V8.TFEarlyTrimming',

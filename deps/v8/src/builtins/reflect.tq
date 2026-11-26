@@ -37,12 +37,6 @@ transitioning javascript builtin ReflectSetPrototypeOf(
       otherwise ThrowTypeError(
       MessageTemplate::kCalledOnNonObject, 'Reflect.setPrototypeOf');
 
-  @if(V8_ENABLE_WEBASSEMBLY)
-    if (Is<WasmObject>(objectJSReceiver)) {
-      // For Wasm objects, [[SetPrototypeOf]] returns false.
-      return False;
-    }
-
   typeswitch (proto) {
     case (proto: JSReceiver|Null): {
       return object::ObjectSetPrototypeOfDontThrow(objectJSReceiver, proto);

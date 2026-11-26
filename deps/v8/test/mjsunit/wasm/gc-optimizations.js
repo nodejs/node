@@ -1190,3 +1190,184 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let wasm = instance.exports;
   assertTraps(kTrapIllegalCast, () => wasm.deadBranchBasedOnIsNull({}));
 })();
+
+(function TypePropagationBrOnCastFailNotNull() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+
+  let s0 = builder.addStruct([makeField(kWasmI32, true)]);
+  let s1 = builder.addStruct(
+      {fields: [makeField(kWasmI32, true)], supertype: s0});
+  let s2 = builder.addStruct(
+      {fields: [makeField(kWasmI32, true)], supertype: s0});
+
+  builder.addFunction('brOnCastFailNotNull',
+      makeSig([wasmRefNullType(s0)], [kWasmI32]))
+    .addBody([
+      kExprBlock, kWasmRef, s0,
+        kExprLocalGet, 0,
+        // Branch if not (ref null $s1); on the fail branch, null is excluded so
+        // the value is refined to non-null (ref $s0).
+        kGCPrefix, kExprBrOnCastFail, 0b11, 0, s0, s1,
+        kExprDrop,
+        kExprI32Const, 0,
+        kExprReturn,
+      kExprEnd,
+      kGCPrefix, kExprRefTest, s2,
+    ])
+    .exportFunc();
+
+  let instance = builder.instantiate({});
+  let wasm = instance.exports;
+  assertEquals(0, wasm.brOnCastFailNotNull(null));
+})();
+
+(function TypePropagationI31() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let boxedInt = builder.addStruct([makeField(kWasmI32, false)]);
+  let arrayB = builder.addArray(kWasmI32);
+  let sigII_I = makeSig([kWasmI32, kWasmI32], [kWasmI32]);
+
+  // Produces (ref null exact $boxedInt)|i31:
+  //   param0 == 0 -> i31(param1), param0 == 1 -> $boxedInt(param1), else -> null.
+  let makeNullableStructOrI31 = [
+    kExprLocalGet, 0,
+    kExprIf, kEqRefCode,
+      kExprLocalGet, 0, kExprI32Const, 1, kExprI32Eq,
+      kExprIf, kEqRefCode,
+        kExprLocalGet, 1, kGCPrefix, kExprStructNew, boxedInt,
+      kExprElse,
+        kExprRefNull, boxedInt,
+      kExprEnd,
+    kExprElse,
+      kExprLocalGet, 1, kGCPrefix, kExprRefI31,
+    kExprEnd,
+  ];
+
+  let castAndGetI31 = [
+    kExprLocalGet, 2,
+    kGCPrefix, kExprRefCast, kI31RefCode,
+    kGCPrefix, kExprI31GetS,
+  ];
+  let castAndGetStruct = [
+    kExprLocalGet, 2,
+    kGCPrefix, kExprRefCast, boxedInt,
+    kGCPrefix, kExprStructGet, boxedInt, 0,
+  ];
+
+  function addRefTestUnbox(name, makeInput, testOp, trueBranch, falseBranch) {
+    builder.addFunction(name, sigII_I)
+      .addLocals(kWasmEqRef, 1)
+      .addBody([
+        ...makeInput,
+        kExprLocalTee, 2,
+        ...testOp,
+        kExprIf, kWasmI32, ...trueBranch, kExprElse, ...falseBranch, kExprEnd,
+      ])
+      .exportFunc();
+  }
+
+  // Nullable (ref null exact $boxedInt)|i31 with ref.test (ref i31),
+  // ref.test (ref null $boxedInt), and ref.test (ref $boxedInt).
+  addRefTestUnbox('unboxNullableRefTestI31', makeNullableStructOrI31,
+      [kGCPrefix, kExprRefTest, kI31RefCode], castAndGetI31, castAndGetStruct);
+  addRefTestUnbox('unboxNullableRefTestNullStructFirst',
+      makeNullableStructOrI31, [kGCPrefix, kExprRefTestNull, boxedInt],
+      castAndGetStruct, castAndGetI31);
+  addRefTestUnbox('unboxNullableRefTestNonNullStructFirst',
+      makeNullableStructOrI31, [kGCPrefix, kExprRefTest, boxedInt],
+      castAndGetStruct, castAndGetI31);
+
+  // Nullable (ref null exact $boxedInt)|i31 with br_on_cast_fail (ref null $boxedInt):
+  // failure branch strips both null and $boxedInt, leaving non-nullable (ref i31).
+  builder.addFunction('unboxNullableBrOnCastFail', sigII_I)
+    .addBody([
+      kExprBlock, kEqRefCode,
+        ...makeNullableStructOrI31,
+        kGCPrefix, kExprBrOnCastFail, 0b11, 0, kEqRefCode, boxedInt,
+        kGCPrefix, kExprStructGet, boxedInt, 0,
+        kExprReturn,
+      kExprEnd,
+      kGCPrefix, kExprRefCast, kI31RefCode,
+      kGCPrefix, kExprI31GetS,
+    ])
+    .exportFunc();
+
+  // Loop-carried Phi starting as (ref i31) and widening to
+  // (ref exact $boxedInt)|i31 across the backedge.
+  builder.addFunction('unboxLoopStructOrI31', sigII_I)
+    .addLocals(kWasmEqRef, 1)
+    .addLocals(kWasmI32, 1)
+    .addBody([
+      kExprLocalGet, 1, kGCPrefix, kExprRefI31, kExprLocalSet, 2,
+      kExprLoop, kWasmVoid,
+        kExprLocalGet, 2, kGCPrefix, kExprRefTest, kI31RefCode,
+        kExprIf, kWasmI32,
+          ...castAndGetI31,
+        kExprElse,
+          ...castAndGetStruct,
+        kExprEnd,
+        kExprI32Const, 10, kExprI32Add, kExprLocalTee, 3,
+        kGCPrefix, kExprStructNew, boxedInt, kExprLocalSet, 2,
+        kExprLocalGet, 0, kExprI32Const, 1, kExprI32Sub, kExprLocalTee, 0,
+        kExprBrIf, 0,
+      kExprEnd,
+      kExprLocalGet, 3,
+    ])
+    .exportFunc();
+
+  // Union of disjoint non-i31 heap types: (ref $boxedInt) | (ref $arrayB) ->
+  // (ref eq)\i31.
+  let makeStructOrArray = [
+    kExprLocalGet, 0,
+    kExprIf, kEqRefCode,
+      kExprLocalGet, 1, kGCPrefix, kExprStructNew, boxedInt,
+    kExprElse,
+      kExprLocalGet, 1, kGCPrefix, kExprArrayNewFixed, arrayB, 1,
+    kExprEnd,
+  ];
+  addRefTestUnbox('disjointNonNull', makeStructOrArray,
+      [kGCPrefix, kExprRefTest, kI31RefCode], wasmI32Const(-1),
+      castAndGetStruct);
+
+  // If an i31ref (widened statically to eqref so the decoder does not fold
+  // the checks) fails ref.test (ref i31), its type is narrowed to
+  // (ref null none), so ref.is_null folds to 1 and non-nullable ref.test
+  // folds to 0.
+  builder.addFunction('i31OrNull', makeSig([kWasmI31Ref], [kWasmI32]))
+    .addLocals(kWasmEqRef, 1)
+    .addBody([
+      kExprLocalGet, 0, kExprLocalTee, 1,
+      kGCPrefix, kExprRefTest, kI31RefCode,
+      kExprIf, kWasmI32,
+        kExprLocalGet, 1, kGCPrefix, kExprRefCast, kI31RefCode,
+        kGCPrefix, kExprI31GetS,
+      kExprElse,
+        kExprLocalGet, 1, kExprRefIsNull,
+        kExprLocalGet, 1, kGCPrefix, kExprRefTest, boxedInt,
+        kExprI32Sub,
+      kExprEnd,
+    ])
+    .exportFunc();
+
+  let wasm = builder.instantiate({}).exports;
+  for (let fn of [
+         wasm.unboxNullableRefTestI31,
+         wasm.unboxNullableRefTestNullStructFirst,
+         wasm.unboxNullableRefTestNonNullStructFirst,
+       ]) {
+    assertEquals(99, fn(0, 99));
+    assertEquals(99, fn(1, 99));
+    assertTraps(kTrapIllegalCast, () => fn(2, 99));
+  }
+  assertEquals(99, wasm.unboxNullableBrOnCastFail(0, 99));
+  assertEquals(99, wasm.unboxNullableBrOnCastFail(1, 99));
+  assertTraps(kTrapNullDereference, () => wasm.unboxNullableBrOnCastFail(2, 99));
+  assertEquals(15, wasm.unboxLoopStructOrI31(1, 5));
+  assertEquals(35, wasm.unboxLoopStructOrI31(3, 5));
+  assertEquals(77, wasm.disjointNonNull(1, 77));
+  assertTraps(kTrapIllegalCast, () => wasm.disjointNonNull(0, 77));
+  assertEquals(123, wasm.i31OrNull(123));
+  assertEquals(1, wasm.i31OrNull(null));
+})();

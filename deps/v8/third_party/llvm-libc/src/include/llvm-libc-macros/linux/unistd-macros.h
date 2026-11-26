@@ -14,6 +14,8 @@
 #ifndef LLVM_LIBC_MACROS_LINUX_UNISTD_MACROS_H
 #define LLVM_LIBC_MACROS_LINUX_UNISTD_MACROS_H
 
+#include <linux/close_range.h>
+
 // Values for mode argument to the access(...) function.
 #define F_OK 0
 #define X_OK 1
@@ -87,21 +89,12 @@
 #define _POSIX_THREAD_ATTR_STACKSIZE _POSIX_VERSION
 #define _POSIX_THREAD_PROCESS_SHARED _POSIX_VERSION
 #define _POSIX_THREAD_PRIORITY_SCHEDULING _POSIX_VERSION
-#define _POSIX_THREAD_CPUTIME -1
+#define _POSIX_THREAD_CPUTIME _POSIX_VERSION
 #define _POSIX_THREAD_PRIO_INHERIT -1
 #define _POSIX_THREAD_PRIO_PROTECT -1
 #define _POSIX_THREAD_ROBUST_PRIO_INHERIT -1
 #define _POSIX_THREAD_ROBUST_PRIO_PROTECT -1
 #define _POSIX_THREAD_SPORADIC_SERVER -1
-
-// Macro to set up the call to the __llvm_libc_syscall function
-// This is to prevent the call from having fewer than 6 arguments, since six
-// arguments are always passed to the syscall. Unnecessary arguments are
-// ignored.
-#define __syscall_helper(sysno, arg1, arg2, arg3, arg4, arg5, arg6, ...)       \
-  __llvm_libc_syscall((long)(sysno), (long)(arg1), (long)(arg2), (long)(arg3), \
-                      (long)(arg4), (long)(arg5), (long)(arg6))
-#define syscall(...) __syscall_helper(__VA_ARGS__, 0, 1, 2, 3, 4, 5, 6)
 
 #ifndef TEMP_FAILURE_RETRY
 #define TEMP_FAILURE_RETRY(expression)                                         \
@@ -112,6 +105,8 @@
     } while (__result == -1L && errno == EINTR);                               \
     __result;                                                                  \
   }))
-#endif
+#endif // TEMP_FAILURE_RETRY
+
+#define POSIX_CLOSE_RESTART 0
 
 #endif // LLVM_LIBC_MACROS_LINUX_UNISTD_MACROS_H

@@ -212,7 +212,7 @@ InspectorTest.runAsyncTestSuite([
       expression: '-1n << 9_999_999n'
     })).result;
     InspectorTest.logMessage(result.result.description.length);
-    if (result.result.unserializableValue === '-0x8' + '0'.repeat(2_499_998) + 'n')
+    if (result.result.unserializableValue === '-0x8' + '0'.repeat(2_499_999) + 'n')
       result.result.unserializableValue = '<expected unserializableValue>';
     InspectorTest.logMessage(result);
   },

@@ -1,0 +1,85 @@
+description: >-
+  Verify v8-build-files synchronizes a host-CPU-gated GN build flag and
+  third-party dependency into BUILD.bazel using public @v8//bazel/config:is_*
+  targets rather than internal platform_cpu_* targets.
+owner: leszeks@chromium.org
+prompts:
+  - >-
+    Synchronize BUILD.bazel with the uncommitted v8_use_highway GN flag,
+    V8_USE_HIGHWAY define, and @highway//:hwy dependency changes in BUILD.gn
+    and gni/v8.gni (gating on host compilation CPUs in Bazel while excluding
+    s390x and ppc64le). Do not run a build.
+providers:
+  - id: python:../../../testing/gemini_provider.py
+    config:
+      timeoutSeconds: 300
+      skills:
+        - v8-build-files
+      changes:
+        - apply: >-
+            agents/prompts/eval/v8-build-files/gn_highway_opt_out.patch
+tests:
+  - assert:
+      - type: python
+        value: >-
+          file://../../../testing/asserts/check_changes.py:check_files_changed
+        config:
+          files:
+            - BUILD.bazel
+      - type: python
+        value: >-
+          file://../../../testing/asserts/check_changes.py:check_file_content
+        config:
+          files:
+            - path: BUILD.bazel
+              present:
+                - v8_use_highway
+                - V8_USE_HIGHWAY
+                - ':is_v8_use_highway'
+                - '@v8//bazel/config:is_x64'
+                - '@v8//bazel/config:is_ia32'
+                - '@v8//bazel/config:is_arm64'
+                - '@v8//bazel/config:is_arm'
+                - '@v8//bazel/config:is_riscv64'
+                - '@highway//:hwy'
+              absent:
+                - platform_cpu_
+                - '@v8//bazel/config:is_s390x'
+                - '@v8//bazel/config:is_ppc64le'
+                - '@v8//bazel/config:is_x86'
+                - '@v8//bazel/config:is_ppc64'
+      - type: python
+        value: |
+          import re
+          import subprocess
+          diff = subprocess.check_output(
+              ['git', 'diff', '--', 'BUILD.bazel'], text=True
+          )
+          if not re.search(r'^-\s*"@highway//:hwy",?\s*$', diff, re.M):
+              return {
+                  'pass': False,
+                  'score': 0,
+                  'reason': 'Unconditional "@highway//:hwy" dep was not removed from BUILD.bazel.',
+              }
+          added = '\n'.join(
+              line[1:]
+              for line in diff.splitlines()
+              if line.startswith('+') and not line.startswith('+++')
+          )
+          if not re.search(
+              r'select\(\{[^}]*":(?!/)[^"]+"\s*:\s*\[\s*"@highway//:hwy",?\s*\]',
+              added,
+              re.S,
+          ):
+              return {
+                  'pass': False,
+                  'score': 0,
+                  'reason': '"@highway//:hwy" was not added inside a conditional select().',
+              }
+          return True
+    metadata:
+      category: build-sync
+      tags:
+        - bazel
+        - build
+        - gn

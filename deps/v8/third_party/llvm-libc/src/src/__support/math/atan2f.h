@@ -12,10 +12,10 @@
 #include "atan_utils.h"
 #include "src/__support/FPUtil/FEnvImpl.h"
 #include "src/__support/FPUtil/FPBits.h"
-#include "src/__support/FPUtil/PolyEval.h"
 #include "src/__support/FPUtil/double_double.h"
 #include "src/__support/FPUtil/multiply_add.h"
 #include "src/__support/FPUtil/nearest_integer.h"
+#include "src/__support/FPUtil/polyeval.h"
 #include "src/__support/macros/config.h"
 #include "src/__support/macros/optimization.h"            // LIBC_UNLIKELY
 #include "src/__support/macros/properties/cpu_features.h" // LIBC_TARGET_CPU_HAS_FMA
@@ -127,8 +127,8 @@ LIBC_INLINE float atan2f_double_double(double num_d, double den_d, double q_d,
     // atan(n/d) - atan(idx/16) = atan((n/d - idx/16) / (1 + (n/d) * (idx/16)))
     //                          = atan((n - d*(idx/16)) / (d + n*idx/16))
     k_d *= 0x1.0p-4;
-    num_r = fputil::multiply_add(k_d, -den_d, num_d); // Exact
-    den_r = fputil::multiply_add(k_d, num_d, den_d);  // Exact
+    num_r = fputil::sub_multiply(num_d, k_d, den_d); // Exact
+    den_r = fputil::multiply_add(k_d, num_d, den_d); // Exact
     q.hi = num_r / den_r;
   } else {
     // For 0 < n/d < 1/16, we just need to calculate the lower part of their
@@ -138,13 +138,13 @@ LIBC_INLINE float atan2f_double_double(double num_d, double den_d, double q_d,
     den_r = den_d;
   }
 #ifdef LIBC_TARGET_CPU_HAS_FMA_DOUBLE
-  q.lo = fputil::multiply_add(q.hi, -den_r, num_r) / den_r;
+  q.lo = fputil::sub_multiply(num_r, q.hi, den_r) / den_r;
 #else
   // Compute `(num_r - q.hi * den_r) / den_r` accurately without FMA
   // instructions.
   fputil::DoubleDouble q_hi_dd = split_d(q.hi);
-  double t1 = fputil::multiply_add(q_hi_dd.hi, -den_r, num_r); // Exact
-  double t2 = fputil::multiply_add(q_hi_dd.lo, -den_r, t1);
+  double t1 = fputil::sub_multiply(num_r, q_hi_dd.hi, den_r); // Exact
+  double t2 = fputil::sub_multiply(t1, q_hi_dd.lo, den_r);
   q.lo = t2 / den_r;
 #endif // LIBC_TARGET_CPU_HAS_FMA_DOUBLE
 
@@ -180,6 +180,34 @@ LIBC_INLINE float atan2f_double_double(double num_d, double den_d, double q_d,
 }
 
 #endif // !LIBC_MATH_HAS_SKIP_ACCURATE_PASS
+
+LIBC_INLINE_VAR constexpr double PI = 0x1.921fb54442d18p1;
+LIBC_INLINE_VAR constexpr double PI_LO = 0x1.1a62633145c07p-53;
+LIBC_INLINE_VAR constexpr double PI_OVER_4 = 0x1.921fb54442d18p-1;
+LIBC_INLINE_VAR constexpr double PI_OVER_2 = 0x1.921fb54442d18p0;
+LIBC_INLINE_VAR constexpr double THREE_PI_OVER_4 = 0x1.2d97c7f3321d2p+1;
+
+// Adjustment for constant term:
+//   CONST_ADJ[x_sign][y_sign][recip]
+LIBC_INLINE_VAR constexpr fputil::DoubleDouble CONST_ADJ[2][2][2] = {
+    {{{0.0, 0.0}, {-PI_LO / 2, -PI_OVER_2}},
+     {{-0.0, -0.0}, {-PI_LO / 2, -PI_OVER_2}}},
+    {{{-PI_LO, -PI}, {PI_LO / 2, PI_OVER_2}},
+     {{-PI_LO, -PI}, {PI_LO / 2, PI_OVER_2}}}};
+
+// Exceptional cases:
+//   EXCEPT[y_except][x_except][x_is_neg]
+// with x_except & y_except:
+//   0: zero
+//   1: finite, non-zero
+//   2: infinity
+LIBC_INLINE_VAR constexpr double EXCEPTS[3][3][2] = {
+    {{0.0, PI}, {0.0, PI}, {0.0, PI}},
+    {{PI_OVER_2, PI_OVER_2}, {0.0, 0.0}, {0.0, PI}},
+    {{PI_OVER_2, PI_OVER_2},
+     {PI_OVER_2, PI_OVER_2},
+     {PI_OVER_4, THREE_PI_OVER_4}},
+};
 
 } // namespace atan2f_internal
 
@@ -244,18 +272,6 @@ LIBC_INLINE float atan2f(float y, float x) {
   using namespace atan_internal;
   using FPBits = typename fputil::FPBits<float>;
   constexpr double IS_NEG[2] = {1.0, -1.0};
-  constexpr double PI = 0x1.921fb54442d18p1;
-  constexpr double PI_LO = 0x1.1a62633145c07p-53;
-  constexpr double PI_OVER_4 = 0x1.921fb54442d18p-1;
-  constexpr double PI_OVER_2 = 0x1.921fb54442d18p0;
-  constexpr double THREE_PI_OVER_4 = 0x1.2d97c7f3321d2p+1;
-  // Adjustment for constant term:
-  //   CONST_ADJ[x_sign][y_sign][recip]
-  constexpr fputil::DoubleDouble CONST_ADJ[2][2][2] = {
-      {{{0.0, 0.0}, {-PI_LO / 2, -PI_OVER_2}},
-       {{-0.0, -0.0}, {-PI_LO / 2, -PI_OVER_2}}},
-      {{{-PI_LO, -PI}, {PI_LO / 2, PI_OVER_2}},
-       {{-PI_LO, -PI}, {PI_LO / 2, PI_OVER_2}}}};
 
   FPBits x_bits(x), y_bits(y);
   bool x_sign = x_bits.sign().is_neg();
@@ -282,20 +298,6 @@ LIBC_INLINE float atan2f(float y, float x) {
     size_t x_except = (x_d == 0.0) ? 0 : (x_abs == 0x7f80'0000 ? 2 : 1);
     size_t y_except = (y_d == 0.0) ? 0 : (y_abs == 0x7f80'0000 ? 2 : 1);
 
-    // Exceptional cases:
-    //   EXCEPT[y_except][x_except][x_is_neg]
-    // with x_except & y_except:
-    //   0: zero
-    //   1: finite, non-zero
-    //   2: infinity
-    constexpr double EXCEPTS[3][3][2] = {
-        {{0.0, PI}, {0.0, PI}, {0.0, PI}},
-        {{PI_OVER_2, PI_OVER_2}, {0.0, 0.0}, {0.0, PI}},
-        {{PI_OVER_2, PI_OVER_2},
-         {PI_OVER_2, PI_OVER_2},
-         {PI_OVER_4, THREE_PI_OVER_4}},
-    };
-
     double r = IS_NEG[y_sign] * EXCEPTS[y_except][x_except][x_sign];
 
     return static_cast<float>(r);
@@ -314,7 +316,7 @@ LIBC_INLINE float atan2f(float y, float x) {
   double p = atan_eval_no_table(num_d, den_d, k_d * 0x1.0p-4);
   r = final_sign * (p + (const_term.hi + ATAN_K_OVER_16[idx]));
 #else
-  q_d = fputil::multiply_add(k_d, -0x1.0p-4, q_d);
+  q_d = fputil::sub_multiply(q_d, k_d, 0x1.0p-4);
 
   double p = atan_eval(q_d, idx);
   r = final_sign *

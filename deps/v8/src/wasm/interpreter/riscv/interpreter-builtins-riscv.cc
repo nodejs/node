@@ -261,6 +261,26 @@ void LoadValueTypesArray(MacroAssembler* masm, Register function_data,
 // TODO(paolosev@microsoft.com): this should be converted into a Torque builtin,
 // like it was done for GenericJSToWasmWrapper.
 void Builtins::Generate_JSToWasmInterpreterWrapperAsm(MacroAssembler* masm) {
+  Label stack_overflow;
+  {
+    // Use temporaries that do not alias the wrapper buffer register, which
+    // must be preserved.
+    Register size = t0;
+    Register scratch1 = t1;
+    Register scratch2 = t2;
+    DCHECK(!AreAliased(WasmJSToWasmWrapperDescriptor::WrapperBufferRegister(),
+                       size, scratch1, scratch2));
+    __ LoadWord(
+        size, MemOperand(WasmJSToWasmWrapperDescriptor::WrapperBufferRegister(),
+                         JSToWasmWrapperFrameConstants::
+                             kWrapperBufferStackReturnBufferSize));
+    // The return buffer size is at most kMaxInterpreterWrapperReturnBufferSlots
+    // (see wasm-interpreter-runtime.h), so the arithmetic below cannot wrap.
+    __ AddWord(size, size, 1);
+    __ And(size, size, Operand(-2));
+    __ StackOverflowCheck(size, scratch1, scratch2, &stack_overflow);
+  }
+
   auto regs = RegisterAllocator::WithAllocatableGeneralRegisters();
   __ EnterFrame(StackFrame::JS_TO_WASM);
 
@@ -348,15 +368,6 @@ void Builtins::Generate_JSToWasmInterpreterWrapperAsm(MacroAssembler* masm) {
       MemOperand(
           wrapper_buffer,
           WasmInterpreterWrapperConstants::kWrapperBufferRefParamsArray));
-  // Load the FixedArray of converted reference parameters (or Undefined)
-  // from the wrapper buffer into a3, which WasmInterpreterEntry will
-  // forward to Runtime_WasmRunInterpreter.
-  DEFINE_PINNED(ref_params_array, a3);
-  __ LoadWord(
-      ref_params_array,
-      MemOperand(
-          wrapper_buffer,
-          WasmInterpreterWrapperConstants::kWrapperBufferRefParamsArray));
   __ Call(BUILTIN_CODE(masm->isolate(), WasmInterpreterEntry),
           RelocInfo::CODE_TARGET);
   __ Pop(params_start, wrapper_buffer);
@@ -391,6 +402,21 @@ void Builtins::Generate_JSToWasmInterpreterWrapperAsm(MacroAssembler* masm) {
   //   __ DropArguments(stack_arguments_in);
   __ AddWord(sp, sp, Operand(2 * kSystemPointerSize));
   __ Ret();
+
+  __ bind(&stack_overflow);
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    // The assembly wrapper is called without a context.
+    __ LoadWord(
+        cp, MemOperand(fp, JSToWasmWrapperFrameConstants::kImplicitArgOffset));
+    __ LoadProtectedPointerField(
+        cp, FieldMemOperand(cp, offsetof(WasmExportedFunctionData,
+                                         protected_instance_data_)));
+    __ LoadTaggedField(
+        cp, FieldMemOperand(cp, WasmTrustedInstanceData::kNativeContextOffset));
+    __ CallRuntime(Runtime::kThrowStackOverflow);
+    __ Trap();
+  }
 }
 
 // For compiled code, V8 generates signature-specific CWasmEntries that manage
@@ -510,7 +536,7 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
     MacroAssembler* masm) {
   auto regs = RegisterAllocator::WithAllocatableGeneralRegisters();
 
-  DEFINE_PINNED(target_js_function, a0);
+  DEFINE_PINNED(target_context, a0);
   DEFINE_PINNED(packed_args, a1);
   DEFINE_PINNED(signature, a3);
   DEFINE_PINNED(callable, a5);
@@ -586,37 +612,13 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
       MemOperand(fp,
                  WasmToJSInterpreterFrameConstants::kGCScanSlotLimitOffset));
 
-  DEFINE_REG(shared_function_info);
-  __ LoadTaggedField(
-      shared_function_info,
-      FieldMemOperand(target_js_function,
-                      offsetof(JSFunction, shared_function_info_)));
-
-  // Set the context of the function; the call has to run in the function
-  // context.
   DEFINE_PINNED(context, cp);
-  __ LoadTaggedField(context, FieldMemOperand(target_js_function,
-                                              offsetof(JSFunction, context_)));
+  __ Move(context, target_context);
   __ StoreWord(context, MemOperand(fp, kContextOffset));
 
-  // Load global receiver if sloppy else use undefined.
-  Label receiver_undefined;
-  Label calculate_js_function_arity;
+  // Call_ReceiverIsAny handles receiver conversion for the original callable.
   DEFINE_REG(receiver);
-  DEFINE_REG(flags);
-  __ LoadWord(flags, FieldMemOperand(shared_function_info,
-                                     offsetof(SharedFunctionInfo, flags_)));
-  __ Branch(&receiver_undefined, ne, flags,
-            Operand(SharedFunctionInfo::IsNativeBit::kMask |
-                    SharedFunctionInfo::IsStrictBit::kMask));
-  FREE_REG(flags);
-  __ LoadGlobalProxy(receiver);
-  __ Branch(&calculate_js_function_arity);
-
-  __ bind(&receiver_undefined);
   __ LoadRoot(receiver, RootIndex::kUndefinedValue);
-
-  __ bind(&calculate_js_function_arity);
 
   // Load values from the signature.
   DEFINE_REG(return_count);
@@ -625,7 +627,6 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
   Register valuetypes_array_ptr = signature;
   LoadFromSignature(masm, valuetypes_array_ptr, return_count, param_count);
   __ StoreWord(param_count, MemOperand(fp, kParamCountOffset));
-  FREE_REG(shared_function_info);
 
   // Make room to pass the args and the receiver.
   DEFINE_REG(array_size);
@@ -643,6 +644,27 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
   // Ensure that the array is 16-bytes aligned.
   __ AddWord(scratch, array_size, Operand(1));
   __ And(array_size, scratch, Operand(-2));
+
+  // Throw a RangeError instead of overflowing the stack when there is not
+  // enough room for the arguments.
+  {
+    Label stack_overflow, stack_ok;
+    {
+      UseScratchRegisterScope temps(masm);
+      Register scratch1 = temps.Acquire();
+      Register scratch2 = temps.Acquire();
+      __ StackOverflowCheck(array_size, scratch1, scratch2, &stack_overflow);
+    }
+    __ Branch(&stack_ok);
+    __ bind(&stack_overflow);
+    {
+      FrameScope scope(masm, StackFrame::MANUAL);
+      __ CallRuntime(Runtime::kThrowStackOverflow);
+      __ Trap();
+    }
+    __ bind(&stack_ok);
+  }
+
   __ slli(scratch, array_size, kSystemPointerSizeLog2);
   __ SubWord(sp, sp, Operand(scratch));
 
@@ -694,7 +716,7 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
   // Heap pointers for ref type values in packed_args can be invalidated if GC
   // is triggered when converting wasm numbers to JS numbers and allocating
   // heap numbers. So, we have to move them to the stack first.
-  FREE_REG(target_js_function);
+  FREE_REG(target_context);
   DEFINE_PINNED(param, a0);
   {
     Label loop_copy_param_ref, load_ref_param, set_and_move;
@@ -896,6 +918,7 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
   // Restore after builtin call.
   __ bind(&finish_param_conversion);
 
+  __ LoadWord(context, MemOperand(fp, kContextOffset));
   __ LoadWord(current_param_slot_offset, MemOperand(fp, kCurrentParamOffset));
   __ AddWord(current_param_slot_offset, current_param_slot_offset, increment);
   __ LoadWord(valuetypes_array_ptr,
@@ -1010,6 +1033,10 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
   // We can have a GC here!
   __ Call(BUILTIN_CODE(masm->isolate(), IterableToFixedArrayForWasm),
           RelocInfo::CODE_TARGET);
+  // IterableToFixedArrayForWasm can run arbitrary JavaScript (iterator
+  // getters), which may clobber cp. Restore it before the conversion builtins
+  // below use it as their implicit context.
+  __ LoadWord(context, MemOperand(fp, kContextOffset));
   __ Move(fixed_array, kReturnRegister0);
 
   // Store fixed_array at the second top of the stack (in place of callable).
@@ -1083,7 +1110,6 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
   __ JumpIfNotSmi(return_reg, &return_kWasmI32_not_smi);
   // Change the param from Smi to int32.
   __ SmiUntag(return_reg);
-  __ AssertZeroExtended(return_reg);
   __ LoadWord(packed_args, MemOperand(fp, kPackedArrayOffset));
   __ AddWord(scratch, packed_args, current_result_offset);
   __ Sw(return_reg, MemOperand(scratch, 0));
@@ -1094,7 +1120,6 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
   __ bind(&return_kWasmI32_not_smi);
   __ Call(BUILTIN_CODE(masm->isolate(), WasmTaggedNonSmiToInt32),
           RelocInfo::CODE_TARGET);
-  __ AssertZeroExtended(return_reg);
   __ LoadWord(packed_args, MemOperand(fp, kPackedArrayOffset));
   __ LoadWord(current_result_offset, MemOperand(fp, kCurrentResultOffset));
   __ AddWord(scratch, packed_args, current_result_offset);

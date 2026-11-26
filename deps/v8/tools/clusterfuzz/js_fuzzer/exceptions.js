@@ -74,8 +74,7 @@ const SKIPPED_DIRECTORIES = [
   // Causes lots of failures.
   'test262',
 
-  // Unavailable debug.Debug.
-  'v8/test/debugger',
+  // Requires the inspector-test harness.
   'v8/test/inspector',
 
   // Unsupported modules.
@@ -175,7 +174,6 @@ const DISALLOWED_FLAGS = [
 
   // Disallowed due to false positives.
   '--check-handle-count',
-  '--enable-inspector',
   '--expose-debug-as',
   '--expose-natives-as',
   '--mock-arraybuffer-allocator',
@@ -233,8 +231,28 @@ function _findMatch(iterable, candidate) {
   return false;
 }
 
-function _doesntMatch(iterable, candidate) {
-  return !_findMatch(iterable, candidate);
+// Like _findMatch, but string entries match the flag name regardless of
+// a value, e.g. the entry '--foo' matches both '--foo' and '--foo=bar'.
+// Regular expressions are tested against the full flag.
+function _findFlagMatch(iterable, flag) {
+  const name = flag.split('=', 1)[0];
+  for (const entry of iterable) {
+    if (typeof entry === 'string') {
+      if (entry === name) {
+        return true;
+      }
+    } else {
+      if (entry.test(flag)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+function _doesntMatchFlag(iterable, flag) {
+  return !_findFlagMatch(iterable, flag);
 }
 
 // Convert Windows path separators.
@@ -311,17 +329,18 @@ function isTestSloppyRel(relPath) {
 function filterFlags(flags) {
   return flags.filter(flag => {
     return (
-      flag.startsWith('--') &&
-      _doesntMatch(DISALLOWED_FLAGS_WITH_DISCOURAGED_FILES, flag) &&
-      _doesntMatch(DISALLOWED_FLAGS, flag) &&
-      (_doesntMatch(LOW_PROB_FLAGS, flag) ||
+      // A bare '--' would make V8 stop processing all subsequent flags.
+      flag.startsWith('--') && flag !== '--' &&
+      _doesntMatchFlag(DISALLOWED_FLAGS_WITH_DISCOURAGED_FILES, flag) &&
+      _doesntMatchFlag(DISALLOWED_FLAGS, flag) &&
+      (_doesntMatchFlag(LOW_PROB_FLAGS, flag) ||
         random.choose(LOW_PROB_FLAGS_PROB)));
   });
 }
 
 function hasFlagsDiscouragingFiles(flags) {
   return flags.some(flag => {
-    return _findMatch(DISALLOWED_FLAGS_WITH_DISCOURAGED_FILES, flag);
+    return _findFlagMatch(DISALLOWED_FLAGS_WITH_DISCOURAGED_FILES, flag);
   });
 }
 
@@ -341,7 +360,7 @@ function resolveContradictoryFlags(flags) {
 
 function filterDifferentialFuzzFlags(flags) {
   return flags.filter(
-    flag => _doesntMatch(DISALLOWED_DIFFERENTIAL_FUZZ_FLAGS, flag));
+    flag => _doesntMatchFlag(DISALLOWED_DIFFERENTIAL_FUZZ_FLAGS, flag));
 }
 
 

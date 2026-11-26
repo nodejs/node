@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <queue>
 
+#include "src/codegen/assembler-arch.h"
 #include "src/objects/code-inl.h"
 #include "src/objects/code-kind.h"
 #include "src/sandbox/isolate-inl.h"
@@ -18,6 +19,23 @@ namespace v8::internal {
 namespace {
 bool ShouldValidateCode(Tagged<Code> code) {
   return v8_flags.validate_generated_code && code->has_instruction_stream();
+}
+
+bool IsConstantPoolAt(const uint8_t* pc) {
+#if V8_TARGET_ARCH_ARM64
+  // `Instruction` is an empty, stateless wrapper class that reads the 32-bit
+  // instruction word at `this` via `base::ReadUnalignedValue<Instr>`.
+  return Assembler::IsConstantPoolAt(Instruction::Cast(pc));
+#else
+  return false;
+#endif
+}
+
+int ComputeConstantPoolSkipSize(int pool_size) {
+  CHECK_GT(pool_size, 0);
+  static constexpr int kConstantSize = 4;
+  return kConstantSize *
+         (pool_size + 1);  // +1 to account for the marker or fence instruction
 }
 }  // namespace
 
@@ -65,7 +83,19 @@ void GeneratedCodeValidator::InstructionIteratorSkippingData::Advance(
     int instruction_size) {
   DCHECK(!IsDone());
   DCHECK_GT(instruction_size, 0);
-  current_ += instruction_size;
+  DCHECK(!IsConstantPoolAt(current_));
+  int inline_data_size =
+      disasm_.ConstantPoolSizeAt(const_cast<uint8_t*>(current_));
+  if (inline_data_size > 0) {
+    // On ARM64 simulator builds, `Assembler::debug()` (used by `ASM_LOCATION`)
+    // and `CallPrintf` emit an executable `hlt` instruction followed by inline
+    // data and a fence instruction. `ConstantPoolSizeAt` returns the size (in
+    // 4-byte words) of the `hlt` instruction and inline data, excluding the
+    // trailing fence.
+    current_ += ComputeConstantPoolSkipSize(inline_data_size);
+  } else {
+    current_ += instruction_size;
+  }
   SkipCheck();
 }
 
@@ -101,12 +131,10 @@ void GeneratedCodeValidator::InstructionIteratorSkippingData::SkipCheck() {
       }
     }
 
-    int pool_size = disasm_.ConstantPoolSizeAt(const_cast<uint8_t*>(current_));
-    if (pool_size > 0) {
-      static constexpr int kConstantSize = 4;
-      current_ +=
-          kConstantSize *
-          (pool_size + 1);  // +1 to account for the marker or fence instruction
+    if (IsConstantPoolAt(current_)) {
+      int pool_size =
+          disasm_.ConstantPoolSizeAt(const_cast<uint8_t*>(current_));
+      current_ += ComputeConstantPoolSkipSize(pool_size);
       continue;
     }
 
@@ -363,7 +391,7 @@ void GeneratedCodeValidator::ControlFlowGraphBase::ValidateNodes(
 void GeneratedCodeValidator::ControlFlowGraphBase::PropagateStates(
     base::FunctionRef<State(const NodeBase&)> update_state) {
   NodeBase* entry_node = GetNodeAt(code_start_);
-  if (entry_node == nullptr) return;
+  DCHECK_NOT_NULL(entry_node);
 
   std::queue<NodeBase*> worklist;
 
@@ -390,15 +418,7 @@ void GeneratedCodeValidator::ControlFlowGraphBase::PropagateStates(
           continue;
         }
         NodeBase* successor = GetNodeAt(successor_pc);
-        // TODO(523128533): In simulator builds, ASM_LOCATION embeds inline
-        // metadata in the instruction stream that is skipped during
-        // disassembly, but can still be the target of a jump (when a label is
-        // bound right before ASM_LOCATION). Once ASM_LOCATION is properly
-        // handled in the CFG, replace this check with
-        // `DCHECK_NOT_NULL(successor)`.
-        if (successor == nullptr) {
-          continue;
-        }
+        DCHECK_NOT_NULL(successor);
         if (successor->MergeInputState(output_state)) {
           push_node(successor);
         }

@@ -1,0 +1,38 @@
+Tests that the (strict) eval scope is visible to the debugger.
+--- Case 1: stack-allocated in eval ---
+frame 0 scopes: eval,script,global
+scope(0).a: 1
+eval('a'): 1
+eval('a++'): 2
+--- Case 2: context-allocated in eval ---
+frame 0 scopes: eval,script,global
+scope(0).a: 1
+eval('a'): 1
+eval('a++'): 2
+--- Case 3: inner function, stack-allocated in eval ---
+frame 0 scopes: local,closure,script,global
+frame 1 scopes: eval,script,global
+eval('a'): Exception: ReferenceError
+scope(0).a: <undefined>
+--- Case 4: escaped inner function, stack-allocated in eval ---
+frame 0 scopes: local,closure,script,global
+frame 1 scopes: script,global
+eval('a'): Exception: ReferenceError
+scope(0).a: <undefined>
+--- Case 5: inner function, context-allocated in eval ---
+frame 0 scopes: local,closure,script,global
+frame 1 scopes: eval,script,global
+frame 1 scope(0).a: 1
+frame 1 eval('a'): 1
+frame 0 eval('a'): 1
+frame 0 eval('a++'): 2
+frame 1 eval('a++'): 3
+--- Case 6: escaped inner function, context-allocated in eval ---
+frame 0 scopes: local,closure,script,global
+frame 1 scopes: script,global
+frame 0 scope(1).a: 1
+frame 0 eval('a'): 1
+frame 0 eval('a++'): 2
+--- Case 7: outer function called from inner function in eval ---
+frame 1 scopes: local,closure,script,global
+frame 1 eval('a'): 1

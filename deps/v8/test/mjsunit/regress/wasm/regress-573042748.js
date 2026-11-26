@@ -25,13 +25,13 @@ let $constructors =
 let $g_proto = builder.addImportedGlobal('p', 'proto', kWasmExternRef, false);
 let $m = builder.addFunction('m', kSig_v_v).addBody([]);
 
-// 1 config, no constructor, 0 statics, 1 method ('m' -> $m), no parent (-1).
+// 1 config, no parent (-1), no constructor, 0 statics, 1 method ('m' -> $m).
 let data = [
   1,          // 1 config
+  0x7f,       // parent = -1
   0,          // no constructor / 0 statics
   1,          // 1 method
   0, 1, 109,  // kWasmMethod, name="m"
-  0x7f,       // parent = -1
 ];
 
 let proto_segment = builder.addPassiveElementSegment(

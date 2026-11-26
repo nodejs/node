@@ -106,9 +106,9 @@ class TypeInferenceReducer
             const std::vector<std::pair<turboshaft::OpIndex, turboshaft::Type>>&
                 refinements = block_refinements[index];
             if (refinements.empty()) return false;
-            stream << "\\n";
+            stream << "\n";
             for (const auto& [op, type] : refinements) {
-              stream << op << " : " << type << "\\n";
+              stream << op << " : " << type << "\n";
             }
             return true;
           });

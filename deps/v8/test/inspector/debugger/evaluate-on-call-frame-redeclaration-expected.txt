@@ -1,0 +1,67 @@
+Tests var and function declarations in Debugger.evaluateOnCallFrame.
+
+Running test: testModuleExportsRepro
+function e1(){}: EvalError: Identifier 'e1' cannot be declared with 'var' in current evaluation scope, consider trying 'let' instead
+function e2(){}: EvalError: Identifier 'e2' cannot be declared with 'var' in current evaluation scope, consider trying 'let' instead
+function e3(){}: EvalError: Identifier 'e3' cannot be declared with 'var' in current evaluation scope, consider trying 'let' instead
+var e1 = 99;: EvalError: Identifier 'e1' cannot be declared with 'var' in current evaluation scope, consider trying 'let' instead
+{ function e1(){} }: EvalError: Identifier 'e1' cannot be declared with 'var' in current evaluation scope, consider trying 'let' instead
+function c(){}: EvalError: Identifier 'c' cannot be declared with 'var' in current evaluation scope, consider trying 'let' instead
+var c = 99;: EvalError: Identifier 'c' cannot be declared with 'var' in current evaluation scope, consider trying 'let' instead
+function fn(){}: EvalError: Identifier 'fn' cannot be declared with 'var' in current evaluation scope, consider trying 'let' instead
+function localLet(){}: EvalError: Identifier 'localLet' cannot be declared with 'var' in current evaluation scope, consider trying 'let' instead
+var localLet = 99;: EvalError: Identifier 'localLet' cannot be declared with 'var' in current evaluation scope, consider trying 'let' instead
+function localConst(){}: EvalError: Identifier 'localConst' cannot be declared with 'var' in current evaluation scope, consider trying 'let' instead
+var missing = 1;: EvalError: Identifier 'missing' cannot be declared with 'var' in current evaluation scope, consider trying 'let' instead
+function missing(){}: EvalError: Identifier 'missing' cannot be declared with 'var' in current evaluation scope, consider trying 'let' instead
+var v = 11;: EvalError: Identifier 'v' cannot be declared with 'var' in current evaluation scope, consider trying 'let' instead
+function v(){ return 42; }: EvalError: Identifier 'v' cannot be declared with 'var' in current evaluation scope, consider trying 'let' instead
+var localVar = 41;: EvalError: Identifier 'localVar' cannot be declared with 'var' in current evaluation scope, consider trying 'let' instead
+function localVar(){ return 84; }: EvalError: Identifier 'localVar' cannot be declared with 'var' in current evaluation scope, consider trying 'let' instead
+after: {"e1":1,"e2":2,"e3":3,"c":4,"fn":"orig","v":10,"localLet":20,"localConst":30,"localVar":40}
+
+Running test: testModuleTopLevel
+function e(){}: EvalError: Identifier 'e' cannot be declared with 'var' in current evaluation scope, consider trying 'let' instead
+var e;: EvalError: Identifier 'e' cannot be declared with 'var' in current evaluation scope, consider trying 'let' instead
+
+Running test: testModuleImports
+function dep1(){}: EvalError: Identifier 'dep1' cannot be declared with 'var' in current evaluation scope, consider trying 'let' instead
+function dep2(){}: EvalError: Identifier 'dep2' cannot be declared with 'var' in current evaluation scope, consider trying 'let' instead
+function depVar(){}: EvalError: Identifier 'depVar' cannot be declared with 'var' in current evaluation scope, consider trying 'let' instead
+var dep1;: EvalError: Identifier 'dep1' cannot be declared with 'var' in current evaluation scope, consider trying 'let' instead
+function ns(){}: EvalError: Identifier 'ns' cannot be declared with 'var' in current evaluation scope, consider trying 'let' instead
+after: {"dep1":1,"dep2":2,"depVar":3,"nsDep1":1}
+
+Running test: testModuleNestedEvalContexts
+with ({}) { eval("var x = 1"); }: EvalError: Identifier 'x' cannot be declared with 'var' in current evaluation scope, consider trying 'let' instead
+with ({}) { eval("function e(){}"); }: EvalError: Identifier 'e' cannot be declared with 'var' in current evaluation scope, consider trying 'let' instead
+try { throw 1; } catch (_) { eval("var x = 1"); }: EvalError: Identifier 'x' cannot be declared with 'var' in current evaluation scope, consider trying 'let' instead
+{ let z = 1; (() => z); eval("var x = 1"); }: EvalError: Identifier 'x' cannot be declared with 'var' in current evaluation scope, consider trying 'let' instead
+let z = 1; (() => z); eval("var x = 1");: EvalError: Identifier 'x' cannot be declared with 'var' in current evaluation scope, consider trying 'let' instead
+let z = 1; (() => z); var x = 1;: EvalError: Identifier 'x' cannot be declared with 'var' in current evaluation scope, consider trying 'let' instead
+let z = 1; (() => z); function x(){}: EvalError: Identifier 'x' cannot be declared with 'var' in current evaluation scope, consider trying 'let' instead
+
+Running test: testFunctionContextBindings
+function c(){}: SyntaxError: Identifier 'c' has already been declared
+var c = 9;: SyntaxError: Identifier 'c' has already been declared
+function l(){}: SyntaxError: Identifier 'l' has already been declared
+var l = 9;: SyntaxError: Identifier 'l' has already been declared
+function v(){ return 77; }: ok (undefined)
+var missing = 1;: EvalError: Identifier 'missing' cannot be declared with 'var' in current evaluation scope, consider trying 'let' instead
+runOuterBindings: {"c":1,"l":2,"vType":"function","vVal":77}
+function l(){}: SyntaxError: Identifier 'l' has already been declared
+function c(){}: SyntaxError: Identifier 'c' has already been declared
+runOuterTdz: [123,456]
+function a(){}: SyntaxError: Identifier 'a' has already been declared
+function arguments(){}: SyntaxError: Identifier 'arguments' has already been declared
+runNonSimpleParams: [null,0]
+
+Running test: testStrictEvalAndStaticBlock
+function c(){}: SyntaxError: Identifier 'c' has already been declared
+function l(){}: SyntaxError: Identifier 'l' has already been declared
+var missing = 1;: EvalError: Identifier 'missing' cannot be declared with 'var' in current evaluation scope, consider trying 'let' instead
+strictEval: 1,2
+function c(){}: SyntaxError: Identifier 'c' has already been declared
+function l(){}: SyntaxError: Identifier 'l' has already been declared
+var missing = 1;: EvalError: Identifier 'missing' cannot be declared with 'var' in current evaluation scope, consider trying 'let' instead
+staticBlock: [1,2]

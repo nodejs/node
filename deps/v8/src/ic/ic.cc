@@ -131,7 +131,7 @@ void IC::TraceIC(const char* type, DirectHandle<Object> name) {
   if (V8_LIKELY(!TracingFlags::is_ic_stats_enabled())) return;
   State new_state =
       (state() == NO_FEEDBACK) ? NO_FEEDBACK : nexus()->ic_state();
-  TraceIC(type, name, state(), new_state);
+  TraceIC(type, name, state_, new_state);
 }
 
 void IC::TraceIC(const char* type, DirectHandle<Object> name, State old_state,
@@ -212,7 +212,6 @@ IC::IC(Isolate* isolate, Handle<FeedbackVector> vector, FeedbackSlot slot,
       nexus_(isolate, vector, slot) {
   DCHECK_IMPLIES(!vector.is_null(), kind_ == nexus_.kind());
   state_ = (vector.is_null()) ? NO_FEEDBACK : nexus_.ic_state();
-  old_state_ = state_;
   caller_frame_type_ = caller_frame_type;
 }
 
@@ -324,6 +323,12 @@ void IC::UpdateState(DirectHandle<Object> lookup_start_object,
   }
 }
 
+bool IC::CanUpdateElementIC() const {
+  return state() == UNINITIALIZED ||
+         ((state() == MONOMORPHIC || state() == POLYMORPHIC) &&
+          nexus()->GetKeyType() == IcCheckType::kElement);
+}
+
 MaybeDirectHandle<Object> IC::TypeError(MessageTemplate index,
                                         Handle<Object> object,
                                         Handle<Object> key) {
@@ -371,8 +376,12 @@ bool MigrateDeprecated(Isolate* isolate, DirectHandle<Object> object) {
 bool IC::ConfigureVectorState(IC::State new_state, DirectHandle<Object> key) {
   DCHECK_EQ(MEGAMORPHIC, new_state);
   DCHECK_IMPLIES(!is_keyed(), IsName(*key));
-  bool changed = nexus()->ConfigureMegamorphic(
-      IsName(*key) ? IcCheckType::kProperty : IcCheckType::kElement);
+  IcCheckType check_type =
+      IsName(*key) && (!is_keyed() || state() == UNINITIALIZED ||
+                       nexus()->GetKeyType() == IcCheckType::kProperty)
+          ? IcCheckType::kProperty
+          : IcCheckType::kElement;
+  bool changed = nexus()->ConfigureMegamorphic(check_type);
   if (changed) {
     OnFeedbackChanged("Megamorphic");
   }
@@ -1193,6 +1202,18 @@ MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
       return MaybeObjectHandle(
           BUILTIN_CODE(isolate(), LoadIC_FunctionPrototype));
     }
+
+    // Use specialized code for getting the name of functions.
+    if (IsJSFunction(*lookup_start_object) &&
+        *lookup->name() == roots.name_string() &&
+        lookup->state() == LookupIterator::ACCESSOR &&
+        lookup_start_object.is_identical_to(lookup->GetHolder<JSReceiver>()) &&
+        Cast<JSFunction>(*lookup_start_object)->HasFastProperties() &&
+        *lookup->GetAccessors() ==
+            *isolate()->factory()->function_name_accessor()) {
+      TRACE_HANDLER_STATS(isolate(), LoadIC_FunctionNameStub);
+      return MaybeObjectHandle(BUILTIN_CODE(isolate(), LoadIC_FunctionName));
+    }
   }
 
   DirectHandle<Map> map = lookup_start_object_map();
@@ -1421,10 +1442,8 @@ MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
         TRACE_HANDLER_STATS(isolate(), LoadIC_LoadFieldFromPrototypeDH);
       }
       if (lookup->constness() == PropertyConstness::kConst &&
-          !holder_is_lookup_start_object) {
-        DCHECK_IMPLIES(!V8_DICT_PROPERTY_CONST_TRACKING_BOOL,
-                       !lookup->is_dictionary_holder());
-
+          !holder_is_lookup_start_object &&
+          (V8_DICT_PROTOTYPES_BOOL || !lookup->is_dictionary_holder())) {
         DirectHandle<Object> value = lookup->GetDataValue();
 
         if (IsThinString(*value)) {
@@ -1568,6 +1587,8 @@ bool AllowedHandlerChange(KeyedAccessLoadMode old_mode,
 
 void KeyedLoadIC::UpdateLoadElement(DirectHandle<HeapObject> receiver,
                                     const KeyedAccessLoadMode new_load_mode) {
+  if (!CanUpdateElementIC()) return;
+
   Handle<Map> receiver_map(receiver->map(), isolate());
   DCHECK(receiver_map->instance_type() !=
          JS_PRIMITIVE_WRAPPER_TYPE);  // Checked by caller.
@@ -2249,8 +2270,17 @@ Maybe<bool> DefineOwnDataProperty(LookupIterator* it,
                                         it->GetName(), &new_desc, should_throw);
     }
     case LookupIterator::WASM_OBJECT:
+#if V8_ENABLE_WEBASSEMBLY
+      if (v8_flags.wasm_custom_descriptors) {
+        RETURN_FAILURE(
+            it->isolate(), GetShouldThrow(it->isolate(), should_throw),
+            NewTypeError(MessageTemplate::kDefineDisallowed, it->GetName()));
+      }
       RETURN_FAILURE(it->isolate(), kThrowOnError,
                      NewTypeError(MessageTemplate::kWasmObjectsAreOpaque));
+#else
+      UNREACHABLE();
+#endif  // V8_ENABLE_WEBASSEMBLY
     // When lazy feedback is disabled, the original state could be different
     // while the object is already prepared for TRANSITION.
     case LookupIterator::TRANSITION: {
@@ -2716,10 +2746,6 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
         TRACE_HANDLER_STATS(isolate(), StoreIC_StoreFieldDH);
         InternalIndex descriptor = lookup->GetFieldDescriptorIndex();
         FieldIndex index = lookup->GetFieldIndex();
-        if (V8_UNLIKELY(IsJSSharedStruct(*holder))) {
-          return MaybeObjectHandle(StoreHandler::StoreSharedStructField(
-              isolate(), descriptor, index, lookup->representation()));
-        }
         return MaybeObjectHandle(StoreHandler::StoreField(
             isolate(), descriptor, index, lookup->constness(),
             lookup->representation()));
@@ -2765,6 +2791,8 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
 void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
                                       KeyedAccessStoreMode store_mode,
                                       Handle<Map> new_receiver_map) {
+  if (!CanUpdateElementIC()) return;
+
   MapsAndHandlers target_maps_and_handlers(isolate());
   nexus()->ExtractMapsAndHandlers(
       &target_maps_and_handlers,
@@ -2989,7 +3017,7 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
 void KeyedStoreIC::StoreElementPolymorphicHandlers(
     MapsAndHandlers* receiver_maps_and_handlers,
     KeyedAccessStoreMode store_mode) {
-  DirectHandleVector<Map> receiver_maps(isolate());
+  MapHandles receiver_maps(isolate());
   receiver_maps.reserve(receiver_maps_and_handlers->size());
   for (DirectHandle<Map> map : receiver_maps_and_handlers->maps()) {
     receiver_maps.push_back(map);

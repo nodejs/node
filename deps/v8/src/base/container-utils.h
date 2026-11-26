@@ -75,18 +75,6 @@ inline size_t erase_at(C& container, size_t index, size_t count = 1) {
   return count;
 }
 
-// Removes all elements from {container} that satisfy {predicate}. Returns the
-// number of removed elements.
-// TODO(C++20): Replace with std::erase_if.
-template <typename C, typename P>
-inline size_t erase_if(C& container, const P& predicate) {
-  auto it =
-      std::remove_if(std::begin(container), std::end(container), predicate);
-  auto count = std::distance(it, std::end(container));
-  container.erase(it, std::end(container));
-  return count;
-}
-
 // Helper for std::count_if.
 template <typename C, typename P>
 inline size_t count_if(const C& container, const P& predicate) {

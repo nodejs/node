@@ -59,8 +59,6 @@ extern runtime WasmAllocateDescriptorStruct(
     |WasmCustomMap;
 extern runtime WasmArrayNewSegment(
     Context, WasmTrustedInstanceData, Smi, Smi, Smi, Smi, Map): Object;
-extern runtime WasmStringNewSegmentWtf8(
-    Context, WasmTrustedInstanceData, Smi, Smi, Smi, Smi): String|WasmNull;
 extern runtime WasmArrayInitSegment(
     Context, WasmTrustedInstanceData, Smi, Smi, WasmArray, Smi, Smi,
     Smi): JSAny;
@@ -852,7 +850,7 @@ builtin CallRefIC(
 
   const internal = funcref.internal;
   return TargetAndImplicitArg{
-    target: internal.raw_call_target,
+    target: internal.call_target,
     implicit_arg: internal.implicit_arg
   };
 }
@@ -1134,35 +1132,6 @@ builtin WasmStringNewWtf16Array(
     const context = LoadContextFromWasmOrJsFrame();
     tail runtime::WasmStringNewWtf16Array(
         context, array, SmiFromUint32(start), SmiFromUint32(end), config);
-  }
-}
-
-// For imports based string constants.
-// Always returns a String or WasmNull if it didn't trap; typed "JSAny" to
-// satisfy Torque's type checker for tail calls.
-builtin WasmStringFromDataSegment(
-    segmentLength: uint32, arrayStart: uint32, arrayEnd: uint32,
-    segmentIndex: Smi, segmentOffset: Smi, variant: Smi): JSAny|WasmNull {
-  const trustedData = LoadInstanceDataFromFrame();
-  try {
-    const segmentOffsetU: uint32 = Unsigned(SmiToInt32(segmentOffset));
-    if (segmentLength > Convert<uint32>(kSmiMax) - segmentOffsetU) {
-      goto SegmentOOB;
-    }
-    if (arrayStart > segmentLength) goto ArrayOutOfBounds;
-    if (arrayEnd < arrayStart) goto ArrayOutOfBounds;
-    const arrayLength = arrayEnd - arrayStart;
-    if (arrayLength > segmentLength - arrayStart) goto ArrayOutOfBounds;
-    const smiOffset = Convert<PositiveSmi>(segmentOffsetU + arrayStart)
-        otherwise SegmentOOB;
-    const smiLength = Convert<PositiveSmi>(arrayLength) otherwise SegmentOOB;
-    tail runtime::WasmStringNewSegmentWtf8(
-        LoadContextFromInstanceData(trustedData), trustedData, segmentIndex,
-        smiOffset, smiLength, variant);
-  } label SegmentOOB deferred {
-    tail ThrowWasmTrapElementSegmentOutOfBounds();
-  } label ArrayOutOfBounds deferred {
-    tail ThrowWasmTrapArrayOutOfBounds();
   }
 }
 

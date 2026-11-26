@@ -54,7 +54,7 @@ class BlockInstrumentationReducer
     if (0 == operations_emitted_in_current_block_++) {
       // If this is the first (non-skipped) operation in this block, emit
       // instrumentation.
-      const int block_number = __ current_block() -> index().id();
+      const int block_number = __ current_block()->index().id();
       EmitBlockInstrumentation(block_number);
     }
     return Continuation{this}.Reduce(args...);
@@ -159,8 +159,8 @@ class BlockInstrumentationReducer
   }
 
  private:
-  Isolate* isolate_ = __ data() -> isolate();
-  BasicBlockProfilerData* data_ = __ data() -> info()->profiler_data();
+  Isolate* isolate_ = __ data()->isolate();
+  BasicBlockProfilerData* data_ = __ data()->info()->profiler_data();
   const bool on_heap_counters_ =
       isolate_ && isolate_->IsGeneratingEmbeddedBuiltins();
   size_t operations_emitted_in_current_block_ = 0;

@@ -70,8 +70,6 @@
 #endif  // V8_INTL_SUPPORT
 #include "src/codegen/script-details.h"
 #include "src/objects/js-raw-json.h"
-#include "src/objects/js-shared-array.h"
-#include "src/objects/js-struct.h"
 #ifdef V8_TEMPORAL_SUPPORT
 #include "src/objects/js-temporal-objects-inl.h"
 #endif  // V8_TEMPORAL_SUPPORT
@@ -85,7 +83,9 @@
 #include "src/snapshot/snapshot.h"
 #include "src/zone/zone-hashmap.h"
 
-#ifdef V8_FUZZILLI
+#if defined(V8_REDLINE)
+#include "experimental/redline/d8/redline.h"  // nogncheck
+#elif defined(V8_FUZZILLI)
 #include "src/fuzzilli/fuzzilli.h"
 #endif
 
@@ -161,7 +161,9 @@ static bool isValidCpuTraceMarkFunctionName() {
 
 void Bootstrapper::InitializeOncePerProcess() {
   v8::RegisterExtension(std::make_unique<GCExtension>(GCFunctionName()));
-#ifdef V8_FUZZILLI
+#if defined(V8_REDLINE)
+  v8::RegisterExtension(std::make_unique<RedlineExtension>("redline"));
+#elif defined(V8_FUZZILLI)
   v8::RegisterExtension(std::make_unique<FuzzilliExtension>("fuzzilli"));
 #endif
   v8::RegisterExtension(std::make_unique<ExternalizeStringExtension>());
@@ -262,8 +264,6 @@ class Genesis {
 #undef IGNORE_FEATURE
   void InitializeGlobal_regexp_linear_flag();
   void InitializeGlobal_sharedarraybuffer();
-  // TODO(572988458): Remove harmony_struct initialization.
-  void InitializeGlobal_harmony_struct();
 #if V8_ENABLE_WEBASSEMBLY
   void InitializeWasmJSPI();
 #endif
@@ -364,7 +364,8 @@ DirectHandle<NativeContext> Bootstrapper::CreateEnvironment(
                     context_snapshot_index, embedder_fields_deserializer,
                     microtask_queue);
     env = genesis.result();
-    if (env.is_null() || !InstallExtensions(env, extensions)) {
+    if (env.is_null() ||
+        (extensions != nullptr && !InstallExtensions(env, extensions))) {
       return {};
     }
   }
@@ -624,28 +625,6 @@ V8_NOINLINE Handle<JSFunction> InstallFunctionAtSymbol(
       SimpleCreateFunction(isolate, internalized_symbol, call, len, adapt);
   JSObject::AddProperty(isolate, base, symbol, fun, attrs);
   return fun;
-}
-
-V8_NOINLINE DirectHandle<JSFunction> CreateSharedObjectConstructor(
-    Isolate* isolate, DirectHandle<String> name, DirectHandle<Map> instance_map,
-    Builtin builtin, int len, AdaptArguments adapt) {
-  Factory* factory = isolate->factory();
-  DirectHandle<SharedFunctionInfo> info =
-      factory->NewSharedFunctionInfoForBuiltin(name, builtin, len, adapt);
-  info->set_language_mode(LanguageMode::kStrict);
-  DirectHandle<JSFunction> constructor =
-      Factory::JSFunctionBuilder{isolate, info, isolate->native_context()}
-          .set_map(isolate->function_with_readonly_prototype_map())
-          .Build();
-  constructor->set_prototype_or_initial_map(*instance_map, kReleaseStore);
-
-  JSObject::AddProperty(
-      isolate, constructor, factory->has_instance_symbol(),
-      direct_handle(
-          isolate->native_context()->shared_space_js_object_has_instance(),
-          isolate),
-      static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY));
-  return constructor;
 }
 
 V8_NOINLINE void SimpleInstallGetterSetter(Isolate* isolate,
@@ -3377,13 +3356,6 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
                Context::SUPPRESSED_ERROR_FUNCTION_INDEX,
                Builtin::kSuppressedErrorConstructor, 3);
 
-  // Initialize the embedder data slot.
-  // TODO(ishell): microtask queue pointer will be moved from native context
-  // to the embedder data array so we don't need an empty embedder data array.
-  DirectHandle<EmbedderDataArray> embedder_data =
-      factory->NewEmbedderDataArray(V8_EMBEDDER_DATA_ARRAY_SIZE);
-  native_context()->set_embedder_data(*embedder_data);
-
   {  // -- g l o b a l T h i s
     DirectHandle<JSGlobalProxy> global_proxy(native_context()->global_proxy(),
                                              isolate_);
@@ -3402,7 +3374,7 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
           Representation::Tagged(), true);
       raw_json_map->AppendDescriptor(isolate(), &d);
     }
-    raw_json_map->SetPrototype(isolate(), raw_json_map, factory->null_value());
+    Map::SetPrototype(isolate(), raw_json_map, factory->null_value());
     raw_json_map->SetConstructor(native_context()->object_function());
     native_context()->set_js_raw_json_map(*raw_json_map);
 
@@ -4698,6 +4670,11 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
     // V(ITERATOR_FUNCTION, zip, Zip, ZIP, 1, kDontAdapt)
     // V(ITERATOR_FUNCTION, zipKeyed, ZipKeyed, ZIP_KEYED, 1, kDontAdapt)
 
+    // TODO(nikolaos, 504663595): Once the --js-iterator-chunking flag is
+    // removed, add the following lines to the above macro:
+    // V(ITERATOR_PROTOTYPE, chunks, Chunks, CHUNKS, 1, kAdapt)
+    // V(ITERATOR_PROTOTYPE, windows, Windows, WINDOWS, 1, kDontAdapt)
+
     ITERATOR_HELPERS(INSTALL_ITERATOR_HELPER)
 
 #undef INSTALL_ITERATOR_HELPER
@@ -4705,9 +4682,12 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
 #undef ITERATOR_FUNCTION
 #undef ITERATOR_HELPERS
 
-    // TODO(nikolaos, 434977727): Once the --js-iterator-sequencing flag is
-    // removed, remove the three lines below.
+    // TODO(nikolaos, 434977727, 465357675, 504663595): Once the
+    // --js-iterator-sequencing, --js-joint-iteration, and
+    // --js-iterator-chunking flags are removed, remove the lines below.
     USE(v8_flags.js_iterator_sequencing);
+    USE(v8_flags.js_joint_iteration);
+    USE(v8_flags.js_iterator_chunking);
     native_context()->set_initial_iterator_helper_prototype(
         *iterator_helper_prototype);
     native_context()->set_initial_iterator_function(*iterator_function);
@@ -5255,9 +5235,13 @@ bool Genesis::CompileExtension(Isolate* isolate, v8::Extension* extension) {
   HandleScope scope(isolate);
   DirectHandle<SharedFunctionInfo> function_info;
 
+  // TODO(crbug.com/562847435): Make v8::Extension::source() non-const to avoid
+  // the const_cast.
   Handle<String> source =
       isolate->factory()
-          ->NewExternalStringFromOneByte(extension->source())
+          ->NewExternalStringFromOneByte(
+              const_cast<v8::String::ExternalOneByteStringResource*>(
+                  extension->source()))
           .ToHandleChecked();
   DCHECK(source->IsOneByteRepresentation());
 
@@ -5625,6 +5609,7 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(js_import_text)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(js_regexp_buffer_boundaries)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(js_decorators)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(js_import_bytes)
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(js_nonextensible_applies_to_private)
 
 #ifdef V8_INTL_SUPPORT
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_intl_best_fit_matcher)
@@ -5724,6 +5709,42 @@ void Genesis::InitializeGlobal_js_iterator_includes() {
                         Builtin::kIteratorPrototypeIncludes, 1, kDontAdapt);
 }
 
+void Genesis::InitializeGlobal_js_iterator_chunking() {
+  if (!v8_flags.js_iterator_chunking) return;
+  DirectHandle<JSObject> iterator_helper_prototype(
+      native_context()->initial_iterator_helper_prototype(), isolate());
+  DirectHandle<JSObject> iterator_prototype(
+      native_context()->initial_iterator_prototype(), isolate());
+  DirectHandle<JSFunction> iterator_function(
+      native_context()->initial_iterator_function(), isolate());
+
+  {
+    DirectHandle<Map> map =
+        isolate_->factory()->NewContextfulMapForCurrentContext(
+            JS_ITERATOR_CHUNKS_HELPER_TYPE, sizeof(JSIteratorChunksHelper),
+            TERMINAL_FAST_ELEMENTS_KIND, 0);
+    Map::SetPrototype(isolate(), map, iterator_helper_prototype);
+    map->SetConstructor(*iterator_function);
+    native_context()->set_iterator_chunks_helper_map(*map);
+    LOG(isolate_, MapDetails(*map));
+    SimpleInstallFunction(isolate(), iterator_prototype, "chunks",
+                          Builtin::kIteratorPrototypeChunks, 1, kAdapt);
+  }
+
+  {
+    DirectHandle<Map> map =
+        isolate_->factory()->NewContextfulMapForCurrentContext(
+            JS_ITERATOR_WINDOWS_HELPER_TYPE, sizeof(JSIteratorWindowsHelper),
+            TERMINAL_FAST_ELEMENTS_KIND, 0);
+    Map::SetPrototype(isolate(), map, iterator_helper_prototype);
+    map->SetConstructor(*iterator_function);
+    native_context()->set_iterator_windows_helper_map(*map);
+    LOG(isolate_, MapDetails(*map));
+    SimpleInstallFunction(isolate(), iterator_prototype, "windows",
+                          Builtin::kIteratorPrototypeWindows, 1, kDontAdapt);
+  }
+}
+
 void Genesis::InitializeGlobal_harmony_shadow_realm() {
   if (!v8_flags.harmony_shadow_realm) return;
   Factory* factory = isolate()->factory();
@@ -5792,53 +5813,6 @@ void Genesis::InitializeGlobal_harmony_shadow_realm() {
     shadow_realm_import_value_rejected->shared()->set_native(false);
     native_context()->set_shadow_realm_import_value_rejected(
         *shadow_realm_import_value_rejected);
-  }
-}
-
-void Genesis::InitializeGlobal_harmony_struct() {
-  if (!v8_flags.harmony_struct) return;
-
-  DirectHandle<JSGlobalObject> global(native_context()->global_object(),
-                                      isolate());
-
-  {
-    // Install shared objects @@hasInstance in the native context.
-    DirectHandle<JSFunction> has_instance = SimpleCreateFunction(
-        isolate(), factory()->empty_string(),
-        Builtin::kSharedSpaceJSObjectHasInstance, 1, kDontAdapt);
-    native_context()->set_shared_space_js_object_has_instance(*has_instance);
-  }
-
-  {  // SharedStructType
-    DirectHandle<String> name =
-        isolate()->factory()->InternalizeUtf8String("SharedStructType");
-    DirectHandle<JSFunction> shared_struct_type_fun = CreateFunctionForBuiltin(
-        isolate(), name, isolate()->function_with_readonly_prototype_map(),
-        Builtin::kSharedStructTypeConstructor, 1, kDontAdapt);
-    JSObject::MakePrototypesFast(shared_struct_type_fun, kStartAtReceiver,
-                                 isolate());
-    shared_struct_type_fun->shared()->set_native(true);
-    JSObject::AddProperty(isolate(), global, "SharedStructType",
-                          shared_struct_type_fun, DONT_ENUM);
-
-    SimpleInstallFunction(isolate(), shared_struct_type_fun, "isSharedStruct",
-                          Builtin::kSharedStructTypeIsSharedStruct, 1, kAdapt);
-  }
-
-  {  // SharedArray
-    DirectHandle<String> shared_array_str =
-        isolate()->factory()->InternalizeUtf8String("SharedArray");
-    DirectHandle<JSFunction> shared_array_fun = CreateSharedObjectConstructor(
-        isolate(), shared_array_str,
-        isolate()->factory()->js_shared_array_map(),
-        Builtin::kSharedArrayConstructor, 0, kAdapt);
-
-    // Install SharedArray constructor.
-    JSObject::AddProperty(isolate(), global, "SharedArray", shared_array_fun,
-                          DONT_ENUM);
-
-    SimpleInstallFunction(isolate(), shared_array_fun, "isSharedArray",
-                          Builtin::kSharedArrayIsSharedArray, 1, kAdapt);
   }
 }
 
@@ -6549,7 +6523,9 @@ bool Genesis::InstallExtensions(Isolate* isolate,
           InstallExtension(isolate, "v8/trigger-failure", &extension_states)) &&
          (!isValidCpuTraceMarkFunctionName() ||
           InstallExtension(isolate, "v8/cpumark", &extension_states)) &&
-#ifdef V8_FUZZILLI
+#if defined(V8_REDLINE)
+         InstallExtension(isolate, "v8/redline", &extension_states) &&
+#elif defined(V8_FUZZILLI)
          InstallExtension(isolate, "v8/fuzzilli", &extension_states) &&
 #endif
 #ifdef ENABLE_VTUNE_TRACEMARK

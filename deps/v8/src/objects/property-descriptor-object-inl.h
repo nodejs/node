@@ -20,15 +20,15 @@ namespace internal {
 PropertyDescriptorObject::PropertyDescriptorObject(
     const AllocationWitness& witness)
     : Struct(witness.roots().property_descriptor_object_map()),
-      flags_(Smi::zero()),
+      flags_(Flags{}),
       value_(witness.roots().the_hole_value()),
       get_(witness.roots().the_hole_value()),
       set_(witness.roots().the_hole_value()) {}
 
-int PropertyDescriptorObject::flags() const { return flags_.load().value(); }
-void PropertyDescriptorObject::set_flags(int value) {
-  flags_.store(this, Smi::FromInt(value));
+PropertyDescriptorObject::Flags PropertyDescriptorObject::flags() const {
+  return flags_.load();
 }
+void PropertyDescriptorObject::set_flags(Flags value) { flags_.store(value); }
 
 Tagged<UnionOf<JSAny, TheHole>> PropertyDescriptorObject::value() const {
   return value_.load();

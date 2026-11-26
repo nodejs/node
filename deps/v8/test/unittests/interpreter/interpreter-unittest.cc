@@ -4133,9 +4133,9 @@ TEST_F(InterpreterTest, InterpreterEvalVariableDecl) {
        " return x.name; }",
        factory->NewStringFromStaticChars("test")},
       {"function f() {"
-       "  eval('var x = [{name:\"test\"}, {type:\"cc\"}];');"
+       "  eval('var x = [{name:\"test\"}, {type:\"unit\"}];');"
        "  return x[1].type+x[0].name; }",
-       factory->NewStringFromStaticChars("cctest")},
+       factory->NewStringFromStaticChars("unittest")},
       {"function f() {\n"
        " var x = 3;\n"
        " var get_eval_x;\n"
@@ -4659,7 +4659,7 @@ TEST_F(InterpreterTest, InterpreterWithNativeStack) {
   if (v8_flags.always_sparkplug) return;
 
   i::FakeCodeEventLogger code_event_logger(i_isolate());
-  i::v8_flags.interpreted_frames_native_stack = true;
+  i::v8_flags.interpreted_frames_native_stack.Set(true);
   CHECK(i_isolate()->logger()->AddListener(&code_event_logger));
 
   const char* source_text =
@@ -4716,8 +4716,8 @@ TEST_F(InterpreterTest, InterpreterGetBytecodeHandler) {
 }
 
 TEST_F(InterpreterTest, InterpreterCollectSourcePositions) {
-  v8_flags.enable_lazy_source_positions = true;
-  v8_flags.stress_lazy_source_positions = false;
+  v8_flags.enable_lazy_source_positions.Set(true);
+  v8_flags.stress_lazy_source_positions.Set(false);
 
   const char* source =
       "(function () {\n"
@@ -4742,8 +4742,8 @@ TEST_F(InterpreterTest, InterpreterCollectSourcePositions) {
 }
 
 TEST_F(InterpreterTest, InterpreterCollectSourcePositions_StackOverflow) {
-  v8_flags.enable_lazy_source_positions = true;
-  v8_flags.stress_lazy_source_positions = false;
+  v8_flags.enable_lazy_source_positions.Set(true);
+  v8_flags.stress_lazy_source_positions.Set(false);
 
   const char* source =
       "(function () {\n"
@@ -4779,8 +4779,8 @@ TEST_F(InterpreterTest, InterpreterCollectSourcePositions_StackOverflow) {
 }
 
 TEST_F(InterpreterTest, InterpreterCollectSourcePositions_ThrowFrom1stFrame) {
-  v8_flags.enable_lazy_source_positions = true;
-  v8_flags.stress_lazy_source_positions = false;
+  v8_flags.enable_lazy_source_positions.Set(true);
+  v8_flags.stress_lazy_source_positions.Set(false);
 
   const char* source =
       R"javascript(
@@ -4812,8 +4812,8 @@ TEST_F(InterpreterTest, InterpreterCollectSourcePositions_ThrowFrom1stFrame) {
 }
 
 TEST_F(InterpreterTest, InterpreterCollectSourcePositions_ThrowFrom2ndFrame) {
-  v8_flags.enable_lazy_source_positions = true;
-  v8_flags.stress_lazy_source_positions = false;
+  v8_flags.enable_lazy_source_positions.Set(true);
+  v8_flags.stress_lazy_source_positions.Set(false);
 
   const char* source =
       R"javascript(
@@ -4866,8 +4866,8 @@ void CheckStringEqual(const char* expected_ptr,
 }  // namespace
 
 TEST_F(InterpreterTest, InterpreterCollectSourcePositions_GenerateStackTrace) {
-  v8_flags.enable_lazy_source_positions = true;
-  v8_flags.stress_lazy_source_positions = false;
+  v8_flags.enable_lazy_source_positions.Set(true);
+  v8_flags.stress_lazy_source_positions.Set(false);
 
   const char* source =
       R"javascript(
@@ -4922,8 +4922,8 @@ TEST_F(InterpreterTest, InterpreterLookupNameOfBytecodeHandler) {
 TEST_F(InterpreterTest, UnoptimizedFrameSlotAlignment) {
   if (v8_flags.jitless) return;
   SaveFlags save_flags;
-  v8_flags.always_sparkplug = false;
-  v8_flags.sparkplug = true;
+  v8_flags.always_sparkplug.Set(false);
+  v8_flags.sparkplug.Set(true);
 
   static StackFrame::Type expected_frame_type = StackFrame::INTERPRETED;
   static int expected_register_count = 0;

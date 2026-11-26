@@ -24,7 +24,8 @@ class CallPrinter final : public AstVisitor<CallPrinter> {
   ~CallPrinter();
 
   // The following routine prints the node with position |position| into a
-  // string.
+  // string. Returns an empty string if the node is not found or if the output
+  // exceeds String::kMaxLength.
   DirectHandle<String> Print(FunctionLiteral* program, int position);
   enum class ErrorHint {
     kNone,

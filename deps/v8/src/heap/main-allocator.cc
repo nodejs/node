@@ -696,7 +696,7 @@ bool PagedSpaceAllocatorPolicy::RefillLab(int size_in_bytes,
   // main space. For the same reason, don't take swept pages from the main
   // shared space.
   const bool running_from_client_isolate_and_allocating_in_shared_space =
-      (allocator_->identity() == SHARED_SPACE) &&
+      IsAnyWritableSharedSpace(allocator_->identity()) &&
       !isolate_heap()->isolate()->is_shared_space_isolate();
   if (running_from_client_isolate_and_allocating_in_shared_space) {
     // Avoid OOM crash in the GC in order to invoke NearHeapLimitCallback after

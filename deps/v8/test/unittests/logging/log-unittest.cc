@@ -58,11 +58,11 @@ namespace {
 class LogTest : public TestWithIsolate {
  public:
   static void SetUpTestSuite() {
-    i::v8_flags.log = true;
-    i::v8_flags.prof = true;
-    i::v8_flags.log_code = true;
-    i::v8_flags.logfile = i::LogFile::kLogToTemporaryFile;
-    i::v8_flags.logfile_per_isolate = false;
+    i::v8_flags.log.Set(true);
+    i::v8_flags.prof.Set(true);
+    i::v8_flags.log_code.Set(true);
+    i::v8_flags.logfile.Set(i::LogFile::kLogToTemporaryFile);
+    i::v8_flags.logfile_per_isolate.Set(false);
     TestWithIsolate::SetUpTestSuite();
   }
 };
@@ -333,7 +333,7 @@ TEST_F(TestWithIsolate, Issue23768) {
       i_isolate());
   // This situation can happen if source was an external string disposed
   // by its owner.
-  i_source->SetResource(i_isolate(), nullptr);
+  i_source->ReleaseResourceForTesting(i_isolate());
 
   // Must not crash.
   i_isolate()->v8_file_logger()->LogCompiledFunctions();
@@ -492,11 +492,11 @@ TEST_F(LogTest, Issue539892) {
 class LogAllTest : public LogTest {
  public:
   static void SetUpTestSuite() {
-    i::v8_flags.log_all = true;
-    i::v8_flags.log_deopt = true;
-    i::v8_flags.turbo_inlining = false;
-    i::v8_flags.log_timer_events = true;
-    i::v8_flags.allow_natives_syntax = true;
+    i::v8_flags.log_all.Set(true);
+    i::v8_flags.log_deopt.Set(true);
+    i::v8_flags.turbo_inlining.Set(false);
+    i::v8_flags.log_timer_events.Set(true);
+    i::v8_flags.allow_natives_syntax.Set(true);
     LogTest::SetUpTestSuite();
   }
 };
@@ -548,7 +548,7 @@ TEST_F(LogAllTest, LogAll) {
 class LogInterpretedFramesNativeStackTest : public LogTest {
  public:
   static void SetUpTestSuite() {
-    i::v8_flags.interpreted_frames_native_stack = true;
+    i::v8_flags.interpreted_frames_native_stack.Set(true);
     LogTest::SetUpTestSuite();
   }
 };
@@ -577,12 +577,12 @@ class LogInterpretedFramesNativeStackWithSerializationTest
       : array_buffer_allocator_(
             v8::ArrayBuffer::Allocator::NewDefaultAllocator()) {}
   static void SetUpTestSuite() {
-    i::v8_flags.log = true;
-    i::v8_flags.prof = true;
-    i::v8_flags.log_code = true;
-    i::v8_flags.logfile = i::LogFile::kLogToTemporaryFile;
-    i::v8_flags.logfile_per_isolate = false;
-    i::v8_flags.interpreted_frames_native_stack = true;
+    i::v8_flags.log.Set(true);
+    i::v8_flags.prof.Set(true);
+    i::v8_flags.log_code.Set(true);
+    i::v8_flags.logfile.Set(i::LogFile::kLogToTemporaryFile);
+    i::v8_flags.logfile_per_isolate.Set(false);
+    i::v8_flags.interpreted_frames_native_stack.Set(true);
     TestWithPlatform::SetUpTestSuite();
   }
 
@@ -666,8 +666,8 @@ TEST_F(LogInterpretedFramesNativeStackWithSerializationTest,
 class LogExternalLogEventListenerTest : public TestWithIsolate {
  public:
   static void SetUpTestSuite() {
-    i::v8_flags.log = false;
-    i::v8_flags.prof = false;
+    i::v8_flags.log.Set(false);
+    i::v8_flags.prof.Set(false);
     TestWithIsolate::SetUpTestSuite();
   }
 };
@@ -721,8 +721,8 @@ class LogExternalLogEventListenerInnerFunctionTest : public TestWithPlatform {
       : array_buffer_allocator_(
             v8::ArrayBuffer::Allocator::NewDefaultAllocator()) {}
   static void SetUpTestSuite() {
-    i::v8_flags.log = false;
-    i::v8_flags.prof = false;
+    i::v8_flags.log.Set(false);
+    i::v8_flags.prof.Set(false);
     TestWithPlatform::SetUpTestSuite();
   }
 
@@ -804,9 +804,9 @@ TEST_F(LogExternalLogEventListenerInnerFunctionTest,
 class LogExternalInterpretedFramesNativeStackTest : public TestWithIsolate {
  public:
   static void SetUpTestSuite() {
-    i::v8_flags.log = false;
-    i::v8_flags.prof = false;
-    i::v8_flags.interpreted_frames_native_stack = true;
+    i::v8_flags.log.Set(false);
+    i::v8_flags.prof.Set(false);
+    i::v8_flags.interpreted_frames_native_stack.Set(true);
     TestWithIsolate::SetUpTestSuite();
   }
 };
@@ -860,7 +860,7 @@ TEST_F(LogExternalInterpretedFramesNativeStackTest,
 class LogMapsTest : public LogTest {
  public:
   static void SetUpTestSuite() {
-    i::v8_flags.log_maps = true;
+    i::v8_flags.log_maps.Set(true);
     LogTest::SetUpTestSuite();
   }
 };
@@ -961,8 +961,8 @@ TEST_F(LogMapsTest, LogMapsDetailsStartup) {
 class LogMapsCodeTest : public LogTest {
  public:
   static void SetUpTestSuite() {
-    i::v8_flags.retain_maps_for_n_gc = 0xFFFFFFF;
-    i::v8_flags.log_maps = true;
+    i::v8_flags.retain_maps_for_n_gc.Set(0xFFFFFFF);
+    i::v8_flags.log_maps.Set(true);
     LogTest::SetUpTestSuite();
   }
 };
@@ -1086,7 +1086,7 @@ TEST_F(LogMapsTest, LogMapsDetailsContexts) {
 class LogTimerTest : public LogTest {
  public:
   static void SetUpTestSuite() {
-    i::v8_flags.log_timer_events = true;
+    i::v8_flags.log_timer_events.Set(true);
     LogTest::SetUpTestSuite();
   }
 };
@@ -1130,7 +1130,7 @@ TEST_F(LogTimerTest, ConsoleTimeEvents) {
 class LogFunctionEventsTest : public LogTest {
  public:
   static void SetUpTestSuite() {
-    i::v8_flags.log_function_events = true;
+    i::v8_flags.log_function_events.Set(true);
     LogTest::SetUpTestSuite();
   }
 };

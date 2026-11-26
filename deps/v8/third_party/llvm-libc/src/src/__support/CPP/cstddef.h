@@ -9,6 +9,7 @@
 #ifndef LLVM_LIBC_SRC___SUPPORT_CPP_CSTDDEF_H
 #define LLVM_LIBC_SRC___SUPPORT_CPP_CSTDDEF_H
 
+#include "src/__support/CPP/cstddef/nullptr_t.h"
 #include "src/__support/macros/attributes.h"
 #include "src/__support/macros/config.h"
 #include "type_traits.h" // For enable_if_t, is_integral_v.

@@ -18,11 +18,11 @@
 #include "src/__support/CPP/array.h"
 #include "src/__support/FPUtil/FEnvImpl.h"
 #include "src/__support/FPUtil/FPBits.h"
-#include "src/__support/FPUtil/PolyEval.h"
 #include "src/__support/FPUtil/cast.h"
 #include "src/__support/FPUtil/except_value_utils.h"
 #include "src/__support/FPUtil/multiply_add.h"
 #include "src/__support/FPUtil/nearest_integer.h"
+#include "src/__support/FPUtil/polyeval.h"
 #include "src/__support/FPUtil/rounding_mode.h"
 #include "src/__support/common.h"
 #include "src/__support/macros/config.h"
@@ -149,7 +149,7 @@ LIBC_INLINE float16 tanhf16(float16 x) {
   unsigned x_mid = static_cast<unsigned>(x_hi_mid) & 0x1f;
   // lo = x - (hi + mid)
   //    = round(x * log2(e) * 2 * 2^5) * log(2) * 0.5 * (-2^(-5)) + x
-  float lo = fputil::multiply_add(kf, LOGF_2 * 0.5f * -0x1.0p-5f, xf);
+  float lo = fputil::sub_multiply(xf, kf, LOGF_2 * 0.5f * 0x1.0p-5f);
 
   uint32_t exp2_hi_mid_bits =
       EXP2_MID_5_BITS[x_mid] +

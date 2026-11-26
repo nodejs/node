@@ -91,6 +91,15 @@ bool PagedSpaceBase::Contains(Tagged<Object> o) const {
          this;
 }
 
+void PagedSpaceBase::ClearAllocatorState() {
+  accounting_stats_.ClearSize();
+  if (v8_flags.black_allocated_pages) {
+    free_list_->ResetForNonBlackAllocatedPages(Isolate::FromHeap(heap()));
+  } else {
+    free_list_->Reset();
+  }
+}
+
 template <bool during_sweep>
 size_t PagedSpaceBase::FreeInternal(Address start, size_t size_in_bytes) {
   if (size_in_bytes == 0) return 0;

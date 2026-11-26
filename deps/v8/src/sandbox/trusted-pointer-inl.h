@@ -223,7 +223,8 @@ TrustedPointerMember<T, kTagRange>::TrustedPointerMember(
     clear(witness.object());
   }
 }
-// TODO(arashk): Remove the indirection between load and Acquire_Load.
+// Both load/store and Acquire_Load/Release_Store are provided to override the
+// corresponding TaggedMember base class methods.
 template <typename T, TrustedPointerTagRange kTagRange>
 Tagged<T> TrustedPointerMember<T, kTagRange>::load(
     IsolateForSandbox isolate) const {

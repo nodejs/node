@@ -9,19 +9,39 @@
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
 
+#include <limits>
 #include <memory>
 #include <vector>
 
 #include "src/base/vector.h"
 #include "src/execution/simulator.h"
 #include "src/wasm/interpreter/wasm-interpreter.h"
+#include "src/wasm/wasm-limits.h"
 
 namespace v8 {
 
 namespace internal {
+class BackingStore;
 class WasmInstanceObject;
 
 namespace wasm {
+
+// Upper bound on the number of stack slots used by the return buffer of a
+// JS-to-Wasm interpreter wrapper (one slot per return value, rounded up to an
+// even count for 16-byte alignment). The assembly wrappers feed this size to
+// MacroAssembler::StackOverflowCheck, which shifts it by
+// kSystemPointerSizeLog2.
+constexpr size_t kMaxInterpreterWrapperReturnBufferSlots =
+    (kV8MaxWasmFunctionReturns + 1) & ~size_t{1};
+static_assert(kMaxInterpreterWrapperReturnBufferSlots + 1 <=
+                  std::numeric_limits<int32_t>::max(),
+              "return buffer slot count must not wrap a 32-bit addition");
+static_assert(kMaxInterpreterWrapperReturnBufferSlots <=
+                  (std::numeric_limits<intptr_t>::max() >>
+                   kSystemPointerSizeLog2),
+              "return buffer size in bytes must not overflow a pointer-sized "
+              "shift");
+
 class InterpreterTracer;
 class WasmBytecodeGenerator;
 struct WasmTag;
@@ -31,6 +51,25 @@ class WasmInterpreterRuntime {
   WasmInterpreterRuntime(const WasmModule* module, Isolate* isolate,
                          DirectHandle<WasmTrustedInstanceData> trusted_data,
                          WasmInterpreter::CodeMap* codemap);
+
+  // Edge-DrumBrake: set when a run is stopped by --drumbrake-fuzzer-timeout
+  // (see WasmStackCheck). Lets a differential fuzzer tell a timed-out run
+  // (whose result is not comparable) apart from a genuine trap, instead of
+  // inferring it from the elapsed wall-clock time. The flag is thread-local:
+  // the interpreter runs synchronously on the thread that invokes it, so the
+  // run that sets it and the fuzzer code that consumes it are always the same
+  // thread, while concurrent executions on other threads keep their own copy
+  // and cannot consume each other's state. Callers clear it immediately before
+  // a measured run (dropping stale state) and again immediately afterward
+  // (consuming the result).
+  //
+  // Defined out-of-line and exported (rather than inline) so the thread-local
+  // storage stays inside the v8 shared library on component builds: a
+  // thread_local data member cannot be dllexported, and the fuzzer -- which
+  // links v8 across the DLL boundary -- calls these functions instead of
+  // touching the member directly.
+  V8_EXPORT_PRIVATE static void set_had_fuzzer_timeout();
+  V8_EXPORT_PRIVATE static bool clear_fuzzer_timeout();
 
   // RAII scope that publishes the currently-executing WasmTrustedInstanceData
   // to the runtime for the duration of one C++ entry. The handle is rooted in
@@ -87,7 +126,8 @@ class WasmInterpreterRuntime {
   bool MemoryFill(const uint8_t*& current_code, uint32_t memory_index,
                   uint64_t dst, uint32_t value, uint64_t size);
 
-  bool AllowsAtomicsWait() const;
+  bool AllowsAtomicsWait(uint32_t memory_index) const;
+  void ThrowAtomicsWaitNotAllowed(const uint8_t*& current_code);
   int32_t AtomicNotify(uint64_t effective_index, uint32_t memory_index,
                        int32_t val);
   int32_t I32AtomicWait(uint64_t effective_index, uint32_t memory_index,
@@ -131,6 +171,7 @@ class WasmInterpreterRuntime {
   inline const WasmTag& GetWasmTag(uint32_t tag_index) const {
     return module_->tags[tag_index];
   }
+  const WasmModule* module() const { return module_; }
   DirectHandle<WasmExceptionPackage> CreateWasmExceptionPackage(
       uint32_t tag_index) const;
 
@@ -228,14 +269,16 @@ class WasmInterpreterRuntime {
   ArrayNewResult ArrayNewUninitialized(uint32_t length,
                                        uint32_t array_index) const;
 
-  WasmRef WasmArrayNewSegment(bool is_element, uint32_t array_index,
-                              uint32_t segment_index, uint32_t offset,
-                              uint32_t length);
-  bool WasmArrayInitSegment(bool is_element, uint32_t segment_index,
+  WasmRef WasmArrayNewSegment(const uint8_t* code, bool is_element,
+                              uint32_t array_index, uint32_t segment_index,
+                              uint32_t offset, uint32_t length);
+  bool WasmArrayInitSegment(const uint8_t* code, bool is_element,
+                            uint32_t array_index, uint32_t segment_index,
                             WasmRef wasm_array, uint32_t array_offset,
                             uint32_t segment_offset, uint32_t length);
-  bool WasmArrayCopy(WasmRef dest_wasm_array, uint32_t dest_index,
-                     WasmRef src_wasm_array, uint32_t src_index,
+  bool WasmArrayCopy(WasmRef dest_wasm_array, uint32_t dest_array_index,
+                     uint32_t dest_index, WasmRef src_wasm_array,
+                     uint32_t src_array_index, uint32_t src_index,
                      uint32_t length);
   WasmRef WasmJSToWasmObject(WasmRef extern_ref, ValueType value_type,
                              uint32_t canonical_index) const;
@@ -294,6 +337,13 @@ class WasmInterpreterRuntime {
   using HasRefRetsField = base::BitField<bool, 15, 1>;
 
  private:
+  // Returns the BackingStore kept alive in trusted space for the shared
+  // memory at {memory_index} (WasmTrustedInstanceData::
+  // shared_memory_backing_stores()), rather than one derived from the
+  // WasmMemoryObject/JSArrayBuffer. Only valid for shared memories.
+  std::shared_ptr<BackingStore> GetSharedMemoryBackingStore(
+      uint32_t memory_index);
+
   ExternalCallResult CallImportedFunction(const uint8_t*& current_code,
                                           uint32_t function_index, uint32_t* sp,
                                           uint32_t current_stack_size,
@@ -349,6 +399,8 @@ class WasmInterpreterRuntime {
   void StoreRefResultsIntoRefStack(uint8_t* sp, uint32_t ref_stack_fp_offset,
                                    const FunctionSig* sig);
 
+  bool InitializeCurrentFrame(const WasmBytecode* target_function,
+                              const uint8_t*& code);
   void InitializeRefLocalsRefs(const WasmBytecode* target_function);
 
   WasmInterpreterThread::ExceptionHandlingResult HandleException(
@@ -383,11 +435,10 @@ class WasmInterpreterRuntime {
   // scope exit; the handle is rooted in the calling C++ frame's HandleScope
   // (which the GC scans), so the runtime never keeps a global handle to it.
   // All trusted-data accesses (see wasm_trusted_instance_data()) read this
-  // off-cage, validated value instead of re-loading the in-cage
-  // WasmInstanceObject::trusted_data_ TrustedPointerHandle on every call,
-  // which would let a sandbox attacker same-tag swap it mid-execution. The
-  // WasmInstanceObject (needed only for stack traces) is reached on demand via
-  // the trusted `instance_object()` back-link.
+  // validated value instead of re-loading
+  // WasmInstanceObject::trusted_data_ on every call. The WasmInstanceObject
+  // (needed only for stack traces) is reached on demand via the trusted
+  // `instance_object()` back-link.
   IndirectHandle<WasmTrustedInstanceData> current_trusted_data_;
 
   WasmInterpreter::CodeMap* codemap_;
@@ -402,6 +453,8 @@ class WasmInterpreterRuntime {
   WasmInterpreterThread* current_thread_;
 
   base::TimeTicks fuzzer_start_time_;
+  // See the set_had_fuzzer_timeout()/clear_fuzzer_timeout() accessors above.
+  static thread_local bool had_fuzzer_timeout_;
 
   uint8_t* memory_start_;
   std::vector<uint8_t*> memory_starts_;
@@ -458,9 +511,8 @@ class WasmInterpreterRuntime {
 
   using WasmToJSCallSig =
       // NOLINTNEXTLINE(readability/casting)
-      Address(Address js_function, Address packed_args,
-              Address saved_c_entry_fp, const FunctionSig* sig,
-              Address c_entry_fp, Address callable);
+      Address(Address context, Address packed_args, Address isolate_root,
+              const FunctionSig* sig, Address c_entry_fp, Address callable);
   GeneratedCode<WasmToJSCallSig> generic_wasm_to_js_interpreter_wrapper_fn_;
 
  public:

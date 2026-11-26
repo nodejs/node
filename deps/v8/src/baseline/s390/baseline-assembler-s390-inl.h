@@ -514,25 +514,6 @@ void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
   }
 }
 
-void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
-    Register weight, Label* skip_interrupt_label) {
-  ASM_CODE_COMMENT(masm_);
-  ScratchRegisterScope scratch_scope(this);
-  Register feedback_cell = scratch_scope.AcquireScratch();
-  LoadFeedbackCell(feedback_cell);
-
-  Register interrupt_budget = scratch_scope.AcquireScratch();
-  __ LoadU32(interrupt_budget,
-             FieldMemOperand(feedback_cell,
-                             offsetof(FeedbackCell, interrupt_budget_)));
-  // Remember to set flags as part of the add!
-  __ AddS32(interrupt_budget, interrupt_budget, weight);
-  __ StoreU32(interrupt_budget,
-              FieldMemOperand(feedback_cell,
-                              offsetof(FeedbackCell, interrupt_budget_)));
-  if (skip_interrupt_label) __ b(ge, skip_interrupt_label);
-}
-
 void BaselineAssembler::LdaContextSlotNoCell(Register context, uint32_t index,
                                              uint32_t depth,
                                              CompressionMode compression_mode,
@@ -645,29 +626,7 @@ void BaselineAssembler::EmitReturn(MacroAssembler* masm) {
   ASM_CODE_COMMENT(masm);
   BaselineAssembler basm(masm);
 
-  Register weight = BaselineLeaveFrameDescriptor::WeightRegister();
   Register params_size = BaselineLeaveFrameDescriptor::ParamsSizeRegister();
-
-  {
-    ASM_CODE_COMMENT_STRING(masm, "Update Interrupt Budget");
-
-    Label skip_interrupt_label;
-    __ AddToInterruptBudgetAndJumpIfNotExceeded(weight, &skip_interrupt_label);
-    {
-      __ masm()->SmiTag(params_size);
-      __ Push(params_size, kInterpreterAccumulatorRegister);
-
-      __ LoadContext(kContextRegister);
-      __ LoadFunction(kJSFunctionRegister);
-      __ Push(kJSFunctionRegister);
-      __ CallRuntime(Runtime::kBytecodeBudgetInterrupt_Sparkplug, 1);
-
-      __ Pop(kInterpreterAccumulatorRegister, params_size);
-      __ masm()->SmiUntag(params_size);
-    }
-
-    __ Bind(&skip_interrupt_label);
-  }
 
   BaselineAssembler::ScratchRegisterScope temps(&basm);
   Register actual_params_size = temps.AcquireScratch();
@@ -687,7 +646,7 @@ void BaselineAssembler::EmitReturn(MacroAssembler* masm) {
   __ masm()->LeaveFrame(StackFrame::BASELINE);
 
   // Drop receiver + arguments.
-  __ masm() -> DropArguments(params_size);
+  __ masm()->DropArguments(params_size);
   __ masm()->Ret();
 }
 

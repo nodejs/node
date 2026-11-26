@@ -14,13 +14,16 @@
 #ifndef LLVM_LIBC_SRC___SUPPORT_REGEX_REGEX_EXPR_POOL_H
 #define LLVM_LIBC_SRC___SUPPORT_REGEX_REGEX_EXPR_POOL_H
 
+#include "hdr/stdint_proxy.h"
+#include "hdr/types/size_t.h"
 #include "src/__support/CPP/array.h"
 #include "src/__support/CPP/span.h"
+#include "src/__support/CPP/unique_ptr.h"
 #include "src/__support/error_or.h"
 #include "src/__support/libc_assert.h"
 #include "src/__support/macros/config.h"
+#include "src/__support/macros/optimization.h"
 #include "src/__support/regex/regex_ast.h"
-#include <stddef.h>
 
 namespace LIBC_NAMESPACE_DECL {
 namespace regex {
@@ -56,41 +59,40 @@ class ExprPool {
   static constexpr size_t INITIAL_HASH_CAPACITY = 64;
   /// Scaling factor used when growing dynamic pool arrays and hash tables.
   static constexpr size_t GROWTH_FACTOR = 2;
-  /// Grow the hash table when occupancy reaches 70% to keep linear-probing
-  /// chains short.
-  static constexpr double MAX_LOAD_FACTOR = 0.7;
+  /// Grow the hash table when occupancy reaches 70% (7 / 10) to keep
+  /// triangular-probing chains short without floating-point arithmetic.
+  static constexpr size_t MAX_LOAD_NUMERATOR = 7;
+  static constexpr size_t MAX_LOAD_DENOMINATOR = 10;
 
-  // TODO: Once cpp::unique_ptr and AllocChecker-backed cpp::make_unique (and/or
-  // an owning unique_span) are available in src/__support/CPP/, replace raw
-  // Block* and span-backed manual new[]/delete[] ownership here so that Block
-  // lifecycles, directory growth, ByteSet growth, and hash-table growth are
-  // managed via RAII and ~ExprPool() can be defaulted.
-
-  /// Span of allocated Block* slots (capacity = blocks.size()).
-  cpp::span<Block *> blocks;
+  /// Directory of allocated blocks.
+  cpp::unique_ptr<cpp::unique_ptr<Block>[]> blocks;
+  size_t block_capacity = 0;
   size_t block_count = 0;
   /// Total number of nodes allocated across all blocks.
-  size_t node_count = 0;
+  ExprId node_count = 0;
+  /// Per-pool hash seed mixed once at initialisation to deter hash clustering.
+  uint32_t hash_seed = 0;
 
   /// Lazily allocated array of deduplicated 256-bit character sets.
-  cpp::span<ByteSet> byte_sets;
+  cpp::unique_ptr<ByteSet[]> byte_sets;
+  size_t byte_set_capacity = 0;
   size_t byte_set_count = 0;
 
   /// Open-addressing hash table storing ExprIds (0 = empty bucket).
-  cpp::span<ExprId> hashtable;
-
-  cpp::span<Block *const> active_blocks() const {
-    return blocks.first(block_count);
-  }
+  cpp::unique_ptr<ExprId[]> hashtable;
+  size_t hashtable_capacity = 0;
 
   cpp::span<const ByteSet> active_byte_sets() const {
-    return byte_sets.first(byte_set_count);
+    return {byte_sets.get(), byte_set_count};
+  }
+
+  cpp::span<ExprId> hashtable_slots() {
+    return {hashtable.get(), hashtable_capacity};
   }
 
   /// Maximum number of nodes the current hash table can hold before rehashing.
-  size_t max_hashtable_nodes() const {
-    return static_cast<size_t>(static_cast<double>(hashtable.size()) *
-                               MAX_LOAD_FACTOR);
+  constexpr size_t max_hashtable_nodes() const {
+    return (hashtable_capacity * MAX_LOAD_NUMERATOR) / MAX_LOAD_DENOMINATOR;
   }
 
   /// Single choke point mapping a 1-based ExprId to its 2D block/node slot.
@@ -100,10 +102,12 @@ class ExprPool {
     return blocks[idx / NODES_PER_BLOCK]->nodes[idx % NODES_PER_BLOCK];
   }
 
-  ExprId &find_bucket(cpp::span<ExprId> table, const Expr &e) const;
+  ExprId &find_bucket(cpp::span<ExprId> table, Expr e) const;
   bool ensure_initialized();
   bool allocate_block();
   bool grow_hashtable();
+
+  struct ReverseExprIdStack;
 
   /// Core hash-consing function (Interning).
   ///
@@ -115,30 +119,65 @@ class ExprPool {
   /// \returns The ExprId of the unique, stable instance in the arena,
   ///          or REG_ESPACE on failure.
   ErrorOr<ExprId> intern(Expr e);
+  ErrorOr<ExprId> intern_concat_node(ExprId l, ExprId r);
+  ErrorOr<ExprId> intern_alt_node(ExprId l, ExprId r);
+  ErrorOr<ExprId> prepend_alt_node(ExprId head, ExprId tail);
+  ErrorOr<ExprId> fold_alt_right(ReverseExprIdStack &items, ExprId tail);
+  ErrorOr<ExprId> insert_sorted_no_coalesce(ExprId item, ExprId spine);
+  ErrorOr<ExprId>
+  splice_into_sorted_spine(ExprId item, ReverseExprIdStack &kept, ExprId tail);
+  ErrorOr<ExprId> coalesce_into_spine(ExprId item, ExprId spine);
+  ErrorOr<ExprId> insert_into_spine(ExprId item, ExprId spine);
 
 public:
   /// The maximum number of nodes allowed in the pool to prevent memory
   /// exhaustion during compilation of highly complex or maliciously crafted
   /// regular expressions.
   static constexpr size_t MAX_NODE_LIMIT = 10000;
+  static_assert(MAX_NODE_LIMIT < UINT32_MAX,
+                "MAX_NODE_LIMIT must fit in 32-bit ExprId");
 
   constexpr ExprPool() = default;
-  ~ExprPool();
+  // The implicit move operations would move the arrays, but copy their sizes,
+  // leaving the source pool in an inconsistent state.
+  ExprPool(ExprPool &&) = delete;
+  ExprPool &operator=(ExprPool &&) = delete;
 
-  /// Resolves an ExprId to a reference.
-  const Expr &get(ExprId id) const { return slot_at(id); }
+  /// Returns true iff id refers to an interned node in this pool.
+  constexpr bool is_valid(ExprId id) const {
+    return id != INVALID_EXPR_ID && id <= node_count;
+  }
+
+  /// Returns true iff id is an interned node or one of the two constant empty
+  /// sentinels (EMPTY_SET_ID / EMPTY_STR_ID) usable before lazy init.
+  constexpr bool is_valid_input(ExprId id) const {
+    return is_valid(id) || id == EMPTY_SET_ID || id == EMPTY_STR_ID;
+  }
+
+  /// Resolves an ExprId to a value copy of its 16-byte Expr node.
+  Expr get(ExprId id) const {
+    if (LIBC_LIKELY(is_valid(id)))
+      return slot_at(id);
+    if (id == EMPTY_STR_ID)
+      return Expr::make_empty_str();
+    LIBC_ASSERT(id == EMPTY_SET_ID);
+    return Expr::make_empty_set();
+  }
 
   /// Resolves a ByteSet index to its 256-bit character set.
   const ByteSet &get_byte_set(uint32_t id) const {
-    LIBC_ASSERT(id < byte_set_count);
+    if (LIBC_UNLIKELY(id >= byte_set_count)) {
+      LIBC_ASSERT(false);
+      static constexpr ByteSet EMPTY_BYTE_SET{};
+      return EMPTY_BYTE_SET;
+    }
     return byte_sets[id];
   }
 
   /// O(1) unconditional nullability query for a valid ExprId.
-  bool is_nullable(ExprId id) const { return get(id).nullable; }
-
-  /// O(1) query indicating whether the subtree at id contains an Anchor node.
-  bool has_anchors(ExprId id) const { return get(id).has_anchors; }
+  bool is_nullable(ExprId id) const {
+    return (get(id).nullable_mask & 1u) != 0;
+  }
 
   /// Returns the number of unique AST nodes currently interned in this pool.
   size_t size() const { return node_count; }
@@ -148,8 +187,10 @@ public:
 
   /// Returns the current heap bytes allocated by this pool.
   size_t allocated_bytes() const {
-    return (block_count * sizeof(Block)) + blocks.size_bytes() +
-           hashtable.size_bytes() + byte_sets.size_bytes();
+    return (block_count * sizeof(Block)) +
+           (block_capacity * sizeof(cpp::unique_ptr<Block>)) +
+           (hashtable_capacity * sizeof(ExprId)) +
+           (byte_set_capacity * sizeof(ByteSet));
   }
 
   // TODO: Use fluent interface (and_then, transform) for these factories once
@@ -167,6 +208,8 @@ public:
   ErrorOr<ExprId> make_byte_set(const ByteSet &bs);
   /// Creates or returns a normalized Kleene star node (body*).
   ErrorOr<ExprId> make_star(ExprId body);
+  /// Creates or returns a normalized Repeat node (body{min,max}).
+  ErrorOr<ExprId> make_repeat(ExprId body, uint16_t min, uint16_t max);
   /// Creates or returns a right-associated Concatenation node (l . r).
   ErrorOr<ExprId> make_concat(ExprId l, ExprId r);
   /// Creates or returns a canonical deduplicated Alternation node (l | r).

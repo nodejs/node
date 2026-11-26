@@ -5,8 +5,6 @@
 // Slightly adapted for inclusion in V8.
 // Copyright 2016 the V8 project authors. All rights reserved.
 
-#include "src/base/debug/stack_trace.h"
-
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -19,11 +17,14 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include <atomic>
 #include <map>
 #include <memory>
 #include <ostream>
 #include <string>
 #include <vector>
+
+#include "src/base/debug/stack_trace.h"
 
 #if V8_LIBC_GLIBC || V8_LIBC_BSD || V8_LIBC_UCLIBC || V8_OS_SOLARIS
 #define HAVE_EXECINFO_H 1
@@ -61,8 +62,8 @@ char* itoa_r(intptr_t i, char* buf, size_t sz, int base, size_t padding);
 
 namespace {
 
-volatile sig_atomic_t in_signal_handler = 0;
-bool dump_stack_in_signal_handler = true;
+std::atomic<bool> in_signal_handler{false};
+std::atomic<bool> dump_stack_in_signal_handler{true};
 
 // The prefix used for mangled symbols, per the Itanium C++ ABI:
 // http://www.codesourcery.com/cxx-abi/abi.html#mangling
@@ -157,7 +158,7 @@ void ProcessBacktrace(void* const* trace, size_t size,
 
   // Below part is async-signal unsafe (uses malloc), so execute it only
   // when we are not executing the signal handler.
-  if (in_signal_handler == 0) {
+  if (!in_signal_handler.load(std::memory_order_relaxed)) {
     std::unique_ptr<char*, FreeDeleter> trace_symbols(
         backtrace_symbols(trace, static_cast<int>(size)));
     if (trace_symbols) {
@@ -204,7 +205,7 @@ void StackDumpSignalHandler(int signal, siginfo_t* info, void* void_context) {
 
   // Record the fact that we are in the signal handler now, so that the rest
   // of StackTrace can behave in an async-signal-safe manner.
-  in_signal_handler = 1;
+  in_signal_handler.store(true, std::memory_order_relaxed);
 
 #if V8_HAS_PKU_SUPPORT
   MemoryProtectionKey::SetDefaultPermissionsForAllKeysInSignalHandler();
@@ -278,7 +279,7 @@ void StackDumpSignalHandler(int signal, siginfo_t* info, void* void_context) {
     PrintToStderr(buf);
   }
   PrintToStderr("\n");
-  if (dump_stack_in_signal_handler) {
+  if (dump_stack_in_signal_handler.load(std::memory_order_relaxed)) {
     debug::StackTrace().Print();
     PrintToStderr("[end of stack trace]\n");
   }
@@ -380,13 +381,13 @@ bool EnableInProcessStackDumping() {
   success &= (sigaction(SIGSEGV, &action, nullptr) == 0);
   success &= (sigaction(SIGSYS, &action, nullptr) == 0);
 
-  dump_stack_in_signal_handler = true;
+  dump_stack_in_signal_handler.store(true, std::memory_order_relaxed);
 
   return success;
 }
 
 void DisableSignalStackDump() {
-  dump_stack_in_signal_handler = false;
+  dump_stack_in_signal_handler.store(false, std::memory_order_relaxed);
 }
 
 StackTrace::StackTrace() {

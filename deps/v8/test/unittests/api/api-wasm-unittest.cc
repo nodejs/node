@@ -6,8 +6,11 @@
 #include <memory>
 #include <thread>  // NOLINT(build/c++11)
 
+#include "include/libplatform/libplatform.h"
 #include "include/v8-context.h"
+#include "include/v8-exception.h"
 #include "include/v8-function-callback.h"
+#include "include/v8-function.h"
 #include "include/v8-local-handle.h"
 #include "include/v8-object.h"
 #include "include/v8-persistent-handle.h"
@@ -15,6 +18,7 @@
 #include "include/v8-wasm.h"
 #include "src/api/api-inl.h"
 #include "src/handles/global-handles.h"
+#include "src/init/v8.h"
 #include "src/objects/object-conversions-inl.h"
 #include "src/wasm/wasm-features.h"
 #include "src/wasm/wasm-js.h"
@@ -89,7 +93,7 @@ void WasmStreamingCallbackTestCallbackIsCalled(
   i::Handle<i::Object> global_handle =
       reinterpret_cast<i::Isolate*>(info.GetIsolate())
           ->global_handles()
-          ->Create(*Utils::OpenDirectHandle(*info.DataV2()));
+          ->Create(*Utils::OpenDirectHandle(*info.Data()));
   i::GlobalHandles::MakeWeak(global_handle.location(), global_handle.location(),
                              WasmStreamingTestFinalizer,
                              WeakCallbackType::kParameter);
@@ -99,7 +103,7 @@ void WasmStreamingCallbackTestFinishWithSuccess(
     const FunctionCallbackInfo<Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   std::shared_ptr<WasmStreaming> streaming =
-      WasmStreaming::Unpack(info.GetIsolate(), info.DataV2());
+      WasmStreaming::Unpack(info.GetIsolate(), info.Data());
   streaming->OnBytesReceived(kMinimalWasmModuleBytes,
                              arraysize(kMinimalWasmModuleBytes));
   streaming->Finish(WasmStreaming::ModuleCachingCallback{});
@@ -109,7 +113,7 @@ void WasmStreamingCallbackTestFinishWithFailure(
     const FunctionCallbackInfo<Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   std::shared_ptr<WasmStreaming> streaming =
-      WasmStreaming::Unpack(info.GetIsolate(), info.DataV2());
+      WasmStreaming::Unpack(info.GetIsolate(), info.Data());
   streaming->Finish(WasmStreaming::ModuleCachingCallback{});
 }
 
@@ -117,7 +121,7 @@ void WasmStreamingCallbackTestAbortWithReject(
     const FunctionCallbackInfo<Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   std::shared_ptr<WasmStreaming> streaming =
-      WasmStreaming::Unpack(info.GetIsolate(), info.DataV2());
+      WasmStreaming::Unpack(info.GetIsolate(), info.Data());
   streaming->Abort(Object::New(info.GetIsolate()));
 }
 
@@ -125,7 +129,7 @@ void WasmStreamingCallbackTestAbortNoReject(
     const FunctionCallbackInfo<Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   std::shared_ptr<WasmStreaming> streaming =
-      WasmStreaming::Unpack(info.GetIsolate(), info.DataV2());
+      WasmStreaming::Unpack(info.GetIsolate(), info.Data());
   streaming->Abort({});
 }
 
@@ -133,7 +137,7 @@ void WasmStreamingCallbackTestOnBytesReceived(
     const FunctionCallbackInfo<Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   std::shared_ptr<WasmStreaming> streaming =
-      WasmStreaming::Unpack(info.GetIsolate(), info.DataV2());
+      WasmStreaming::Unpack(info.GetIsolate(), info.Data());
 
   // The first bytes of the WebAssembly magic word.
   const uint8_t bytes[]{0x00, 0x61, 0x73};
@@ -144,7 +148,7 @@ void WasmStreamingMoreFunctionsCanBeSerializedCallback(
     const FunctionCallbackInfo<Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   std::shared_ptr<WasmStreaming> streaming =
-      WasmStreaming::Unpack(info.GetIsolate(), info.DataV2());
+      WasmStreaming::Unpack(info.GetIsolate(), info.Data());
   streaming->SetMoreFunctionsCanBeSerializedCallback([](CompiledWasmModule) {});
 }
 
@@ -696,33 +700,36 @@ TEST_F(ApiWasmTest, WasmMemoryObjectGetBuffer) {
   EXPECT_FALSE(shared_buffer->IsArrayBuffer());
   EXPECT_TRUE(shared_buffer->IsSharedArrayBuffer());
   EXPECT_TRUE(shared_buffer->IsShared());
-
-  START_ALLOW_USE_DEPRECATED();
-  EXPECT_TRUE(unshared_memory->Buffer()->IsArrayBuffer());
-  EXPECT_TRUE(shared_memory->Buffer()->IsSharedArrayBuffer());
-  END_ALLOW_USE_DEPRECATED();
 }
 
 TEST_F(ApiWasmTest, OwnedBufferSpanAndMoveSemantics) {
+  using namespace internal::wasm;  // NOLINT(build/namespaces)
   OwnedBuffer empty_buffer;
   EXPECT_TRUE(empty_buffer.empty());
   EXPECT_TRUE(empty_buffer.as_span().empty());
   EXPECT_EQ(nullptr, empty_buffer.as_span().data());
 
-  constexpr uint8_t kPayload[] = {10, 20, 30, 40};
-  std::unique_ptr<uint8_t[]> backing =
-      std::make_unique<uint8_t[]>(sizeof(kPayload));
-  std::copy(std::begin(kPayload), std::end(kPayload), backing.get());
-  const uint8_t* raw_ptr = backing.get();
-
-  START_ALLOW_USE_DEPRECATED()
-  OwnedBuffer owned(std::move(backing), sizeof(kPayload));
-  END_ALLOW_USE_DEPRECATED()
-
-  EXPECT_FALSE(owned.empty());
-  EXPECT_EQ(raw_ptr, owned.as_span().data());
-  EXPECT_EQ(sizeof(kPayload), owned.as_span().size());
-  EXPECT_TRUE(std::ranges::equal(kPayload, owned.as_span()));
+  i::FlagScope<bool> no_liftoff(&i::v8_flags.liftoff, false);
+  i::FlagScope<bool> no_lazy_compilation(&i::v8_flags.wasm_lazy_compilation,
+                                         false);
+  HandleScope scope(isolate());
+  Local<Context> context = Context::New(isolate());
+  Context::Scope context_scope(context);
+  constexpr uint8_t kModuleWithFunctionBytes[] = {
+      WASM_MODULE_HEADER, SECTION(Type, ENTRY_COUNT(1), SIG_ENTRY_v_v),
+      SECTION(Function, ENTRY_COUNT(1), 0),
+      SECTION(Code, ENTRY_COUNT(1), ADD_COUNT(0, WASM_END))};
+  Local<WasmModuleObject> module =
+      WasmModuleObject::Compile(isolate(), kModuleWithFunctionBytes)
+          .ToLocalChecked();
+  OwnedBuffer owned = module->GetCompiledModule().Serialize();
+  ASSERT_FALSE(owned.empty());
+  const uint8_t* raw_ptr = owned.as_span().data();
+  const size_t size = owned.as_span().size();
+  EXPECT_NE(nullptr, raw_ptr);
+  EXPECT_GT(size, 0u);
+  const std::vector<uint8_t> expected_bytes(owned.as_span().begin(),
+                                            owned.as_span().end());
 
   // Move construction transfers ownership and leaves the source empty.
   OwnedBuffer move_constructed(std::move(owned));
@@ -730,7 +737,8 @@ TEST_F(ApiWasmTest, OwnedBufferSpanAndMoveSemantics) {
   EXPECT_TRUE(owned.as_span().empty());
   EXPECT_EQ(nullptr, owned.as_span().data());
   EXPECT_EQ(raw_ptr, move_constructed.as_span().data());
-  EXPECT_EQ(sizeof(kPayload), move_constructed.as_span().size());
+  EXPECT_EQ(size, move_constructed.as_span().size());
+  EXPECT_TRUE(std::ranges::equal(expected_bytes, move_constructed.as_span()));
 
   // Move assignment also leaves the source empty.
   OwnedBuffer move_assigned;
@@ -739,7 +747,469 @@ TEST_F(ApiWasmTest, OwnedBufferSpanAndMoveSemantics) {
   EXPECT_TRUE(move_constructed.as_span().empty());
   EXPECT_EQ(nullptr, move_constructed.as_span().data());
   EXPECT_EQ(raw_ptr, move_assigned.as_span().data());
-  EXPECT_EQ(sizeof(kPayload), move_assigned.as_span().size());
+  EXPECT_EQ(size, move_assigned.as_span().size());
+  EXPECT_TRUE(std::ranges::equal(expected_bytes, move_assigned.as_span()));
 }
+
+TEST_F(ApiWasmTest, WasmObjectSetPrototype) {
+  using namespace internal::wasm;  // NOLINT(build/namespaces)
+  HandleScope scope(isolate());
+  Local<Context> context = Context::New(isolate());
+  Context::Scope context_scope(context);
+
+  constexpr uint8_t kModuleBytes[] = {
+      WASM_MODULE_HEADER,
+      SECTION(Type, ENTRY_COUNT(2), kWasmStructTypeCode, 0,
+              SIG_ENTRY_x(kExternRefCode)),
+      SECTION(Function, ENTRY_COUNT(1), SIG_INDEX(1)),
+      SECTION(Export, ENTRY_COUNT(1), ADD_COUNT('m'), kExternalFunction,
+              FUNC_INDEX(0)),
+      SECTION(Code, ENTRY_COUNT(1),
+              ADD_COUNT(0, WASM_GC_OP(kExprStructNewDefault), 0,
+                        WASM_GC_OP(kExprExternConvertAny), WASM_END))};
+  Local<WasmModuleObject> module =
+      WasmModuleObject::Compile(isolate(), kModuleBytes).ToLocalChecked();
+  context->Global()->Set(context, NewString("mod"), module).Check();
+  Local<Object> wasm_obj =
+      RunJS("new WebAssembly.Instance(mod).exports.m()").As<Object>();
+  Local<Object> sealed_js_obj =
+      RunJS("Object.seal({__proto__: null})").As<Object>();
+  Local<Object> other_proto = Object::New(isolate());
+
+  {
+    i::FlagScope<bool> flag_descriptors(&i::v8_flags.wasm_custom_descriptors,
+                                        false);
+    EXPECT_TRUE(wasm_obj->SetPrototype(context, Null(isolate())).IsNothing());
+    EXPECT_TRUE(wasm_obj->SetPrototype(context, other_proto).IsNothing());
+  }
+
+  {
+    i::FlagScope<bool> flag_descriptors(&i::v8_flags.wasm_custom_descriptors,
+                                        true);
+    for (Local<Object> obj : {wasm_obj, sealed_js_obj}) {
+      EXPECT_EQ(Just(true), obj->SetPrototype(context, Null(isolate())));
+      EXPECT_EQ(Just(true),
+                obj->SetPrototype(context, Integer::New(isolate(), 42)));
+      EXPECT_TRUE(obj->SetPrototype(context, other_proto).IsNothing());
+    }
+  }
+}
+
+TEST_F(ApiWasmTest, WasmStreamingAbortsWhenExecutionTerminating) {
+  using namespace internal::wasm;  // NOLINT(build/namespaces)
+  static std::shared_ptr<WasmStreaming> g_streaming;
+  static bool g_start_called = false;
+  auto capture_streaming = [](const FunctionCallbackInfo<Value>& info) {
+    g_streaming = WasmStreaming::Unpack(info.GetIsolate(), info.Data());
+  };
+  isolate()->SetWasmStreamingCallback(capture_streaming);
+
+  HandleScope scope(isolate());
+  Local<Context> context = Context::New(isolate());
+  Context::Scope context_scope(context);
+
+  // Module with an imported start function and no code section (so Finish()
+  // transitions deterministically to FinishCompilation without background
+  // compilation threads).
+  constexpr uint8_t kNoCodeStartModuleBytes[] = {
+      WASM_MODULE_HEADER, SECTION(Type, ENTRY_COUNT(1), SIG_ENTRY_v_v),
+      SECTION(Import, ENTRY_COUNT(1), ADD_COUNT('m'), ADD_COUNT('f'),
+              kExternalFunction, 0),
+      SECTION(Start, 0)};
+
+  // Module with an imported start function and a code section (to exercise the
+  // async background compilation / prefix-cache foreground task path).
+  constexpr uint8_t kCodeStartModuleBytes[] = {
+      WASM_MODULE_HEADER,
+      SECTION(Type, ENTRY_COUNT(1), SIG_ENTRY_v_v),
+      SECTION(Import, ENTRY_COUNT(1), ADD_COUNT('m'), ADD_COUNT('f'),
+              kExternalFunction, 0),
+      SECTION(Function, ENTRY_COUNT(1), 0),
+      SECTION(Start, 0),
+      SECTION(Code, ENTRY_COUNT(1), ADD_COUNT(0, WASM_END))};
+
+  // Pre-compile and root the module so GC cannot evict its weak entry from
+  // NativeModuleCache before subtest 3.
+  Global<WasmModuleObject> cached_module(
+      isolate(), WasmModuleObject::Compile(isolate(), kCodeStartModuleBytes)
+                     .ToLocalChecked());
+  ASSERT_FALSE(cached_module.IsEmpty());
+
+  Local<Object> imports = Object::New(isolate());
+  Local<Object> mod = Object::New(isolate());
+  Local<Function> on_start =
+      Function::New(context, [](const FunctionCallbackInfo<Value>&) {
+        g_start_called = true;
+      }).ToLocalChecked();
+  mod->Set(context, NewString("f"), on_start).Check();
+  imports->Set(context, NewString("m"), mod).Check();
+  context->Global()->Set(context, NewString("imports"), imports).Check();
+
+  // 1. Deferred FinishCompilation foreground task pumped while execution is
+  // terminating must abort cleanly without hitting
+  // DCHECK(!isolate_->has_exception()) in InstanceBuilder::Build_Phase1 or
+  // executing the Wasm start function.
+  {
+    g_start_called = false;
+    g_streaming.reset();
+    Local<v8::Promise> promise = Local<v8::Promise>::Cast(
+        RunJS("WebAssembly.instantiateStreaming(null, imports)"));
+    std::shared_ptr<WasmStreaming> streaming = std::move(g_streaming);
+    ASSERT_TRUE(streaming);
+
+    streaming->OnBytesReceived(kNoCodeStartModuleBytes,
+                               arraysize(kNoCodeStartModuleBytes));
+    {
+      // Disallow JS so AsyncCompileJob::DoImmediatelyOrDefer posts a deferred
+      // FinishCompilation foreground task.
+      Isolate::DisallowJavascriptExecutionScope no_js(
+          isolate(),
+          Isolate::DisallowJavascriptExecutionScope::THROW_ON_FAILURE);
+      streaming->Finish({});
+    }
+    EXPECT_TRUE(isolate()->HasPendingBackgroundTasks());
+
+    {
+      TryCatch try_catch(isolate());
+      i_isolate()->TerminateExecution();
+      ASSERT_TRUE(i_isolate()->is_execution_terminating());
+      EmptyMessageQueues();
+      EXPECT_FALSE(g_start_called);
+      EXPECT_EQ(v8::Promise::kPending, promise->State());
+      EXPECT_FALSE(isolate()->HasPendingBackgroundTasks());
+      EXPECT_TRUE(i_isolate()->is_execution_terminating());
+      EXPECT_TRUE(try_catch.HasTerminated());
+    }
+    EXPECT_FALSE(i_isolate()->has_exception());
+  }
+
+  // 2. AsyncStreamingProcessor::OnFinishedStream called while execution is
+  // already terminating must abort cleanly without finishing compilation or
+  // running start.
+  {
+    g_start_called = false;
+    g_streaming.reset();
+    Local<v8::Promise> promise = Local<v8::Promise>::Cast(
+        RunJS("WebAssembly.instantiateStreaming(null, imports)"));
+    std::shared_ptr<WasmStreaming> streaming = std::move(g_streaming);
+    ASSERT_TRUE(streaming);
+
+    streaming->OnBytesReceived(kNoCodeStartModuleBytes,
+                               arraysize(kNoCodeStartModuleBytes));
+    {
+      TryCatch try_catch(isolate());
+      i_isolate()->TerminateExecution();
+      ASSERT_TRUE(i_isolate()->is_execution_terminating());
+      streaming->Finish({});
+      EXPECT_FALSE(g_start_called);
+      EXPECT_EQ(v8::Promise::kPending, promise->State());
+      EXPECT_FALSE(isolate()->HasPendingBackgroundTasks());
+      EXPECT_TRUE(i_isolate()->is_execution_terminating());
+      EXPECT_TRUE(try_catch.HasTerminated());
+    }
+    EXPECT_FALSE(i_isolate()->has_exception());
+  }
+
+  // 3a. Worker-thread-posted FinishCompilation (prefix-cache hit spawning
+  // PrepareNativeModule on a background thread) pumped while execution is
+  // terminating must abort cleanly in AsyncCompileJob::CompileStep::Run.
+  {
+    g_start_called = false;
+    g_streaming.reset();
+    Local<v8::Promise> promise = Local<v8::Promise>::Cast(
+        RunJS("WebAssembly.instantiateStreaming(null, imports)"));
+    std::shared_ptr<WasmStreaming> streaming = std::move(g_streaming);
+    ASSERT_TRUE(streaming);
+
+    streaming->OnBytesReceived(kCodeStartModuleBytes,
+                               arraysize(kCodeStartModuleBytes));
+    {
+      // Disallow JS so even under --no-wasm-native-module-cache, a fast
+      // background compile cannot run FinishCompilation synchronously before
+      // TerminateExecution().
+      Isolate::DisallowJavascriptExecutionScope no_js(
+          isolate(),
+          Isolate::DisallowJavascriptExecutionScope::THROW_ON_FAILURE);
+      streaming->Finish({});
+    }
+    EXPECT_TRUE(isolate()->HasPendingBackgroundTasks());
+
+    {
+      TryCatch try_catch(isolate());
+      i_isolate()->TerminateExecution();
+      ASSERT_TRUE(i_isolate()->is_execution_terminating());
+      while (isolate()->HasPendingBackgroundTasks()) {
+        v8::platform::PumpMessageLoop(
+            internal::V8::GetCurrentPlatform(), isolate(),
+            platform::MessageLoopBehavior::kWaitForWork);
+      }
+      EXPECT_FALSE(g_start_called);
+      EXPECT_EQ(v8::Promise::kPending, promise->State());
+      EXPECT_TRUE(i_isolate()->is_execution_terminating());
+      EXPECT_TRUE(try_catch.HasTerminated());
+    }
+    EXPECT_FALSE(i_isolate()->has_exception());
+  }
+
+  // 3b. AsyncStreamingProcessor::OnFinishedStream called while execution is
+  // already terminating on an uncached code-section module must abort via
+  // OnAbort(), canceling active background validation/compilation and releasing
+  // the NativeModuleCache entry without leaving pending tasks behind.
+  {
+    constexpr uint8_t kUncachedCodeStartModuleBytes[] = {
+        WASM_MODULE_HEADER,
+        SECTION(Type, ENTRY_COUNT(1), SIG_ENTRY_v_v),
+        SECTION(Import, ENTRY_COUNT(1), ADD_COUNT('m'), ADD_COUNT('f'),
+                kExternalFunction, 0),
+        SECTION(Function, ENTRY_COUNT(1), 0),
+        SECTION(Start, 0),
+        SECTION(Code, ENTRY_COUNT(1),
+                ADD_COUNT(0, WASM_NOP, WASM_NOP, WASM_END))};
+    g_start_called = false;
+    g_streaming.reset();
+    Local<v8::Promise> promise = Local<v8::Promise>::Cast(
+        RunJS("WebAssembly.instantiateStreaming(null, imports)"));
+    std::shared_ptr<WasmStreaming> streaming = std::move(g_streaming);
+    ASSERT_TRUE(streaming);
+
+    streaming->OnBytesReceived(kUncachedCodeStartModuleBytes,
+                               arraysize(kUncachedCodeStartModuleBytes));
+    {
+      TryCatch try_catch(isolate());
+      i_isolate()->TerminateExecution();
+      ASSERT_TRUE(i_isolate()->is_execution_terminating());
+      streaming->Finish({});
+      EXPECT_FALSE(isolate()->HasPendingBackgroundTasks());
+      EXPECT_FALSE(g_start_called);
+      EXPECT_EQ(v8::Promise::kPending, promise->State());
+      EXPECT_TRUE(i_isolate()->is_execution_terminating());
+      EXPECT_TRUE(try_catch.HasTerminated());
+    }
+    EXPECT_FALSE(i_isolate()->has_exception());
+    // Compiling the same wire bytes afterwards must succeed (proving
+    // owns_cache_entry_ was released cleanly by OnAbort()).
+    EXPECT_FALSE(
+        WasmModuleObject::Compile(isolate(), kUncachedCodeStartModuleBytes)
+            .IsEmpty());
+  }
+
+  // 4. Deferred Fail foreground task pumped while execution is terminating must
+  // abort cleanly without rejecting the promise or clearing termination; also
+  // verify OnFinishedStream abort when decoding already failed
+  // (after_error == true).
+  {
+    constexpr uint8_t kInvalidModuleBytes[] = {0x00, 0x61, 0x73, 0x6d,
+                                               0x99, 0x00, 0x00, 0x00};
+    {
+      g_streaming.reset();
+      Local<v8::Promise> promise =
+          Local<v8::Promise>::Cast(RunJS("WebAssembly.compileStreaming(null)"));
+      std::shared_ptr<WasmStreaming> streaming = std::move(g_streaming);
+      ASSERT_TRUE(streaming);
+
+      {
+        Isolate::DisallowJavascriptExecutionScope no_js(
+            isolate(),
+            Isolate::DisallowJavascriptExecutionScope::THROW_ON_FAILURE);
+        streaming->OnBytesReceived(kInvalidModuleBytes,
+                                   arraysize(kInvalidModuleBytes));
+        streaming->Finish({});
+      }
+      EXPECT_TRUE(isolate()->HasPendingBackgroundTasks());
+
+      {
+        TryCatch try_catch(isolate());
+        i_isolate()->TerminateExecution();
+        ASSERT_TRUE(i_isolate()->is_execution_terminating());
+        EmptyMessageQueues();
+        EXPECT_EQ(v8::Promise::kPending, promise->State());
+        EXPECT_FALSE(isolate()->HasPendingBackgroundTasks());
+        EXPECT_TRUE(i_isolate()->is_execution_terminating());
+        EXPECT_TRUE(try_catch.HasTerminated());
+      }
+      EXPECT_FALSE(i_isolate()->has_exception());
+    }
+
+    {
+      g_streaming.reset();
+      Local<v8::Promise> promise =
+          Local<v8::Promise>::Cast(RunJS("WebAssembly.compileStreaming(null)"));
+      std::shared_ptr<WasmStreaming> streaming = std::move(g_streaming);
+      ASSERT_TRUE(streaming);
+
+      streaming->OnBytesReceived(kInvalidModuleBytes,
+                                 arraysize(kInvalidModuleBytes));
+      {
+        TryCatch try_catch(isolate());
+        i_isolate()->TerminateExecution();
+        ASSERT_TRUE(i_isolate()->is_execution_terminating());
+        streaming->Finish({});
+        EXPECT_EQ(v8::Promise::kPending, promise->State());
+        EXPECT_FALSE(isolate()->HasPendingBackgroundTasks());
+        EXPECT_TRUE(i_isolate()->is_execution_terminating());
+        EXPECT_TRUE(try_catch.HasTerminated());
+      }
+      EXPECT_FALSE(i_isolate()->has_exception());
+    }
+  }
+
+  // 5. WasmStreaming::Abort with a non-empty exception while execution is
+  // terminating must leave the promise pending without hitting
+  // DCHECK(!is_execution_terminating()) in Promise::Resolver::Reject.
+  {
+    g_streaming.reset();
+    Local<v8::Promise> promise =
+        Local<v8::Promise>::Cast(RunJS("WebAssembly.compileStreaming(null)"));
+    std::shared_ptr<WasmStreaming> streaming = std::move(g_streaming);
+    ASSERT_TRUE(streaming);
+    Local<Value> abort_reason = Object::New(isolate());
+
+    {
+      TryCatch try_catch(isolate());
+      i_isolate()->TerminateExecution();
+      ASSERT_TRUE(i_isolate()->is_execution_terminating());
+      streaming->Abort(abort_reason);
+      EXPECT_EQ(v8::Promise::kPending, promise->State());
+      EXPECT_FALSE(isolate()->HasPendingBackgroundTasks());
+      EXPECT_TRUE(i_isolate()->is_execution_terminating());
+      EXPECT_TRUE(try_catch.HasTerminated());
+    }
+    EXPECT_FALSE(i_isolate()->has_exception());
+  }
+
+  // 6. Cached streaming compilation with termination on a cache miss (no
+  // SetCachedCompiledModuleBytes call): falling through to OnBytesReceived() +
+  // OnFinishedStream() must abort cleanly in
+  // AsyncStreamingProcessor::OnFinishedStream without spawning
+  // PrepareNativeModule or running start.
+  {
+    g_start_called = false;
+    g_streaming.reset();
+    Local<v8::Promise> promise = Local<v8::Promise>::Cast(
+        RunJS("WebAssembly.instantiateStreaming(null, imports)"));
+    std::shared_ptr<WasmStreaming> streaming = std::move(g_streaming);
+    ASSERT_TRUE(streaming);
+
+    streaming->SetHasCompiledModuleBytes();
+    streaming->OnBytesReceived(kCodeStartModuleBytes,
+                               arraysize(kCodeStartModuleBytes));
+    {
+      TryCatch try_catch(isolate());
+      streaming->Finish([&](WasmStreaming::ModuleCachingInterface&) {
+        i_isolate()->TerminateExecution();
+        ASSERT_TRUE(i_isolate()->is_execution_terminating());
+      });
+      EXPECT_FALSE(g_start_called);
+      EXPECT_EQ(v8::Promise::kPending, promise->State());
+      EXPECT_FALSE(isolate()->HasPendingBackgroundTasks());
+      EXPECT_TRUE(i_isolate()->is_execution_terminating());
+      EXPECT_TRUE(try_catch.HasTerminated());
+    }
+    EXPECT_FALSE(i_isolate()->has_exception());
+  }
+
+  g_streaming.reset();
+}
+
+#ifdef V8_ENABLE_TURBOFAN
+// Separate TEST_F so FLAG_VALUE_SCOPE modifies v8_flags before any Wasm
+// compilation starts in this process (avoiding TSan data races with detached
+// background compile jobs from earlier subtests).
+TEST_F(ApiWasmTest, WasmStreamingDeserializeAbortsWhenExecutionTerminating) {
+  if (i::v8_flags.wasm_jitless || i::v8_flags.jitless ||
+      i::v8_flags.liftoff_only) {
+    return;
+  }
+  FLAG_VALUE_SCOPE(liftoff, false);
+  FLAG_VALUE_SCOPE(wasm_lazy_compilation, false);
+
+  using namespace internal::wasm;  // NOLINT(build/namespaces)
+  static std::shared_ptr<WasmStreaming> g_streaming;
+  static bool g_start_called = false;
+  auto capture_streaming = [](const FunctionCallbackInfo<Value>& info) {
+    g_streaming = WasmStreaming::Unpack(info.GetIsolate(), info.Data());
+  };
+  isolate()->SetWasmStreamingCallback(capture_streaming);
+
+  HandleScope scope(isolate());
+  Local<Context> context = Context::New(isolate());
+  Context::Scope context_scope(context);
+
+  constexpr uint8_t kCachedStartModuleBytes[] = {
+      WASM_MODULE_HEADER,
+      SECTION(Type, ENTRY_COUNT(1), SIG_ENTRY_v_v),
+      SECTION(Import, ENTRY_COUNT(1), ADD_COUNT('m'), ADD_COUNT('f'),
+              kExternalFunction, 0),
+      SECTION(Function, ENTRY_COUNT(1), 0),
+      SECTION(Start, 0),
+      SECTION(Code, ENTRY_COUNT(1), ADD_COUNT(0, WASM_NOP, WASM_END))};
+  OwnedBuffer serialized =
+      WasmModuleObject::Compile(isolate(), kCachedStartModuleBytes)
+          .ToLocalChecked()
+          ->GetCompiledModule()
+          .Serialize();
+  ASSERT_FALSE(serialized.empty());
+
+  Local<Object> imports = Object::New(isolate());
+  Local<Object> mod = Object::New(isolate());
+  Local<Function> on_start =
+      Function::New(context, [](const FunctionCallbackInfo<Value>&) {
+        g_start_called = true;
+      }).ToLocalChecked();
+  mod->Set(context, NewString("f"), on_start).Check();
+  imports->Set(context, NewString("m"), mod).Check();
+  context->Global()->Set(context, NewString("imports"), imports).Check();
+
+  // Test both already-terminating before Finish() and termination triggered
+  // inside caching_callback before SetCachedCompiledModuleBytes().
+  for (bool terminate_before_finish : {true, false}) {
+    g_start_called = false;
+    g_streaming.reset();
+    Local<v8::Promise> promise = Local<v8::Promise>::Cast(
+        RunJS("WebAssembly.instantiateStreaming(null, imports)"));
+    std::shared_ptr<WasmStreaming> streaming = std::move(g_streaming);
+    ASSERT_TRUE(streaming);
+
+    streaming->SetHasCompiledModuleBytes();
+    streaming->OnBytesReceived(kCachedStartModuleBytes,
+                               arraysize(kCachedStartModuleBytes));
+    {
+      TryCatch try_catch(isolate());
+      if (terminate_before_finish) {
+        i_isolate()->TerminateExecution();
+        ASSERT_TRUE(i_isolate()->is_execution_terminating());
+      }
+      static bool g_codegen_callback_called = false;
+      g_codegen_callback_called = false;
+      isolate()->SetAllowWasmCodeGenerationCallback(
+          [](Local<Context>, Local<String>) {
+            g_codegen_callback_called = true;
+            return true;
+          });
+      bool set_cached_ok = false;
+      streaming->Finish(
+          [&](WasmStreaming::ModuleCachingInterface& caching_interface) {
+            if (!terminate_before_finish) {
+              i_isolate()->TerminateExecution();
+              ASSERT_TRUE(i_isolate()->is_execution_terminating());
+            }
+            set_cached_ok = caching_interface.SetCachedCompiledModuleBytes(
+                serialized.as_span());
+          });
+      isolate()->SetAllowWasmCodeGenerationCallback(nullptr);
+      EXPECT_FALSE(g_codegen_callback_called);
+      EXPECT_TRUE(set_cached_ok);
+      EXPECT_FALSE(g_start_called);
+      EXPECT_EQ(v8::Promise::kPending, promise->State());
+      EXPECT_FALSE(isolate()->HasPendingBackgroundTasks());
+      EXPECT_TRUE(i_isolate()->is_execution_terminating());
+      EXPECT_TRUE(try_catch.HasTerminated());
+    }
+    EXPECT_FALSE(i_isolate()->has_exception());
+  }
+
+  g_streaming.reset();
+}
+#endif  // V8_ENABLE_TURBOFAN
 
 }  // namespace v8

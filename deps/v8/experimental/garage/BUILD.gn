@@ -1,0 +1,178 @@
+# Copyright 2026 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("../../gni/v8.gni")
+
+_garage_has_rust = false
+if (!(defined(build_with_node) && build_with_node)) {
+  import("//build/config/rust.gni")
+  _garage_has_rust = enable_rust && toolchain_has_rust
+}
+
+if (_garage_has_rust) {
+  import("//build/rust/cargo_crate.gni")
+  import("//build/rust/rust_executable.gni")
+  import("//build/rust/rust_static_library.gni")
+
+  _garage_rustenv = [
+    "CARGO_PKG_VERSION=0.1.0",
+    "CARGO_MANIFEST_DIR=" + rebase_path(".", root_build_dir),
+  ]
+
+  _garage_lib_sources = [
+    "src/ansi.rs",
+    "src/app.rs",
+    "src/cli.rs",
+    "src/clipboard.rs",
+    "src/config.rs",
+    "src/diff.rs",
+    "src/event.rs",
+    "src/index.rs",
+    "src/lib.rs",
+    "src/logging.rs",
+    "src/markers.rs",
+    "src/model.rs",
+    "src/myers.rs",
+    "src/parse/listing.rs",
+    "src/parse/maglev.rs",
+    "src/parse/mod.rs",
+    "src/parse/turbofan.rs",
+    "src/source.rs",
+    "src/terminal.rs",
+    "src/toml_min.rs",
+    "src/tty.rs",
+    "src/tui.rs",
+    "src/ui.rs",
+    "src/update.rs",
+    "src/view.rs",
+  ]
+
+  # `//third_party/rust/regex_lite/v0_1:lib` restricts visibility to
+  # `//third_party/rust/*`. Compile the vendored zero-dependency `regex-lite`
+  # crate here and alias it as `regex` for `garage`.
+  cargo_crate("garage_regex") {
+    crate_name = "regex_lite"
+    epoch = "0.1"
+    crate_type = "rlib"
+    crate_root = "//third_party/rust/chromium_crates_io/vendor/regex-lite-v0_1/src/lib.rs"
+    sources = [
+      "//third_party/rust/chromium_crates_io/vendor/regex-lite-v0_1/src/error.rs",
+      "//third_party/rust/chromium_crates_io/vendor/regex-lite-v0_1/src/hir/mod.rs",
+      "//third_party/rust/chromium_crates_io/vendor/regex-lite-v0_1/src/hir/parse.rs",
+      "//third_party/rust/chromium_crates_io/vendor/regex-lite-v0_1/src/int.rs",
+      "//third_party/rust/chromium_crates_io/vendor/regex-lite-v0_1/src/interpolate.rs",
+      "//third_party/rust/chromium_crates_io/vendor/regex-lite-v0_1/src/lib.rs",
+      "//third_party/rust/chromium_crates_io/vendor/regex-lite-v0_1/src/nfa.rs",
+      "//third_party/rust/chromium_crates_io/vendor/regex-lite-v0_1/src/pikevm.rs",
+      "//third_party/rust/chromium_crates_io/vendor/regex-lite-v0_1/src/pool.rs",
+      "//third_party/rust/chromium_crates_io/vendor/regex-lite-v0_1/src/string.rs",
+      "//third_party/rust/chromium_crates_io/vendor/regex-lite-v0_1/src/utf8.rs",
+    ]
+
+    build_native_rust_unit_tests = false
+    edition = "2021"
+    cargo_pkg_authors =
+        "The Rust Project Developers, Andrew Gallant <jamslam@gmail.com>"
+    cargo_pkg_name = "regex-lite"
+    cargo_pkg_description = "A lightweight regex engine that optimizes for binary size and compilation time."
+    cargo_pkg_repository = "https://github.com/rust-lang/regex"
+    cargo_pkg_version = "0.1.9"
+    allow_unsafe = false
+
+    features = [
+      "default",
+      "std",
+      "string",
+    ]
+
+    visibility = [ ":*" ]
+
+    library_configs -= [
+      "//build/config/coverage:default_coverage",
+      "//build/config/compiler:chromium_code",
+    ]
+  }
+
+  rust_static_library("garage_lib") {
+    crate_name = "garage"
+    edition = "2024"
+    allow_unsafe = true
+    crate_root = "src/lib.rs"
+    sources = _garage_lib_sources
+    inputs = [ "assets/markers.toml" ]
+
+    deps = [
+      ":garage_regex",
+      "//third_party/rust/anyhow/v1:lib",
+      "//third_party/rust/libc/v0_2:lib",
+    ]
+    aliased_deps = {
+      regex = ":garage_regex"
+    }
+    rustenv = _garage_rustenv
+    visibility = [ ":*" ]
+  }
+
+  rust_executable("garage") {
+    edition = "2024"
+    allow_unsafe = false
+    crate_root = "src/main.rs"
+    sources = [ "src/main.rs" ]
+    deps = [
+      ":garage_lib",
+      "//third_party/rust/anyhow/v1:lib",
+    ]
+    rustenv = _garage_rustenv
+  }
+
+  rust_executable("garage_unittests") {
+    testonly = true
+    edition = "2024"
+    allow_unsafe = true
+    crate_root = "src/lib.rs"
+    sources = _garage_lib_sources
+    inputs = [ "assets/markers.toml" ]
+    rustflags = [ "--test" ]
+    deps = [
+      ":garage_regex",
+      "//build/rust/std:test_support",
+      "//third_party/rust/anyhow/v1:lib",
+      "//third_party/rust/libc/v0_2:lib",
+    ]
+    aliased_deps = {
+      regex = ":garage_regex"
+    }
+    rustenv = _garage_rustenv
+  }
+
+  rust_executable("garage_golden_tests") {
+    testonly = true
+    edition = "2024"
+    allow_unsafe = false
+    crate_root = "tests/golden.rs"
+    sources = [ "tests/golden.rs" ]
+    rustflags = [ "--test" ]
+    deps = [
+      ":garage_lib",
+      "//build/rust/std:test_support",
+    ]
+    data_deps = [ "//:d8" ]
+    rustenv = _garage_rustenv
+  }
+
+  group("tests") {
+    testonly = true
+    deps = [
+      ":garage_golden_tests",
+      ":garage_unittests",
+    ]
+  }
+} else {
+  group("garage") {
+  }
+
+  group("tests") {
+    testonly = true
+  }
+}

@@ -25,6 +25,19 @@ MoveOperandKind GetKind(const InstructionOperand& move) {
   return IsFloatingPoint(loc_op.representation()) ? kFpReg : kGpReg;
 }
 
+// Returns the wider in-register GP representation (matching Is32BitOperand in
+// 64-bit backends' Use32BitMove helpers).
+MachineRepresentation WiderGpRepresentation(const InstructionOperand& src,
+                                            const InstructionOperand& dst) {
+  MachineRepresentation src_rep = LocationOperand::cast(src).representation();
+  if constexpr (kSystemPointerSize == 8) {
+    if (Is32BitOperand(src)) {
+      return LocationOperand::cast(dst).representation();
+    }
+  }
+  return src_rep;
+}
+
 }  // namespace
 
 void GapResolver::Resolve(ParallelMove* moves) {
@@ -116,15 +129,26 @@ void GapResolver::PerformCycle(const std::vector<MoveOperands*>& cycle) {
   // {MoveToTempLocation} will then choose the location accordingly.
   MachineRepresentation src_rep =
       LocationOperand::cast(move1->source()).representation();
-  MachineRepresentation dst_rep =
-      LocationOperand::cast(move1->destination()).representation();
-  // Floating-point moves may have mixed representations (e.g. from same-as-
-  // input SIMD splat/extract instructions or identity moves). Size the
-  // temporary by the source representation so that Push and Pop agree on the
-  // number of stack slots and wider sources preserve upper lanes in registers.
-  // General-purpose moves keep the destination representation because 32-bit
-  // sources may hold 64-bit values due to virtual register renaming.
-  MachineRepresentation rep = IsFloatingPoint(src_rep) ? src_rep : dst_rep;
+  // Splitting {source -> destination} into {source -> temp[rep]} followed by
+  // {temp[rep] -> destination} must preserve all live bits of {source} in
+  // {temp} and match the width behavior of a direct {source -> destination}
+  // move:
+  // - For FP/SIMD, {source} never holds valid bits wider than {src_rep} (and
+  //   {Push} sizes stack temporaries from {src_rep}), so {rep = src_rep}
+  //   preserves all bits in {temp}, makes {temp[src_rep] -> destination} match
+  //   a direct move, and keeps {Push} and {Pop} balanced.
+  // - For GP on 64-bit targets, virtual register renaming allows a 32-bit
+  //   source to hold a zero-extended 64-bit value when {dst_rep} is 64-bit (so
+  //   {source -> temp[rep]} needs a 64-bit {rep}), while same-as-input
+  //   instructions such as x64 64-bit shifts with a 32-bit output require a
+  //   64-bit source to keep its upper bits into a 32-bit destination (so
+  //   {temp[rep] -> destination} also needs a 64-bit {rep}). Choosing the wider
+  //   GP representation satisfies both legs and matches {Use32BitMove(source,
+  //   destination)}.
+  MachineRepresentation rep =
+      IsFloatingPoint(src_rep)
+          ? src_rep
+          : WiderGpRepresentation(move1->source(), move1->destination());
   DCHECK_EQ(ElementSizeInPointers(src_rep), ElementSizeInPointers(rep));
   for (size_t i = 0; i < cycle.size() - 1; ++i) {
     assembler_->SetPendingMove(cycle[i]);

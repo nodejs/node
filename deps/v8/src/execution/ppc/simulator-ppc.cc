@@ -184,9 +184,6 @@ void PPCDebugger::Debug() {
   // Unset breakpoint while running in the debugger shell, making it invisible
   // to all commands.
   UndoBreakpoint();
-  // Disable tracing while simulating
-  bool trace = v8_flags.trace_sim;
-  v8_flags.trace_sim = false;
 
   while (!done && !sim_->has_bad_pc()) {
     if (last_pc != sim_->get_pc()) {
@@ -506,7 +503,7 @@ void PPCDebugger::Debug() {
           if (strcmp(arg1, "info") == 0) {
             if (strcmp(arg2, "all") == 0) {
               PrintF("Stop information:\n");
-              for (uint32_t i = 0; i < sim_->kNumOfWatchedStops; i++) {
+              for (uint32_t i = 0; i < Simulator::kNumOfWatchedStops; i++) {
                 sim_->PrintStopInfo(i);
               }
             } else if (GetValue(arg2, &value)) {
@@ -517,7 +514,7 @@ void PPCDebugger::Debug() {
           } else if (strcmp(arg1, "enable") == 0) {
             // Enable all/the specified breakpoint(s).
             if (strcmp(arg2, "all") == 0) {
-              for (uint32_t i = 0; i < sim_->kNumOfWatchedStops; i++) {
+              for (uint32_t i = 0; i < Simulator::kNumOfWatchedStops; i++) {
                 sim_->EnableStop(i);
               }
             } else if (GetValue(arg2, &value)) {
@@ -528,7 +525,7 @@ void PPCDebugger::Debug() {
           } else if (strcmp(arg1, "disable") == 0) {
             // Disable all/the specified breakpoint(s).
             if (strcmp(arg2, "all") == 0) {
-              for (uint32_t i = 0; i < sim_->kNumOfWatchedStops; i++) {
+              for (uint32_t i = 0; i < Simulator::kNumOfWatchedStops; i++) {
                 sim_->DisableStop(i);
               }
             } else if (GetValue(arg2, &value)) {
@@ -623,8 +620,6 @@ void PPCDebugger::Debug() {
   // Reinstall breakpoint to stop execution and enter the debugger shell when
   // hit.
   RedoBreakpoint();
-  // Restore tracing
-  v8_flags.trace_sim = trace;
 
 #undef COMMAND_SIZE
 #undef ARG_SIZE
@@ -5831,12 +5826,12 @@ void Simulator::GlobalMonitor::Clear() {
   access_state_ = MonitorAccess::Open;
   tagged_addr_ = 0;
   size_ = TransactionSize::None;
-  thread_id_ = ThreadId::Invalid();
+  thread_id_ = base::ThreadId::Invalid();
 }
 
 void Simulator::GlobalMonitor::NotifyLoadExcl(uintptr_t addr,
                                               TransactionSize size,
-                                              ThreadId thread_id) {
+                                              base::ThreadId thread_id) {
   // TODO(s390): By using Global Monitors, we are effectively limiting one
   // active reservation across all processors. This would potentially serialize
   // parallel threads executing load&reserve + store conditional on unrelated
@@ -5849,7 +5844,7 @@ void Simulator::GlobalMonitor::NotifyLoadExcl(uintptr_t addr,
 }
 
 void Simulator::GlobalMonitor::NotifyStore(uintptr_t addr, TransactionSize size,
-                                           ThreadId thread_id) {
+                                           base::ThreadId thread_id) {
   if (access_state_ == MonitorAccess::Exclusive) {
     // Calculate if the transaction has been overlapped
     uintptr_t transaction_start = addr;
@@ -5867,7 +5862,7 @@ void Simulator::GlobalMonitor::NotifyStore(uintptr_t addr, TransactionSize size,
 
 bool Simulator::GlobalMonitor::NotifyStoreExcl(uintptr_t addr,
                                                TransactionSize size,
-                                               ThreadId thread_id) {
+                                               base::ThreadId thread_id) {
   bool permission = access_state_ == MonitorAccess::Exclusive &&
                     addr == tagged_addr_ && size_ == size &&
                     thread_id_ == thread_id;

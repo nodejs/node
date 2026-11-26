@@ -135,8 +135,8 @@ extern runtime FatalProcessOutOfMemoryInvalidArrayLength(NoContext): never;
     const length: uint32 = Unsigned(Convert<int32>(length));
     if (length == 0) return kEmptyFixedArray;
     if (length > kFixedArrayMaxLength) deferred {
-        runtime::FatalProcessOutOfMemoryInvalidArrayLength(kNoContext);
-      }
+      runtime::FatalProcessOutOfMemoryInvalidArrayLength(kNoContext);
+    }
     return new FixedArray{
       map: kFixedArrayMap,
       length,
@@ -151,7 +151,7 @@ extern runtime FatalProcessOutOfMemoryInvalidArrayLength(NoContext): never;
     const length: uint32 = Unsigned(Convert<int32>(length));
     if (length == 0) return kEmptyFixedArray;
     if (length > kFixedArrayMaxLength) deferred {
-        runtime::FatalProcessOutOfMemoryInvalidArrayLength(kNoContext);
-      }
+      runtime::FatalProcessOutOfMemoryInvalidArrayLength(kNoContext);
+    }
     return new FixedArray{map: kFixedArrayMap, length, objects: ...it};
   }

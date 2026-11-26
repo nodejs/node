@@ -14,6 +14,7 @@
 
 #include "absl/random/internal/chi_square.h"
 
+#include <algorithm>
 #include <cmath>
 
 #include "absl/base/config.h"
@@ -24,103 +25,40 @@ ABSL_NAMESPACE_BEGIN
 namespace random_internal {
 namespace {
 
-#if defined(__EMSCRIPTEN__)
-// Workaround __EMSCRIPTEN__ error: llvm_fma_f64 not found.
-inline double fma(double x, double y, double z) { return (x * y) + z; }
-#endif
+constexpr int kLargeDOF = 150;
 
-// Use Horner's method to evaluate a polynomial.
-template <typename T, unsigned N>
-inline T EvaluatePolynomial(T x, const T (&poly)[N]) {
-#if !defined(__EMSCRIPTEN__)
-  using std::fma;
-#endif
-  T p = poly[N - 1];
-  for (unsigned i = 2; i <= N; i++) {
-    p = fma(p, x, poly[N - i]);
-  }
-  return p;
-}
+// 1 / sqrt(2). Defined explicitly instead of non-standard M_SQRT1_2 for
+// portability (e.g. Windows/MSVC).
+constexpr double kSqrt1_2 = 0.70710678118654752440084436210485;
 
-static constexpr int kLargeDOF = 150;
-
-// Returns the probability of a normal z-value.
-//
-// Adapted from the POZ function in:
-//     Ibbetson D, Algorithm 209
-//     Collected Algorithms of the CACM 1963 p. 616
-//
-double POZ(double z) {
-  static constexpr double kP1[] = {
-      0.797884560593,  -0.531923007300, 0.319152932694,
-      -0.151968751364, 0.059054035642,  -0.019198292004,
-      0.005198775019,  -0.001075204047, 0.000124818987,
-  };
-  static constexpr double kP2[] = {
-      0.999936657524,  0.000535310849,  -0.002141268741, 0.005353579108,
-      -0.009279453341, 0.011630447319,  -0.010557625006, 0.006549791214,
-      -0.002034254874, -0.000794620820, 0.001390604284,  -0.000676904986,
-      -0.000019538132, 0.000152529290,  -0.000045255659,
-  };
-
-  const double kZMax = 6.0;  // Maximum meaningful z-value.
-  if (z == 0.0) {
-    return 0.5;
-  }
-  double x;
-  double y = 0.5 * std::fabs(z);
-  if (y >= (kZMax * 0.5)) {
-    x = 1.0;
-  } else if (y < 1.0) {
-    double w = y * y;
-    x = EvaluatePolynomial(w, kP1) * y * 2.0;
-  } else {
-    y -= 2.0;
-    x = EvaluatePolynomial(y, kP2);
-  }
-  return z > 0.0 ? ((x + 1.0) * 0.5) : ((1.0 - x) * 0.5);
-}
-
-// Approximates the survival function of the normal distribution.
-//
-// Algorithm 26.2.18, from:
-// [Abramowitz and Stegun, Handbook of Mathematical Functions,p.932]
-// http://people.math.sfu.ca/~cbm/aands/abramowitz_and_stegun.pdf
-//
-double normal_survival(double z) {
-  // Maybe replace with the alternate formulation.
-  // 0.5 * erfc((x - mean)/(sqrt(2) * sigma))
-  static constexpr double kR[] = {
-      1.0, 0.196854, 0.115194, 0.000344, 0.019527,
-  };
-  double r = EvaluatePolynomial(z, kR);
-  r *= r;
-  return 0.5 / (r * r);
-}
+// Returns the survival function of the standard normal distribution:
+// P(Z > z) = 1 - Phi(z) = 0.5 * erfc(z / sqrt(2)).
+double normal_survival(double z) { return 0.5 * std::erfc(z * kSqrt1_2); }
 
 }  // namespace
 
-// Calculates the critical chi-square value given degrees-of-freedom and a
-// p-value, usually using bisection. Also known by the name CRITCHI.
+// Calculates the critical chi-square value x given degrees of freedom and
+// cumulative probability p = P(X <= x) (upper-tail p-value 1 - p), using
+// Wilson-Hilferty for large dof and bisection otherwise. Also known as CRITCHI.
 double ChiSquareValue(int dof, double p) {
   static constexpr double kChiEpsilon =
       0.000001;                               // Accuracy of the approximation.
   static constexpr double kChiMax = 99999.0;  // Maximum chi-squared value.
 
   const double p_value = 1.0 - p;
-  if (dof < 1 || p_value > 1.0) {
+  if (dof < 1 || p_value >= 1.0) {
     return 0.0;
   }
 
   if (dof > kLargeDOF) {
-    // For large degrees of freedom, use the normal approximation by
-    //     Wilson, E. B. and Hilferty, M. M. (1931)
-    //                     chi^2 - mean
-    //                Z = --------------
-    //                        stddev
+    // For large degrees of freedom, use the Wilson-Hilferty (1931) cube-root
+    // normal approximation:
+    //             (chi^2 / dof)^(1/3) - mean
+    //        Z = ----------------------------
+    //                       stddev
     const double z = InverseNormalSurvival(p_value);
-    const double mean = 1 - 2.0 / (9 * dof);
-    const double variance = 2.0 / (9 * dof);
+    const double mean = 1 - 2.0 / (9.0 * dof);
+    const double variance = 2.0 / (9.0 * dof);
     // Cannot use this method if the variance is 0.
     if (variance != 0) {
       double term = z * std::sqrt(variance) + mean;
@@ -133,7 +71,7 @@ double ChiSquareValue(int dof, double p) {
   // Otherwise search for the p value by bisection
   double min_chisq = 0.0;
   double max_chisq = kChiMax;
-  double current = dof / std::sqrt(p_value);
+  double current = std::min(dof / std::sqrt(p_value), max_chisq);
   while ((max_chisq - min_chisq) > kChiEpsilon) {
     if (ChiSquarePValue(current, dof) < p_value) {
       max_chisq = current;
@@ -158,30 +96,6 @@ double ChiSquarePValue(double chi_square, int dof) {
   static constexpr double kInverseSqrtPi =
       0.5641895835477562869480795;  // 1/(Sqrt[Pi])
 
-  // For large degrees of freedom, use the normal approximation by
-  //     Wilson, E. B. and Hilferty, M. M. (1931)
-  // Via Wikipedia:
-  //   By the Central Limit Theorem, because the chi-square distribution is the
-  //   sum of k independent random variables with finite mean and variance, it
-  //   converges to a normal distribution for large k.
-  if (dof > kLargeDOF) {
-    // Re-scale everything.
-    const double chi_square_scaled = std::pow(chi_square / dof, 1.0 / 3);
-    const double mean = 1 - 2.0 / (9 * dof);
-    const double variance = 2.0 / (9 * dof);
-    // If variance is 0, this method cannot be used.
-    if (variance != 0) {
-      const double z = (chi_square_scaled - mean) / std::sqrt(variance);
-      if (z > 0) {
-        return normal_survival(z);
-      } else if (z < 0) {
-        return 1.0 - normal_survival(-z);
-      } else {
-        return 0.5;
-      }
-    }
-  }
-
   // The chi square function is >= 0 for any degrees of freedom.
   // In other words, probability that the chi square function >= 0 is 1.
   if (chi_square <= 0.0) return 1.0;
@@ -189,15 +103,34 @@ double ChiSquarePValue(double chi_square, int dof) {
   // If the degrees of freedom is zero, the chi square function is always 0 by
   // definition. In other words, the probability that the chi square function
   // is > 0 is zero (chi square values <= 0 have been filtered above).
-  if (dof < 1) return 0;
+  if (dof < 1) return 0.0;
 
-  auto capped_exp = [](double x) { return x < -20 ? 0.0 : std::exp(x); };
+  // For large degrees of freedom, use the Wilson-Hilferty (1931) cube-root
+  // normal approximation: (chi^2 / dof)^(1/3) ~ N(1 - 2/(9*dof), 2/(9*dof)).
+  if (dof > kLargeDOF) {
+    // Re-scale everything.
+    const double chi_square_scaled = std::pow(chi_square / dof, 1.0 / 3);
+    const double mean = 1 - 2.0 / (9.0 * dof);
+    const double variance = 2.0 / (9.0 * dof);
+    // If variance is 0, this method cannot be used.
+    if (variance != 0) {
+      const double z = (chi_square_scaled - mean) / std::sqrt(variance);
+      return normal_survival(z);
+    }
+  }
+
+  if (std::isinf(chi_square)) return 0.0;
+
+  // Above kBigX, sum terms in log-space to avoid a^k / k! overflow in the
+  // direct recurrence below.
   static constexpr double kBigX = 20;
 
   double a = 0.5 * chi_square;
+  if (a == 0.0) return 1.0;
   const bool even = !(dof & 1);  // True if dof is an even number.
-  const double y = capped_exp(-a);
-  double s = even ? y : (2.0 * POZ(-std::sqrt(chi_square)));
+  const double y = std::exp(-a);
+  // For odd dof, P(chi^2_1 > chi_square) = erfc(sqrt(chi_square / 2)).
+  double s = even ? y : std::erfc(std::sqrt(a));
 
   if (dof <= 2) {
     return s;
@@ -210,7 +143,7 @@ double ChiSquarePValue(double chi_square, int dof) {
     double c = std::log(a);
     while (z <= chi_square) {
       e = std::log(z) + e;
-      s += capped_exp(c * z - a - e);
+      s += std::exp(c * z - a - e);
       z += 1.0;
     }
     return s;

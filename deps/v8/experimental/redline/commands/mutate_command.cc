@@ -210,7 +210,11 @@ class Evaluator {
  public:
   Evaluator(const Options& options, SyntaxChecker* checker,
             ScriptRunner* runner)
-      : options_(options), checker_(checker), runner_(runner) {}
+      : options_(options),
+        checker_(checker),
+        runner_(runner),
+        on_demand_(runner_ != nullptr ? MakeOnDemandPrelude(options.prelude)
+                                      : nullptr) {}
 
   void Evaluate(Component* component, const std::string& name, int index,
                 const std::string& source, const std::string& detail) {
@@ -250,7 +254,7 @@ class Evaluator {
     // The prelude is an execution-time detail (test harness shims); it is
     // never part of the program itself, so it is not printed or saved.
     std::string exec_source =
-        options_.prelude.empty() ? source : options_.prelude + "\n" + source;
+        ScriptWithPrelude(options_.prelude, on_demand_.get(), source);
     if (!runner_->Run(exec_source, &result, &error)) {
       REDLINE_WARN(kLog, "execution failed: %s", error.c_str());
       return;
@@ -346,6 +350,9 @@ class Evaluator {
   const Options& options_;
   SyntaxChecker* checker_;
   ScriptRunner* runner_;
+  // With the tunable `prelude.on_demand`: the part of the prelude for each
+  // program, as in a session.
+  std::unique_ptr<OnDemandPrelude> on_demand_;
   size_t input_index_ = 0;
   uint64_t total_ = 0;
   uint64_t invalid_ = 0;
@@ -536,11 +543,48 @@ int RunBench(const Flags& flags, bool audit) {
           Random rng(options.seed + static_cast<uint64_t>(i) * 7919 +
                      Program::HashSource(g->name()) + input * 104729);
           std::unique_ptr<fast::Tree> tree = parent->CopyTree();
-          Builder builder(tree.get(), &rng);
+          Builder builder(tree.get(), &rng, &env);
           Stopwatch sw;
           std::vector<fast::Statement*> out;
           Builder::Slot slot;
           bool generated = false;
+          if (g->requirements() & (kClassSlot | kLiteralSlot)) {
+            // A member generator: a new member of a class body or object
+            // literal of the input.
+            std::vector<Builder::MemberSlot> slots;
+            for (const Builder::MemberSlot& s : builder.MemberSlots()) {
+              if (s.owner->Is<fast::ClassBody>() ==
+                  ((g->requirements() & kClassSlot) != 0)) {
+                slots.push_back(s);
+              }
+            }
+            std::vector<fast::Node*> members;
+            if (!slots.empty()) {
+              Builder::MemberSlot member_slot = rng.Pick(slots);
+              GenContext ctx(builder, *generators, env);
+              ctx.syntax = builder.ContextAt(member_slot.owner);
+              ctx.visible = builder.VisibleAt(member_slot.owner);
+              ctx.member_owner = member_slot.owner;
+              ctx.member_out = &members;
+              g->stats().invocations++;
+              if (g->Generate(ctx, &out) && !members.empty()) {
+                g->stats().produced++;
+                for (fast::Node* member : members) {
+                  builder.InsertMember(member_slot, member);
+                  member_slot.index++;
+                }
+                generated = true;
+              }
+            }
+            mutation_time_us += sw.ElapsedUs();
+            if (!generated) {
+              noop++;
+              continue;
+            }
+            evaluator.Evaluate(g, g->name(), i, fast::Print(tree->root()),
+                               StringPrintf("%zu members", members.size()));
+            continue;
+          }
           for (int attempt = 0; attempt < 10 && !generated; attempt++) {
             slot = builder.RandomInsertionSlot();
             if (!slot.valid()) {

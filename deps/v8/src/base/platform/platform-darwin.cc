@@ -136,14 +136,11 @@ std::optional<OS::MemoryRange> OS::GetFirstFreeMemoryRangeWithin(
 }
 
 // static
-Stack::StackSlot Stack::ObtainCurrentThreadStackStart() {
-  return pthread_get_stackaddr_np(pthread_self());
-}
-
-// static
-Stack::StackSlot Stack::ObtainCurrentThreadStackReservedLimit() {
-  return reinterpret_cast<uint8_t*>(pthread_get_stackaddr_np(pthread_self())) -
-         pthread_get_stacksize_np(pthread_self());
+Stack::StackBounds Stack::ObtainCurrentThreadStackBounds() {
+  void* stack_start = pthread_get_stackaddr_np(pthread_self());
+  void* reserved_limit = static_cast<uint8_t*>(stack_start) -
+                         pthread_get_stacksize_np(pthread_self());
+  return {stack_start, reserved_limit};
 }
 
 // static

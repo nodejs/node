@@ -755,7 +755,8 @@ class FrameState : public CommonNodeWrapperBase {
   Node* locals() const {
     Node* n = node()->InputAt(kFrameStateLocalsInput);
     DCHECK(n->opcode() == IrOpcode::kStateValues ||
-           n->opcode() == IrOpcode::kTypedStateValues);
+           n->opcode() == IrOpcode::kTypedStateValues ||
+           n->opcode() == IrOpcode::kDeadValue);
     return n;
   }
   // TODO(jgruber): Consider renaming this to the more meaningful

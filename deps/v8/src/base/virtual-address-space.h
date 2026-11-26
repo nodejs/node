@@ -145,6 +145,10 @@ class V8_BASE_EXPORT VirtualAddressSubspace : public VirtualAddressSpaceBase {
 
   bool SetName(const std::string& name) override;
 
+#if V8_OS_FUCHSIA
+  uint32_t GetVmarHandle() const override { return reservation_.vmar(); }
+#endif  // V8_OS_FUCHSIA
+
  private:
   // The VirtualAddressSpace class creates instances of this class when
   // allocating sub spaces.

@@ -5,8 +5,8 @@
 #include "src/regexp/regexp.h"
 
 #include "src/base/strings.h"
+#include "src/base/synchronization-point-support.h"
 #include "src/codegen/compilation-cache.h"
-#include "src/common/synchronization-point-support.h"
 #include "src/diagnostics/code-tracer.h"
 #include "src/execution/interrupts-scope.h"
 #include "src/handles/global-handles-inl.h"
@@ -53,7 +53,8 @@ class RegExpImpl final : public AllStatic {
                                  DirectHandle<String> original_source,
                                  DirectHandle<String> escaped_source,
                                  Flags flags, int capture_count,
-                                 uint32_t backtrack_limit, uint32_t bit_field);
+                                 uint32_t backtrack_limit, uint32_t bit_field,
+                                 ZoneVector<Capture*>* named_captures);
 
   // Prepare a RegExp for being executed one or more times (using
   // IrregexpExecOnce) on the subject.
@@ -431,9 +432,9 @@ MaybeDirectHandle<Object> RegExp::Compile(Isolate* isolate,
                              EscapeRegExpSource(isolate, original_source));
   if (v8_flags.default_to_experimental_regexp_engine && is_linear_executable) {
     DCHECK(v8_flags.enable_experimental_regexp_engine);
-    regexp::ExperimentalRegExp::Initialize(isolate, re, original_source,
-                                           escaped_source, flags,
-                                           parse_result.capture_count);
+    regexp::ExperimentalRegExp::Initialize(
+        isolate, re, original_source, escaped_source, flags,
+        parse_result.capture_count, parse_result.named_captures);
     has_been_compiled = true;
   } else if (flags & JSRegExp::kLinear) {
     DCHECK(v8_flags.enable_experimental_regexp_engine);
@@ -443,9 +444,9 @@ MaybeDirectHandle<Object> RegExp::Compile(Isolate* isolate,
       return RegExp::ThrowRegExpException(isolate, flags, original_source,
                                           regexp::Error::kNotLinear);
     }
-    regexp::ExperimentalRegExp::Initialize(isolate, re, original_source,
-                                           escaped_source, flags,
-                                           parse_result.capture_count);
+    regexp::ExperimentalRegExp::Initialize(
+        isolate, re, original_source, escaped_source, flags,
+        parse_result.capture_count, parse_result.named_captures);
     has_been_compiled = true;
   } else if (parse_result.simple && !IsIgnoreCase(flags) && !IsSticky(flags) &&
              !HasFewDifferentCharacters(original_source)) {
@@ -472,12 +473,13 @@ MaybeDirectHandle<Object> RegExp::Compile(Isolate* isolate,
   if (!has_been_compiled) {
     const bool can_be_zero_length = parse_result.tree->min_match() == 0;
     using Bits = IrRegExpData::Bits;
-    const uint32_t bit_field =
-        Bits::CanBeZeroLengthBit::encode(can_be_zero_length) |
-        Bits::IsLinearExecutableBit::encode(is_linear_executable);
+    const auto bit_field = Bits()
+                               .with_can_be_zero_length(can_be_zero_length)
+                               .with_is_linear_executable(is_linear_executable);
     regexp::RegExpImpl::IrregexpInitialize(
         isolate, re, original_source, escaped_source, flags,
-        parse_result.capture_count, backtrack_limit, bit_field);
+        parse_result.capture_count, backtrack_limit, bit_field,
+        parse_result.named_captures);
   }
   // Compilation succeeded so the data is set on the regexp
   // and we can store it in the cache.
@@ -554,11 +556,10 @@ std::optional<int> RegExp::Exec(Isolate* isolate,
 
 // static
 MaybeDirectHandle<Object> RegExp::Exec_Single(
-    Isolate* isolate, DirectHandle<JSRegExp> regexp,
+    Isolate* isolate, DirectHandle<RegExpData> data,
     DirectHandle<String> subject, int index,
     DirectHandle<RegExpMatchInfo> last_match_info) {
   regexp::StackScope stack_scope(isolate);
-  DirectHandle<RegExpData> data(regexp->data(isolate), isolate);
   int capture_count = data->capture_count();
   int result_offsets_vector_length =
       JSRegExp::RegistersForCaptureCount(capture_count);
@@ -981,9 +982,6 @@ bool RegExpImpl::CompileIrregexpFromSource(
         BUILTIN_CODE(isolate, RegExpInterpreterTrampoline);
     re_data->set_code(is_one_byte, *trampoline);
   }
-  DirectHandle<TrustedFixedArray> capture_name_map =
-      RegExp::CreateCaptureNameMap(isolate, compile_data.named_captures);
-  re_data->set_capture_name_map(capture_name_map);
   int register_max = re_data->max_register_count();
   if (compile_data.register_count > register_max) {
     re_data->set_max_register_count(compile_data.register_count);
@@ -1166,11 +1164,14 @@ void RegExpImpl::IrregexpInitialize(Isolate* isolate, DirectHandle<JSRegExp> re,
                                     DirectHandle<String> escaped_source,
                                     Flags flags, int capture_count,
                                     uint32_t backtrack_limit,
-                                    uint32_t bit_field) {
+                                    uint32_t bit_field,
+                                    ZoneVector<Capture*>* named_captures) {
+  DirectHandle<TrustedFixedArray> capture_name_map =
+      RegExp::CreateCaptureNameMap(isolate, named_captures);
   // Initialize compiled code entries to null.
   isolate->factory()->SetRegExpIrregexpData(
       re, original_source, escaped_source, JSRegExp::AsJSRegExpFlags(flags),
-      capture_count, backtrack_limit, bit_field);
+      capture_count, backtrack_limit, bit_field, capture_name_map);
 }
 
 // static
@@ -1401,20 +1402,24 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, CompileData* data,
                           RegExp::kMaxOptimizedPatternLength);
   }
 
-  // Sample some characters from the middle of the string.
-  static const int kSampleSize = 128;
-
-  sample_subject = String::Flatten(isolate, sample_subject);
-  uint32_t start, end;
-  if (sample_subject->length() > kSampleSize) {
-    start = (sample_subject->length() - kSampleSize) / 2;
-    end = start + kSampleSize;
+  if (v8_flags.regexp_static_frequencies) {
+    compiler.frequency_collator()->UseStaticFrequencies();
   } else {
-    start = 0;
-    end = sample_subject->length();
-  }
-  for (uint32_t i = start; i < end; i++) {
-    compiler.frequency_collator()->CountCharacter(sample_subject->Get(i));
+    // Sample some characters from the middle of the string.
+    static const int kSampleSize = 128;
+
+    sample_subject = String::Flatten(isolate, sample_subject);
+    uint32_t start, end;
+    if (sample_subject->length() > kSampleSize) {
+      start = (sample_subject->length() - kSampleSize) / 2;
+      end = start + kSampleSize;
+    } else {
+      start = 0;
+      end = sample_subject->length();
+    }
+    for (uint32_t i = start; i < end; i++) {
+      compiler.frequency_collator()->CountCharacter(sample_subject->Get(i));
+    }
   }
 
   data->node = compiler.PreprocessRegExp(data, is_one_byte);

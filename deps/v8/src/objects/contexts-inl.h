@@ -107,12 +107,16 @@ void Context::SetNoCell(int index, Tagged<Object> value,
 Tagged<Object> Context::get(int index, RelaxedLoadTag) const {
   DCHECK_LT(static_cast<unsigned int>(index),
             static_cast<unsigned int>(length(kRelaxedLoad)));
+  DCHECK(!Is<NativeContext>(this) || index < FIRST_EMBEDDER_DATA_INDEX ||
+         index > LAST_EMBEDDER_DATA_INDEX);
   return elements()[index].Relaxed_Load();
 }
 
 Tagged<Object> Context::get(int index, AcquireLoadTag) const {
   DCHECK_LT(static_cast<unsigned int>(index),
             static_cast<unsigned int>(length(kRelaxedLoad)));
+  DCHECK(!Is<NativeContext>(this) || index < FIRST_EMBEDDER_DATA_INDEX ||
+         index > LAST_EMBEDDER_DATA_INDEX);
   return elements()[index].Acquire_Load();
 }
 
@@ -124,6 +128,8 @@ void Context::set(int index, Tagged<Object> value, WriteBarrierMode mode,
                   RelaxedStoreTag) {
   DCHECK_LT(static_cast<unsigned int>(index),
             static_cast<unsigned int>(length(kRelaxedLoad)));
+  DCHECK(!Is<NativeContext>(this) || index < FIRST_EMBEDDER_DATA_INDEX ||
+         index > LAST_EMBEDDER_DATA_INDEX);
   elements()[index].Relaxed_Store(this, value, mode);
 }
 
@@ -131,6 +137,8 @@ void Context::set(int index, Tagged<Object> value, WriteBarrierMode mode,
                   ReleaseStoreTag) {
   DCHECK_LT(static_cast<unsigned int>(index),
             static_cast<unsigned int>(length(kRelaxedLoad)));
+  DCHECK(!Is<NativeContext>(this) || index < FIRST_EMBEDDER_DATA_INDEX ||
+         index > LAST_EMBEDDER_DATA_INDEX);
   elements()[index].Release_Store(this, value, mode);
 }
 

@@ -1,0 +1,9 @@
+header: netinet/ip.h
+standards:
+  - linux
+macros: []
+types:
+  - type_name: struct_iphdr
+enums: []
+objects: []
+functions: []

@@ -1,236 +1,161 @@
+# Hidden Classes in V8: A Step-by-Step Walkthrough
+
+## Conceptual Overview
+
+This tutorial walks through how V8 builds and uses **Hidden Classes** (`Map`s in V8's C++ codebase) from the ground up, showing how dynamic JavaScript objects gain the memory layout and property-access speed of compiled C++ structs, and how `PropertyConstness::kConst` enables aggressive constant folding in Maglev and TurboFan.
+
+*(For the low-level bitfields of `DescriptorArray`, `TransitionArray`, `LoadHandler`, and `StubCache`, see [Hidden Classes and ICs](hidden-classes-and-ics.md) and [Descriptor and Transition Arrays](../objects/descriptor-and-transition-arrays.md).)*
+
 ---
-title: 'Maps (Hidden Classes) in V8'
-description: 'How does V8 track and optimize the perceived structure of your objects?'
+
+## 1. Why Hidden Classes Exist
+
+In a statically typed language like C++ or Java, a class's field layout is fixed at compile time:
+- Every instance of `struct Point { int x; int y; }` stores `x` at byte offset `0` and `y` at byte offset `4`.
+- Reading `p->y` compiles to a single machine load instruction (`mov eax, [rdi + 4]`).
+
+JavaScript has no static struct declarations, and properties can be added to any object on the fly. Without hidden classes, every object would have to store its properties in a hash table (dictionary), turning every `point.y` read into a string hash computation, bucket probe, and key comparison.
+
+V8 avoids dictionary lookups by observing that **most JavaScript objects are initialized in predictable, repeatable patterns**. Every `HeapObject` in V8 starts with a pointer to a **`Map`** (its hidden class). The `Map` acts as a blueprint describing:
+- Which properties the object has (`DescriptorArray`).
+- Which offset inside the object (or out-of-object `PropertyArray`) each property lives at.
+- Which child `Map` to transition to when a new property is added (`TransitionsAccessor` / `TransitionArray`).
+
 ---
 
-Let's show how V8 builds it's hidden classes. The principal data structures are:
+## 2. Step-by-Step: Building a Transition Chain
 
-- `Map`: the hidden class itself. It's the first pointer value in an object and therefore allows easy comparison to see if two objects have the same class.
-- `DescriptorArray`: The full list of properties that this class has along with information about them. In some cases, the property value is even in this array.
-- `TransitionArray`: An array of "edges" from this `Map` to sibling Maps. Each edge is a property name, and should be thought of as "if I were to add a property with this name to the current class, what class would I transition to?"
-
-Because many `Map` objects only have one transition to another one (ie, they are "transitional" maps, only used on the way to something else), V8 doesn't always create a full-blown `TransitionArray` for it. Instead it'll just link directly to this "next" `Map`. The system has to do a bit of spelunking in the `DescriptorArray` of the `Map` being pointed to in order to figure out the name attached to the transition.
-
-This is an extremely rich subject. It's also subject to change, though, if you understand the concepts in this article future change should be incrementally understandable.
-
-## Why have hidden classes?
-
-V8 could do without hidden classes, sure. It would treat each object as a bag of properties. However, a very useful principle would have been left laying around: the principal of intelligent design. V8 surmises that you'll only create so many **different** kinds of objects. And each kind of object will be used in what can eventually be seen to be stereotypical ways. I say "eventually be seen" because the JavaScript language is a scripting language, not a pre-compiled one. So V8 never knows what will come next. To make use of intelligent design (that is, the assumption that there is a mind behind the code coming in), V8 has to watch and wait, letting the sense of structure seep in. The hidden class mechanism is the principal means to do this. Of course, it presupposes a sophisticated listening mechanism, and these are the Inline Caches (ICs) about which much has been written.
-
-So, if you are convinced this is good and necessary work, follow me!
-
-## An example
+Consider this constructor function:
 
 ```javascript
 function Peak(name, height, extra) {
   this.name = name;
   this.height = height;
-  if (isNaN(extra)) {
-    this.experience = extra;
-  } else {
+  if (extra) {
     this.prominence = extra;
   }
 }
 
-m1 = new Peak("Matterhorn", 4478, 1040);
-m2 = new Peak("Wendelstein", 1838, "good");
+const m1 = new Peak("Matterhorn", 4478);
+const m2 = new Peak("Mont Blanc", 4810, 4695);
 ```
 
-With this code we've already got an interesting map tree from the root map (also known as the initial map) which is attached to the function `Peak`:
+### Step 1: Newly Allocated `this` (`Map0`)
+When `new Peak("Matterhorn", 4478)` begins, V8 allocates a fresh `JSObject` with slack space for in-object properties (`this.name`, `this.height`, `this.prominence`). Initially, it points to `Peak`'s initial hidden class, **`Map0`**, which has **0 descriptors**.
 
-<figure>
-  <img src="/_img/docs/hidden-classes/drawing-one.svg" width="400" height="480" alt="Hidden class example" loading="lazy">
-</figure>
+### Step 2: `this.name = name` (`Map0 -> Map1`)
+When `this.name = "Matterhorn"` executes:
+1. V8 checks `Map0`'s transitions and creates **`Map1`**.
+2. `Map1`'s `DescriptorArray` records that `"name"` is stored at **in-object field index 0** (`Representation::HeapObject()`, `FieldType::Class(String)`).
+3. `Map0` records an inline weak transition (`TransitionsAccessor::kWeakRef`) to `Map1`: `Map0 --("name")--> Map1`.
 
-Each blue box is a map, starting with the initial map. This is the map of the object returned if somehow, we managed to run the function `Peak` without adding a single property. The follow-on maps are the ones that result by adding the properties given by the names on the edges between maps. Each map has a list of the properties associated with an object of that map. Furthermore, it describes the exact location of each property. Finally, from one of these maps, say, `Map3` which is the hidden class of the object you'll get if you passed a number for the `extra` argument in `Peak()`, you can follow a back link up all the way to the initial map.
+### Step 3: `this.height = height` (`Map1 -> Map2`)
+When `this.height = 4478` executes:
+1. V8 transitions from `Map1` to **`Map2`**.
+2. Rather than copying `Map1`'s `DescriptorArray`, **`Map1` and `Map2` share the same `DescriptorArray`**, with `Map1->NumberOfOwnDescriptors() == 1` and `Map2->NumberOfOwnDescriptors() == 2`!
+3. Descriptor 1 records `"height"` at **in-object field index 1** (`Representation::Smi()`).
+4. Because `extra` is `undefined`, `m1` finishes construction with **`Map2`**.
 
-Let's draw it again with this extra information. The annotation (i0), (i1), means in-object field location 0, 1, etc:
+### Step 4: Constructing `m2` (`Map0 -> Map1 -> Map2 -> Map3`)
+When `new Peak("Mont Blanc", 4810, 4695)` runs:
+1. It starts at `Map0`, follows the existing `"name"` transition to `Map1`, and follows the existing `"height"` transition to `Map2` -- allocating **zero** new `Map`s for the first two properties!
+2. Because `extra` is truthy (`4695`), `this.prominence = 4695` executes on `Map2`, creating **`Map3`** (which appends `"prominence"` at **in-object field index 2** to the shared `DescriptorArray` using pre-allocated descriptor slack).
 
-<figure>
-  <img src="/_img/docs/hidden-classes/drawing-two.svg" width="400" height="480" alt="Hidden class example" loading="lazy">
-</figure>
+```mermaid
+graph LR
+    M0["Map0<br/>own descriptors: 0"] -- "add 'name'<br/>(field 0)" --> M1["Map1<br/>own descriptors: 1"]
+    M1 -- "add 'height'<br/>(field 1)" --> M2["Map2 (m1)<br/>own descriptors: 2"]
+    M2 -- "add 'prominence'<br/>(field 2)" --> M3["Map3 (m2)<br/>own descriptors: 3"]
 
-Now, if you spend time examining these maps before you've created at least 7 `Peak` objects, you'll encounter **slack tracking** which can be confusing. I have [another article](https://v8.dev/blog/slack-tracking) about that. Just create 7 more objects and it will be finished. At this point, your Peak objects will have exactly 3 in-object properties, with no possibility to add more directly in the object. Any additional properties will be offloaded to the object's property backing store. It's just an array of property values, whose index comes from the map (Well, technically, from the `DescriptorArray` attached to the map). Let's add a property to `m2` on a new line, and look again at the map tree:
+    subgraph Shared DescriptorArray
+        D["[0] 'name': field 0 (HeapObject)<br/>[1] 'height': field 1 (Smi)<br/>[2] 'prominence': field 2 (Smi)"]
+    end
+
+    M1 -.->|"uses [0..0]"| D
+    M2 -.->|"uses [0..1]"| D
+    M3 -.->|"uses [0..2]"| D
+```
+
+---
+
+## 3. Branching Transition Trees
+
+What if another function adds a different property after `height`?
 
 ```javascript
-m2.cost = "one arm, one leg";
+const m3 = new Peak("K2", 8611);
+m3.country = "Pakistan/China";
 ```
 
-<figure>
-  <img src="/_img/docs/hidden-classes/drawing-three.svg" width="400" height="480" alt="Hidden class example" loading="lazy">
-</figure>
+Now `Map2` has **two** outgoing transitions: one for `"prominence"` (`Map3`) and one for `"country"` (`Map4`):
+1. `Map2`'s `raw_transitions()` upgrades from an inline single weak pointer (`kWeakRef`) to a **`TransitionArray`** (`kFullTransitionArray`) containing two sorted `[Key, Weak<Map>]` entries: `["country" -> Map4, "prominence" -> Map3]`.
+2. Because `Map3` already claimed index 2 of the original `DescriptorArray` for `"prominence"`, `Map4` cannot overwrite index 2 with `"country"`. Therefore, `Map4` allocates its own `DescriptorArray` (`["name", "height", "country"]`).
 
-I snuck something in here. Notice that all of the properties are annotated with "const," which means that from V8's point of view, nobody ever changed them since the constructor, so they can be considered constants once they've been initialized. TurboFan (the optimizing compiler) loves this. Say `m2` is referenced as a constant global by a function. Then the lookup of `m2.cost` can be done at compile time, since the field is marked as constant. I'll return to this later in the article.
-
-Notice that property "cost" is marked as `const p0`, which means it's a constant property stored at index zero in the **properties backing store** rather than in the object directly. This is because we have no more room in the object. This information is visible in `%DebugPrint(m2)`:
-
-```
-d8> %DebugPrint(m2);
-DebugPrint: 0x2f9488e9: [JS_OBJECT_TYPE]
- - map: 0x219473fd <Map(HOLEY_ELEMENTS)> [FastProperties]
- - prototype: 0x2f94876d <Object map = 0x21947335>
- - elements: 0x419421a1 <FixedArray[0]> [HOLEY_ELEMENTS]
- - properties: 0x2f94aecd <PropertyArray[3]> {
-    0x419446f9: [String] in ReadOnlySpace: #name: 0x237125e1
-        <String[11]: #Wendelstein> (const data field 0)
-    0x23712581: [String] in OldSpace: #height:
-        1838 (const data field 1)
-    0x23712865: [String] in OldSpace: #experience: 0x237125f9
-        <String[4]: #good> (const data field 2)
-    0x23714515: [String] in OldSpace: #cost: 0x23714525
-        <String[16]: #one arm, one leg>
-        (const data field 3) properties[0]
- }
- ...
-{name: "Wendelstein", height: 1, experience: "good", cost: "one arm, one leg"}
-d8>
+```mermaid
+graph LR
+    M0["Map0"] -- "'name'" --> M1["Map1"]
+    M1 -- "'height'" --> M2["Map2<br/>(TransitionArray)"]
+    M2 -- "'prominence'" --> M3["Map3<br/>Descriptors: [name, height, prominence]"]
+    M2 -- "'country'" --> M4["Map4<br/>Descriptors: [name, height, country]"]
 ```
 
-You can see that we have 4 properties, all marked as const. The first 3 in the object, and the last in `properties[0]` which means the first slot of the properties backing store. We can look at that:
+### Why Property Insertion Order Matters
+Because transitions depend on the exact sequence of property additions, creating `{ a: 1, b: 2 }` and `{ b: 2, a: 1 }` dynamically walks two different paths in the transition tree (`Map0 --"a"--> MapA --"b"--> MapAB` vs `Map0 --"b"--> MapB --"a"--> MapBA`), producing two distinct `Map`s where `a` and `b` sit at swapped field offsets. Initializing properties in a consistent order ensures all instances share a single `Map` and keeps Inline Caches **monomorphic**.
 
-```
-d8> %DebugPrintPtr(0x2f94aecd)
-DebugPrint: 0x2f94aecd: [PropertyArray]
- - map: 0x41942be9 <Map>
- - length: 3
- - hash: 0
-         0: 0x23714525 <String[16]: #one arm, one leg>
-       1-2: 0x41942329 <undefined>
-```
+---
 
-The extra properties are there just in case you decide to add more all of a sudden.
+## 4. `PropertyConstness::kConst` and Compiler Constant Folding
 
-## The real structure
+Every descriptor in a `DescriptorArray` tracks a 1-bit **`PropertyConstness`** flag (`src/objects/property-details.h`):
+- **`PropertyConstness::kConst`**: The property has been initialized once (when transitioning to the `Map`) and **has never been overwritten with a different value on any instance of this `Map`**.
+- **`PropertyConstness::kMutable`**: The property has been overwritten at least once after initialization.
 
-There are different things we could do at this point, but since you must really like V8, having read this far, I'd like to try drawing the real data structures we use, the ones mentioned at the beginning of `Map`, `DescriptorArray`, and `TransitionArray`. Now that you have some idea of the hidden class concept being built up behind the scenes, you may as well bind your thinking more closely to the code through the right names and structures. Let me try and reproduce that last figure in V8's representation. First I'm going to draw the **DescriptorArrays**, which hold the list of properties for a given Map. These arrays can be shared -- the key to that is that the Map itself knows how many properties it is allowed to look at in the DescriptorArray. Since the properties are in the order they were added in time, these arrays can be shared by several maps. See:
-
-<figure>
-  <img src="/_img/docs/hidden-classes/drawing-four.svg" width="600" height="480" alt="Hidden class example" loading="lazy">
-</figure>
-
-Notice that **Map1**, **Map2**, and **Map3** all point to **DescriptorArray1**. The number next to the "descriptors" field in each Map indicates how many fields over in the DescriptorArray belong to the Map. So **Map1**, which only knows about the "name" property, looks only at the first property listed in **DescriptorArray1**. Whereas **Map2** has two properties, "name" and "height." So it looks at the first and second items in **DescriptorArray1** (name and height). This kind of sharing saves a lot of space.
-
-Naturally, we can't share where there is a split. There is a transition from Map2 over to Map4 if the "experience" property is added, and over to Map3 if the "prominence" property is added. You can see Map4 and Map5 sharing DescriptorArray2 in the same way that DescriptorArray1 was shared among three Maps.
-
-The only thing missing from our "true to life" diagram is the `TransitionArray` which is still metaphorical at this point. Let's change that. I took the liberty of removing the **back pointer** lines, which cleans things up a bit. Just remember that from any Map in the tree, you can walk up the tree, too.
-
-<figure>
-  <img src="/_img/docs/hidden-classes/drawing-five.svg" width="600" height="480" alt="Hidden class example" loading="lazy">
-</figure>
-
-The diagram rewards study. **Question: what would happen if a new property "rating" was added after "name" instead of going on to "height" and other properties?**
-
-**Answer**: Map1 would get a real **TransitionArray** so as to keep track of the bifurcation. If property *height* is added, we should transition to **Map2**. However, if property *rating* is added, we should go to a new map, **Map6**. This map would need a new DescriptorArray that mentions *name* and *rating*. The object has extra free slots at this point in the object (only one of three is used), so property *rating* will be given one of those slots.
-
-*I checked my answer with the help of `%DebugPrintPtr()`, and drew the following:*
-
-<figure>
-  <img src="/_img/docs/hidden-classes/drawing-six.svg" width="500" height="480" alt="Hidden class example" loading="lazy">
-</figure>
-
-No need to beg me to stop, I see that this is the upper limit of such diagrams! But I think you can get a sense of how the parts move. Just imagine if after adding this ersatz property *rating*, we continued on with *height*, *experience* and *cost*. Well, we'd have to create maps **Map7**, **Map8** and **Map9**. Because we insisted on adding this property in the middle of an established chain of maps, we will duplicate much structure. I don't have the heart to make that drawing -- though if you send it to me I will add it to this document :).
-
-I used the handy [DreamPuf](https://dreampuf.github.io/GraphvizOnline) project to make the diagrams easily. Here is a [link](https://dreampuf.github.io/GraphvizOnline/#digraph%20G%20%7B%0A%0A%20%20node%20%5Bfontname%3DHelvetica%2C%20shape%3D%22record%22%2C%20fontcolor%3D%22white%22%2C%20style%3Dfilled%2C%20color%3D%22%233F53FF%22%5D%0A%20%20edge%20%5Bfontname%3DHelvetica%5D%0A%20%20%0A%20%20Map0%20%5Blabel%3D%22%7B%3Ch%3E%20Map0%20%7C%20%3Cd%3E%20descriptors%20(0)%20%7C%20%3Ct%3E%20transitions%20(1)%7D%22%5D%3B%0A%20%20Map1%20%5Blabel%3D%22%7B%3Ch%3E%20Map1%20%7C%20%3Cd%3E%20descriptors%20(1)%20%7C%20%3Ct%3E%20transitions%20(1)%7D%22%5D%3B%0A%20%20Map2%20%5Blabel%3D%22%7B%3Ch%3E%20Map2%20%7C%20%3Cd%3E%20descriptors%20(2)%20%7C%20%3Ct%3E%20transitions%20(2)%7D%22%5D%3B%0A%20%20Map3%20%5Blabel%3D%22%7B%3Ch%3E%20Map3%20%7C%20%3Cd%3E%20descriptors%20(3)%20%7C%20%3Ct%3E%20transitions%20(0)%7D%22%5D%0A%20%20Map4%20%5Blabel%3D%22%7B%3Ch%3E%20Map4%20%7C%20%3Cd%3E%20descriptors%20(3)%20%7C%20%3Ct%3E%20transitions%20(1)%7D%22%5D%0A%20%20Map5%20%5Blabel%3D%22%7B%3Ch%3E%20Map5%20%7C%20%3Cd%3E%20descriptors%20(4)%20%7C%20%3Ct%3E%20transitions%20(0)%7D%22%5D%0A%20%20Map6%20%5Blabel%3D%22%7B%3Ch%3E%20Map6%20%7C%20%3Cd%3E%20descriptors%20(2)%20%7C%20%3Ct%3E%20transitions%20(0)%7D%22%5D%3B%0A%20%20Map0%3At%20-%3E%20Map1%20%5Blabel%3D%22name%20(inferred)%22%5D%3B%0A%20%20%0A%20%20Map4%3At%20-%3E%20Map5%20%5Blabel%3D%22cost%20(inferred)%22%5D%3B%0A%20%20%0A%20%20%2F%2F%20Create%20the%20descriptor%20arrays%0A%20%20node%20%5Bfontname%3DHelvetica%2C%20shape%3D%22record%22%2C%20fontcolor%3D%22black%22%2C%20style%3Dfilled%2C%20color%3D%22%23FFB34D%22%5D%3B%0A%20%20%0A%20%20DA0%20%5Blabel%3D%22%7BDescriptorArray0%20%7C%20(empty)%7D%22%5D%0A%20%20Map0%3Ad%20-%3E%20DA0%3B%0A%20%20DA1%20%5Blabel%3D%22%7BDescriptorArray1%20%7C%20name%20(const%20i0)%20%7C%20height%20(const%20i1)%20%7C%20prominence%20(const%20i2)%7D%22%5D%3B%0A%20%20Map1%3Ad%20-%3E%20DA1%3B%0A%20%20Map2%3Ad%20-%3E%20DA1%3B%0A%20%20Map3%3Ad%20-%3E%20DA1%3B%0A%20%20%0A%20%20DA2%20%5Blabel%3D%22%7BDescriptorArray2%20%7C%20name%20(const%20i0)%20%7C%20height%20(const%20i1)%20%7C%20experience%20(const%20i2)%20%7C%20cost%20(const%20p0)%7D%22%5D%3B%0A%20%20Map4%3Ad%20-%3E%20DA2%3B%0A%20%20Map5%3Ad%20-%3E%20DA2%3B%0A%20%20%0A%20%20DA3%20%5Blabel%3D%22%7BDescriptorArray3%20%7C%20name%20(const%20i0)%20%7C%20rating%20(const%20i1)%7D%22%5D%3B%0A%20%20Map6%3Ad%20-%3E%20DA3%3B%0A%20%20%0A%20%20%2F%2F%20Create%20the%20transition%20arrays%0A%20%20node%20%5Bfontname%3DHelvetica%2C%20shape%3D%22record%22%2C%20fontcolor%3D%22white%22%2C%20style%3Dfilled%2C%20color%3D%22%23B3813E%22%5D%3B%0A%20%20TA0%20%5Blabel%3D%22%7BTransitionArray0%20%7C%20%3Ca%3E%20experience%20%7C%20%3Cb%3E%20prominence%7D%22%5D%3B%0A%20%20Map2%3At%20-%3E%20TA0%3B%0A%20%20TA0%3Aa%20-%3E%20Map4%3Ah%3B%0A%20%20TA0%3Ab%20-%3E%20Map3%3Ah%3B%0A%20%20%0A%20%20TA1%20%5Blabel%3D%22%7BTransitionArray1%20%7C%20%3Ca%3E%20rating%20%7C%20%3Cb%3E%20height%7D%22%5D%3B%0A%20%20Map1%3At%20-%3E%20TA1%3B%0A%20%20TA1%3Ab%20-%3E%20Map2%3B%0A%20%20TA1%3Aa%20-%3E%20Map6%3B%0A%7D) to the previous diagram.
-
-## TurboFan and const properties
-
-Thus far, all these fields are marked in the `DescriptorArray` as `const`. Let's play with this. Run the following code on a debug build:
+### How `kConst` Powers Code Generation and Deoptimization
+Consider a top-level configuration object or prototype method holder:
 
 ```javascript
-// run as:
-// d8 --allow-natives-syntax --no-lazy-feedback-allocation --code-comments --print-opt-code
+const config = { scale: 10 };
+
+function compute(x) {
+  return x * config.scale;
+}
+```
+
+1. When `config` is created, its `Map` marks the `"scale"` descriptor as **`PropertyConstness::kConst`** (`Representation::Smi()`).
+2. When `compute(x)` becomes hot and is compiled by Maglev or TurboFan:
+   - The compiler sees that `config` is a constant object reference, checks its `Map`, and inspects the `"scale"` descriptor in `config->map()->instance_descriptors()`.
+   - Seeing `PropertyConstness::kConst`, the compiler reads `config.scale` (`10`) at compile time, registers this compiled `Code` object in the `Map`'s **`DependentCode`** under **`DependentCode::kFieldConstGroup`**, and compiles `compute(x)` directly to `return x * 10` -- completely eliminating the property load from `config`!
+
+```nasm
+; Conceptual x64 optimized assembly for compute(x) with kConst folding:
+; No load from `config` at all!
+imul eax, edi, 10
+jo deopt_exit_overflow
+```
+
+3. **What if user code later mutates `config.scale = 20`?**
+   - The store passes through `StoreIC` / `LookupIterator::PrepareForDataProperty`.
+   - `MapUpdater` sees that `"scale"` is currently `PropertyConstness::kConst` and the new value (`20`) differs from the existing value (`10`).
+   - `MapUpdater` updates the descriptor in-place to **`PropertyConstness::kMutable`** and invokes `DependentCode::DeoptimizeDependencyGroups(isolate, map, DependentCode::kFieldConstGroup)`.
+   - `compute`'s optimized `Code` is immediately marked for lazy deoptimization! The next call to `compute` falls back to Ignition (and if re-optimized later, compiles a normal field load instead of constant-folding `10`).
+
+---
+
+## 5. Inspecting Hidden Classes in `d8`
+
+You can inspect `Map`s, `DescriptorArray`s, and `TransitionArray`s directly using a debug build of `d8` with `--allow-natives-syntax`:
+
+```javascript
+// Run with: out/x64.debug/d8 --allow-natives-syntax
 function Peak(name, height) {
   this.name = name;
   this.height = height;
 }
-
-let m1 = new Peak("Matterhorn", 4478);
-m2 = new Peak("Wendelstein", 1838);
-
-// Make sure slack tracking finishes.
-for (let i = 0; i < 7; i++) new Peak("blah", i);
-
-m2.cost = "one arm, one leg";
-function foo(a) {
-  return m2.cost;
-}
-
-foo(3);
-foo(3);
-%OptimizeFunctionOnNextCall(foo);
-foo(3);
+const m1 = new Peak("Matterhorn", 4478);
+%DebugPrint(m1);
 ```
 
-You'll get a printout of optimized function `foo()`. The code is very short. You'll see at the end of the function:
-
-```
-...
-40  mov eax,0x2a812499          ;; object: 0x2a812499 <String[16]: #one arm, one leg>
-45  mov esp,ebp
-47  pop ebp
-48  ret 0x8                     ;; return "one arm, one leg"!
-```
-
-TurboFan, being a cheeky devil, just directly inserted the value of `m2.cost`. Well how do you like that!
-
-Of course, after that last call to `foo()` you could insert this line:
-
-```javascript
-m2.cost = "priceless";
-```
-
-What do you think will happen? One thing for sure, we can't let `foo()` stay as it is. It would return the wrong answer. Re-run the program, but add flag `--trace-deopt` so you'll be told when optimized code is removed from the system. After the printout of the optimized `foo()`, you'll see these lines:
-
-```
-[marking dependent code 0x5c684901 0x21e525b9 <SharedFunctionInfo foo> (opt #0) for deoptimization,
-    reason: field-const]
-[deoptimize marked code in all contexts]
-```
-
-Wow.
-
-<figure>
-  <img src="/_img/docs/hidden-classes/i_like_it_a_lot.gif" width="440" height="374" alt="I like it a lot" loading="lazy">
-</figure>
-
-If you force re-optimization you'll get code that is not quite as good, but still benefits greatly from the Map structure we've been describing. Remember from our diagrams that property *cost* is the first property in
-the properties backing store for an object. Well, it may have lost it's const designation, but we still have it's address. Basically, in an object with map **Map5**, which we'll certainly verify that global variable `m2` still has, we only have to--
-
-1. load the properties backing store, and
-2. read out the first array element.
-
-Let's see that. Add this code below the last line:
-
-```javascript
-// Force reoptimization of foo().
-foo(3);
-%OptimizeFunctionOnNextCall(foo);
-foo(3);
-```
-
-Now have a look at the code produced:
-
-```
-...
-40  mov ecx,0x42cc8901          ;; object: 0x42cc8901 <Peak map = 0x3d5873ad>
-45  mov ecx,[ecx+0x3]           ;; Load the properties backing store
-48  mov eax,[ecx+0x7]           ;; Get the first element.
-4b  mov esp,ebp
-4d  pop ebp
-4e  ret 0x8                     ;; return it in register eax!
-```
-
-Why heck. That's exactly what we said should happen. Perhaps we are beginning to Know.
-
-TurboFan is also smart enough to deoptimize if variable `m2` ever changes to a different class. You can watch the latest optimized code deoptimize again with something droll like:
-
-```javascript
-m2 = 42;  // heh.
-```
-
-## Where to go from here
-
-Many options. Map migration. Dictionary mode (aka "slow mode"). Lots to explore in this area and I hope you enjoy yourself as much as I do -- thanks for reading!
-
-## See Also
-- [Hidden Classes and Inline Caches](hidden-classes-and-ics.md)
+In the `%DebugPrint(m1)` output, look for:
+- `map: 0x... <Map[24](HOLEY_ELEMENTS)>`
+- `instance descriptors #2: 0x... <DescriptorArray[2]>` showing `(const data field 0:s, p: 0, Representation: HeapObject)` and `(const data field 1:s, p: 1, Representation: Smi)`.
+- `back pointer: 0x... <Map>` linking back up the transition chain to `Map1` and `Map0`.

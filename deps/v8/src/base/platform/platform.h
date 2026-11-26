@@ -263,8 +263,17 @@ class V8_BASE_EXPORT OS {
     virtual void* memory() const = 0;
     virtual size_t size() const = 0;
 
+    // |hint| selects the requested mapping address:
+    //   std::nullopt  - use a randomized address (legacy behaviour),
+    //   nullptr       - let the kernel choose the address,
+    //   anything else - use |hint| as the requested address.
+    // Pass nullptr for mappings that must not end up inside the address range
+    // that V8 reserves for the sandbox.
+    // On platforms whose implementation cannot control the mapping address,
+    // the hint is ignored.
     static MemoryMappedFile* open(const char* name,
-                                  FileMode mode = FileMode::kReadWrite);
+                                  FileMode mode = FileMode::kReadWrite,
+                                  std::optional<void*> hint = std::nullopt);
     static MemoryMappedFile* create(const char* name, size_t size,
                                     void* initial);
   };
@@ -520,6 +529,10 @@ class V8_BASE_EXPORT AddressSpaceReservation {
   V8_WARN_UNUSED_RESULT static bool FreeSubReservation(
       AddressSpaceReservation reservation);
 
+#if V8_OS_FUCHSIA
+  zx_handle_t vmar() const { return vmar_; }
+#endif  // V8_OS_FUCHSIA
+
 #if V8_OS_WIN
   // On Windows, the placeholder mappings backing address space reservations
   // need to be split and merged as page allocations can only replace an entire
@@ -701,6 +714,13 @@ class V8_BASE_EXPORT Stack {
     uintptr_t value;
   };
 
+  struct StackBounds {
+    // Highest address of the stack, or nullptr if unavailable.
+    StackSlot start;
+    // Lowest address that the stack can grow to, or nullptr if unavailable.
+    StackSlot reserved_limit;
+  };
+
   // Gets the start of the stack of the current thread.
   static StackSlot GetStackStart();
   // Gets the custom start of the stack of the current thread if set, otherwise
@@ -708,6 +728,8 @@ class V8_BASE_EXPORT Stack {
   static StackSlot GetEffectiveStackStart();
   // Gets the lowest address that the stack can grow to.
   static StackSlot GetReservedStackLimit();
+  // Gets both the stack start and reserved stack limit of the current thread.
+  static StackBounds GetStackBounds();
 
   // On Windows, the TEB's StackLimit changes during execution as the stack
   // grows. Expose a function to get it.
@@ -771,10 +793,8 @@ class V8_BASE_EXPORT Stack {
   }
 
  private:
-  // Return the current thread stack start pointer.
-  static StackSlot ObtainCurrentThreadStackStart();
-  // Lowest address that the stack can grow to.
-  static StackSlot ObtainCurrentThreadStackReservedLimit();
+  static void EnsureThreadStackDataInitialized();
+  static StackBounds ObtainCurrentThreadStackBounds();
 
   friend class heap::base::Stack;
 };

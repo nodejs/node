@@ -74,12 +74,20 @@ from_chars_result_t<UC>
  * Returns true if the floating-pointing rounding mode is to 'nearest'.
  * It is the default on most system. This function is meant to be inexpensive.
  * Credit : @mwalcott3
+ *
+ * If FASTFLOAT_ROUNDS_TO_NEAREST is defined, we trust the user that the
+ * rounding mode is always 'nearest' and we skip the check (see README).
  */
 fastfloat_really_inline bool rounds_to_nearest() noexcept {
   // https://lemire.me/blog/2020/06/26/gcc-not-nearest/
 #if (FLT_EVAL_METHOD != 1) && (FLT_EVAL_METHOD != 0)
+  // The arithmetic may be carried out with excess precision (e.g., x87):
+  // Clinger's fast path could then round twice. FASTFLOAT_ROUNDS_TO_NEAREST
+  // does not change this.
   return false;
-#endif
+#elif defined(FASTFLOAT_ROUNDS_TO_NEAREST)
+  return true;
+#else
   // See
   // A fast function to check your floating-point rounding mode
   // https://lemire.me/blog/2022/11/16/a-fast-function-to-check-your-floating-point-rounding-mode/
@@ -133,6 +141,7 @@ fastfloat_really_inline bool rounds_to_nearest() noexcept {
 #elif defined(__GNUC__)
 #pragma GCC diagnostic pop
 #endif
+#endif // FASTFLOAT_ROUNDS_TO_NEAREST
 }
 
 } // namespace detail
@@ -158,7 +167,10 @@ template <> struct from_chars_caller<std::float32_t> {
     // float32_t
     float val = 0.0f;
     auto ret = from_chars_advanced(first, last, val, options);
-    value = val;
+    // If no characters match the pattern, value must be left unmodified.
+    if (ret.ec != std::errc::invalid_argument) {
+      value = val;
+    }
     return ret;
   }
 };
@@ -175,7 +187,10 @@ template <> struct from_chars_caller<std::float64_t> {
     // float64_t
     double val = 0.0;
     auto ret = from_chars_advanced(first, last, val, options);
-    value = val;
+    // If no characters match the pattern, value must be left unmodified.
+    if (ret.ec != std::errc::invalid_argument) {
+      value = val;
+    }
     return ret;
   }
 };
@@ -385,9 +400,19 @@ from_chars_float_advanced(UC const *first, UC const *last, T &value,
   // Leave for the javascript conversion before anything else is live, so this
   // compiles to a tail call and the common path keeps its registers. The cold
   // function repeats the leading-whitespace and empty-input handling below.
+  // See the comment on -Wc++20-extensions further down in this function.
+#ifdef __clang__
+#pragma clang diagnostic push
+#if (!defined(__APPLE_CC__) && __clang_major__ >= 10) || (__clang_major__ >= 13)
+#pragma clang diagnostic ignored "-Wc++20-extensions"
+#endif
+#endif
   if fastfloat_unlikely (uint64_t(fmt & detail::basic_javascript_fmt)) {
     return from_chars_float_javascript<T, UC>(first, last, value, options);
   }
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
 
   from_chars_result_t<UC> answer;
   if (uint64_t(fmt & chars_format::skip_white_space)) {
@@ -529,38 +554,42 @@ integer_times_pow10(int64_t mantissa, int decimal_exponent) noexcept {
 // the following overloads are here to avoid surprising ambiguity for int,
 // unsigned, etc.
 template <typename T, typename Int>
-FASTFLOAT_CONSTEXPR20
-    typename std::enable_if<is_supported_float_type<T>::value &&
-                                std::is_integral<Int>::value &&
-                                !std::is_signed<Int>::value,
-                            T>::type
-    integer_times_pow10(Int mantissa, int decimal_exponent) noexcept {
+FASTFLOAT_CONSTEXPR20 typename std::enable_if<
+    is_supported_float_type<T>::value && std::is_integral<Int>::value &&
+        sizeof(Int) <= sizeof(uint64_t) && !std::is_signed<Int>::value,
+    T>::type
+integer_times_pow10(Int mantissa, int decimal_exponent) noexcept {
   return integer_times_pow10<T>(static_cast<uint64_t>(mantissa),
                                 decimal_exponent);
 }
 
 template <typename T, typename Int>
-FASTFLOAT_CONSTEXPR20
-    typename std::enable_if<is_supported_float_type<T>::value &&
-                                std::is_integral<Int>::value &&
-                                std::is_signed<Int>::value,
-                            T>::type
-    integer_times_pow10(Int mantissa, int decimal_exponent) noexcept {
+FASTFLOAT_CONSTEXPR20 typename std::enable_if<
+    is_supported_float_type<T>::value && std::is_integral<Int>::value &&
+        sizeof(Int) <= sizeof(int64_t) && std::is_signed<Int>::value,
+    T>::type
+integer_times_pow10(Int mantissa, int decimal_exponent) noexcept {
   return integer_times_pow10<T>(static_cast<int64_t>(mantissa),
                                 decimal_exponent);
 }
 
 template <typename Int>
-FASTFLOAT_CONSTEXPR20 typename std::enable_if<
-    std::is_integral<Int>::value && !std::is_signed<Int>::value, double>::type
-integer_times_pow10(Int mantissa, int decimal_exponent) noexcept {
+FASTFLOAT_CONSTEXPR20
+    typename std::enable_if<std::is_integral<Int>::value &&
+                                sizeof(Int) <= sizeof(uint64_t) &&
+                                !std::is_signed<Int>::value,
+                            double>::type
+    integer_times_pow10(Int mantissa, int decimal_exponent) noexcept {
   return integer_times_pow10(static_cast<uint64_t>(mantissa), decimal_exponent);
 }
 
 template <typename Int>
-FASTFLOAT_CONSTEXPR20 typename std::enable_if<
-    std::is_integral<Int>::value && std::is_signed<Int>::value, double>::type
-integer_times_pow10(Int mantissa, int decimal_exponent) noexcept {
+FASTFLOAT_CONSTEXPR20
+    typename std::enable_if<std::is_integral<Int>::value &&
+                                sizeof(Int) <= sizeof(int64_t) &&
+                                std::is_signed<Int>::value,
+                            double>::type
+    integer_times_pow10(Int mantissa, int decimal_exponent) noexcept {
   return integer_times_pow10(static_cast<int64_t>(mantissa), decimal_exponent);
 }
 

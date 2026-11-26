@@ -13,6 +13,7 @@
 #include "src/base/lazy-instance.h"
 #include "src/base/once.h"
 #include "src/codegen/constants-arch.h"
+#include "src/common/code-memory-access-inl.h"
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
 #include "src/heap/heap-inl.h"
@@ -80,8 +81,12 @@ bool RedZones::TryRemove(base::AddressRegion needle) {
     // manually. This is necessary as we still want the non-removed parts to
     // be unavailable for allocation.
     CHECK_EQ(0, overlap.size() % allocate_page_size);
-    allocator_->FreePages(reinterpret_cast<void*>(red_zone_region.begin()),
-                          red_zone_region.size());
+    {
+      DiscardSealedMemoryScope discard_scope(
+          "Remove red zone from code range.");
+      allocator_->FreePages(reinterpret_cast<void*>(red_zone_region.begin()),
+                            red_zone_region.size());
+    }
     it = red_zones_.erase(it);
     did_remove_region = true;
     // If the overlap was the whole region, we just need to remove the entry and
@@ -403,7 +408,8 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
       immutable_ = true;
 #endif
 #ifdef V8_ENABLE_MEMORY_SEALING
-      params.page_allocator->SealPages(base, size);
+      CHECK_EQ(0, excluded_allocatable_area_size);
+      is_sealed_ = params.page_allocator->SealPages(base, size);
 #endif
     }
     DiscardSealedMemoryScope discard_scope("Discard global code range.");
@@ -486,6 +492,20 @@ void CodeRange::Free() {
           reinterpret_cast<void*>(base()));
     }
 #endif  // V8_OS_WIN64
+#ifdef V8_ENABLE_MEMORY_SEALING
+    if (is_sealed_) {
+      // Sealed mappings cannot be unmapped until process exit. Discard the
+      // physical pages and drop the reservation without calling FreePages.
+      {
+        DiscardSealedMemoryScope discard_scope("Discard sealed code range.");
+        CHECK(reservation()->DiscardSystemPages(page_allocator_->begin(),
+                                                page_allocator_->size()));
+      }
+      is_sealed_ = false;
+      VirtualMemoryCage::Reset();
+      return;
+    }
+#endif  // V8_ENABLE_MEMORY_SEALING
     GetCodeRangeAddressHint()->NotifyFreedCodeRange(
         reservation()->region().begin(), reservation()->region().size());
     VirtualMemoryCage::Free();
@@ -527,23 +547,13 @@ uint8_t* CodeRange::RemapEmbeddedBuiltins(Isolate* isolate,
       std::min(max_pc_relative_code_range, code_region.size()) -
       allocate_code_size;
 
-  Address blob_begin;
   while (true) {
-    blob_begin = code_region.begin() + blob_offset;
-    // TODO(429538831): This should be using AllocatePagesAt() which lacks
-    // support for kRecommitOnly though.
-    embedded_blob_code_copy =
-        reinterpret_cast<uint8_t*>(page_allocator()->AllocatePages(
-            reinterpret_cast<void*>(blob_begin), allocate_code_size,
-            allocate_page_size, PageAllocator::kNoAccessWillJitLater));
-    if (embedded_blob_code_copy == reinterpret_cast<uint8_t*>(blob_begin)) {
+    const Address blob_begin = code_region.begin() + blob_offset;
+    if (page_allocator()->AllocatePagesAt(
+            blob_begin, allocate_code_size,
+            PageAllocator::kNoAccessWillJitLater)) {
+      embedded_blob_code_copy = reinterpret_cast<uint8_t*>(blob_begin);
       break;
-    }
-    // The allocation didn't land at the requested address.  Free the
-    // wrongly-placed allocation and try a lower address.
-    if (embedded_blob_code_copy) {
-      page_allocator()->FreePages(embedded_blob_code_copy, allocate_code_size);
-      embedded_blob_code_copy = nullptr;
     }
     if (blob_offset < allocate_code_size) {
       V8::FatalProcessOutOfMemory(
@@ -563,12 +573,8 @@ uint8_t* CodeRange::RemapEmbeddedBuiltins(Isolate* isolate,
       const size_t unreachable_size = code_region.end() - unreachable_start;
       red_zones_.TryRemove(
           base::AddressRegion(unreachable_start, unreachable_size));
-      // TODO(429538831): This should be using AllocatePagesAt() which lacks
-      // support for kRecommitOnly though.
-      void* result = page_allocator()->AllocatePages(
-          reinterpret_cast<void*>(unreachable_start), unreachable_size,
-          allocate_page_size, PageAllocator::kNoAccess);
-      CHECK_EQ(reinterpret_cast<Address>(result), unreachable_start);
+      CHECK(page_allocator()->AllocatePagesAt(
+          unreachable_start, unreachable_size, PageAllocator::kNoAccess));
     }
   }
 
@@ -588,8 +594,12 @@ uint8_t* CodeRange::RemapEmbeddedBuiltins(Isolate* isolate,
     // Builtins should start at a page boundary, see
     // platform-embedded-file-writer-mac.cc. If it's not the case (e.g. if the
     // embedded builtins are not coming from the binary), fall back to copying.
-    bool source_is_remappable = IsAligned(
-        reinterpret_cast<uintptr_t>(embedded_blob_code), commit_page_size);
+    // Also skip remapping if the code range is sealed, since remapping onto a
+    // sealed mapping is disallowed.
+    bool source_is_remappable =
+        !is_sealed() &&
+        IsAligned(reinterpret_cast<uintptr_t>(embedded_blob_code),
+                  commit_page_size);
 #if defined(V8_OS_LINUX)
     // On Linux, RemapPages is destructive unless the source is a
     // file-backed mapping, so only remap when the embedded blob is the one
@@ -610,7 +620,8 @@ uint8_t* CodeRange::RemapEmbeddedBuiltins(Isolate* isolate,
   }
 
   if (V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT ||
-      V8_HEAP_USE_BECORE_JIT_WRITE_PROTECT || ThreadIsolation::Enabled()) {
+      V8_HEAP_USE_BECORE_JIT_WRITE_PROTECT || ThreadIsolation::Enabled() ||
+      is_sealed()) {
     // iOS code pages are already RWX and don't need to be modified.
 #if !defined(V8_TARGET_OS_IOS)
     if (!page_allocator()->RecommitPages(embedded_blob_code_copy, code_size,

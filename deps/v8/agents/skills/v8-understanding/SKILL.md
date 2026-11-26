@@ -50,10 +50,15 @@ To understand complex V8 behavior, follow a scientific approach:
     is a corresponding subdirectory in `docs/` (e.g., `docs/compiler/`,
     `docs/heap/`). Do not assume a strict 1:1 directory mapping between `src/`
     and `docs/`.
-  - **Global Docs Search**: As a first step, always run a local search (e.g.
-    `grep` or find tools) across the entire `docs/` directory to find all files
-    mentioning the key classes, APIs, or optimization concepts you are
-    investigating (e.g. search for `BytecodeGenerator` in all `.md` files).
+  - **Global Docs Search**: As a first step, always run a local search (e.g.,
+    `git --no-pager grep` across `docs/`) to find all files mentioning the key
+    classes, APIs, bytecodes, IR nodes, or optimization concepts you are
+    investigating (e.g., search for `BytecodeGenerator` in all `.md` files).
+  - **Continuous Verification & Sync (`docs/` \<-> `src/`)**: Treat `docs/` as a
+    living engineering reference that must always stay synchronized with `src/`.
+    Always cross-check claims, class/method/enum names, bitmasks, pipeline pass
+    orders, and invariants in `docs/` against the actual C++ implementation in
+    `src/`.
 
 ## Workflow
 
@@ -64,7 +69,15 @@ To understand complex V8 behavior, follow a scientific approach:
      in a subsystem subfolder.
    - Read the discovered documentation files to build a high-level mental model
      *before* reading complex C++ code.
-   - Read code in `src/` to fill in details.
+   - Read code in `src/` to fill in details and verify every documented
+     assumption against the implementation.
+   - **Fix Stale or Incomplete Documentation**: If you read a doc in `docs/`
+     during investigation and discover while reading `src/` that a statement,
+     class/method name, enum, flag, pipeline step, or invariant in `docs/` is
+     stale, inaccurate, or missing a non-obvious invariant you just traced,
+     update the relevant `.md` file in `docs/` as part of your work (keep
+     `docs/security/triaging.md` unchanged unless explicitly requested by the
+     user).
 2. **Dynamic Verification**: Use small tests and tracing flags to confirm the
    model.
 3. **Red/Blue Team Analysis**: Have one agent/subagent propose an explanation

@@ -41,6 +41,11 @@ assertTrue(strictEquals(undetectable, undetectable));
 
 assertOptimized(strictEquals);
 
-// Passing an unexpected object deopts.
+// Passing a non-receiver/null/undefined as the second operand returns false
+// without deopting.
 assertFalse(strictEquals({}, ""));
+assertOptimized(strictEquals);
+
+// Passing an unexpected first operand deopts.
+assertTrue(strictEquals("", ""));
 assertUnoptimized(strictEquals);

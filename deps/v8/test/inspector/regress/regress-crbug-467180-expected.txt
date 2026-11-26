@@ -1,0 +1,33 @@
+Tests regress-crbug-467180.
+  for (var i = 10; i < 14; i++) {  // 1
+    #i *= 1;                        // 2
+  }
+
+i = 12
+function f() {
+  for (var i = 10; i < 14; i#++) {  // 1
+    i *= 1;                        // 2
+
+function f() {
+  for (var i = 10; i #< 14; i++) {  // 1
+    i *= 1;                        // 2
+
+  for (var i = 10; i < 14; i++) {  // 1
+    #i *= 1;                        // 2
+  }
+
+i = 13
+function f() {
+  for (var i = 10; i < 14; i#++) {  // 1
+    i *= 1;                        // 2
+
+function f() {
+  for (var i = 10; i #< 14; i++) {  // 1
+    i *= 1;                        // 2
+
+  }
+#}                                  // 3
+
+
+f()#
+

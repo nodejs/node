@@ -246,7 +246,8 @@ class StarboardMemoryMappedFile final : public OS::MemoryMappedFile {
 
 // static
 OS::MemoryMappedFile* OS::MemoryMappedFile::open(const char* name,
-                                                 FileMode mode) {
+                                                 FileMode mode,
+                                                 std::optional<void*> hint) {
   SB_NOTIMPLEMENTED();
   return nullptr;
 }

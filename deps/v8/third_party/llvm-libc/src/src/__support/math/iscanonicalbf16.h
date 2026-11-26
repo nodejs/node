@@ -17,8 +17,7 @@ namespace LIBC_NAMESPACE_DECL {
 namespace math {
 
 LIBC_INLINE constexpr int iscanonicalbf16(bfloat16 x) {
-  bfloat16 tmp{};
-  return fputil::canonicalize(tmp, x) == 0;
+  return fputil::iscanonical_impl(x);
 }
 
 } // namespace math

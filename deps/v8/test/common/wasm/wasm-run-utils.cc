@@ -120,7 +120,7 @@ TestingModuleBuilder::TestingModuleBuilder(
   // constructor, therefore does not have slots for functions that get added
   // later. By disabling dynamic tiering, the tiering budget does not get
   // accessed by generated code.
-  v8_flags.wasm_dynamic_tiering = false;
+  v8_flags.wasm_dynamic_tiering.Set(false);
 
   WasmJs::Install(isolate_);
   module_->untagged_globals_buffer_size = kMaxGlobalsSize;
@@ -153,15 +153,10 @@ TestingModuleBuilder::TestingModuleBuilder(
                                 WellKnownImport::kUninstantiated);
     ImportCallKind kind = resolved.kind();
     DirectHandle<JSReceiver> callable = resolved.callable();
-    int expected_arity = static_cast<int>(sig->parameter_count());
-    if (kind == ImportCallKind::kJSFunction) {
-      expected_arity = Cast<JSFunction>(callable)
-                           ->shared()
-                           ->internal_formal_parameter_count_without_receiver();
-    }
     std::shared_ptr<wasm::WasmWrapperHandle> wrapper_handle =
         GetWasmImportWrapperCache()->GetCompiled(
-            isolate, {kind, sig, expected_arity, kNoSuspend});
+            isolate,
+            {kind, sig, resolved.expected_arity(), resolved.suspend()});
 
     ImportedFunctionEntry(trusted_instance_data_, maybe_import_index)
         .SetWasmToWrapper(isolate_, callable, std::move(wrapper_handle),
@@ -252,22 +247,20 @@ uint32_t TestingModuleBuilder::AddFunction(const FunctionSig* sig,
     module_->type_feedback.well_known_imports.Initialize(kMaxFunctions);
   }
   uint32_t index = static_cast<uint32_t>(module_->functions.size());
-  module_->functions.push_back({sig,                 // sig
-                                index,               // func_index
-                                ModuleTypeIndex{0},  // sig_index
-                                {0, 0},              // code
-                                false,               // imported
-                                false,               // exported
-                                false});             // declared
+  module_->functions.push_back(WasmFunction{
+      .sig = sig,
+      .func_index = index,
+      .sig_index = ModuleTypeIndex{0},
+  });
   if (type == kImport) {
-    DCHECK_EQ(0, module_->num_declared_functions);
+    DCHECK_EQ(0, module_->num_defined_functions);
     ++module_->num_imported_functions;
     module_->functions.back().imported = true;
   } else {
-    ++module_->num_declared_functions;
+    ++module_->num_defined_functions;
   }
   DCHECK_EQ(module_->functions.size(),
-            module_->num_imported_functions + module_->num_declared_functions);
+            module_->num_imported_functions + module_->num_defined_functions);
   if (name) {
     base::Vector<const uint8_t> name_vec = base::OneByteVector(name);
     module_->lazily_generated_names.AddForTesting(
@@ -481,16 +474,16 @@ DirectHandle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
   // functions later. Assume 1k of code per function.
   int estimated_code_section_length = kMaxFunctions * 1024;
   // Pretend to have `kMaxFunctions` already when allocating the `NativeModule`.
-  DCHECK_EQ(0, module_->num_declared_functions);
-  module_->num_declared_functions = kMaxFunctions;
+  DCHECK_EQ(0, module_->num_defined_functions);
+  module_->num_defined_functions = kMaxFunctions;
   size_t code_size_estimate =
       wasm::WasmCodeManager::EstimateNativeModuleCodeSize(
           kMaxFunctions, estimated_code_section_length);
   auto native_module = GetWasmEngine()->NewNativeModule(
       isolate_, enabled_features_, WasmDetectedFeatures{}, CompileTimeImports{},
       module_, code_size_estimate);
-  // Reset the declared functions; functions will be added later in the test.
-  module_->num_declared_functions = 0;
+  // Reset the defined functions; functions will be added later in the test.
+  module_->num_defined_functions = 0;
   native_module->SetWireBytes(base::UniqueArray<const uint8_t>());
   native_module->compilation_state()->set_compilation_id(0);
   constexpr std::string_view kNoSourceUrl{"", 0};
@@ -580,6 +573,16 @@ void WasmFunctionCompiler::Build(base::Vector<const uint8_t> bytes) {
     result.emplace(unit.ExecuteCompilation(
         &env, native_module->compilation_state()->GetWireBytesStorage().get(),
         native_module->counter_updates(), &unused_detected_features));
+    if (!result->succeeded() &&
+        builder_->execution_tier() == ExecutionTier::kLiftoff &&
+        !v8_flags.liftoff_only) {
+      WasmCompilationUnit turbofan_unit(function_->func_index,
+                                        ExecutionTier::kTurbofan, for_debugging,
+                                        kAlreadyValidated);
+      result.emplace(turbofan_unit.ExecuteCompilation(
+          &env, native_module->compilation_state()->GetWireBytesStorage().get(),
+          native_module->counter_updates(), &unused_detected_features));
+    }
   }
   CHECK(result->succeeded());
   WasmCode* code =

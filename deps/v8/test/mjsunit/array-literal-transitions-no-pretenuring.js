@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --no-allocation-site-pretenuring
+// Flags: --allow-natives-syntax
+// Flags: --no-incremental-marking --no-stress-incremental-marking
+// Flags: --no-stress-concurrent-allocation
 
 (function TestPackedDoubleToPackedObject() {
   function make() {
@@ -171,7 +173,7 @@
   }
   %PrepareFunctionForOptimization(make);
 
-  // Allocate before optimization so `a` has an AllocationMemento.
+  // Allocate before optimization so `a` is tracked in the AllocationSiteCache.
   let a = make();
   make();
   %OptimizeFunctionOnNextCall(make);
@@ -195,7 +197,7 @@
   }
   %PrepareFunctionForOptimization(make);
 
-  // Allocate before optimization so `a` has an AllocationMemento.
+  // Allocate before optimization so `a` is tracked in the AllocationSiteCache.
   let a = make();
   make();
   %OptimizeFunctionOnNextCall(make);

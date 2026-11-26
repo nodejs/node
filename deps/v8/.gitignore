@@ -56,8 +56,10 @@
 /.gcs_entries
 
 /_*
+/agents/common
 /agents/internal
 /agents/shared
+/agents/testing
 /base
 /build
 /buildtools
@@ -71,6 +73,9 @@
 /src/inspector/build/closure-compiler.tar.gz
 /test/benchmarks/data
 /test/benchmarks/JetStream3
+/test/benchmarks/Speedometer2
+/test/benchmarks/Speedometer3
+/test/benchmarks/SpeedometerMain
 /test/fuzzer/wasm_corpus/
 /test/fuzzer/wasm_corpus.tar.gz
 !/test/mjsunit/tools/*.log
@@ -83,6 +88,9 @@
 /test/wasm-spec-tests/tests.tar.gz
 /third_party/*
 !/third_party/antlr4
+!/third_party/boringssl
+!/third_party/boringssl/boringssl.map
+/third_party/boringssl/src
 !/third_party/colorama
 /third_party/colorama/src
 !/third_party/disarm
@@ -110,7 +118,7 @@
 !/third_party/highway/src/hwy
 !/third_party/inspector_protocol
 !/third_party/jsoncpp
-/third_party/jsoncpp/source
+/third_party/jsoncpp/src
 !/third_party/llvm-libc
 /third_party/llvm-libc/src/*
 !/third_party/llvm-libc/src/hdr
@@ -135,12 +143,11 @@
 /tools/gcmole/bootstrap
 /tools/gcmole/gcmole-tools
 /tools/gcmole/gcmole-tools.tar.gz
-/tools/jsfunfuzz/jsfunfuzz
-/tools/jsfunfuzz/jsfunfuzz.tar.gz
 /tools/luci-go
 /tools/oom_dump/oom_dump
 /tools/oom_dump/oom_dump.o
 /tools/protoc_wrapper
+/tools/python
 /tools/rust
 /tools/turbolizer/build
 /tools/turbolizer/.rpt2_cache

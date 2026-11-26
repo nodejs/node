@@ -166,6 +166,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   DECLARE_NORELOC_PROTOTYPE(Name, int32_t)
 
   DECLARE_BRANCH_PROTOTYPES(BranchAndLink)
+  // A conditional branch that must reach its label directly, within
+  // kMaxBranchOffset bytes. Bind the label within that reach. Overlapping
+  // chains of such branches across a far-jump pool's deadline make the pool
+  // wait until it no longer can: bind_to() then fails if a label ends up out
+  // of reach (see Assembler::EmitFarJumpPool).
   DECLARE_BRANCH_PROTOTYPES(BranchShort)
 
   void Branch(Label* target);
@@ -486,6 +491,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   void PushAll(DoubleRegList registers, int stack_slot_size = kDoubleSize) {
     DCHECK_EQ(stack_slot_size, kDoubleSize);
+    if (registers.is_empty()) return;
     int16_t num_to_push = registers.Count();
     int16_t stack_offset = num_to_push * kDoubleSize;
 
@@ -500,6 +506,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   void PopAll(DoubleRegList registers, int stack_slot_size = kDoubleSize) {
     DCHECK_EQ(stack_slot_size, kDoubleSize);
+    if (registers.is_empty()) return;
     int16_t stack_offset = 0;
     for (int16_t i = kNumRegisters - 1; i >= 0; i--) {
       if ((registers.bits() & (1 << i)) != 0) {
@@ -1994,6 +2001,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   bool BranchAndLinkShortCheck(int32_t offset, Label* L, Condition cond,
                                Register rs, const Operand& rt);
   void BranchAndLinkLong(Label* L);
+  // An unconditional jump to a label that a conditional branch may not reach.
+  void BranchFar(Label* L);
 #if V8_TARGET_ARCH_RISCV64
   template <typename F_TYPE>
   void RoundHelper(FPURegister dst, FPURegister src, FPURegister fpu_scratch,
@@ -2038,15 +2047,15 @@ void MacroAssembler::GenerateSwitchTable(Register index, size_t case_count,
                                          int case_value_base,
                                          Register scratch) {
   UseScratchRegisterScope temps(this);
-  Register table = scratch;
-  if (table == no_reg) {
-    table = temps.Acquire();
-  }
   Label fallthrough, jump_table;
   if (case_value_base != 0) {
     SubWord(index, index, Operand(case_value_base));
   }
   Branch(&fallthrough, Condition::Ugreater_equal, index, Operand(case_count));
+  Register table = scratch;
+  if (table == no_reg) {
+    table = temps.Acquire();
+  }
   LoadAddress(table, &jump_table);
   CalcScaledAddress(table, table, index, kSystemPointerSizeLog2);
   LoadWord(table, MemOperand(table, 0));
@@ -2076,10 +2085,12 @@ struct MoveCycleState {
   // which should therefore not be used as a temporary location by
   // {MoveToTempLocation}.
   RegList scratch_regs;
+  DoubleRegList scratch_fp_regs;
   // Available scratch registers during the move cycle resolution scope.
   std::optional<UseScratchRegisterScope> temps;
   // Scratch register picked by {MoveToTempLocation}.
   std::optional<Register> scratch_reg;
+  std::optional<DoubleRegister> scratch_fp_reg;
 };
 
 inline MemOperand ExitFrameStackSlotOperand(int offset) {

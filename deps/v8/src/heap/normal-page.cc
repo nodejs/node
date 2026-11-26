@@ -27,13 +27,11 @@ NormalPage::NormalPage(Heap* heap, BaseSpace* space, size_t size,
 
 void NormalPage::AllocateFreeListCategories() {
   DCHECK_NULL(categories_);
-  categories_ =
-      new FreeListCategory[owner()->free_list()->number_of_categories()];
+  categories_ = new FreeListCategory[FreeList::kNumberOfCategories];
 }
 
 void NormalPage::InitializeFreeListCategories() {
-  for (int i = kFirstCategory; i <= owner()->free_list()->last_category();
-       i++) {
+  for (int i = kFirstCategory; i <= FreeList::kLastCategory; i++) {
     categories_[i].Initialize(static_cast<FreeListCategoryType>(i));
   }
 }

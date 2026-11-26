@@ -133,7 +133,8 @@ struct OperandAsKeyLess {
 };
 
 // Assessments associated with a basic block.
-class BlockAssessments : public ZoneObject {
+class V8_EXPORT_PRIVATE BlockAssessments
+    : public NON_EXPORTED_BASE(ZoneObject) {
  public:
   using OperandMap = ZoneMap<InstructionOperand, Assessment*, OperandAsKeyLess>;
   using OperandSet = ZoneSet<InstructionOperand, OperandAsKeyLess>;
@@ -149,17 +150,26 @@ class BlockAssessments : public ZoneObject {
   BlockAssessments& operator=(const BlockAssessments&) = delete;
 
   void Drop(InstructionOperand operand) {
+    if (operand.IsAnyStackSlot()) {
+      DropInterferingStackSlots(operand);
+      return;
+    }
     map_.erase(operand);
     stale_ref_stack_slots_.erase(operand);
   }
+  void DropInterferingStackSlots(InstructionOperand operand);
   void DropRegisters();
   void AddDefinition(InstructionOperand operand, int virtual_register) {
-    auto existent = map_.find(operand);
-    if (existent != map_.end()) {
-      // Drop the assignment
-      map_.erase(existent);
-      // Destination operand is no longer a stale reference.
-      stale_ref_stack_slots_.erase(operand);
+    if (operand.IsAnyStackSlot()) {
+      DropInterferingStackSlots(operand);
+    } else {
+      auto existent = map_.find(operand);
+      if (existent != map_.end()) {
+        // Drop the assignment
+        map_.erase(existent);
+        // Destination operand is no longer a stale reference.
+        stale_ref_stack_slots_.erase(operand);
+      }
     }
     map_.insert(
         std::make_pair(operand, zone_->New<FinalAssessment>(virtual_register)));
@@ -174,6 +184,11 @@ class BlockAssessments : public ZoneObject {
     map_.insert(other->map_.begin(), other->map_.end());
     stale_ref_stack_slots_.insert(other->stale_ref_stack_slots_.begin(),
                                   other->stale_ref_stack_slots_.end());
+    max_stack_slot_width_ = other->max_stack_slot_width_;
+  }
+  int max_stack_slot_width() const { return max_stack_slot_width_; }
+  void UpdateMaxStackSlotWidth(int width) {
+    max_stack_slot_width_ = std::max(max_stack_slot_width_, width);
   }
   void CheckReferenceMap(const ReferenceMap* reference_map);
   bool IsStaleReferenceStackSlot(InstructionOperand op,
@@ -198,6 +213,7 @@ class BlockAssessments : public ZoneObject {
   // implications of a stack slot being stale?
   OperandSet stale_ref_stack_slots_;
   int spill_slot_delta_;
+  int max_stack_slot_width_ = 1;
   Zone* zone_;
   const InstructionSequence* sequence_;
 };
@@ -297,6 +313,12 @@ class RegisterAllocatorVerifier final : public ZoneObject {
   ZoneMap<RpoNumber, BlockAssessments*> assessments_;
   ZoneMap<RpoNumber, DelayedAssessments*> outstanding_assessments_;
   int spill_slot_delta_;
+  // Reusable scratch state for ValidatePendingAssessment. A block is visited
+  // in the current call iff pending_seen_epoch_[block] ==
+  // pending_current_epoch_.
+  ZoneVector<std::pair<const PendingAssessment*, int>> pending_worklist_;
+  ZoneVector<uint32_t> pending_seen_epoch_;
+  uint32_t pending_current_epoch_ = 0;
   // TODO(chromium:725559): remove after we understand this bug's root cause.
   const char* caller_info_ = nullptr;
 };

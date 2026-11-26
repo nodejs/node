@@ -45,6 +45,12 @@ RUNTIME_FUNCTION(Runtime_ThrowAwaitUsingAssignError) {
       isolate, NewTypeError(MessageTemplate::kAwaitUsingAssign));
 }
 
+RUNTIME_FUNCTION(Runtime_ThrowExpectAnObjectWithUsing) {
+  HandleScope scope(isolate);
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewTypeError(MessageTemplate::kExpectAnObjectWithUsing));
+}
+
 namespace {
 
 enum class RedeclarationType { kSyntaxError = 0, kTypeError = 1 };
@@ -307,14 +313,13 @@ RUNTIME_FUNCTION(Runtime_AddAsyncDisposableValue) {
 
 RUNTIME_FUNCTION(Runtime_DisposeDisposableStack) {
   HandleScope scope(isolate);
-  DCHECK_EQ(5, args.length());
+  DCHECK_EQ(4, args.length());
 
   DirectHandle<JSDisposableStackBase> disposable_stack =
       args.at<JSDisposableStackBase>(0);
   DirectHandle<Smi> continuation_token = args.at<Smi>(1);
   Handle<Object> continuation_error = args.at<Object>(2);
   Handle<Object> continuation_message = args.at<Object>(3);
-  DirectHandle<Smi> has_await_using = args.at<Smi>(4);
 
   // If state is not kDisposed, then the disposing of the resources has
   // not started yet. So, if the continuation token is kRethrow we need
@@ -327,21 +332,49 @@ RUNTIME_FUNCTION(Runtime_DisposeDisposableStack) {
     disposable_stack->set_error_message(*continuation_message);
   }
 
-  DCHECK_IMPLIES(
-      disposable_stack->state() == DisposableStackState::kDisposed,
-      static_cast<DisposableStackResourcesType>(Smi::ToInt(*has_await_using)) ==
-          DisposableStackResourcesType::kAtLeastOneAsync);
-
   disposable_stack->set_state(DisposableStackState::kDisposed);
 
   DirectHandle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
-      JSDisposableStackBase::DisposeResources(
-          isolate, disposable_stack,
-          static_cast<DisposableStackResourcesType>(
-              Smi::ToInt(*has_await_using))));
+      JSDisposableStackBase::DisposeResources(isolate, disposable_stack));
   return *result;
+}
+
+// The slow path of a `using` declaration, for a @@dispose `method` whose typeof
+// is not "function": throws unless it is callable. Returns `method`.
+RUNTIME_FUNCTION(Runtime_CheckSyncDisposeMethod) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  DirectHandle<Object> method = args.at(0);
+
+  if (!IsCallable(*method)) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kNotCallable,
+                              isolate->factory()->dispose_symbol()));
+  }
+  return *method;
+}
+
+// A dispose method of a `using` declaration threw `error` while the scope was
+// already completing with the throw of `suppressed`.
+RUNTIME_FUNCTION(Runtime_NewSuppressedErrorAtDisposal) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  DirectHandle<Object> error = args.at(0);
+  DirectHandle<Object> suppressed = args.at(1);
+  return *isolate->factory()->NewSuppressedErrorAtDisposal(isolate, error,
+                                                           suppressed);
+}
+
+// Throws a SuppressedError made by NewSuppressedErrorAtDisposal at the end of
+// a scope with `using` declarations. Like DisposeResources, it is not reported
+// to the debugger as a new exception: the debugger has seen the errors in it.
+RUNTIME_FUNCTION(Runtime_ThrowSuppressedErrorAtDisposal) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  SuppressDebug while_processing(isolate->debug());
+  return isolate->Throw(args[0]);
 }
 
 RUNTIME_FUNCTION(Runtime_HandleExceptionsInDisposeDisposableStack) {
@@ -364,6 +397,17 @@ RUNTIME_FUNCTION(Runtime_HandleExceptionsInDisposeDisposableStack) {
 
 namespace {
 
+#ifdef DEBUG
+bool HasDebugEvaluateContextInChain(Tagged<Context> current,
+                                    Tagged<Context> limit) {
+  while (current != limit) {
+    if (current->IsDebugEvaluateContext()) return true;
+    current = current->previous();
+  }
+  return false;
+}
+#endif  // DEBUG
+
 Tagged<Object> DeclareEvalHelper(Isolate* isolate, Handle<String> name,
                                  Handle<Object> value) {
   // Declarations are always made in a function, native, eval, or script
@@ -372,18 +416,21 @@ Tagged<Object> DeclareEvalHelper(Isolate* isolate, Handle<String> name,
   // context and not the declaration context.
   Handle<Context> context(isolate->context()->declaration_context(), isolate);
 
-  // For debug-evaluate we always use sloppy eval, in which case context could
-  // also be a module context. As module contexts reuse the extension slot
-  // we need to check for this.
-  const bool is_debug_evaluate_in_module =
-      isolate->context()->IsDebugEvaluateContext() &&
-      context->IsModuleContext();
+  // Regular JS inside a module is always strict, so direct sloppy eval can
+  // only reach a ModuleContext via debug-evaluate. Module contexts cannot be
+  // extended (their extension slot holds the SourceTextModule), so disallow
+  // hoisting var/function declarations into them altogether.
+  if (context->IsModuleContext()) {
+    DCHECK(HasDebugEvaluateContextInChain(isolate->context(), *context));
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate,
+        NewEvalError(MessageTemplate::kVarNotAllowedInEvalScope, name));
+  }
 
   DCHECK(context->IsFunctionContext() || IsNativeContext(*context) ||
          context->IsScriptContext() || context->IsEvalContext() ||
          (context->IsBlockContext() &&
-          context->scope_info()->is_declaration_scope()) ||
-         is_debug_evaluate_in_module);
+          context->scope_info()->is_declaration_scope()));
 
   bool is_var = IsUndefined(*value);
   DCHECK_IMPLIES(!is_var, IsJSFunction(*value));
@@ -421,13 +468,29 @@ Tagged<Object> DeclareEvalHelper(Isolate* isolate, Handle<String> name,
   }
 
   if (attributes != ABSENT) {
+    // For regular sloppy eval, conflicts with lexical bindings (and with the
+    // implicit `arguments` binding in a non-simple parameter scope) are caught
+    // at parse time by DeclarationScope::CheckConflictingVarDeclarations.
+    // During debug-evaluate, deserializing a DebugEvaluateContext creates a
+    // DeclarationScope that stops that check before reaching enclosing
+    // contexts, so we can encounter lexical/read-only bindings here.
+    if (IsLexicalVariableMode(mode) || (attributes & READ_ONLY) != 0 ||
+        (index != Context::kNotFound && context->IsFunctionContext() &&
+         !context->scope_info()->HasSimpleParameters())) {
+      DCHECK(HasDebugEvaluateContextInChain(isolate->context(), *context));
+      return ThrowRedeclarationError(isolate, name,
+                                     RedeclarationType::kSyntaxError);
+    }
     DCHECK_EQ(NONE, attributes);
+    DCHECK_EQ(VariableMode::kVar, mode);
+    DCHECK_EQ(kCreatedInitialized, init_flag);
 
     // Skip var re-declarations.
     if (is_var) return ReadOnlyRoots(isolate).undefined_value();
 
     if (index != Context::kNotFound) {
       DCHECK(holder.is_identical_to(context));
+      DCHECK(!context->IsElementTdzHole(index));
       Context::Set(context, index, value, isolate);
       Tagged<ScopeInfo> scope_info = context->scope_info();
       int var_index = index - scope_info->ContextHeaderLength();
@@ -441,12 +504,12 @@ Tagged<Object> DeclareEvalHelper(Isolate* isolate, Handle<String> name,
     }
 
     object = Cast<JSObject>(holder);
+    DCHECK(IsJSContextExtensionObject(*object));
 
-  } else if (context->has_extension() && !is_debug_evaluate_in_module) {
+  } else if (context->has_extension()) {
     object = direct_handle(context->extension_object(), isolate);
     DCHECK(IsJSContextExtensionObject(*object));
-  } else if (context->scope_info()->HasContextExtensionSlot() &&
-             !is_debug_evaluate_in_module) {
+  } else if (context->scope_info()->HasContextExtensionSlot()) {
     // Sloppy varblock and function contexts might not have an extension object
     // yet. Sloppy eval will never have an extension object, as vars are hoisted
     // out, and lets are known statically.
@@ -499,7 +562,8 @@ namespace {
 
 // Find the arguments of the JavaScript function invocation that called
 // into C++ code. Collect these in a newly allocated array of handles.
-DirectHandleVector<Object> GetCallerArguments(Isolate* isolate) {
+// Expect up to 8 arguments in the common case.
+DirectHandleSmallVector<Object, 8> GetCallerArguments(Isolate* isolate) {
   // Find frame containing arguments passed to the caller.
   JavaScriptStackFrameIterator it(isolate);
   JavaScriptFrame* frame = it.frame();
@@ -523,7 +587,7 @@ DirectHandleVector<Object> GetCallerArguments(Isolate* isolate) {
     iter++;
     argument_count--;
 
-    DirectHandleVector<Object> param_data(isolate, argument_count);
+    DirectHandleSmallVector<Object, 8> param_data(isolate, argument_count);
     bool should_deoptimize = false;
     for (int i = 0; i < argument_count; i++) {
       // If we materialize any object, we should deoptimize the frame because we
@@ -541,7 +605,7 @@ DirectHandleVector<Object> GetCallerArguments(Isolate* isolate) {
     return param_data;
   } else {
     uint32_t args_count = frame->GetActualArgumentCount();
-    DirectHandleVector<Object> param_data(isolate, args_count);
+    DirectHandleSmallVector<Object, 8> param_data(isolate, args_count);
     for (uint32_t i = 0; i < args_count; i++) {
       DirectHandle<Object> val =
           DirectHandle<Object>(frame->GetParameter(i), isolate);
@@ -820,9 +884,17 @@ MaybeDirectHandle<Object> LoadLookupSlot(
 
   if (!holder.is_null() && IsSourceTextModule(*holder)) {
     Handle<Object> receiver = isolate->factory()->undefined_value();
-    if (receiver_return) *receiver_return = receiver;
-    return SourceTextModule::LoadVariable(
+    Handle<Object> value = SourceTextModule::LoadVariable(
         isolate, Cast<SourceTextModule>(holder), index);
+    // Check for uninitialized bindings. This looks at the value rather than
+    // at {flag}, so that it also covers imports, whose cell belongs to the
+    // exporting module. The hole must never escape as a value.
+    if (IsTdzHole(*value)) {
+      THROW_NEW_ERROR(isolate,
+                      NewReferenceError(MessageTemplate::kNotDefined, name));
+    }
+    if (receiver_return) *receiver_return = receiver;
+    return value;
   }
   if (index != Context::kNotFound) {
     DCHECK(IsContext(*holder));
@@ -940,9 +1012,14 @@ MaybeDirectHandle<Object> StoreLookupSlot(
     // In case of JSProxy, an exception might have been thrown.
     if (isolate->has_exception()) return MaybeDirectHandle<Object>();
   } else if (IsSourceTextModule(*holder)) {
+    DirectHandle<SourceTextModule> module = Cast<SourceTextModule>(holder);
+    // Check for uninitialized bindings, see LoadLookupSlot.
+    if (IsTdzHole(*SourceTextModule::LoadVariable(isolate, module, index))) {
+      THROW_NEW_ERROR(isolate,
+                      NewReferenceError(MessageTemplate::kNotDefined, name));
+    }
     if ((attributes & READ_ONLY) == 0) {
-      SourceTextModule::StoreVariable(Cast<SourceTextModule>(holder), index,
-                                      value);
+      SourceTextModule::StoreVariable(module, index, value);
     } else {
       THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kConstAssign));
     }

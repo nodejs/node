@@ -17,7 +17,6 @@ globalThis.consoleEvaluated: true
 Running test: testEvaluateOnCallFrame
 Side-effect-free Debugger.evaluateOnCallFrame of pausedNs.foo:
 Threw: EvalError: Possible side-effect in debug-evaluate
-    at <anonymous>:1:1
 
 Regular Debugger.evaluateOnCallFrame of pausedNs.foo:
 Result: 2

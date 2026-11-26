@@ -51,13 +51,6 @@ const BasePage* BasePage::FromInnerAddress(const HeapBase* heap,
 
 // static
 void BasePage::Destroy(BasePage* page) {
-  if (page->discarded_memory()) {
-    page->space()
-        .raw_heap()
-        ->heap()
-        ->stats_collector()
-        ->DecrementDiscardedMemory(page->discarded_memory());
-  }
   if (page->is_large()) {
     LargePage::Destroy(LargePage::From(page));
   } else {
@@ -86,7 +79,7 @@ ConstAddress BasePage::PayloadEnd() const {
 size_t BasePage::AllocatedSize() const {
   return is_large() ? LargePage::PageHeaderSize() +
                           LargePage::From(this)->PayloadSize()
-                    : NormalPage::From(this)->PayloadSize() +
+                    : NormalPage::PayloadSize() +
                           RoundUp(sizeof(NormalPage), kAllocationGranularity);
 }
 
@@ -209,7 +202,7 @@ NormalPage* NormalPage::TryCreate(PageBackend& page_backend,
   // This allows to return newly allocated pages to go into that LAB and back
   // into the free list.
   Address begin = normal_page->PayloadStart() + sizeof(HeapObjectHeader);
-  const size_t size = normal_page->PayloadSize() - sizeof(HeapObjectHeader);
+  const size_t size = NormalPage::PayloadSize() - sizeof(HeapObjectHeader);
 #if defined(V8_USE_MEMORY_SANITIZER)
   MSAN_ALLOCATED_UNINITIALIZED_MEMORY(begin, size);
 #elif defined(V8_USE_ADDRESS_SANITIZER)
@@ -228,6 +221,10 @@ void NormalPage::Destroy(NormalPage* page) {
   const BaseSpace& space = page->space();
   DCHECK_EQ(space.end(), std::find(space.begin(), space.end(), page));
   USE(space);
+  const size_t purged_memory = page->purged_memory();
+  if (purged_memory) {
+    heap.stats_collector()->DecrementPurgedMemory(purged_memory);
+  }
   page->~NormalPage();
   PageBackend* backend = heap.page_backend();
   heap.stats_collector()->NotifyFreedMemory(kPageSize);
@@ -238,6 +235,65 @@ NormalPage::NormalPage(HeapBase& heap, BaseSpace& space)
     : BasePage(heap, space, PageType::kNormal), object_start_bitmap_() {
   DCHECK_LT(kLargeObjectSizeThreshold,
             static_cast<size_t>(PayloadEnd() - PayloadStart()));
+  // All system pages are resident initially.
+  resident_system_pages_.Init(kPageSize, heap.commit_page_size_bits(),
+                              kPageSize);
+}
+
+void NormalPage::PurgeSystemPages(Address begin, size_t size) {
+  const size_t page_size_bits = heap().commit_page_size_bits();
+  const size_t commit_page_size = size_t{1} << page_size_bits;
+  DCHECK_EQ(0u, reinterpret_cast<uintptr_t>(begin) % commit_page_size);
+  DCHECK_EQ(0u, size % commit_page_size);
+  USE(commit_page_size);
+  DCHECK_LE(PayloadStart(), begin);
+  DCHECK_LE(begin + size, PayloadEnd());
+  const PurgeMemoryMode mode = heap().purge_memory_mode();
+  if (mode == PurgeMemoryMode::kOff) {
+    return;
+  }
+  const uintptr_t page_start = reinterpret_cast<uintptr_t>(this);
+  const uintptr_t start_offset =
+      reinterpret_cast<uintptr_t>(begin) - page_start;
+  const uintptr_t end_offset = start_offset + size;
+  const size_t removed_pages =
+      resident_system_pages_.Remove(start_offset, end_offset, page_size_bits);
+  if (removed_pages == 0) {
+    return;
+  }
+  switch (mode) {
+    case PurgeMemoryMode::kOff:
+      UNREACHABLE();
+    case PurgeMemoryMode::kDiscard:
+      heap().platform()->GetPageAllocator()->DiscardSystemPages(begin, size);
+      break;
+  }
+  heap().stats_collector()->IncrementPurgedMemory(removed_pages
+                                                  << page_size_bits);
+}
+
+void NormalPage::RestoreSystemPages(Address begin, size_t size) {
+  DCHECK_LE(PayloadStart(), begin);
+  DCHECK_LE(begin + size, PayloadEnd());
+  const size_t page_size_bits = heap().commit_page_size_bits();
+  const uintptr_t page_start = reinterpret_cast<uintptr_t>(this);
+  const uintptr_t start_offset =
+      reinterpret_cast<uintptr_t>(begin) - page_start;
+  const uintptr_t end_offset = start_offset + size;
+  const size_t added_pages =
+      resident_system_pages_.Add(start_offset, end_offset, page_size_bits);
+  if (added_pages == 0) {
+    return;
+  }
+  heap().stats_collector()->DecrementPurgedMemory(added_pages
+                                                  << page_size_bits);
+}
+
+size_t NormalPage::purged_memory() const {
+  const size_t resident_size =
+      resident_system_pages_.Size(heap().commit_page_size_bits());
+  DCHECK_LE(resident_size, kPageSize);
+  return kPageSize - resident_size;
 }
 
 NormalPage::iterator NormalPage::begin() {

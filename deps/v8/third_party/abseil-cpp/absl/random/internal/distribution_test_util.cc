@@ -14,7 +14,6 @@
 
 #include "absl/random/internal/distribution_test_util.h"
 
-#include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <limits>
@@ -34,10 +33,92 @@ ABSL_NAMESPACE_BEGIN
 namespace random_internal {
 namespace {
 
-#if defined(__EMSCRIPTEN__)
-// Workaround __EMSCRIPTEN__ error: llvm_fma_f64 not found.
-inline double fma(double x, double y, double z) { return (x * y) + z; }
+// Use std::fma only when hardware FMA is available, avoiding software libm
+// fma() overhead and Emscripten llvm_fma_f64 link issues.
+#if defined(FP_FAST_FMA) || defined(__FP_FAST_FMA) || defined(__FMA__) || \
+    defined(__aarch64__) || defined(_M_ARM64)
+inline double Fma(double a, double b, double c) { return std::fma(a, b, c); }
+#else
+inline double Fma(double a, double b, double c) { return a * b + c; }
 #endif
+
+constexpr double kPi = 3.1415926535897932384626433832795;
+constexpr double kSqrt2 = 1.4142135623730950488016887242097;
+constexpr double kSqrt1_2 = 0.70710678118654752440084436210485;
+constexpr double kInvSqrt2Pi = 0.39894228040143267793994605993438;
+
+// Evaluates the polynomial factor p(w) for Giles's erfinv(x) = p(w) * x,
+// where w = -log((1 - x) * (1 + x)) is in [0, ~36].
+double ErfInvPoly(double w) {
+  double p = 0.0;
+  if (w < 6.250000) {
+    w = w - 3.125000;
+    p = -3.6444120640178196996e-21;
+    p = Fma(p, w, -1.685059138182016589e-19);
+    p = Fma(p, w, 1.2858480715256400167e-18);
+    p = Fma(p, w, 1.115787767802518096e-17);
+    p = Fma(p, w, -1.333171662854620906e-16);
+    p = Fma(p, w, 2.0972767875968561637e-17);
+    p = Fma(p, w, 6.6376381343583238325e-15);
+    p = Fma(p, w, -4.0545662729752068639e-14);
+    p = Fma(p, w, -8.1519341976054721522e-14);
+    p = Fma(p, w, 2.6335093153082322977e-12);
+    p = Fma(p, w, -1.2975133253453532498e-11);
+    p = Fma(p, w, -5.4154120542946279317e-11);
+    p = Fma(p, w, 1.051212273321532285e-09);
+    p = Fma(p, w, -4.1126339803469836976e-09);
+    p = Fma(p, w, -2.9070369957882005086e-08);
+    p = Fma(p, w, 4.2347877827932403518e-07);
+    p = Fma(p, w, -1.3654692000834678645e-06);
+    p = Fma(p, w, -1.3882523362786468719e-05);
+    p = Fma(p, w, 0.0001867342080340571352);
+    p = Fma(p, w, -0.00074070253416626697512);
+    p = Fma(p, w, -0.0060336708714301490533);
+    p = Fma(p, w, 0.24015818242558961693);
+    p = Fma(p, w, 1.6536545626831027356);
+  } else if (w < 16.000000) {
+    w = std::sqrt(w) - 3.250000;
+    p = 2.2137376921775787049e-09;
+    p = Fma(p, w, 9.0756561938885390979e-08);
+    p = Fma(p, w, -2.7517406297064545428e-07);
+    p = Fma(p, w, 1.8239629214389227755e-08);
+    p = Fma(p, w, 1.5027403968909827627e-06);
+    p = Fma(p, w, -4.013867526981545969e-06);
+    p = Fma(p, w, 2.9234449089955446044e-06);
+    p = Fma(p, w, 1.2475304481671778723e-05);
+    p = Fma(p, w, -4.7318229009055733981e-05);
+    p = Fma(p, w, 6.8284851459573175448e-05);
+    p = Fma(p, w, 2.4031110387097893999e-05);
+    p = Fma(p, w, -0.0003550375203628474796);
+    p = Fma(p, w, 0.00095328937973738049703);
+    p = Fma(p, w, -0.0016882755560235047313);
+    p = Fma(p, w, 0.0024914420961078508066);
+    p = Fma(p, w, -0.0037512085075692412107);
+    p = Fma(p, w, 0.005370914553590063617);
+    p = Fma(p, w, 1.0052589676941592334);
+    p = Fma(p, w, 3.0838856104922207635);
+  } else {
+    w = std::sqrt(w) - 5.000000;
+    p = -2.7109920616438573243e-11;
+    p = Fma(p, w, -2.5556418169965252055e-10);
+    p = Fma(p, w, 1.5076572693500548083e-09);
+    p = Fma(p, w, -3.7894654401267369937e-09);
+    p = Fma(p, w, 7.6157012080783393804e-09);
+    p = Fma(p, w, -1.4960026627149240478e-08);
+    p = Fma(p, w, 2.9147953450901080826e-08);
+    p = Fma(p, w, -6.7711997758452339498e-08);
+    p = Fma(p, w, 2.2900482228026654717e-07);
+    p = Fma(p, w, -9.9298272942317002539e-07);
+    p = Fma(p, w, 4.5260625972231537039e-06);
+    p = Fma(p, w, -1.9681778105531670567e-05);
+    p = Fma(p, w, 7.5995277030017761139e-05);
+    p = Fma(p, w, -0.00021503011930044477347);
+    p = Fma(p, w, -0.00013871931833623122026);
+    p = Fma(p, w, 1.0103004648645343977);
+    p = Fma(p, w, 4.8499064014085844221);
+  }
+  return p;
+}
 
 }  // namespace
 
@@ -83,9 +164,44 @@ std::ostream& operator<<(std::ostream& os, const DistributionMoments& moments) {
 }
 
 double InverseNormalSurvival(double x) {
-  // inv_sf(u) = -sqrt(2) * erfinv(2u-1)
-  static constexpr double kSqrt2 = 1.4142135623730950488;
-  return -kSqrt2 * absl::random_internal::erfinv(2 * x - 1.0);
+  if (std::isnan(x) || x < 0.0 || x > 1.0) {
+    return std::numeric_limits<double>::quiet_NaN();
+  }
+  if (x == 0.0) return std::numeric_limits<double>::infinity();
+  if (x == 1.0) return -std::numeric_limits<double>::infinity();
+  if (x == 0.5) return 0.0;
+
+  // Use symmetry: inv_sf(1 - u) = -inv_sf(u), with u in (0, 0.5).
+  const bool upper = x < 0.5;
+  const double u = upper ? x : (1.0 - x);
+  double z;
+  if (u >= 1e-15) {
+    // inv_sf(u) = sqrt(2) * erfinv(1 - 2u) = sqrt(2) * ErfInvPoly(w) * (1 - 2u)
+    // where w = -log(1 - (1 - 2u)^2) = -log(4u(1 - u)).
+    // Split at u = 0.25 to avoid -log(4u) - log1p(-u) cancellation near
+    // u = 0.5 and precision loss in t = 1 - 2u (and t * t) as u -> 0.
+    const double t = 1.0 - 2.0 * u;
+    const double w = (u >= 0.25) ? -std::log1p(-t * t)
+                                 : (-std::log(4.0 * u) - std::log1p(-u));
+    z = kSqrt2 * ErfInvPoly(w) * t;
+  } else {
+    // Giles's third interval is fitted up to w ~= 36 (u ~= 5.8e-17) and loses
+    // accuracy beyond it. For extreme tails (u < 1e-15), start from the
+    // asymptotic expansion and refine with Halley's method against
+    // 0.5 * erfc(z / sqrt(2)).
+    const double log_inv_u = -std::log(u);
+    z = std::sqrt(2.0 * log_inv_u - std::log(4.0 * kPi * log_inv_u));
+    for (int i = 0; i < 6; ++i) {
+      const double sf = 0.5 * std::erfc(z * kSqrt1_2);
+      const double pdf = kInvSqrt2Pi * std::exp(-0.5 * z * z);
+      if (pdf == 0.0) break;
+      const double delta = (sf - u) / pdf;
+      const double step = delta / (1.0 - 0.5 * z * delta);
+      z += step;
+      if (std::fabs(step) <= 1e-15 * z) break;
+    }
+  }
+  return upper ? z : -z;
 }
 
 bool Near(absl::string_view msg, double actual, double expected, double bound) {
@@ -113,80 +229,13 @@ double beta(double p, double q) {
 // Approximation to inverse of the Error Function in double precision.
 // (http://people.maths.ox.ac.uk/gilesm/files/gems_erfinv.pdf)
 double erfinv(double x) {
-#if !defined(__EMSCRIPTEN__)
-  using std::fma;
-#endif
-
-  double w = 0.0;
-  double p = 0.0;
-  w = -std::log((1.0 - x) * (1.0 + x));
-  if (w < 6.250000) {
-    w = w - 3.125000;
-    p = -3.6444120640178196996e-21;
-    p = fma(p, w, -1.685059138182016589e-19);
-    p = fma(p, w, 1.2858480715256400167e-18);
-    p = fma(p, w, 1.115787767802518096e-17);
-    p = fma(p, w, -1.333171662854620906e-16);
-    p = fma(p, w, 2.0972767875968561637e-17);
-    p = fma(p, w, 6.6376381343583238325e-15);
-    p = fma(p, w, -4.0545662729752068639e-14);
-    p = fma(p, w, -8.1519341976054721522e-14);
-    p = fma(p, w, 2.6335093153082322977e-12);
-    p = fma(p, w, -1.2975133253453532498e-11);
-    p = fma(p, w, -5.4154120542946279317e-11);
-    p = fma(p, w, 1.051212273321532285e-09);
-    p = fma(p, w, -4.1126339803469836976e-09);
-    p = fma(p, w, -2.9070369957882005086e-08);
-    p = fma(p, w, 4.2347877827932403518e-07);
-    p = fma(p, w, -1.3654692000834678645e-06);
-    p = fma(p, w, -1.3882523362786468719e-05);
-    p = fma(p, w, 0.0001867342080340571352);
-    p = fma(p, w, -0.00074070253416626697512);
-    p = fma(p, w, -0.0060336708714301490533);
-    p = fma(p, w, 0.24015818242558961693);
-    p = fma(p, w, 1.6536545626831027356);
-  } else if (w < 16.000000) {
-    w = std::sqrt(w) - 3.250000;
-    p = 2.2137376921775787049e-09;
-    p = fma(p, w, 9.0756561938885390979e-08);
-    p = fma(p, w, -2.7517406297064545428e-07);
-    p = fma(p, w, 1.8239629214389227755e-08);
-    p = fma(p, w, 1.5027403968909827627e-06);
-    p = fma(p, w, -4.013867526981545969e-06);
-    p = fma(p, w, 2.9234449089955446044e-06);
-    p = fma(p, w, 1.2475304481671778723e-05);
-    p = fma(p, w, -4.7318229009055733981e-05);
-    p = fma(p, w, 6.8284851459573175448e-05);
-    p = fma(p, w, 2.4031110387097893999e-05);
-    p = fma(p, w, -0.0003550375203628474796);
-    p = fma(p, w, 0.00095328937973738049703);
-    p = fma(p, w, -0.0016882755560235047313);
-    p = fma(p, w, 0.0024914420961078508066);
-    p = fma(p, w, -0.0037512085075692412107);
-    p = fma(p, w, 0.005370914553590063617);
-    p = fma(p, w, 1.0052589676941592334);
-    p = fma(p, w, 3.0838856104922207635);
-  } else {
-    w = std::sqrt(w) - 5.000000;
-    p = -2.7109920616438573243e-11;
-    p = fma(p, w, -2.5556418169965252055e-10);
-    p = fma(p, w, 1.5076572693500548083e-09);
-    p = fma(p, w, -3.7894654401267369937e-09);
-    p = fma(p, w, 7.6157012080783393804e-09);
-    p = fma(p, w, -1.4960026627149240478e-08);
-    p = fma(p, w, 2.9147953450901080826e-08);
-    p = fma(p, w, -6.7711997758452339498e-08);
-    p = fma(p, w, 2.2900482228026654717e-07);
-    p = fma(p, w, -9.9298272942317002539e-07);
-    p = fma(p, w, 4.5260625972231537039e-06);
-    p = fma(p, w, -1.9681778105531670567e-05);
-    p = fma(p, w, 7.5995277030017761139e-05);
-    p = fma(p, w, -0.00021503011930044477347);
-    p = fma(p, w, -0.00013871931833623122026);
-    p = fma(p, w, 1.0103004648645343977);
-    p = fma(p, w, 4.8499064014085844221);
+  if (x == 1.0) return std::numeric_limits<double>::infinity();
+  if (x == -1.0) return -std::numeric_limits<double>::infinity();
+  if (!(x > -1.0 && x < 1.0)) {
+    return std::numeric_limits<double>::quiet_NaN();
   }
-  return p * x;
+  const double w = -std::log((1.0 - x) * (1.0 + x));
+  return ErfInvPoly(w) * x;
 }
 
 namespace {
@@ -248,7 +297,7 @@ double BetaIncompleteImpl(const double x, const double p, const double q,
   // https://archive.org/details/DTIC_ADA261511/page/n75
 }
 
-// Direct implementation of AS109, XINBTA(p, q, beta, alpha)
+// Adapted from AS109, XINBTA(p, q, beta, alpha)
 // https://www.jstor.org/stable/2346798?read-now=1&seq=4#page_scan_tab_contents
 // https://www.jstor.org/stable/2346887?seq=1#page_scan_tab_contents
 //
@@ -260,7 +309,7 @@ double BetaIncompleteImpl(const double x, const double p, const double q,
 //
 double BetaIncompleteInvImpl(const double p, const double q, const double beta,
                              const double alpha) {
-  if (alpha < 0.5) {
+  if (alpha > 0.5) {
     // Inverse Incomplete beta function is symmetrical, return the complement.
     return 1. - BetaIncompleteInvImpl(q, p, beta, 1. - alpha);
   }
@@ -269,17 +318,20 @@ double BetaIncompleteInvImpl(const double p, const double q, const double beta,
 
   // Compute the initial estimate.
   {
-    double r = std::sqrt(-std::log(alpha * alpha));
+    double r = std::sqrt(-2.0 * std::log(alpha));
     double y =
-        r - fma(r, 0.27061, 2.30753) / fma(r, fma(r, 0.04481, 0.99229), 1.0);
+        r - Fma(r, 0.27061, 2.30753) / Fma(r, Fma(r, 0.04481, 0.99229), 1.0);
     if (p > 1. && q > 1.) {
       r = (y * y - 3.) / 6.;
       double s = 1. / (p + p - 1.);
       double t = 1. / (q + q - 1.);
-      double h = 2. / s + t;
+      double h = 2. / (s + t);
       double w =
-          y * std::sqrt(h + r) / h - (t - s) * (r + 5. / 6. - t / (3. * h));
+          y * std::sqrt(h + r) / h - (t - s) * (r + 5. / 6. - 2. / (3. * h));
       value = p / (p + q * std::exp(w + w));
+      if (value == 0.0) {
+        value = std::numeric_limits<double>::min();
+      }
     } else {
       r = q + q;
       double t = 1.0 / (9. * q);
@@ -291,6 +343,9 @@ double BetaIncompleteInvImpl(const double p, const double q, const double beta,
         t = (4.0 * p + r - 2.0) / t;
         if (t <= 1) {
           value = std::exp((std::log(alpha * p) + beta) / p);
+          if (value == 0.0) {
+            value = std::numeric_limits<double>::min();
+          }
         } else {
           value = 1.0 - 2.0 / (t + 1.0);
         }
@@ -298,60 +353,62 @@ double BetaIncompleteInvImpl(const double p, const double q, const double beta,
     }
   }
 
-  // Solve for x using a modified newton-raphson method using the function
-  // BetaIncomplete.
+  // Solve for x using modified Newton-Raphson iteration over
+  // BetaIncompleteImpl.
   {
-    value = std::max(value, kErr);
-    value = std::min(value, 1.0 - kErr);
+    if (!std::isfinite(value) || value <= 0.0) {
+      value = kErr;
+    } else if (value >= 1.0) {
+      value = 1.0 - kErr;
+    } else if (value < std::numeric_limits<double>::min()) {
+      value = std::numeric_limits<double>::min();
+    }
 
     const double r = 1.0 - p;
     const double t = 1.0 - q;
-    double y;
-    double yprev = 0;
-    double sq = 1;
-    double prev = 1;
+    double yprev = 0.0;
+    double sq = 1.0;
+    double prev = 1.0;
     for (;;) {
-      if (value < 0 || value > 1.0) {
-        // Error case; value went infinite.
-        return std::numeric_limits<double>::infinity();
-      } else if (value == 0 || value == 1) {
-        y = value;
-      } else {
-        y = BetaIncompleteImpl(value, p, q, beta);
-        if (!std::isfinite(y)) {
-          return y;
-        }
+      const double cdf = BetaIncompleteImpl(value, p, q, beta);
+      if (!std::isfinite(cdf)) {
+        return cdf;
       }
-      y = (y - alpha) *
-          std::exp(beta + r * std::log(value) + t * std::log(1.0 - value));
-      if (y * yprev <= 0) {
-        prev = std::max(sq, std::numeric_limits<double>::min());
+      const double err = cdf - alpha;
+      if (err == 0.0) {
+        return value;
+      }
+      double y = err * std::exp(beta + r * std::log(value) +
+                                t * std::log(1.0 - value));
+      if (std::isnan(y)) {
+        return y;
+      }
+      if (yprev == 0.0 || std::signbit(y) != std::signbit(yprev)) {
+        prev = sq;
+      }
+      if (std::isinf(y)) {
+        // Avoid infinity when the density underflows in an extreme tail.
+        y = std::copysign(0.5 * prev, err);
+      }
+      const double tol = kErr * value;
+      if (prev <= tol) {
+        return value;
       }
       double g = 1.0;
       for (;;) {
         const double adj = g * y;
-        const double adj_sq = adj * adj;
-        if (adj_sq >= prev) {
-          g = g / 3.0;
+        sq = std::fabs(adj);
+        if (sq >= prev) {
+          g /= 3.0;
           continue;
         }
         const double tx = value - adj;
-        if (tx < 0 || tx > 1) {
-          g = g / 3.0;
+        if (!(tx > 0.0 && tx < 1.0)) {
+          g /= 3.0;
           continue;
         }
-        if (prev < kErr) {
-          return value;
-        }
-        if (y * y < kErr) {
-          return value;
-        }
-        if (tx == value) {
-          return value;
-        }
-        if (tx == 0 || tx == 1) {
-          g = g / 3.0;
-          continue;
+        if (sq <= tol || tx == value) {
+          return tx;
         }
         value = tx;
         yprev = y;
@@ -371,7 +428,11 @@ double BetaIncompleteInvImpl(const double p, const double q, const double beta,
 
 double BetaIncomplete(const double x, const double p, const double q) {
   // Error cases.
-  if (p < 0 || q < 0 || x < 0 || x > 1.0) {
+  if (std::isnan(x) || std::isnan(p) || std::isnan(q)) {
+    return std::numeric_limits<double>::quiet_NaN();
+  }
+  if (p <= 0.0 || q <= 0.0 || std::isinf(p) || std::isinf(q) || x < 0.0 ||
+      x > 1.0) {
     return std::numeric_limits<double>::infinity();
   }
   if (x == 0 || x == 1) {
@@ -379,12 +440,19 @@ double BetaIncomplete(const double x, const double p, const double q) {
   }
   // ln(Beta(p, q))
   double beta = std::lgamma(p) + std::lgamma(q) - std::lgamma(p + q);
+  if (!std::isfinite(beta)) {
+    return std::numeric_limits<double>::quiet_NaN();
+  }
   return BetaIncompleteImpl(x, p, q, beta);
 }
 
 double BetaIncompleteInv(const double p, const double q, const double alpha) {
   // Error cases.
-  if (p < 0 || q < 0 || alpha < 0 || alpha > 1.0) {
+  if (std::isnan(p) || std::isnan(q) || std::isnan(alpha)) {
+    return std::numeric_limits<double>::quiet_NaN();
+  }
+  if (p <= 0.0 || q <= 0.0 || std::isinf(p) || std::isinf(q) || alpha < 0.0 ||
+      alpha > 1.0) {
     return std::numeric_limits<double>::infinity();
   }
   if (alpha == 0 || alpha == 1) {
@@ -392,15 +460,24 @@ double BetaIncompleteInv(const double p, const double q, const double alpha) {
   }
   // ln(Beta(p, q))
   double beta = std::lgamma(p) + std::lgamma(q) - std::lgamma(p + q);
+  if (!std::isfinite(beta)) {
+    return std::numeric_limits<double>::quiet_NaN();
+  }
   return BetaIncompleteInvImpl(p, q, beta, alpha);
 }
 
 // Given `num_trials` trials each with probability `p` of success, the
-// probability of no failures is `p^k`. To ensure the probability of a failure
-// is no more than `p_fail`, it must be that `p^k == 1 - p_fail`. This function
-// computes `p` from that equation.
+// probability of no failures is `p^num_trials`. To ensure the probability of
+// at least one failure is no more than `p_fail`, we solve
+// `p^num_trials == 1 - p_fail`.
 double RequiredSuccessProbability(const double p_fail, const int num_trials) {
-  double p = std::exp(std::log(1.0 - p_fail) / static_cast<double>(num_trials));
+  double p = std::exp(std::log1p(-p_fail) / static_cast<double>(num_trials));
+  if (p_fail > 0.0 && p >= 1.0) {
+    // Prevent rounding to 1.0 when p_fail / num_trials <= 2^-54, which would
+    // cause MaxErrorTolerance(p) to return +inf and make Z-tests pass
+    // unconditionally.
+    p = std::nextafter(1.0, 0.0);
+  }
   ABSL_ASSERT(p > 0);
   return p;
 }
@@ -412,8 +489,10 @@ double ZScore(double expected_mean, const DistributionMoments& moments) {
 }
 
 double MaxErrorTolerance(double acceptance_probability) {
-  double one_sided_pvalue = 0.5 * (1.0 - acceptance_probability);
-  const double max_err = InverseNormalSurvival(one_sided_pvalue);
+  const double max_err =
+      (acceptance_probability <= 0.5)
+          ? kSqrt2 * absl::random_internal::erfinv(acceptance_probability)
+          : InverseNormalSurvival(0.5 * (1.0 - acceptance_probability));
   ABSL_ASSERT(max_err > 0);
   return max_err;
 }

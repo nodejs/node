@@ -973,6 +973,8 @@ template <typename String>
 bool Base64UnescapeInternal(const char* absl_nullable src, size_t slen,
                             String* absl_nonnull dest,
                             const std::array<signed char, 256>& unbase64) {
+  ABSL_ASSERT(src != dest->data());
+
   // Determine the size of the output string.  Base64 encodes every 3 bytes into
   // 4 characters.  Any leftover chars are added directly for good measure.
   const size_t dest_len = 3 * (slen / 4) + (slen % 4);

@@ -356,7 +356,10 @@ bool AddDescriptorsByTemplate(
           PropertyDetails(details.kind(), details.attributes(),
                           PropertyLocation::kField, PropertyConstness::kConst,
                           details.representation(), field_offset, is_inobject)
-              .set_pointer(details.pointer());
+#ifndef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+              .set_pointer(details.pointer())
+#endif  // !V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+          ;
 
       property_array->set(field_index, value);
       field_index++;
@@ -365,6 +368,13 @@ bool AddDescriptorsByTemplate(
       descriptors->Set(i, name, value, details);
     }
   }
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+  // |descriptors_template| already has a lookup table with the same keys at
+  // indices [0, nof_descriptors). Copy it directly unless duplicate class
+  // properties caused |descriptors_template| to be allocated with a larger
+  // lookup table capacity than |descriptors|.
+  descriptors->CopyFromOrRebuildLookupTable(*descriptors_template);
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
 
   UpdateProtectors(isolate, receiver, descriptors_template);
 

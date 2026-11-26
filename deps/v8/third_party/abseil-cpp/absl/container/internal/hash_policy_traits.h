@@ -30,6 +30,19 @@ namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace container_internal {
 
+// Avoid comparing function addresses with nullptr during constant evaluation,
+// which GCC rejects with UBSan enabled.
+// https://gcc.gnu.org/bugzilla/show_bug.cgi?id=71962
+template <HashSlotFn kPolicyFn, HashSlotFn kFallbackFn>
+struct HashSlotFnSelector {
+  static constexpr HashSlotFn kValue = kPolicyFn;
+};
+
+template <HashSlotFn kFallbackFn>
+struct HashSlotFnSelector<nullptr, kFallbackFn> {
+  static constexpr HashSlotFn kValue = kFallbackFn;
+};
+
 // Defines how slots are initialized/destroyed/moved.
 template <class Policy, class = void>
   struct hash_policy_traits : common_policy_traits<Policy> {
@@ -67,6 +80,30 @@ template <class Policy, class = void>
   struct ConstantIteratorsImpl<P, std::void_t<typename P::constant_iterators>>
       : P::constant_iterators {};
 
+  // Fallback slot equality functor using `Policy::apply` for custom layouts.
+  struct EqKeyNonTypeErased {
+    using SlotKeyType = const key_type;
+
+    template <class Eq, class SearchKey>
+    bool operator()(const Eq& eq, const void* slot,
+                    const SearchKey& key) const {
+      return Policy::apply(
+          EqualElement<SearchKey, Eq>{key, eq},
+          hash_policy_traits::element(
+              static_cast<slot_type*>(const_cast<void*>(slot))));
+    }
+  };
+
+  template <class P = Policy, class = void>
+  struct SlotEqImpl {
+    using type = EqKeyNonTypeErased;
+  };
+
+  template <class P>
+  struct SlotEqImpl<P, std::void_t<typename P::SlotEq>> {
+    using type = typename P::SlotEq;
+  };
+
  public:
   // The actual object stored in the hash table.
   using slot_type = typename Policy::slot_type;
@@ -85,6 +122,11 @@ template <class Policy, class = void>
   // containers.
   // Defaults to false if not provided by the policy.
   using constant_iterators = ConstantIteratorsImpl<>;
+
+  // Functor type for comparing keys with a slot.
+  // TODO(b/575748507): Require `SlotEq` for all policies and remove
+  // `SlotEqImpl` and `EqKeyNonTypeErased`.
+  using SlotEq = typename SlotEqImpl<>::type;
 
   // Returns the amount of memory owned by `slot`, exclusive of `sizeof(*slot)`.
   //
@@ -149,25 +191,11 @@ template <class Policy, class = void>
 
   template <class Hash, bool kIsAbsl, size_t kSeedShift>
   static constexpr HashSlotFn get_hash_slot_fn() {
-// get_hash_slot_fn may return nullptr to signal that non type erased function
-// should be used. GCC warns against comparing function address with nullptr.
-#if defined(__GNUC__) && !defined(__clang__)
-#pragma GCC diagnostic push
-// silent error: the address of * will never be NULL [-Werror=address]
-#pragma GCC diagnostic ignored "-Waddress"
-#endif
-    return Policy::template get_hash_slot_fn<Hash, kIsAbsl, kSeedShift>() ==
-                   nullptr
-               ? &hash_slot_fn_non_type_erased<Hash, kIsAbsl, kSeedShift>
-               : Policy::template get_hash_slot_fn<Hash, kIsAbsl,
-                                                   kSeedShift>();
-#if defined(__GNUC__) && !defined(__clang__)
-#pragma GCC diagnostic pop
-#endif
+    // A null policy function selects the non-type-erased fallback.
+    return HashSlotFnSelector<
+        Policy::template get_hash_slot_fn<Hash, kIsAbsl, kSeedShift>(),
+        &hash_slot_fn_non_type_erased<Hash, kIsAbsl, kSeedShift>>::kValue;
   }
-
-  // Whether small object optimization is enabled. True by default.
-  static constexpr bool soo_enabled() { return soo_enabled_impl(Rank1{}); }
 
  private:
   template <class Hash, bool kIsAbsl, size_t kSeedShift>
@@ -178,18 +206,6 @@ template <class Policy, class = void>
             *static_cast<const Hash*>(hash_fn), seed},
         Policy::element(static_cast<slot_type*>(slot)));
   }
-
-  // Use go/ranked-overloads for dispatching. Rank1 is preferred.
-  struct Rank0 {};
-  struct Rank1 : Rank0 {};
-
-  // Use auto -> decltype as an enabler.
-  template <class P = Policy>
-  static constexpr auto soo_enabled_impl(Rank1) -> decltype(P::soo_enabled()) {
-    return P::soo_enabled();
-  }
-
-  static constexpr bool soo_enabled_impl(Rank0) { return true; }
 };
 
 }  // namespace container_internal

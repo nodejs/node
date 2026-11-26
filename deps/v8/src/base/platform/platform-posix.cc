@@ -385,8 +385,9 @@ void* OS::GetRandomMmapAddr() {
   // configurations.
   raw_addr = RoundDown(raw_addr, AllocatePageSize());
 #endif
-#if defined(V8_USE_ADDRESS_SANITIZER) || defined(MEMORY_SANITIZER) || \
-    defined(THREAD_SANITIZER) || defined(LEAK_SANITIZER)
+#if defined(V8_HOST_ARCH_64_BIT) &&                                    \
+    (defined(V8_USE_ADDRESS_SANITIZER) || defined(MEMORY_SANITIZER) || \
+     defined(THREAD_SANITIZER) || defined(LEAK_SANITIZER))
   // If random hint addresses interfere with address ranges hard coded in
   // sanitizers, bad things happen. This address range is copied from TSAN
   // source but works with all tools.
@@ -869,7 +870,8 @@ class PosixMemoryMappedFile final : public OS::MemoryMappedFile {
 
 // static
 OS::MemoryMappedFile* OS::MemoryMappedFile::open(const char* name,
-                                                 FileMode mode) {
+                                                 FileMode mode,
+                                                 std::optional<void*> hint) {
   const char* fopen_mode = (mode == FileMode::kReadOnly) ? "r" : "r+";
   struct stat statbuf;
   // Make sure path exists and is not a directory.
@@ -885,8 +887,9 @@ OS::MemoryMappedFile* OS::MemoryMappedFile::open(const char* name,
             prot |= PROT_WRITE;
             flags = MAP_SHARED;
           }
+          void* const mmap_hint = hint ? *hint : OS::GetRandomMmapAddr();
           void* const memory =
-              mmap(OS::GetRandomMmapAddr(), size, prot, flags, fileno(file), 0);
+              mmap(mmap_hint, size, prot, flags, fileno(file), 0);
           if (memory != MAP_FAILED) {
             return new PosixMemoryMappedFile(file, memory, size);
           }
@@ -1444,18 +1447,18 @@ bool MainThreadIsCurrentThread() {
 }  // namespace
 
 // static
-Stack::StackSlot Stack::ObtainCurrentThreadStackStart() {
+Stack::StackBounds Stack::ObtainCurrentThreadStackBounds() {
 #if V8_OS_ZOS
-  return __get_stack_start();
+  return {__get_stack_start(), nullptr};
 #elif V8_OS_OPENBSD
   stack_t stack;
   int error = pthread_stackseg_np(pthread_self(), &stack);
-  if(error) {
+  if (error) {
     DCHECK(MainThreadIsCurrentThread());
-    return nullptr;
+    return {nullptr, nullptr};
   }
   void* stack_start = reinterpret_cast<uint8_t*>(stack.ss_sp) + stack.ss_size;
-  return stack_start;
+  return {stack_start, stack.ss_sp};
 #else
   pthread_attr_t attr;
   int error = pthread_getattr_np(pthread_self(), &attr);
@@ -1465,9 +1468,9 @@ Stack::StackSlot Stack::ObtainCurrentThreadStackStart() {
     // pthread_getattr_np can fail for the main thread.
     // For the main thread we prefer using __libc_stack_end (if it exists) since
     // it generally provides a tighter limit for CSS.
-    return __libc_stack_end;
+    return {__libc_stack_end, nullptr};
 #else
-    return nullptr;
+    return {nullptr, nullptr};
 #endif  // !defined(V8_LIBC_GLIBC)
   }
   void* base;
@@ -1476,52 +1479,33 @@ Stack::StackSlot Stack::ObtainCurrentThreadStackStart() {
   CHECK(!error);
   pthread_attr_destroy(&attr);
   void* stack_start = reinterpret_cast<uint8_t*>(base) + size;
+  void* reserved_limit = base;
 #if defined(V8_LIBC_GLIBC)
   // __libc_stack_end is process global and thus is only valid for
   // the main thread. Check whether this is the main thread by checking
   // __libc_stack_end is within the thread's stack.
   if ((base <= __libc_stack_end) && (__libc_stack_end <= stack_start)) {
     DCHECK(MainThreadIsCurrentThread());
-    return __libc_stack_end;
+    stack_start = __libc_stack_end;
+    // Under `ulimit -s unlimited`, glibc clamps `base` to the highest mapping
+    // below the stack at startup, while later bottom-up mmaps (e.g. secondary
+    // Wasm stacks) can land above `base`. Fall back to nullptr in that case.
+    struct rlimit rlim;
+    if (getrlimit(RLIMIT_STACK, &rlim) != 0 || rlim.rlim_cur == RLIM_INFINITY) {
+      reserved_limit = nullptr;
+    }
   }
-#endif  // !defined(V8_LIBC_GLIBC)
-  return stack_start;
-#endif  // V8_OS_ZOS
-}
-
-// static
-Stack::StackSlot Stack::ObtainCurrentThreadStackReservedLimit() {
-#if V8_OS_ZOS
-  return nullptr;
-#elif V8_OS_OPENBSD
-  stack_t stack;
-  int error = pthread_stackseg_np(pthread_self(), &stack);
-  if (error) {
-    DCHECK(MainThreadIsCurrentThread());
-    return nullptr;
-  }
-  return stack.ss_sp;
-#else
-// For most libcs, pthread_getattr_np() returns the the stack reserved
-// limit on the main thread, but musl only returns the current high-water
-// mark at the time of the call. There's no macro to detect musl, so
-// let the caller do a fallback in cases where the libc is not one that
-// is known to work.
+#endif  // defined(V8_LIBC_GLIBC)
+  // For most libcs, pthread_getattr_np() returns the stack reserved limit on
+  // the main thread, but musl only returns the current high-water mark at the
+  // time of the call. There's no macro to detect musl, so let the caller do a
+  // fallback in cases where the libc is not one that is known to work.
 #if V8_OS_LINUX && !V8_LIBC_GLIBC && !V8_LIBC_BIONIC && !V8_LIBC_UCLIBC
-  if (syscall(__NR_gettid) == getpid()) return nullptr;
-#endif
-  pthread_attr_t attr;
-  int error = pthread_getattr_np(pthread_self(), &attr);
-  if (error) {
-    DCHECK(MainThreadIsCurrentThread());
-    return nullptr;
+  if (syscall(__NR_gettid) == getpid()) {
+    reserved_limit = nullptr;
   }
-  void* base;
-  size_t size;
-  error = pthread_attr_getstack(&attr, &base, &size);
-  CHECK(!error);
-  pthread_attr_destroy(&attr);
-  return base;
+#endif
+  return {stack_start, reserved_limit};
 #endif  // V8_OS_ZOS
 }
 

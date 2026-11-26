@@ -61,9 +61,15 @@ namespace detail {
  *   -ceil(p) + q
  * where
  *   p = log(5**-q)/log(2) = -q * log(5)/log(2)
+ *
+ * The shift must floor towards negative infinity, as an arithmetic right
+ * shift does, but right-shifting a negative value is implementation-defined
+ * before C++20. Biasing the product by 2048 * 65536 keeps the shifted value
+ * non-negative without changing the result: the bias is a multiple of 2^16
+ * and is removed again after the shift.
  */
 constexpr fastfloat_really_inline int32_t power(int32_t q) noexcept {
-  return (((152170 + 65536) * q) >> 16) + 63;
+  return (((152170 + 65536) * q + (2048 * 65536)) >> 16) - 2048 + 63;
 }
 } // namespace detail
 

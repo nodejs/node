@@ -722,6 +722,7 @@ class TypedFrame : public CommonFrame {
  protected:
   inline explicit TypedFrame(StackFrameIteratorBase* iterator);
 #if V8_ENABLE_WEBASSEMBLY
+  void ComputeCallerState(State* state) const override;
   void UnwindWasmReturnFromSegment(State* state) const;
 #endif
 };
@@ -1432,8 +1433,6 @@ class WasmFrame : public TypedFrame {
  protected:
   inline explicit WasmFrame(StackFrameIteratorBase* iterator);
 
-  void ComputeCallerState(State* state) const override;
-
  private:
   friend class StackFrameIteratorBase;
   Tagged<WasmModuleObject> module_object() const;
@@ -1614,7 +1613,7 @@ class WasmLiftoffSetupFrame : public TypedFrame {
   FullObjectSlot wasm_instance_data_slot() const;
 
   Address CallingPC() const;
-  int GetDeclaredFunctionIndex() const;
+  int GetDefinedFunctionIndex() const;
 
   wasm::NativeModule* GetNativeModule() const;
 
@@ -1969,6 +1968,7 @@ class StackFrameIteratorForProfiler : public StackFrameIteratorBase {
   bool IsValidStackAddress(Address addr) const {
     return low_bound_ <= addr && addr <= high_bound_;
   }
+  bool IsValidFramePointer(Address fp) const;
   bool IsValidState(const StackFrame::State& frame) const;
   bool HasValidExitIfEntryFrame(const StackFrame* frame) const;
   bool IsValidExitFrame(Address fp) const;
@@ -1993,7 +1993,7 @@ class StackFrameIteratorForProfiler : public StackFrameIteratorBase {
   Address top_link_register_;
 };
 
-// We cannot export 'StackFrameIteratorForProfiler' for cctests since the
+// We cannot export 'StackFrameIteratorForProfiler' for unittests since the
 // linker inserted symbol stub may cause a stack overflow
 // (https://crbug.com/1449195).
 // We subclass it and export the subclass instead.

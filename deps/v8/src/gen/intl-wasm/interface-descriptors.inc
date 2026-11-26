@@ -943,6 +943,24 @@ class IteratorZipKeyedHelperNextDescriptor : public StaticCallInterfaceDescripto
   DECLARE_DEFAULT_DESCRIPTOR(IteratorZipKeyedHelperNextDescriptor)
 };
 
+class IteratorChunksHelperNextDescriptor : public StaticCallInterfaceDescriptor<IteratorChunksHelperNextDescriptor> {
+ public:
+  INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
+  DEFINE_RESULT_AND_PARAMETERS(1, kHelper)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(), MachineType::TaggedPointer())
+  DECLARE_DEFAULT_DESCRIPTOR(IteratorChunksHelperNextDescriptor)
+};
+
+class IteratorWindowsHelperNextDescriptor : public StaticCallInterfaceDescriptor<IteratorWindowsHelperNextDescriptor> {
+ public:
+  INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
+  DEFINE_RESULT_AND_PARAMETERS(1, kHelper)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(), MachineType::TaggedPointer())
+  DECLARE_DEFAULT_DESCRIPTOR(IteratorWindowsHelperNextDescriptor)
+};
+
 class ParseIntDescriptor : public StaticCallInterfaceDescriptor<ParseIntDescriptor> {
  public:
   INTERNAL_DESCRIPTOR()
@@ -1337,6 +1355,15 @@ class RegExpPrototypeExecSlowDescriptor : public StaticCallInterfaceDescriptor<R
   DEFINE_RESULT_AND_PARAMETERS(1, kRegexp, kString)
   DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(), MachineType::TaggedPointer(), MachineType::TaggedPointer())
   DECLARE_DEFAULT_DESCRIPTOR(RegExpPrototypeExecSlowDescriptor)
+};
+
+class RegExpPrototypeExecFastDescriptor : public StaticCallInterfaceDescriptor<RegExpPrototypeExecFastDescriptor> {
+ public:
+  INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
+  DEFINE_RESULT_AND_PARAMETERS(1, kRegexp, kString)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(), MachineType::TaggedPointer(), MachineType::TaggedPointer())
+  DECLARE_DEFAULT_DESCRIPTOR(RegExpPrototypeExecFastDescriptor)
 };
 
 class RegExpMatchFastDescriptor : public StaticCallInterfaceDescriptor<RegExpMatchFastDescriptor> {
@@ -2543,15 +2570,6 @@ class WasmStringNewWtf16ArrayDescriptor : public StaticCallInterfaceDescriptor<W
   DEFINE_RESULT_AND_PARAMETERS_NO_CONTEXT(1, kArray, kStart, kEnd, kConfig)
   DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::TaggedPointer(), MachineType::TaggedPointer(), MachineTypeOf<Uint32T>::value, MachineTypeOf<Uint32T>::value, MachineType::TaggedSigned())
   DECLARE_DEFAULT_DESCRIPTOR(WasmStringNewWtf16ArrayDescriptor)
-};
-
-class WasmStringFromDataSegmentDescriptor : public StaticCallInterfaceDescriptor<WasmStringFromDataSegmentDescriptor> {
- public:
-  INTERNAL_DESCRIPTOR()
-  SANDBOXING_MODE(kSandboxed)
-  DEFINE_RESULT_AND_PARAMETERS_NO_CONTEXT(1, kSegmentLength, kArrayStart, kArrayEnd, kSegmentIndex, kSegmentOffset, kVariant)
-  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(), MachineTypeOf<Uint32T>::value, MachineTypeOf<Uint32T>::value, MachineTypeOf<Uint32T>::value, MachineType::TaggedSigned(), MachineType::TaggedSigned(), MachineType::TaggedSigned())
-  DECLARE_DEFAULT_DESCRIPTOR(WasmStringFromDataSegmentDescriptor)
 };
 
 class WasmStringAsWtf16Descriptor : public StaticCallInterfaceDescriptor<WasmStringAsWtf16Descriptor> {

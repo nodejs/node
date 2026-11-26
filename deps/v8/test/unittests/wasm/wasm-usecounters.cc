@@ -34,7 +34,7 @@ class WasmUseCounterTest
   }
 
   void AddFunction(std::initializer_list<const uint8_t> body) {
-    AddFunction(sigs_.v_i(), body);
+    AddFunction(TestSignatures::v_i(), body);
   }
 
   void AddFunction(const FunctionSig* sig,
@@ -74,7 +74,6 @@ class WasmUseCounterTest
   HandleScope scope_{isolate()};
 
   WasmModuleBuilder builder_{zone()};
-  TestSignatures sigs_;
 };
 
 std::string PrintCompileType(

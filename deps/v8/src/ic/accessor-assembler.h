@@ -460,13 +460,6 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
                                          TNode<Object> value, Label* slow,
                                          bool do_transitioning_store);
 
-  void StoreJSSharedStructField(TNode<Context> context,
-                                TNode<HeapObject> shared_struct,
-                                TNode<Map> shared_struct_map,
-                                TNode<DescriptorArray> descriptors,
-                                TNode<IntPtrT> descriptor_name_index,
-                                TNode<Uint32T> details, TNode<Object> value);
-
   TNode<BoolT> IsPropertyDetailsConst(TNode<Uint32T> details);
 
   void CheckFieldType(TNode<DescriptorArray> descriptors,
@@ -655,9 +648,6 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
   void HandleStoreICSmiHandlerCase(TNode<Word32T> handler_word,
                                    TNode<JSObject> holder, TNode<Object> value,
                                    StoreICMode mode, Label* miss);
-  void HandleStoreICSmiHandlerJSSharedStructFieldCase(
-      TNode<Context> context, TNode<Word32T> handler_word,
-      TNode<JSObject> holder, TNode<Object> value);
   void HandleStoreFieldAndReturn(TNode<Word32T> handler_word,
                                  TNode<JSObject> holder, TNode<Object> value,
                                  std::optional<TNode<Float64T>> double_value,

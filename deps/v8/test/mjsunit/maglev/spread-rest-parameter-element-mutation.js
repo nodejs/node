@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --maglev --maglev-object-tracking
+// Flags: --allow-natives-syntax --maglev
 
 // A rest parameter is a JSArray whose backing store is an ArgumentsElements
 // node. TryGetNonEscapingArgumentsOrArray accepts such an array unconditionally

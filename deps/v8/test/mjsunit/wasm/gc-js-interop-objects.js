@@ -2,16 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --turbofan --allow-natives-syntax
+// Flags: --turbofan --allow-natives-syntax --wasm-custom-descriptors
 
 d8.file.execute('test/mjsunit/wasm/gc-js-interop-helpers.js');
 
 let {struct, array} = CreateWasmObjects();
-for (const wasm_obj of [struct, array]) {
+// Also run on a sealed empty JS object to verify consistency with Wasm objects.
+let sealed_js_obj = Object.seal({__proto__: null});
+for (const wasm_obj of [struct, array, sealed_js_obj]) {
 
   // Test Object.
-  testThrowsRepeated(() => Object.freeze(wasm_obj), TypeError);
-  testThrowsRepeated(() => Object.seal(wasm_obj), TypeError);
+  repeated(() => assertSame(wasm_obj, Object.freeze(wasm_obj)));
+  repeated(() => assertSame(wasm_obj, Object.seal(wasm_obj)));
   repeated(() => assertSame(
       undefined, Object.prototype.__lookupGetter__.call(wasm_obj, 'foo')));
   repeated(() => assertSame(
@@ -55,6 +57,7 @@ for (const wasm_obj of [struct, array]) {
   });
   repeated(() => Object.create(wasm_obj));
   repeated(() => ({}).__proto__ = wasm_obj);
+  repeated(() => assertSame(wasm_obj, Object.defineProperties(wasm_obj, {})));
   testThrowsRepeated(
       () => Object.defineProperties(wasm_obj, {prop: {value: 1}}), TypeError);
   testThrowsRepeated(
@@ -62,7 +65,8 @@ for (const wasm_obj of [struct, array]) {
   testThrowsRepeated(() => Object.fromEntries(wasm_obj), TypeError);
   repeated(() => assertSame(null, Object.getPrototypeOf(wasm_obj)));
   repeated(() => assertFalse(Object.hasOwn(wasm_obj, 'test')));
-  testThrowsRepeated(() => Object.preventExtensions(wasm_obj), TypeError);
+  repeated(() => assertSame(wasm_obj, Object.preventExtensions(wasm_obj)));
+  repeated(() => assertSame(wasm_obj, Object.setPrototypeOf(wasm_obj, null)));
   testThrowsRepeated(() => Object.setPrototypeOf(wasm_obj, Object), TypeError);
   repeated(() => assertEquals([], Object.values(wasm_obj)));
   testThrowsRepeated(() => wasm_obj.toString(), TypeError);
@@ -111,8 +115,8 @@ for (const wasm_obj of [struct, array]) {
   testThrowsRepeated(() => Reflect.construct(wasm_obj, []), TypeError);
   repeated(() => assertEquals({}, Reflect.construct(Object, wasm_obj)));
   testThrowsRepeated(() => Reflect.construct(Object, [], wasm_obj), TypeError);
-  testThrowsRepeated(
-      () => Reflect.defineProperty(wasm_obj, 'prop', {value: 1}), TypeError);
+  repeated(
+      () => assertFalse(Reflect.defineProperty(wasm_obj, 'prop', {value: 1})));
   testThrowsRepeated(
       () => Reflect.defineProperty({}, wasm_obj, {value: 1}), TypeError);
 
@@ -130,7 +134,7 @@ for (const wasm_obj of [struct, array]) {
     assertTrue(Reflect.defineProperty(obj, 'prop2', {value: wasm_obj}));
     assertSame(wasm_obj, obj.prop2);
   });
-  testThrowsRepeated(() => Reflect.deleteProperty(wasm_obj, 'prop'), TypeError);
+  repeated(() => assertTrue(Reflect.deleteProperty(wasm_obj, 'prop')));
   testThrowsRepeated(() => Reflect.deleteProperty({}, wasm_obj), TypeError);
   repeated(() => assertSame(undefined, Reflect.get(wasm_obj, 'prop')));
   repeated(() => assertSame(null, Reflect.getPrototypeOf(wasm_obj)));
@@ -139,11 +143,13 @@ for (const wasm_obj of [struct, array]) {
 
   repeated(() => assertFalse(Reflect.isExtensible(wasm_obj)));
   repeated(() => assertEquals([], Reflect.ownKeys(wasm_obj)));
-  testThrowsRepeated(() => Reflect.preventExtensions(wasm_obj), TypeError);
-  testThrowsRepeated(() => Reflect.set(wasm_obj, 'prop', 123), TypeError);
-  testThrowsRepeated(() => Reflect.set([], 0, 0, wasm_obj), TypeError);
+  repeated(() => assertTrue(Reflect.preventExtensions(wasm_obj)));
+  repeated(() => assertFalse(Reflect.set(wasm_obj, 'prop', 123)));
+  repeated(() => assertFalse(Reflect.set([], 0, 0, wasm_obj)));
+  repeated(() => assertTrue(Reflect.setPrototypeOf(wasm_obj, null)));
   repeated(
       () => assertFalse(Reflect.setPrototypeOf(wasm_obj, Object.prototype)));
+  testThrowsRepeated(() => Reflect.setPrototypeOf(wasm_obj, 42), TypeError);
   repeated(() => Reflect.setPrototypeOf({}, wasm_obj));
 
   // Test Proxy.
@@ -155,7 +161,11 @@ for (const wasm_obj of [struct, array]) {
     };
     let proxy = new Proxy(wasm_obj, handler);
     repeated(() => assertEquals('proxied', proxy.abc));
-    testThrowsRepeated(() => proxy.abc = 123, TypeError);
+    repeated(() => assertEquals(123, proxy.abc = 123));
+    testThrowsRepeated(() => {
+      'use strict';
+      proxy.abc = 123;
+    }, TypeError);
   }
   {
     let underlyingObject = {};
@@ -172,7 +182,11 @@ for (const wasm_obj of [struct, array]) {
     };
     let {proxy, revoke} = Proxy.revocable(wasm_obj, handler);
     repeated(() => assertEquals('proxied', proxy.abc));
-    testThrowsRepeated(() => proxy.abc = 123, TypeError);
+    repeated(() => assertEquals(123, proxy.abc = 123));
+    testThrowsRepeated(() => {
+      'use strict';
+      proxy.abc = 123;
+    }, TypeError);
     revoke();
     testThrowsRepeated(() => proxy.abc, TypeError);
   }
@@ -182,5 +196,6 @@ for (const wasm_obj of [struct, array]) {
   }
 
   // Ensure no statement re-assigned wasm_obj by accident.
-  assertTrue(wasm_obj == struct || wasm_obj == array);
+  assertTrue(
+      wasm_obj == struct || wasm_obj == array || wasm_obj == sealed_js_obj);
 }

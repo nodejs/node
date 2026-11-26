@@ -457,9 +457,14 @@ struct runtime : CallDescriptorBuilder {
     using returns_t = V<JSObject>;
 
     static constexpr bool kCanTriggerLazyDeopt = false;
-    static constexpr Operator::Properties kProperties = Operator::kEliminatable;
-    static constexpr OpEffects kEffects =
-        OpEffects().CanAllocate().CanReadHeapMemory().CanWriteHeapMemory();
+    static constexpr Operator::Properties kProperties =
+        Operator::kNoDeopt | Operator::kNoThrow;
+    // Lazily allocates and caches a JS wrapper on WasmCustomMap (or
+    // WasmInternalFunction); the write is unobservable if the result is unused.
+    static constexpr OpEffects kEffects = OpEffects()
+                                              .CanAllocateWithoutIdentity()
+                                              .CanReadHeapMemory()
+                                              .CanWriteHeapMemoryIfUsed();
   };
 #endif  // V8_ENABLE_WEBASSEMBLY
 };

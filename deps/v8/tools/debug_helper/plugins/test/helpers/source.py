@@ -25,13 +25,13 @@ def _match_frame(bt, frame_re):
 def _argc_from_trailer(rest):
   """Recover argc from the bt trailer.
 
-  This is the count of `[N]=` previews, or the total from the
+  This is the count of `[N]=` or `name=` previews, or the total from the
   `... (argc=N)` tail when the previews were capped.
   """
   tail = re.search(r"\.\.\. \(argc=(\d+)\)", rest)
   if tail:
     return int(tail.group(1))
-  return len(re.findall(r"\[\d+\]=", rest))
+  return len(re.findall(r", (?:\[\d+\]|[A-Za-z_$][\w$]*)=", rest))
 
 
 def _header(m, function_name, position):

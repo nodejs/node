@@ -1,8 +1,10 @@
 {
   "d8_extra_args": ["--no-turbofan", "--no-maglev", "--no-sparkplug"],
+  "randomize_d8_flags": true,
+  "d8_flag_profile": "runtime",
   "selection": {"seeds": {"strategy": "rarity"}, "partners": {"strategy": "rarity-partner"}, "mutators": {"strategy": "adaptive"},
     "generators": {"strategy": "adaptive", "params": {"weights": {
-      "JitOptimize": 0, "JitBaseline": 0, "Deopt": 0, "OsrLoop": 0,
+      "JitOptimize": 0, "JitBaseline": 0, "Deopt": 0, "OsrLoop": 0, "JitTricky": 0, "LazyDeopt": 0,
       "PropertyStore": 6, "DefineProperty": 4, "ShapeChange": 4, "PrototypeSet": 3, "ProxyDecl": 3,
       "FreezeSeal": 2}}}}
 }

@@ -127,7 +127,6 @@ class FullObjectSlot : public SlotBase<FullObjectSlot, Address> {
   // Compares memory representation of a value stored in the slot with given
   // raw value.
   inline bool contains_map_value(Address raw_value) const;
-  inline bool Relaxed_ContainsMapValue(Address raw_value) const;
 
   inline Tagged<Object> operator*() const;
   inline Tagged<Object> load() const;
@@ -307,9 +306,8 @@ class UnalignedSlot : public SlotBase<UnalignedSlot<T>, T, 1> {
 // An ExternalPointerSlot instance describes a kExternalPointerSlotSize-sized
 // field ("slot") holding a pointer to objects located outside the V8 heap and
 // V8 sandbox (think: ExternalPointer_t).
-// It's basically an ExternalPointer_t* but abstracting away the fact that the
-// pointer might not be kExternalPointerSlotSize-aligned in certain
-// configurations. Its address() is the address of the slot.
+// It's basically an ExternalPointer_t* whose address() is the address of the
+// slot.
 class ExternalPointerSlot
     : public SlotBase<ExternalPointerSlot, ExternalPointer_t,
                       kTaggedSize /* slot alignment */> {
@@ -337,18 +335,11 @@ class ExternalPointerSlot
                    Address value, ExternalPointerTag tag);
 
 #ifdef V8_COMPRESS_POINTERS
-  // When the external pointer is sandboxed, or for array buffer extensions when
-  // pointer compression is on, its slot stores a handle to an entry in an
-  // ExternalPointerTable. These methods allow access to the underlying handle
-  // while the load/store methods below resolve the handle to the real pointer.
-  // Handles should generally be accessed atomically as they may be accessed
-  // from other threads, for example GC marking threads.
-  //
-  // TODO(wingo): Remove if we switch to use the EPT for all external pointers
-  // when pointer compression is enabled.
-  bool HasExternalPointerHandle() const {
-    return V8_ENABLE_SANDBOX_BOOL || tag_range() == kArrayBufferExtensionTag;
-  }
+  // When pointer compression is enabled, the slot stores a handle to an entry
+  // in an ExternalPointerTable. These methods allow access to the underlying
+  // handle while the load/store methods below resolve the handle to the real
+  // pointer. Handles should generally be accessed atomically as they may be
+  // accessed from other threads, for example GC marking threads.
   inline ExternalPointerHandle Relaxed_LoadHandle() const;
   inline void Relaxed_StoreHandle(ExternalPointerHandle handle) const;
   inline void Release_StoreHandle(ExternalPointerHandle handle) const;
@@ -392,7 +383,6 @@ class ExternalPointerSlot
  private:
 #ifdef V8_COMPRESS_POINTERS
   ExternalPointerHandle* handle_location() const {
-    DCHECK(HasExternalPointerHandle());
     return reinterpret_cast<ExternalPointerHandle*>(address());
   }
 #endif  // V8_COMPRESS_POINTERS
@@ -401,9 +391,9 @@ class ExternalPointerSlot
   ExternalPointerTagRange tag_range_;
 };
 
-// Similar to ExternalPointerSlot with the difference that it refers to an
-// `CppHeapPointer_t` which has different sizing and alignment than
-// `ExternalPointer_t`.
+// Similar to ExternalPointerSlot with the difference that it refers to a
+// `CppHeapPointer_t` in the CppHeapPointerTable instead of an
+// `ExternalPointer_t` in the ExternalPointerTable.
 class CppHeapPointerSlot
     : public SlotBase<CppHeapPointerSlot, CppHeapPointer_t,
                       /*SlotDataAlignment=*/sizeof(CppHeapPointer_t)> {

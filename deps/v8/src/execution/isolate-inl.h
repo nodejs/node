@@ -191,7 +191,7 @@ bool Isolate::is_catchable_by_wasm(Tagged<Object> exception) {
   if (!is_catchable_by_javascript(exception)) return false;
   if (!IsJSObject(exception)) return true;
   return !LookupIterator::HasInternalMarkerProperty(
-      this, Cast<JSReceiver>(exception), factory()->wasm_uncatchable_symbol());
+      this, Cast<JSObject>(exception), factory()->wasm_uncatchable_symbol());
 }
 
 void Isolate::FireBeforeCallEnteredCallback() {

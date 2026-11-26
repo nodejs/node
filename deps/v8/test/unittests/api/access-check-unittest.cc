@@ -47,6 +47,38 @@ class AccessCheckTest : public TestWithIsolate {
         .FromJust();
     Context::Scope context_scope(accessing_context);
 
+    g_expect_interceptor_call = false;
+    {
+      TryCatch try_catch(isolate());
+      CHECK(accessed_object
+                ->SetNativeDataProperty(
+                    accessing_context, NewString("foo"),
+                    [](Local<Name>, const PropertyCallbackInfo<Value>&) {
+                      FAIL();
+                    })
+                .IsNothing());
+      CHECK(try_catch.HasCaught());
+    }
+    {
+      TryCatch try_catch(isolate());
+      CHECK(accessed_object
+                ->SetLazyDataProperty(
+                    accessing_context, NewString("foo"),
+                    [](Local<Name>, const PropertyCallbackInfo<Value>&) {
+                      FAIL();
+                    })
+                .IsNothing());
+      CHECK(try_catch.HasCaught());
+    }
+    {
+      TryCatch try_catch(isolate());
+      CHECK(accessed_object
+                ->CreateDataProperty(accessing_context, NewString("foo"),
+                                     v8::Integer::New(isolate(), 42))
+                .IsNothing());
+      CHECK(try_catch.HasCaught());
+    }
+
     g_expect_interceptor_call = true;
     g_cross_context_int = 23;
 
@@ -425,7 +457,7 @@ v8::Intercepted MethodGetter(Local<Name> property,
   Isolate* isolate = info.GetIsolate();
   Local<Context> context = isolate->GetCurrentContext();
 
-  Local<External> data = info.DataV2().As<External>();
+  Local<External> data = info.Data().As<External>();
   Local<FunctionTemplate>& function_template =
       *reinterpret_cast<Local<FunctionTemplate>*>(
           data->Value(kFunctionTemplateTag));

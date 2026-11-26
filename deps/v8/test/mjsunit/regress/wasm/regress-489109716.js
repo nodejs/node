@@ -34,9 +34,9 @@ let proto_segment = builder.addPassiveElementSegment([], kWasmExternRef);
 let func_segment = builder.addPassiveElementSegment([]);
 let data = [
   1,  // number of prototypes to configure
+  0x7f,  // no parent
   0,  // no constructor
   0,  // no methods
-  0x7f,  // no parent
 ];
 let data_seg = builder.addPassiveDataSegment(data);
 

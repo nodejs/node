@@ -1,0 +1,41 @@
+header: arpa/nameser.h
+standards:
+  - bsd
+macros:
+  - macro_name: NS_PACKETSZ
+    macro_header: arpa-nameser-macros.h
+  - macro_name: NS_MAXDNAME
+    macro_header: arpa-nameser-macros.h
+  - macro_name: NS_MAXMSG
+    macro_header: arpa-nameser-macros.h
+  - macro_name: NS_MAXCDNAME
+    macro_header: arpa-nameser-macros.h
+  - macro_name: NS_MAXLABEL
+    macro_header: arpa-nameser-macros.h
+  - macro_name: NS_HFIXEDSZ
+    macro_header: arpa-nameser-macros.h
+  - macro_name: NS_QFIXEDSZ
+    macro_header: arpa-nameser-macros.h
+  - macro_name: NS_RRFIXEDSZ
+    macro_header: arpa-nameser-macros.h
+  - macro_name: NS_INT32SZ
+    macro_header: arpa-nameser-macros.h
+  - macro_name: NS_INT16SZ
+    macro_header: arpa-nameser-macros.h
+  - macro_name: NS_INT8SZ
+    macro_header: arpa-nameser-macros.h
+  - macro_name: NS_INADDRSZ
+    macro_header: arpa-nameser-macros.h
+  - macro_name: NS_IN6ADDRSZ
+    macro_header: arpa-nameser-macros.h
+  - macro_name: NS_CMPRSFLGS
+    macro_header: arpa-nameser-macros.h
+  - macro_name: NS_DEFAULTPORT
+    macro_header: arpa-nameser-macros.h
+types:
+  - type_name: ns_class
+  - type_name: ns_sect
+  - type_name: ns_type
+enums: []
+objects: []
+functions: []

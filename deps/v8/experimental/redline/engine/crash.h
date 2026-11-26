@@ -71,6 +71,22 @@ inline constexpr size_t kMaxRecursionCycleFunctions = 4;
 // Empty unless they make up at least half of the frames.
 std::vector<std::string> RecursionCycle(const std::vector<std::string>& frames);
 
+// The marker prefix of the parts of a d8 bundle. d8 splits a bundle at each
+// occurrence of this prefix.
+inline constexpr char kBundleMarkerPrefix[] = "// JS_BUNDLE_";
+// The marker of a script part of a d8 bundle.
+inline constexpr char kBundleScriptMarker[] = "// JS_BUNDLE_SCRIPT";
+
+// Makes a d8 bundle with one script part for each of `scripts`, in their
+// order. `d8 --bundle-reprl` runs each part in the same way as one REPRL
+// execution. Thus the bundle reproduces a crash that needs the earlier
+// programs of its target in one file. Each line of `header` must be a "//"
+// comment. Returns false if a script or the header contains
+// kBundleMarkerPrefix, or if a header line is not a comment.
+bool MakeReprlBundle(const std::string& header,
+                     const std::vector<std::string>& scripts,
+                     std::string* bundle);
+
 }  // namespace redline
 
 #endif  // V8_EXPERIMENTAL_REDLINE_ENGINE_CRASH_H_

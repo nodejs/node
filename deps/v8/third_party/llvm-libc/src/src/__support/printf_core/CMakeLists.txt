@@ -79,6 +79,8 @@ add_header_library(
   HDRS
     printf_config.h
     ${printf_config_copts}
+  DEPENDS
+    libc.src.__support.macros.properties.types
 )
 
 add_header_library(
@@ -111,6 +113,7 @@ add_header_library(
     .core_structs
     libc.src.__support.arg_list
     libc.src.__support.ctype_utils
+    libc.src.__support.libc_errno
     libc.src.__support.str_to_integer
     libc.src.__support.CPP.algorithm
     libc.src.__support.CPP.bit

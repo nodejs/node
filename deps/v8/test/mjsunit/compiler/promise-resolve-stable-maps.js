@@ -28,7 +28,7 @@
   const b = makeObjectWithStableMap();
   b.d = 1;
 
-  if (%IsDictPropertyConstTrackingEnabled()) {
+  if (%IsDictPrototypesEnabled()) {
     // TODO(v8:11457) In this mode we weren't able to inline the access, yet, so
     // it stays optimized. See related TODO in
     // JSNativeContextSpecialization::ReduceJSResolvePromise.
@@ -64,7 +64,7 @@
   const b = makeObjectWithStableMap();
   b.z = 1;
 
-  if (%IsDictPropertyConstTrackingEnabled()) {
+  if (%IsDictPrototypesEnabled()) {
     // TODO(v8:11457) In this mode we weren't able to inline the access, yet, so
     // it stays optimized. See related TODO in
     // JSNativeContextSpecialization::ReduceJSResolvePromise.

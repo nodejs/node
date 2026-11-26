@@ -14,6 +14,7 @@
 #include "src/__support/threads/thread.h"
 #include "config/app.h"
 #include "src/__support/CPP/atomic.h"
+#include "src/__support/CPP/optional.h"
 #include "src/__support/CPP/string_view.h"
 #include "src/__support/CPP/stringstream.h"
 #include "src/__support/OSUtil/linux/sigmask.h"
@@ -34,11 +35,11 @@
 #include "src/__support/OSUtil/syscall.h" // For syscall functions.
 #include "src/__support/common.h"
 #include "src/__support/error_or.h"
-#include "src/__support/libc_errno.h" // For error macros
 #include "src/__support/macros/config.h"
 #include "src/__support/threads/linux/futex_utils.h" // For FutexWordType
 #include "src/__support/threads/linux/futex_word.h"
 #include "src/__support/threads/thread_attributes.h"
+#include "src/__support/time/linux/cpu_clock.h"
 
 #include "hdr/errno_macros.h"
 #include "hdr/fcntl_macros.h"
@@ -151,9 +152,29 @@ cleanup_thread_resources(ThreadAttributes *attrib) {
     free_stack(attrib->stack, attrib->stacksize, attrib->guardsize);
 }
 
+// Enum values used for controlling thread startup. The underlying type is
+// uint8_t so that the values can be passed to Futex::store_and_notify_all.
+enum class ClearTidState : uint8_t {
+  EXITED = 0, // Set by the kernel when the thread exits.
+  WAITING,    // Waiting for additional initialization.
+  RUNNING,    // Initialization complete or not needed.
+  ABORT,      // Initialization failed.
+};
+
 static int start_thread(void *arg) {
   auto *start_args = reinterpret_cast<StartArgs *>(arg);
   auto *attrib = start_args->thread_attrib;
+  auto *clear_tid = static_cast<Futex *>(attrib->platform_data);
+
+  // If explicit scheduling parameters were requested, wait for the parent to
+  // apply them via setschedparam. If setschedparam fails, the parent signals
+  // ABORT, and the child exits immediately without running user code.
+  FutexWordType state;
+  while ((state = clear_tid->load(cpp::MemoryOrder::ACQUIRE)) ==
+         static_cast<FutexWordType>(ClearTidState::WAITING))
+    clear_tid->wait(state, cpp::nullopt, /*is_shared=*/false);
+  if (state == static_cast<FutexWordType>(ClearTidState::ABORT))
+    linux_syscalls::exit(0);
 
   if (attrib->style == ThreadStyle::POSIX) {
     ThreadReturnValue retval = start_args->runner.posix_runner(start_args->arg);
@@ -166,7 +187,8 @@ static int start_thread(void *arg) {
 }
 
 int Thread::run(ThreadStyle style, ThreadRunner runner, void *arg, void *stack,
-                size_t stacksize, size_t guardsize, bool detached) {
+                size_t stacksize, size_t guardsize, bool detached,
+                cpp::optional<SchedParameters> sched_params) {
   bool owned_stack = false;
   if (stack == nullptr) {
     // TODO: Should we return EINVAL here? Should we have a generic concept of a
@@ -255,16 +277,17 @@ int Thread::run(ThreadStyle style, ThreadRunner runner, void *arg, void *stack,
   attrib->tls_size = tls.size;
   attrib->joiner = nullptr;
 
-  start_args->thread_attrib = attrib;
-  start_args->runner = runner;
-  start_args->arg = arg;
-
-  auto clear_tid = reinterpret_cast<Futex *>(
+  auto *clear_tid = reinterpret_cast<Futex *>(
       adjusted_stack + sizeof(StartArgs) + sizeof(ThreadAttributes));
-  clear_tid->set(1);
+  clear_tid->set(static_cast<FutexWordType>(
+      sched_params ? ClearTidState::WAITING : ClearTidState::RUNNING));
   attrib->platform_data = clear_tid;
 
   get_tcb(tls.tp)->attrib = attrib;
+
+  start_args->thread_attrib = attrib;
+  start_args->runner = runner;
+  start_args->arg = arg;
 
   auto clone_result = linux_syscalls::clone(
       start_thread, reinterpret_cast<void *>(adjusted_stack),
@@ -274,10 +297,31 @@ int Thread::run(ThreadStyle style, ThreadRunner runner, void *arg, void *stack,
 
   if (!clone_result.has_value()) {
     cleanup_thread_resources(attrib);
+    attrib = nullptr;
     return clone_result.error();
   }
 
-  return 0;
+  if (!sched_params)
+    return 0;
+
+  // Linux clone does not accept scheduling parameters directly, so we must
+  // apply them after thread creation. If setschedparam fails, signal the child
+  // to abort, wait for it to exit, and clean up its resources.
+  int sched_result = setschedparam(*sched_params);
+  ClearTidState state =
+      sched_result != 0 ? ClearTidState::ABORT : ClearTidState::RUNNING;
+  // The child may exit (and free the memory holding clear_tid) as soon as it
+  // sees the new value, so use a store-and-notify operation to avoid spurious
+  // wakeups.
+  clear_tid->store_and_notify_all(static_cast<uint8_t>(state),
+                                  /*is_shared=*/false);
+
+  if (sched_result != 0) {
+    wait();
+    cleanup_thread_resources(attrib);
+    attrib = nullptr;
+  }
+  return sched_result;
 }
 
 int Thread::join(ThreadReturnValue &retval) {
@@ -335,7 +379,7 @@ void Thread::wait() {
   // The kernel should set the value at the clear tid address to zero.
   // If not, it is a spurious wake and we should continue to wait on
   // the futex.
-  auto *clear_tid = reinterpret_cast<Futex *>(attrib->platform_data);
+  auto *clear_tid = static_cast<Futex *>(attrib->platform_data);
   // We cannot do a FUTEX_WAIT_PRIVATE here as the kernel does a
   // FUTEX_WAKE and not a FUTEX_WAKE_PRIVATE.
   FutexWordType clear_tid_value;
@@ -449,6 +493,15 @@ ErrorOr<SchedParameters> Thread::getschedparam() const {
     return Error(param_result.error());
 
   return SchedParameters{pol_result.value(), param};
+}
+
+clockid_t Thread::getcpuclockid() const {
+  // NB: Once the thread exits, the kernel can reuse its TID, so the clock ID
+  // may stop working, or even refer to a different thread. We don't check for
+  // that since POSIX.1-2024 considers the pthread_t of an exited thread valid
+  // until it is joined or detached, and a clock ID obtained before the thread
+  // exited is affected the same way.
+  return internal::make_thread_cpu_clock(attrib->tid);
 }
 
 ErrorOr<void> Thread::kill(int sig) {

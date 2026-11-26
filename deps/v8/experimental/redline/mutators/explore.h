@@ -7,6 +7,7 @@
 
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "experimental/redline/mutators/mutator.h"
@@ -20,22 +21,26 @@ namespace redline {
 // coming from builtins it has no model of (d8.test.*, Intl, user classes,
 // ...). Exploration asks the target instead:
 //
-//  1. Mutate(): inserts a few probes `__redline_explore("eN", v, [args])`
-//     (wrapped in try/catch) at random statement positions, each exploring
-//     one visible variable `v` with a few other visible variables and
-//     literals as potential arguments. The probes are described in
-//     MutationContext::probes.
+//  1. Mutate(): inserts probes `__redline_explore("eN", v, [args])`
+//     (wrapped in try/catch) right after the definitions of some variables
+//     (after Fuzzilli: about half of the variables of unknown or object
+//     type, a quarter of the others, with a cap and a lower cap in loop
+//     bodies), each exploring one variable `v` with a few other visible
+//     variables and literals as potential arguments. The probes are
+//     described in MutationContext::probes.
 //  2. The worker executes the instrumented program with kExploreRuntime
 //     prepended. At runtime the probe inspects the value (typeof, property
 //     names along the prototype chain, function arity, ...) picks an action
 //     that makes sense for it (call a method, load/store a property, call or
 //     construct a function, arithmetic/comparison for primitives, iterate,
 //     ...), performs it to check that it does not throw, and reports it as
-//     one JSON line "EXPLORE_ACTION: {...}" on the fuzzout channel.
-//  3. ApplyExploreActions() replaces every probe that reported an action by
-//     ordinary code performing exactly that action (`let rN = v.m(a, b);`),
-//     and removes the probes that reported nothing. The result is a normal,
-//     deterministic program that is executed and evaluated as usual.
+//     one JSON line "EXPLORE_ACTION: {...}" on the fuzzout channel. If the
+//     action throws on a later visit of the probe (a later loop
+//     iteration), the probe reports "EXPLORE_FAILURE: <id>".
+//  3. ApplyExploreActions() replaces every probe that reported an action
+//     and no failure by ordinary code performing exactly that action
+//     (`let rN = v.m(a, b);`), and removes the other probes. The result is a
+//     normal, deterministic program that is executed and evaluated as usual.
 //
 // One exploration therefore costs one extra execution.
 
@@ -86,6 +91,44 @@ class RuntimeAssistedMutator : public Mutator {
   static fast::Statement* MakeProbe(
       fast::Tree* tree, std::string_view function, const ExploreProbe& probe,
       const std::vector<fast::Expression*>& extra);
+
+  // A position for a probe of `variable`: right after the statement that
+  // declares it, or at the start of the body for a parameter.
+  struct DefinitionSite {
+    Builder::Slot slot;
+    Variable variable;
+    bool in_loop = false;  // the slot is in a loop body
+  };
+  // The definition sites of the variables of the program (in the focus
+  // subtree if the builder has one). Sites in a function that the program
+  // gives to `new Worker(...)` are not included: the runtime helper does not
+  // exist in the worker.
+  static std::vector<DefinitionSite> DefinitionSites(Builder& builder);
+  // Picks sites in a random order: site i with probability chances[i]. The
+  // result has at most `max_probes` sites, at most `max_loop_probes` of them
+  // in loop bodies, and at least one site if one has a chance above 0.
+  static std::vector<size_t> PickSites(Random& rng,
+                                       const std::vector<DefinitionSite>& sites,
+                                       const std::vector<double>& chances,
+                                       int max_probes, int max_loop_probes);
+  // Removes from `nodes` the nodes in a function that the program gives to
+  // `new Worker(...)`, directly or by the name of a function declaration.
+  static void RemoveWorkerNodes(Builder& builder,
+                                std::vector<fast::Node*>* nodes);
+  // Inserts the probe statements, the highest slot index first, so that
+  // the other slots of a statement list stay valid.
+  static void InsertProbes(
+      Builder& builder,
+      std::vector<std::pair<Builder::Slot, fast::Statement*>>* insertions);
+  // `object.key`, or `object[key]` with a number for an array index key
+  // ("0" gives `object[0]`), a well-known symbol for "Symbol.x" and a
+  // string for other keys.
+  static fast::Expression* MemberAccess(fast::Tree* tree,
+                                        fast::Expression* object,
+                                        const std::string& key);
+  // The key of MemberAccess as an expression: a number, a symbol or a
+  // string.
+  static fast::Expression* KeyLiteral(fast::Tree* tree, const std::string& key);
 };
 
 class ExploreMutator final : public RuntimeAssistedMutator {

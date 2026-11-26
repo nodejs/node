@@ -121,7 +121,8 @@ RegExpMacroAssemblerARM64::RegExpMacroAssemblerARM64(Isolate* isolate,
       start_label_(),
       success_label_(),
       backtrack_label_(),
-      exit_label_() {
+      exit_label_(),
+      backtrack_fixups_(zone) {
   DCHECK_EQ(0, registers_to_save % 2);
   // We can cache at most 16 W registers in x0-x7.
   static_assert(kNumCachedRegisters <= 16);
@@ -219,10 +220,43 @@ void RegExpMacroAssemblerARM64::EmitBacktrack() {
   __ Br(x10);
 }
 
-void RegExpMacroAssemblerARM64::Bind(Label* label) { __ Bind(label); }
+void RegExpMacroAssemblerARM64::Bind(Label* label) {
+  // Backtrack targets are bound with BindJumpTarget.
+  DCHECK(!backtrack_fixups_.contains(label));
+  __ Bind(label);
+}
 
 void RegExpMacroAssemblerARM64::BindJumpTarget(Label* label) {
   __ BindJumpTarget(label);
+  PatchBacktrackFixups(label);
+}
+
+void RegExpMacroAssemblerARM64::PatchBacktrackFixups(Label* label) {
+  auto range = backtrack_fixups_.equal_range(label);
+  if (range.first == range.second) return;
+  DCHECK(label->is_bound());
+  uint32_t target = static_cast<uint32_t>(
+      label->pos() + InstructionStream::kHeaderSize - kHeapObjectTag);
+  for (auto it = range.first; it != range.second; ++it) {
+#ifdef DEBUG
+    Instruction* movz = masm_->InstructionAt(it->second);
+    Instruction* movk = movz->following();
+    DCHECK(movz->IsMovz());
+    DCHECK_EQ(movz->ShiftMoveWide(), 0);
+    DCHECK_EQ(movz->ImmMoveWide(), 0);
+    DCHECK_EQ(movz->Rd(), w10.code());
+    DCHECK(movk->IsMovk());
+    DCHECK_EQ(movk->ShiftMoveWide(), 1);
+    DCHECK_EQ(movk->ImmMoveWide(), 0);
+    DCHECK_EQ(movk->Rd(), w10.code());
+#endif
+    PatchingAssembler patcher(zone(), masm_->options(),
+                              masm_->buffer_start() + it->second,
+                              kBacktrackFixupInstructions);
+    patcher.movz(w10, target & 0xFFFF);
+    patcher.movk(w10, target >> 16, 16);
+  }
+  backtrack_fixups_.erase(range.first, range.second);
 }
 
 void RegExpMacroAssemblerARM64::CheckCharacter(uint32_t c, Label* on_equal) {
@@ -258,7 +292,7 @@ void RegExpMacroAssemblerARM64::CheckCharacterLT(base::uc16 limit,
 void RegExpMacroAssemblerARM64::CheckCharacters(
     base::Vector<const base::uc16> str, int cp_offset, Label* on_failure,
     bool check_end_of_string) {
-  // This method is only ever called from the cctests.
+  // This method is only ever called from the unittests.
 
   if (check_end_of_string) {
     // Is last character of required match inside string.
@@ -386,7 +420,7 @@ void RegExpMacroAssemblerARM64::CheckNotBackReferenceIgnoreCase(
 
     __ Bind(&loop_check);
     __ Cmp(capture_start_address, capture_end_address);
-    __ B(lt, &loop);
+    __ B(lo, &loop);
     __ B(&success);
 
     __ Bind(&fail);
@@ -521,7 +555,7 @@ void RegExpMacroAssemblerARM64::CheckNotBackReference(int start_reg,
   __ Cmp(w10, w11);
   BranchOrBacktrack(ne, on_no_match);
   __ Cmp(capture_start_address, capture_end_address);
-  __ B(lt, &loop);
+  __ B(lo, &loop);
 
   // Move current character position to position after match.
   __ Sub(current_input_offset().X(), current_position_address, input_end());
@@ -1898,6 +1932,8 @@ DirectHandle<HeapObject> RegExpMacroAssemblerARM64::GetCode(
     __ B(&return_w0);
   }
 
+  DCHECK(backtrack_fixups_.empty());
+
   CodeDesc code_desc;
   masm_->GetCode(isolate(), &code_desc);
   Handle<Code> code =
@@ -1948,13 +1984,12 @@ void RegExpMacroAssemblerARM64::PushBacktrack(Label* label) {
     int target = label->pos();
     __ Mov(w10, target + InstructionStream::kHeaderSize - kHeapObjectTag);
   } else {
-    __ Adr(x10, label, MacroAssembler::kAdrFar);
-    __ Sub(x10, x10, code_pointer());
-    if (v8_flags.debug_code) {
-      __ Cmp(x10, kWRegMask);
-      // The code offset has to fit in a W register.
-      __ Check(ls, AbortReason::kOffsetOutOfRange);
-    }
+    // Reserve a movz/movk pair for the label's offset; BindJumpTarget
+    // patches it in.
+    InstructionAccurateScope scope(masm_.get(), kBacktrackFixupInstructions);
+    backtrack_fixups_.emplace(label, masm_->pc_offset());
+    __ movz(w10, 0);
+    __ movk(w10, 0, 16);
   }
   Push(w10);
   CheckStackLimit();

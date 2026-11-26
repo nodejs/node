@@ -5,6 +5,7 @@
 #include "experimental/redline/engine/amplifier.h"
 
 #include <algorithm>
+#include <cmath>
 #include <sstream>
 #include <utility>
 
@@ -12,6 +13,7 @@
 #include "experimental/redline/base/log.h"
 #include "experimental/redline/base/time_util.h"
 #include "experimental/redline/core/ast_builder.h"
+#include "experimental/redline/engine/flag_minimizer.h"
 #include "experimental/redline/exec/process_run.h"
 #include "experimental/redline/fast/parser.h"
 #include "experimental/redline/fast/printer.h"
@@ -227,6 +229,9 @@ class FlagsStrategy final : public AmplifyStrategy {
     AmplifyResult result;
     const Stopwatch clock;
     const uint64_t timeout_us = static_cast<uint64_t>(s_.run_timeout_sec * 1e6);
+    result.run_timeout_us = timeout_us;
+    result.min_hits = s_.min_hits;
+    result.planned_processes = s_.processes;
     const auto env = request.target.PlainEnvironment();
     auto write = [&](const std::string& program) {
       std::string script =
@@ -373,6 +378,102 @@ std::string WrapInTry(const std::string& program) {
   head.push_back(mk::Try(tree.get(), body, "redline_exception", {}));
   root->body = std::move(head);
   return fast::Print(root);
+}
+
+std::vector<std::string> AmplifiedFlags(const std::vector<std::string>& base,
+                                        const std::string& amplify_args) {
+  std::vector<std::string> flags;
+  for (const std::string& flag : base) {
+    if (!IsFlag(flag, "stress-runs") && !IsFlag(flag, "random-seed")) {
+      flags.push_back(flag);
+    }
+  }
+  for (std::string& flag : SplitArgs(amplify_args)) {
+    flags.push_back(std::move(flag));
+  }
+  return flags;
+}
+
+int AmplifiedRuns(int hits, int processes) {
+  constexpr int kMaxRuns = 10;
+  if (processes <= 0) {
+    return kMaxRuns;
+  }
+  const double rate =
+      static_cast<double>(std::clamp(hits, 0, processes) + 1) / (processes + 2);
+  const double miss = 1.0 - rate;
+  const double runs = std::ceil(std::log(0.05) / std::log(miss));
+  return static_cast<int>(std::clamp(runs, 1.0, static_cast<double>(kMaxRuns)));
+}
+
+RateDecision DecideAmplifiedRate(int min_hits, int planned, RateCount kept,
+                                 const RateCount* all,
+                                 const std::string& stop_cause) {
+  RateDecision decision;
+  decision.rate = kept;
+  decision.note = StringPrintf("the bar is %d of %d", min_hits, planned);
+  if (kept.runs < planned) {
+    decision.note += StringPrintf(", not checked after %d of %d runs: %s",
+                                  kept.runs, planned, stop_cause.c_str());
+  } else if (kept.hits >= min_hits) {
+    decision.keep = true;
+    return decision;
+  } else if (all == nullptr) {
+    decision.note +=
+        StringPrintf(", the script gave %d of %d", kept.hits, planned);
+  } else {
+    decision.rate = *all;
+    decision.note +=
+        StringPrintf(", the kept flags gave %d of %d", kept.hits, planned);
+    if (all->runs < planned) {
+      decision.note += StringPrintf(
+          ", the check of all flags stopped after %d of %d runs: %s", all->runs,
+          planned, stop_cause.c_str());
+    } else if (all->hits >= min_hits) {
+      decision.keep = true;
+      decision.all_flags = true;
+      decision.note += StringPrintf(", all flags of the test gave %d of %d",
+                                    all->hits, planned);
+      return decision;
+    } else {
+      decision.note += StringPrintf(", all flags of the test gave %d of %d",
+                                    all->hits, planned);
+    }
+  }
+  decision.note += ", so Redline wrote no NAME.repro.js";
+  return decision;
+}
+
+RateDecision DecideReproducibleRate(int planned, RateCount kept,
+                                    const RateCount* all,
+                                    const std::string& stop_cause) {
+  RateDecision decision;
+  decision.keep = true;
+  decision.rate = kept;
+  decision.note = StringPrintf("the bar is %d of %d", planned, planned);
+  if (kept.runs < planned) {
+    decision.all_flags = true;
+    decision.note += StringPrintf(", not checked after %d of %d runs: %s",
+                                  kept.runs, planned, stop_cause.c_str());
+  } else if (kept.hits < planned && all == nullptr) {
+    decision.all_flags = true;
+    decision.note +=
+        StringPrintf(", the script gave %d of %d", kept.hits, planned);
+  } else if (kept.hits < planned) {
+    decision.all_flags = true;
+    decision.rate = *all;
+    decision.note +=
+        StringPrintf(", the kept flags gave %d of %d", kept.hits, planned);
+    if (all->runs < planned) {
+      decision.note += StringPrintf(
+          ", the check of all flags stopped after %d of %d runs: %s", all->runs,
+          planned, stop_cause.c_str());
+    } else {
+      decision.note += StringPrintf(", all flags of the test gave %d of %d",
+                                    all->hits, planned);
+    }
+  }
+  return decision;
 }
 
 std::unique_ptr<AmplifyStrategy> CreateAmplifyStrategy(std::string_view name,

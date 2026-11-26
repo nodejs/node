@@ -143,13 +143,8 @@ RegExpMacroAssemblerPPC::~RegExpMacroAssemblerPPC() {
 
 void RegExpMacroAssemblerPPC::AdvanceCurrentPosition(int by) {
   if (by != 0) {
-    if (is_int16(by * char_size())) {
-      __ addi(current_input_offset(), current_input_offset(),
+    __ AddS64(current_input_offset(), current_input_offset(),
               Operand(by * char_size()));
-    } else {
-      __ mov(r0, Operand(by * char_size()));
-      __ add(current_input_offset(), r0, current_input_offset());
-    }
   }
 }
 
@@ -259,7 +254,9 @@ void RegExpMacroAssemblerPPC::CheckNotBackReferenceIgnoreCase(
     __ CmpS64(current_input_offset(), r6);
     BranchOrBacktrack(le, on_no_match);
   } else {
-    __ add(r0, r4, current_input_offset(), LeaveOE, SetRC);
+    UseScratchRegisterScope temps(masm_.get());
+    Register scratch = temps.Acquire();
+    __ add(scratch, r4, current_input_offset(), LeaveOE, SetRC);
     BranchOrBacktrack(gt, on_no_match, cr0);
   }
 
@@ -306,7 +303,7 @@ void RegExpMacroAssemblerPPC::CheckNotBackReferenceIgnoreCase(
     __ beq(&fail);
 
     __ bind(&loop_check);
-    __ CmpS64(r3, r4);
+    __ CmpU64(r3, r4);
     __ blt(&loop);
     __ b(&success);
 
@@ -399,7 +396,9 @@ void RegExpMacroAssemblerPPC::CheckNotBackReference(int start_reg,
     __ CmpS64(current_input_offset(), r6);
     BranchOrBacktrack(le, on_no_match);
   } else {
-    __ add(r0, r4, current_input_offset(), LeaveOE, SetRC);
+    UseScratchRegisterScope temps(masm_.get());
+    Register scratch = temps.Acquire();
+    __ add(scratch, r4, current_input_offset(), LeaveOE, SetRC);
     BranchOrBacktrack(gt, on_no_match, cr0);
   }
 
@@ -428,7 +427,7 @@ void RegExpMacroAssemblerPPC::CheckNotBackReference(int start_reg,
   }
   __ CmpS64(r6, r25);
   BranchOrBacktrack(ne, on_no_match);
-  __ CmpS64(r3, r4);
+  __ CmpU64(r3, r4);
   __ blt(&loop);
 
   // Move current character position to position after match.
@@ -747,8 +746,12 @@ DirectHandle<HeapObject> RegExpMacroAssemblerPPC::GetCode(
 
     RegList argument_registers = {r3, r4, r5, r6, r7, r8, r9, r10};
     // Also push the frame marker.
-    __ mov(r0, Operand(StackFrame::TypeToMarker(StackFrame::IRREGEXP)));
-    __ push(r0);
+    {
+      UseScratchRegisterScope temps(masm_.get());
+      Register scratch = temps.Acquire();
+      __ mov(scratch, Operand(StackFrame::TypeToMarker(StackFrame::IRREGEXP)));
+      __ push(scratch);
+    }
     __ MultiPush(argument_registers);
 
     static_assert(kSuccessfulCapturesOffset ==
@@ -835,8 +838,10 @@ DirectHandle<HeapObject> RegExpMacroAssemblerPPC::GetCode(
     __ LoadU64(r4, MemOperand(frame_pointer(), kStartIndexOffset));
     __ subi(r3, current_input_offset(), Operand(char_size()));
     if (mode() == UC16) {
-      __ ShiftLeftU64(r0, r4, Operand(1));
-      __ sub(r3, r3, r0);
+      UseScratchRegisterScope temps(masm_.get());
+      Register scratch = temps.Acquire();
+      __ ShiftLeftU64(scratch, r4, Operand(1));
+      __ sub(r3, r3, scratch);
     } else {
       __ sub(r3, r3, r4);
     }

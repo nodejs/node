@@ -292,7 +292,8 @@ void WritableRelocInfo::set_target_address(Address target,
                                    &jit_allocation_, icache_flush_mode);
 }
 
-void WritableRelocInfo::set_target_address(Tagged<InstructionStream> host,
+void WritableRelocInfo::set_target_address(Isolate* isolate,
+                                           Tagged<InstructionStream> host,
                                            Address target,
                                            WriteBarrierMode write_barrier_mode,
                                            ICacheFlushMode icache_flush_mode) {
@@ -300,7 +301,8 @@ void WritableRelocInfo::set_target_address(Tagged<InstructionStream> host,
   if (IsCodeTargetMode(rmode_) && !v8_flags.disable_write_barriers) {
     Tagged<InstructionStream> target_code =
         InstructionStream::FromTargetAddress(target);
-    WriteBarrier::ForRelocInfo(host, this, target_code, write_barrier_mode);
+    WriteBarrier::ForRelocInfo(isolate, host, this, target_code,
+                               write_barrier_mode);
   }
 }
 

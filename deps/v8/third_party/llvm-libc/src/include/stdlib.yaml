@@ -2,6 +2,7 @@ header: stdlib.h
 standards:
   - stdc
 merge_yaml_files:
+  - stdlib-alloca.yaml
   - stdlib-malloc.yaml
 macros:
   - macro_name: "NULL"
@@ -326,6 +327,14 @@ functions:
     arguments:
       - type: const char *__restrict
       - type: char **__restrict
+  - name: strtof128
+    standards:
+      - stdc
+    return_type: float128
+    arguments:
+      - type: const char *__restrict
+      - type: char **__restrict
+    guard: LIBC_TYPES_HAS_NATIVE_FLOAT128
   - name: strtol
     standards:
       - stdc

@@ -67,7 +67,7 @@ LIBC_INLINE ErrorOr<size_t> vasprintf_internal(char **ret,
   char *final_buff = writer.get_write_buffer().buff;
   if (final_buff == init_buff_on_stack) {
     *ret = static_cast<char *>(malloc(ret_val.value() + 1));
-    if (ret == nullptr)
+    if (*ret == nullptr)
       return Error(ALLOCATION_ERROR);
     inline_memcpy(*ret, final_buff, ret_val.value());
   } else {

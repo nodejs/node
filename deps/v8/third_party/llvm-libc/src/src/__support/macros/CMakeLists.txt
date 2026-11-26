@@ -20,7 +20,11 @@ add_header_library(
   HDRS
     optimization.h
   DEPENDS
+    .attributes
+    .config
+    libc.src.__support.macros.properties.architectures
     libc.src.__support.macros.properties.compiler
+    libc.src.__support.macros.properties.cpu_features
 )
 
 add_header_library(

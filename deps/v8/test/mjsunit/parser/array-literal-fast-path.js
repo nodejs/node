@@ -16,6 +16,40 @@ function testParsing(run_expr, run_stmt) {
   assertEquals([1], run_expr('[1\u00a0]'));
   assertEquals([3], run_expr('[1/*]*/+2]'));
 
+  for (const element of ['0', '1', '2147483648', '999999999999999', 'null',
+                          '1000000000000000', '01', '08', '077', '0x10', '0b10',
+                          '0o10', '1n', '1.5', '1e2', '1_000', '-1', '+1',
+                          'null?.x', 'null ?? 3', '1/*x*/', '1//x\n']) {
+    const expected = [, 0, null, eval(element), 2];
+    assertEquals(expected, run_expr('[,0,null,' + element + ',2]'));
+  }
+  assertEquals([0, null, 2], run_expr('[0,null,2,]'));
+  assertEquals([0, null, , 2], run_expr('[0,null,,2]'));
+  assertEquals([0, null, 2], run_expr('[...[],0,null,2]'));
+  assertEquals([0, null, 2], run_expr('[0,null,/*x*/2]'));
+  assertEquals([0, null, '\u03bb'], run_expr('[0,null,"\u03bb"]'));
+  const longSource = '[0,' + '123456789012345,null,'.repeat(1000) + '2]';
+  const longArray = run_expr(longSource);
+  assertEquals(2002, longArray.length);
+  for (let i = 1; i < 2001; i += 2) {
+    assertEquals(123456789012345, longArray[i]);
+    assertNull(longArray[i + 1]);
+  }
+  for (const source of ['[,0,null,x] = []', '([,0,null,x]) => 0',
+                         '([,null,0,x]) => 0']) {
+    assertThrows(() => run_expr(source), SyntaxError,
+                 'Invalid destructuring assignment target');
+  }
+  assertThrows(() => run_stmt('for ([,0,null,x] of []) {}'), SyntaxError,
+               'Invalid destructuring assignment target');
+  assertThrows(() => run_expr('[...[],0,null,x] = []'), SyntaxError,
+               'Rest element must be last element');
+  for (const suffix of ['1e+', '1foo', '1__0', '0nfoo']) {
+    assertThrows(() => run_expr('[0,null,' + suffix + ',2]'), SyntaxError);
+  }
+  assertThrows(() => run_stmt("'use strict'; [0,null,01,2]"), SyntaxError);
+  assertThrows(() => run_stmt("'use strict'; [0,null,08,2]"), SyntaxError);
+
   // Syntax errors
   assertThrows(() => run_expr("[1] = x"), SyntaxError,
                "Invalid destructuring assignment target");

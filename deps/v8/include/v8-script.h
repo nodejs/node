@@ -306,8 +306,7 @@ class V8_EXPORT Module : public Data {
   /**
    * Returns the corresponding context-unbound module script.
    *
-   * The module must be unevaluated, i.e. its status must not be kEvaluating,
-   * kEvaluated or kErrored.
+   * The module must be a SourceTextModule. The module can have any status.
    */
   Local<UnboundModuleScript> GetUnboundModuleScript();
 

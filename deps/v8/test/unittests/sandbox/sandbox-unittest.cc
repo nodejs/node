@@ -4,6 +4,8 @@
 
 #include "src/sandbox/sandbox.h"
 
+#include <algorithm>
+#include <cstring>
 #include <vector>
 
 #include "include/libplatform/libplatform.h"
@@ -200,6 +202,50 @@ TEST_F(SandboxTest, SandboxName) {
 }
 #endif  // V8_OS_LINUX
 
+namespace {
+
+bool IsAllZero(const void* ptr, size_t size) {
+  const uint8_t* bytes = static_cast<const uint8_t*>(ptr);
+  return std::all_of(bytes, bytes + size, [](uint8_t b) { return b == 0; });
+}
+
+}  // namespace
+
+TEST_F(SandboxTest, DefaultInSandboxAllocatorZeroingOnReuse) {
+  base::VirtualAddressSpace vas;
+  Sandbox sandbox;
+  sandbox.Initialize(platform(), &vas);
+
+  v8::Allocator* allocator = sandbox.in_sandbox_allocator();
+  ASSERT_NE(allocator, nullptr);
+
+  // Reuse within the 64 MB accessible floor.
+  constexpr size_t kSmallSize = 4096;
+  void* dirty = allocator->AllocateUninitialized(kSmallSize);
+  ASSERT_NE(dirty, nullptr);
+  memset(dirty, 0xAA, kSmallSize);
+  allocator->Free(dirty);
+
+  void* zeroed = allocator->Allocate(kSmallSize);
+  ASSERT_NE(zeroed, nullptr);
+  EXPECT_TRUE(IsAllZero(zeroed, kSmallSize));
+  allocator->Free(zeroed);
+
+  // Reuse across chunk growth (1 MB accessible chunk + newly grown 1 MB chunk).
+  constexpr size_t kOneMB = 1 * MB;
+  constexpr size_t kTwoMB = 2 * MB;
+  void* dirty_chunk = allocator->AllocateUninitialized(kOneMB);
+  ASSERT_NE(dirty_chunk, nullptr);
+  memset(dirty_chunk, 0xAA, kOneMB);
+  allocator->Free(dirty_chunk);
+
+  void* grown = allocator->Allocate(kTwoMB);
+  ASSERT_NE(grown, nullptr);
+  EXPECT_TRUE(IsAllZero(grown, kTwoMB));
+  allocator->Free(grown);
+
+  sandbox.TearDown();
+}
 }  // namespace internal
 }  // namespace v8
 

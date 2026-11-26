@@ -12,6 +12,7 @@
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/linkage.h"
+#include "src/tracing/trace-event.h"
 #include "src/wasm/compilation-environment.h"
 #include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-module.h"
@@ -199,6 +200,15 @@ template CallDescriptor* GetWasmCallDescriptor(
 std::ostream& operator<<(std::ostream& os, CheckForNull null_check) {
   return os << (null_check == kWithoutNullCheck ? "no null check"
                                                 : "null check");
+}
+
+WasmDetailedTraceScope::WasmDetailedTraceScope(const char* name) {
+  TRACE_EVENT_BEGIN(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
+                    perfetto::StaticString(name));
+}
+
+WasmDetailedTraceScope::~WasmDetailedTraceScope() {
+  TRACE_EVENT_END(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"));
 }
 
 }  // namespace v8::internal::compiler

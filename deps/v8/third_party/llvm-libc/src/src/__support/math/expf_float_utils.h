@@ -15,17 +15,17 @@
 #define LLVM_LIBC_SRC___SUPPORT_MATH_EXPF_FLOAT_UTILS_H
 
 #include "src/__support/FPUtil/FPBits.h"
-#include "src/__support/FPUtil/PolyEval.h"
 #include "src/__support/FPUtil/double_double.h"
 #include "src/__support/FPUtil/multiply_add.h"
+#include "src/__support/FPUtil/polyeval.h"
 #include "src/__support/common.h"
 #include "src/__support/macros/config.h"
 
 namespace LIBC_NAMESPACE_DECL {
 namespace math {
-namespace float_eval {
+namespace float_eval_cr_rn {
 
-namespace cr_expf_rn_internal {
+namespace expf_internal {
 
 using fputil::FloatFloat;
 
@@ -140,9 +140,9 @@ LIBC_INLINE float scale_result(const FloatFloat &exp_u, int k,
   return FPBits((res_u & res_mask) + exponent_adj).get_val();
 }
 
-} // namespace cr_expf_rn_internal
+} // namespace expf_internal
 
-} // namespace float_eval
+} // namespace float_eval_cr_rn
 } // namespace math
 } // namespace LIBC_NAMESPACE_DECL
 

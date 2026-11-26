@@ -1,0 +1,74 @@
+# Version-keyed Maglev phase-banner names.
+#
+# The banner *grammar* (`----- <name> -----`) is stable across versions and
+# shared with TurboFan; the *names* are not: every one of them changed between
+# V8 14.9 and 15.2 (spike-findings.md §3). The names come from
+# `src/maglev/maglev-phase.h` `PhaseName()` — a generated-from-source table —
+# not from observed output, which only shows the phases a given workload ran
+# (printer-parser-contract.md §3).
+#
+# A banner whose name is in no version's list still opens a phase (the grammar
+# decides that); it is just marked unrecognised, which is what journey J5
+# ("parser breaks on a new V8 version") needs. The version whose list matches
+# the most banners in a trace is reported as the detected V8 version.
+#
+# Two banners share the grammar but are not phases, and are matched in code,
+# not here: `----- Bytecode array -----` and
+# `----- Inlining 0x… <SharedFunctionInfo …> with bytecode -----`.
+
+[maglev."16.0"]
+# maglev-phase.h PhaseName() at V8 16.0.0, pipeline order.
+phases = [
+    "Maglev graph building",
+    "Non-eager inlining",
+    "Non-eager loop peeling",
+    "Truncation propagation",
+    "Truncation",
+    "Post optimizer",
+    "Pre phi untagging",
+    "Phi untagging",
+    "Escape analysis",
+    "Range analysis",
+    "AnyUseMarking",
+    "Dead nodes sweeping",
+    "During register allocation",
+    "Register allocation",
+    "Code generation",
+]
+
+[maglev."15.2"]
+# maglev-phase.h PhaseName() at V8 15.2.0 (b80a7539b73), pipeline order.
+phases = [
+    "Maglev graph building",
+    "Non-eager inlining",
+    "Non-eager loop peeling",
+    "Truncation propagation",
+    "Truncation",
+    "Post optimizer",
+    "Loop optimization (LICM)",
+    "Pre phi untagging",
+    "Phi untagging",
+    "Escape analysis",
+    "Range analysis",
+    "AnyUseMarking",
+    "Dead nodes sweeping",
+    "During register allocation",
+    "Register allocation",
+    "Code generation",
+]
+
+[maglev."14.9"]
+# Observed in 14.9 traces. The V8.TFTurbolev* names are the 14.9
+# Turbolev-frontend phases — 15.2+ reuses the plain Maglev names there.
+phases = [
+    "After graph building",
+    "After propagating truncation",
+    "After truncation",
+    "After use marking",
+    "After register allocation pre-processing",
+    "After register allocation",
+    "V8.TFTurbolevMaglevGraphBuilder",
+    "V8.TFTurbolevInliner",
+    "V8.TFTurbolevDeadNodeSweeping",
+    "V8.TFTurbolevPostHoc",
+]

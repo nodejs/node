@@ -339,39 +339,37 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
           base::ReadUnalignedValue<int32_t>(reinterpret_cast<Address>(pc)));
       constants--;
       pc += 4;
+    } else if (!rit.done() &&
+               rit.rinfo()->pc() == reinterpret_cast<Address>(pc) &&
+               rit.rinfo()->rmode() == RelocInfo::INTERNAL_REFERENCE) {
+      // A raw pointer embedded in code stream.
+      uint8_t* ptr =
+          base::ReadUnalignedValue<uint8_t*>(reinterpret_cast<Address>(pc));
+      base::SNPrintF(
+          decode_buffer, "%08" V8PRIxPTR "       jump table entry %4zu",
+          reinterpret_cast<intptr_t>(ptr), static_cast<size_t>(ptr - begin));
+      pc += sizeof(ptr);
+    } else if (table_info_it && table_info_it->HasCurrent() &&
+               table_info_it->GetPCOffset() ==
+                   static_cast<uint32_t>(pc - begin)) {
+      int32_t target_pc_offset = table_info_it->GetTarget();
+      static_assert(sizeof(target_pc_offset) ==
+                    JumpTableInfoEntry::kTargetSize);
+      base::SNPrintF(decode_buffer, "jump table entry %08x", target_pc_offset);
+      pc += JumpTableInfoEntry::kTargetSize;
+      table_info_it->Next();
+    } else if (int num_const = d.ConstantPoolSizeAt(pc); num_const >= 0) {
+      // Checked after the jump tables, whose entries can look like an arm64
+      // constant pool marker.
+      base::SNPrintF(
+          decode_buffer, "%08x       constant pool begin (num_const = %d)",
+          base::ReadUnalignedValue<int32_t>(reinterpret_cast<Address>(pc)),
+          num_const);
+      constants = num_const;
+      pc += 4;
     } else {
-      int num_const = d.ConstantPoolSizeAt(pc);
-      if (num_const >= 0) {
-        base::SNPrintF(
-            decode_buffer, "%08x       constant pool begin (num_const = %d)",
-            base::ReadUnalignedValue<int32_t>(reinterpret_cast<Address>(pc)),
-            num_const);
-        constants = num_const;
-        pc += 4;
-      } else if (!rit.done() &&
-                 rit.rinfo()->pc() == reinterpret_cast<Address>(pc) &&
-                 rit.rinfo()->rmode() == RelocInfo::INTERNAL_REFERENCE) {
-        // A raw pointer embedded in code stream.
-        uint8_t* ptr =
-            base::ReadUnalignedValue<uint8_t*>(reinterpret_cast<Address>(pc));
-        base::SNPrintF(
-            decode_buffer, "%08" V8PRIxPTR "       jump table entry %4zu",
-            reinterpret_cast<intptr_t>(ptr), static_cast<size_t>(ptr - begin));
-        pc += sizeof(ptr);
-      } else if (table_info_it && table_info_it->HasCurrent() &&
-                 table_info_it->GetPCOffset() ==
-                     static_cast<uint32_t>(pc - begin)) {
-        int32_t target_pc_offset = table_info_it->GetTarget();
-        static_assert(sizeof(target_pc_offset) ==
-                      JumpTableInfoEntry::kTargetSize);
-        base::SNPrintF(decode_buffer, "jump table entry %08x",
-                       target_pc_offset);
-        pc += JumpTableInfoEntry::kTargetSize;
-        table_info_it->Next();
-      } else {
-        decode_buffer[0] = '\0';
-        pc += d.InstructionDecode(decode_buffer, pc);
-      }
+      decode_buffer[0] = '\0';
+      pc += d.InstructionDecode(decode_buffer, pc);
     }
 
     Address pc_address = reinterpret_cast<Address>(pc);

@@ -34,15 +34,6 @@ RUNTIME_FUNCTION(Runtime_BigIntCompareToString) {
   return *isolate->factory()->ToBoolean(result);
 }
 
-RUNTIME_FUNCTION(Runtime_BigIntEqualToBigInt) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(2, args.length());
-  DirectHandle<BigInt> lhs = args.at<BigInt>(0);
-  DirectHandle<BigInt> rhs = args.at<BigInt>(1);
-  bool result = BigInt::EqualToBigInt(*lhs, *rhs);
-  return *isolate->factory()->ToBoolean(result);
-}
-
 RUNTIME_FUNCTION(Runtime_BigIntEqualToNumber) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(2, args.length());

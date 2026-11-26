@@ -61,8 +61,8 @@ LIBC_INLINE void sincos(double x, double *sin_x, double *cos_x) {
 
         // For |x| < 2^-27, max(|sin(x) - x|, |cos(x) - 1|) < ulp(x)/2.
 #ifdef LIBC_TARGET_CPU_HAS_FMA_DOUBLE
-        *sin_x = fputil::multiply_add(x, -0x1.0p-54, x);
-        *cos_x = fputil::multiply_add(x, -x, 1.0);
+        *sin_x = fputil::sub_multiply(x, x, 0x1.0p-54);
+        *cos_x = fputil::sub_multiply(1.0, x, x);
 #else
         *cos_x = fputil::round_result_slightly_down(1.0);
 
@@ -75,7 +75,7 @@ LIBC_INLINE void sincos(double x, double *sin_x, double *cos_x) {
             *sin_x = FPBits(xbits.uintval() - 1).get_val();
 #endif // !LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
         }
-        *sin_x = fputil::multiply_add(x, -0x1.0p-54, x);
+        *sin_x = fputil::sub_multiply(x, x, 0x1.0p-54);
 #endif // LIBC_TARGET_CPU_HAS_FMA_DOUBLE
         return;
       }

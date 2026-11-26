@@ -55,7 +55,8 @@ V8_OBJECT class JSArrayBuffer : public JSAPIObjectWithEmbedderSlots {
 
   // [extension]: extension object used for GC
   inline ArrayBufferExtension* extension() const;
-  inline void set_extension(ArrayBufferExtension* value);
+  template <typename IsolateT>
+  inline void set_extension(IsolateT* isolate, ArrayBufferExtension* value);
   inline void init_extension();
   // Returns the current extension and resets it to nullptr. Expects a witness
   // DisallowGarbageCollection to make sure the returned extension isn't freed
@@ -150,6 +151,7 @@ V8_OBJECT class JSArrayBuffer : public JSAPIObjectWithEmbedderSlots {
   void AttachView(Tagged<JSArrayBufferView> view);
 
   inline Tagged<Object> DetachKey(Isolate* isolate);
+  inline bool has_detach_key() const;
   static void SetDetachKey(DirectHandle<JSArrayBuffer> array_buffer,
                            DirectHandle<Object> key, Isolate* isolate);
 
@@ -200,7 +202,8 @@ V8_OBJECT class JSArrayBuffer : public JSAPIObjectWithEmbedderSlots {
   // Allocates an ArrayBufferExtension for this array buffer. This is assumed to
   // be only called during setup as it always creates a new extension.
   V8_EXPORT_PRIVATE ArrayBufferExtension* CreateExtension(
-      Isolate* isolate, std::shared_ptr<BackingStore> backing_store);
+      Isolate* isolate, std::shared_ptr<BackingStore> backing_store,
+      SharedFlag shared, ResizableFlag resizable);
 
   // Dispatched behavior.
   DECL_PRINTER(JSArrayBuffer)
@@ -232,7 +235,6 @@ V8_OBJECT class JSArrayBuffer : public JSAPIObjectWithEmbedderSlots {
   inline Tagged<Cell> detach_key() const;
   inline void set_detach_key(Tagged<Cell> value,
                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline bool has_detach_key() const;
 
   static void DetachInternal(DirectHandle<JSArrayBuffer> array_buffer,
                              bool force_for_wasm_memory, Isolate* isolate);
@@ -289,44 +291,54 @@ class ArrayBufferExtension final
  public:
   enum class Age : uint8_t { kYoung = 0, kOld = 1 };
 
-  // Packs `accounting_length` and `age` into a single integer for consistent
-  // accounting, allowing resize while concurrently sweeping.
+  // Packs `accounting_length`, `age` and the GC mark bit into a single integer
+  // for consistent accounting, allowing resize while concurrently marking and
+  // sweeping. With separate atomics for `marked` and `accounting_length`, a
+  // `Resize(delta)` on the main thread races with `Mark()` on a marker thread.
+  // Main thread:
+  //   R1: `accounting_length += delta`
+  //   R2: `if (marked) marked_bytes_ += delta`
+  // MarkerThread:
+  //   M1: `if (!marked.exchange(true))`
+  //   M2: `marked_bytes_ += accounting_length`
+  // A possible interleaving of these operations is M1 -> R1 -> M2 -> R2 which
+  // results in double-accounting of `delta`.
   struct AccountingState final {
     size_t accounting_length() const {
       return AccountingLengthField::decode(value);
     }
     Age age() const { return static_cast<Age>(AgeField::decode(value)); }
+    bool is_marked() const { return MarkedField::decode(value); }
 
     uint64_t value;
   };
 
-  ArrayBufferExtension(std::shared_ptr<BackingStore> backing_store,
+  ArrayBufferExtension(Heap* heap, std::shared_ptr<BackingStore> backing_store,
                        ArrayBufferExtension::Age age, SharedFlag is_shared,
                        ResizableFlag is_resizable_by_js)
-      : backing_store_(std::move(backing_store)),
+      : heap_(heap),
+        backing_store_(std::move(backing_store)),
         accounting_state_(AccountingLengthField::encode(static_cast<size_t>(
                               backing_store_->PerIsolateAccountingLength())) |
                           AgeField::encode(static_cast<uint8_t>(age))),
         is_shared_(is_shared),
         is_resizable_by_js_(is_resizable_by_js) {}
 
-  void Mark() { marked_.store(true, std::memory_order_relaxed); }
-  void Unmark() { marked_.store(false, std::memory_order_relaxed); }
-  bool IsMarked() const { return marked_.load(std::memory_order_relaxed); }
+  inline void Mark();
+  void Unmark() {
+    accounting_state_.fetch_and(~MarkedField::kMask, std::memory_order_relaxed);
+  }
+  bool IsMarked() const {
+    return AccountingState{accounting_state_.load(std::memory_order_relaxed)}
+        .is_marked();
+  }
 
-  void YoungMark() {
-    SBXCHECK_EQ(ArrayBufferExtension::Age::kYoung, age());
-    set_young_gc_state(GcState::Copied);
-  }
-  void YoungMarkPromoted() {
-    // When iterating promoted pages the extension object is already set as
-    // being promoted which happens before the page iteration. This may even run
-    // racefully between AB sweeping and page iteration.
-    set_young_gc_state(GcState::Promoted);
-  }
+  inline void YoungMark();
+  inline void YoungMarkPromoted();
   void YoungUnmark() {
     DCHECK_EQ(ArrayBufferExtension::Age::kYoung, age());
     set_young_gc_state(GcState::Dead);
+    Unmark();
   }
   bool IsYoungMarked() const {
     DCHECK_EQ(ArrayBufferExtension::Age::kYoung, age());
@@ -364,7 +376,7 @@ class ArrayBufferExtension final
   // Clears `accounting_length` and returns the AccountingState before the
   // update.
   AccountingState ClearAccountingLength() {
-    return {accounting_state_.fetch_and(AgeField::kMask,
+    return {accounting_state_.fetch_and(AgeField::kMask | MarkedField::kMask,
                                         std::memory_order_relaxed)};
   }
 
@@ -396,20 +408,21 @@ class ArrayBufferExtension final
   enum class GcState : uint8_t { Dead = 0, Copied, Promoted };
 
   using AgeField = base::BitField<uint8_t, 0, 1, uint64_t>;
-  using AccountingLengthField = AgeField::Next<size_t, 63>;
+  using MarkedField = AgeField::Next<bool, 1>;
+  using AccountingLengthField = MarkedField::Next<size_t, 62>;
 
   GcState young_gc_state() const {
     return young_gc_state_.load(std::memory_order_relaxed);
   }
 
-  void set_young_gc_state(GcState value) {
-    young_gc_state_.store(value, std::memory_order_relaxed);
+  GcState set_young_gc_state(GcState value) {
+    return young_gc_state_.exchange(value, std::memory_order_relaxed);
   }
 
+  Heap* const heap_;
   std::shared_ptr<BackingStore> backing_store_;
   ArrayBufferExtension* next_ = nullptr;
   std::atomic<uint64_t> accounting_state_;
-  std::atomic<bool> marked_{false};
   std::atomic<GcState> young_gc_state_{GcState::Dead};
 
   // Trusted copies of the in-sandbox JSArrayBuffer flags. We verify that the
@@ -524,6 +537,8 @@ V8_OBJECT class JSTypedArray : public JSArrayBufferView {
   inline void* DataPtr();
 
   inline void SetOffHeapDataPtr(Isolate* isolate, void* base, Address offset);
+  inline void SetOnHeapDataPtr(Isolate* isolate, Tagged<ByteArray> base,
+                               Address offset);
 
   // Whether the buffer's backing store is on-heap or off-heap.
   inline bool is_on_heap() const;

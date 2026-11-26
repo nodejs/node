@@ -69,9 +69,9 @@ class WireBytesStorage {
 };
 
 // Callbacks will receive either {kFailedCompilation} or
-// {kFinishedBaselineCompilation}.
+// {kFinishedBlockingCompilation}.
 enum class CompilationEvent : uint8_t {
-  kFinishedBaselineCompilation,
+  kFinishedBlockingCompilation,
   kFinishedCompilationChunk,
   kFailedCompilation,
 };

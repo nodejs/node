@@ -152,6 +152,9 @@ V8InspectorSessionImpl::V8InspectorSessionImpl(
         this, this, agentState(protocol::Schema::Metainfo::domainName)));
     protocol::Schema::Dispatcher::wire(&m_dispatcher, m_schemaAgent.get());
   }
+}
+
+void V8InspectorSessionImpl::restore(StringView savedState) {
   if (savedState.length()) {
     m_runtimeAgent->restore();
     m_debuggerAgent->restore();
@@ -382,8 +385,6 @@ void V8InspectorSessionImpl::reportAllContexts(V8RuntimeAgentImpl* agent) {
 
 void V8InspectorSessionImpl::dispatchProtocolMessage(
     StringView message, StringView associated_data) {
-  v8::Isolate::AllowJavascriptExecutionScope allow_script(
-      m_inspector->isolate());
   KeepSessionAliveScope keepAlive(*this);
 
   using v8_crdtp::span;

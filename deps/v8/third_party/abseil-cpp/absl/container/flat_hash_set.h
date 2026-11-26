@@ -563,6 +563,7 @@ struct FlatHashSetPolicy {
   using DefaultHash = DefaultHashContainerHash<T>;
   using DefaultEq = DefaultHashContainerEq<T>;
   using DefaultAlloc = std::allocator<T>;
+  using SlotEq = SlotEqFn<T, /*kDerefSlot=*/false>;
 
   template <class Allocator, class... Args>
   static void construct(Allocator* alloc, slot_type* slot, Args&&... args) {
@@ -591,7 +592,7 @@ struct FlatHashSetPolicy {
 
   template <class Hash, bool kIsAbsl, size_t kSeedShift>
   static constexpr HashSlotFn get_hash_slot_fn() {
-    return &TypeErasedApplyToSlotFn<Hash, T, kIsAbsl, kSeedShift>;
+    return GetTypeErasedApplyToSlotFn<Hash, T, kIsAbsl, kSeedShift>();
   }
 };
 }  // namespace container_internal

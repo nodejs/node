@@ -9,6 +9,8 @@
 
 #include <array>
 #include <memory>
+#include <sstream>
+#include <string>
 
 #include "include/v8-extension.h"
 #include "include/v8-function.h"
@@ -16,13 +18,20 @@
 #include "include/v8-profiler.h"
 #include "include/v8-script.h"
 #include "src/api/api-inl.h"
+#include "src/base/synchronization-point-support.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/codegen/script-details.h"
+#include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/heap/factory.h"
+#include "src/heap/parked-scope.h"
+#ifdef V8_ENABLE_MAGLEV
+#include "src/maglev/maglev-concurrent-dispatcher.h"
+#endif
 #include "src/objects/allocation-site-inl.h"
 #include "src/objects/object-conversions-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/shared-function-info.h"
+#include "test/common/flag-utils.h"
 #include "test/unittests/heap/heap-utils.h"  // For ManualGCScope.
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -216,7 +225,7 @@ TEST_F(CompilerTest, UncaughtThrow) {
 //   |      JS       |
 //   |   C-to-JS     |
 TEST_F(CompilerTestWithPrintExtension, C2JSFrames) {
-  v8_flags.expose_gc = true;
+  v8_flags.expose_gc.Set(true);
   v8::HandleScope scope(isolate());
   const char* extension_names[2] = {"v8/gc", PrintExtension::kName};
   v8::ExtensionConfiguration config(2, extension_names);
@@ -284,7 +293,7 @@ TEST_F(CompilerTest, GetScriptLineNumber) {
 
 TEST_F(CompilerTest, FeedbackVectorPreservedAcrossRecompiles) {
   if (!i::v8_flags.turbofan) return;
-  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.allow_natives_syntax.Set(true);
   if (!i_isolate()->use_optimizer()) return;
   v8::HandleScope scope(isolate());
 
@@ -363,8 +372,8 @@ TEST_F(CompilerTest, FeedbackVectorUnaffectedByScopeChanges) {
 
 // Test that optimized code for different closures is actually shared.
 TEST_F(CompilerTest, OptimizedCodeSharing1) {
-  v8_flags.stress_compaction = false;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.stress_compaction.Set(false);
+  v8_flags.allow_natives_syntax.Set(true);
   v8::HandleScope scope(isolate());
   for (int i = 0; i < 3; i++) {
     context()
@@ -733,7 +742,7 @@ TEST_F(CompilerTest, CompileFunctionFunctionToString) {
 
 TEST_F(CompilerTest, InvocationCount) {
   if (v8_flags.lite_mode) return;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
   v8::HandleScope scope(isolate());
 
   RunJS(
@@ -868,6 +877,126 @@ TEST_F(CompilerTest, DeepEagerCompilationPeakMemory) {
             peak_mem_after_last_lazy_compile);
 }
 
+TEST_F(CompilerTest, FailedConcurrentCompileReleasesZones) {
+  if (!v8_flags.turbofan || !i_isolate()->concurrent_recompilation_enabled()) {
+    return;
+  }
+  v8_flags.allow_natives_syntax.Set(true);
+  v8_flags.compilation_cache.Set(false);
+  v8_flags.use_osr.Set(false);
+  v8_flags.parallel_compile_tasks_for_eager_toplevel.Set(false);
+  v8_flags.parallel_compile_tasks_for_lazy.Set(false);
+  v8_flags.turbo_filter.Set("wide_target");
+  v8_flags.maglev_filter.Set("wide_target");
+#if V8_ENABLE_SPARKPLUG
+  v8_flags.baseline_batch_compilation.Set(false);
+#endif
+
+  // Keeping 1100 distinct values live across an earlier non-inlined call `cb()`
+  // forces > 1024 spill slots (> 4KB on both 32-bit and 64-bit targets, even
+  // with --turbo-instruction-scheduling), causing register allocation to bail
+  // out while keeping bytecode small enough to enter concurrent compilation.
+  // Build the source in C++ so no JS helper callbacks tier up concurrently.
+  std::ostringstream js_stream;
+  js_stream << "{\n"
+               "  function cb() { return arguments.length; }\n"
+               "  %NeverOptimizeFunction(cb);\n"
+               "  function wide_target(x, p) {\n"
+               "    let result = 0;\n"
+               "    for (let i = 0; i < 10; ++i) {\n"
+               "      if (x < 0) {\n";
+  for (int k = 0; k < 1100; ++k) {
+    js_stream << "        const v" << k << " = p ^ " << (k + 1) << ";\n";
+  }
+  js_stream << "        cb();\n"
+               "        return cb(";
+  for (int k = 0; k < 1100; ++k) {
+    if (k > 0) js_stream << ",";
+    js_stream << "v" << k;
+  }
+  js_stream << ");\n"
+               "      }\n"
+               "      result = (x + i) | 0;\n"
+               "    }\n"
+               "    return result;\n"
+               "  }\n"
+               "  %PrepareFunctionForOptimization(wide_target);\n"
+               "  wide_target(-1, 1);\n"
+               "  wide_target(1, 1);\n"
+               "  globalThis.wide_target = wide_target;\n"
+               "}\n";
+  const std::string js_source = js_stream.str();
+
+  auto prepare_wide_target = [&]() {
+    FlagScope<const char*> no_turbo(&v8_flags.turbo_filter, "~");
+    FlagScope<const char*> no_maglev(&v8_flags.maglev_filter, "~");
+    RunJS(js_source.c_str());
+    i_isolate()->WaitForConcurrentOptimizationJobs();
+    return Cast<JSFunction>(GetGlobalProperty("wide_target"));
+  };
+
+  {
+#ifdef V8_ENABLE_MAGLEV
+    FlagScope<bool> maglev(&v8_flags.maglev, false);
+#endif
+
+    for (bool turbolev : {false, true}) {
+#ifndef V8_ENABLE_MAGLEV
+      if (turbolev) continue;
+#endif
+      FlagScope<bool> turbolev_scope(&v8_flags.turbolev, turbolev);
+      v8::HandleScope scope(isolate());
+
+      DirectHandle<JSFunction> wide = prepare_wide_target();
+      i_isolate()->optimizing_compile_dispatcher()->set_finalize(false);
+      Compiler::CompileOptimized(i_isolate(), wide,
+                                 ConcurrencyMode::kConcurrent,
+                                 CodeKind::TURBOFAN_JS);
+      i_isolate()
+          ->optimizing_compile_dispatcher()
+          ->WaitUntilCompilationJobsDone();
+
+      // The failed job is now sitting in OptimizingCompileDispatcher's output
+      // queue waiting for main-thread finalization. Trigger a GC to verify
+      // CanonicalHandlesMap unregistered its GCRootsProvider before zone
+      // teardown, and check that no compiler zones are retained while queued.
+      ASSERT_TRUE(i_isolate()->optimizing_compile_dispatcher()->HasJobs());
+      InvokeMajorGC();
+      const size_t queued_zone_bytes =
+          i_isolate()->allocator()->GetCurrentMemoryUsage();
+      i_isolate()->optimizing_compile_dispatcher()->InstallOptimizedFunctions();
+      i_isolate()->optimizing_compile_dispatcher()->set_finalize(true);
+      const size_t finalized_zone_bytes =
+          i_isolate()->allocator()->GetCurrentMemoryUsage();
+      EXPECT_EQ(queued_zone_bytes, finalized_zone_bytes);
+    }
+  }
+
+#ifdef V8_ENABLE_MAGLEV
+  if (i_isolate()->maglev_concurrent_dispatcher()->is_enabled()) {
+    FlagScope<bool> maglev(&v8_flags.maglev, true);
+    FlagScope<bool> destroy_sync(&v8_flags.maglev_destroy_on_background, false);
+    v8::HandleScope scope(isolate());
+
+    DirectHandle<JSFunction> wide = prepare_wide_target();
+    Compiler::CompileOptimized(i_isolate(), wide, ConcurrencyMode::kConcurrent,
+                               CodeKind::MAGLEV);
+    i_isolate()->maglev_concurrent_dispatcher()->AwaitCompileJobs();
+
+    ASSERT_TRUE(wide->tiering_in_progress());
+    InvokeMajorGC();
+    const size_t queued_zone_bytes =
+        i_isolate()->allocator()->GetCurrentMemoryUsage();
+    i_isolate()->maglev_concurrent_dispatcher()->FinalizeFinishedJobs();
+    i_isolate()->stack_guard()->ClearInstallMaglevCode();
+    EXPECT_FALSE(wide->tiering_in_progress());
+    const size_t finalized_zone_bytes =
+        i_isolate()->allocator()->GetCurrentMemoryUsage();
+    EXPECT_EQ(queued_zone_bytes, finalized_zone_bytes);
+  }
+#endif
+}
+
 namespace {
 
 // Dummy external source stream which returns the whole source in one go.
@@ -935,221 +1064,297 @@ TEST_F(CompilerTest, ProfilerEnabledDuringBackgroundCompile) {
   cpu_profiler->StopProfiling(profile);
 }
 
-using BackgroundMergeTest = TestWithNativeContext;
+class BackgroundMergeTest : public TestWithNativeContext {
+ protected:
+  enum class GCMergeTiming {
+    kDuringBackgroundMerge,
+    kBetweenBackgroundAndForegroundMerge,
+  };
 
-// Tests that a GC during merge doesn't break the merge.
-TEST_F(BackgroundMergeTest, GCDuringMerge) {
-  v8_flags.verify_code_merge = true;
+  void RunGCMergeTest(GCMergeTiming timing) {
+    v8_flags.verify_code_merge.Set(true);
 
-  HandleScope handle_scope(isolate());
-  const char* source =
-      // f is compiled eagerly thanks to the IIFE hack.
-      "f = (function f(x) {"
-      "  let b = x;"
-      // f is compiled eagerly, so g's SFI exists. But, it is not compiled.
-      "  return function g() {"
-      // g isn't compiled, so h's SFI does not exist.
-      "    return function h() {"
-      "      return b;"
-      "    }"
-      "  }"
-      "})";
-  IndirectHandle<String> source_string =
-      isolate()->factory()->NewStringFromUtf8(source).ToHandleChecked();
+    HandleScope handle_scope(isolate());
+    const char* source =
+        // f is compiled eagerly thanks to the IIFE hack.
+        "f = (function f(x) {"
+        "  let b = x;"
+        // f is compiled eagerly, so g's SFI exists. But, it is not compiled.
+        "  return function g() {"
+        // g isn't compiled, so h's SFI does not exist.
+        "    return function h() {"
+        "      return b;"
+        "    }"
+        "  }"
+        "})";
+    IndirectHandle<String> source_string =
+        isolate()->factory()->NewStringFromUtf8(source).ToHandleChecked();
 
-  const int kTopLevelId = 0;
-  const int kFId = 1;
-  const int kGId = 2;
-  const int kHId = 3;
+    const int kTopLevelId = 0;
+    const int kFId = 1;
+    const int kGId = 2;
+    const int kHId = 3;
 
-  // Compile the script once to warm up the compilation cache.
-  IndirectHandle<JSFunction> old_g;
-  ([&]() V8_NOINLINE {
-    // Compile in a new handle scope inside a non-inlined function, so that the
-    // script can die while select inner functions stay alive.
-    HandleScope scope(isolate());
-    ScriptCompiler::CompilationDetails compilation_details;
-    DirectHandle<SharedFunctionInfo> top_level_sfi =
-        Compiler::GetSharedFunctionInfoForScript(
-            isolate(), source_string, ScriptDetails(),
-            v8::ScriptCompiler::kNoCompileOptions,
-            ScriptCompiler::kNoCacheNoReason, NOT_NATIVES_CODE,
-            &compilation_details)
-            .ToHandleChecked();
+    // Compile the script once to warm up the compilation cache.
+    IndirectHandle<JSFunction> old_g;
+    ([&]() V8_NOINLINE {
+      // Compile in a new handle scope inside a non-inlined function, so that
+      // the script can die while select inner functions stay alive.
+      HandleScope scope(isolate());
+      ScriptCompiler::CompilationDetails compilation_details;
+      DirectHandle<SharedFunctionInfo> top_level_sfi =
+          Compiler::GetSharedFunctionInfoForScript(
+              isolate(), source_string, ScriptDetails(),
+              v8::ScriptCompiler::kNoCompileOptions,
+              ScriptCompiler::kNoCacheNoReason, NOT_NATIVES_CODE,
+              &compilation_details)
+              .ToHandleChecked();
+
+      {
+        Tagged<Script> script = Cast<Script>(top_level_sfi->script());
+        CHECK(!script->infos()->get(kTopLevelId).IsCleared());
+        CHECK(!script->infos()->get(kFId).IsCleared());
+        CHECK(!script->infos()->get(kGId).IsCleared());
+        // h in the script infos list was never initialized by the compilation,
+        // so it's the default value for a WeakFixedArray, which is `undefined`.
+        CHECK(Is<Undefined>(script->infos()->get(kHId)));
+      }
+
+      DirectHandle<JSFunction> top_level =
+          Factory::JSFunctionBuilder{isolate(), top_level_sfi,
+                                     isolate()->native_context()}
+              .Build();
+
+      DirectHandle<JSObject> global(isolate()->context()->global_object(),
+                                    isolate());
+      Execution::CallScript(isolate(), top_level, global,
+                            isolate()->factory()->empty_fixed_array())
+          .Check();
+
+      DirectHandle<JSFunction> f = Cast<JSFunction>(
+          JSObject::GetProperty(isolate(), global, "f").ToHandleChecked());
+
+      CHECK(f->is_compiled(isolate()));
+
+      // Execute f to get g's SFI (no g bytecode yet)
+      IndirectHandle<JSFunction> g = Cast<JSFunction>(
+          Execution::Call(isolate(), f, global, {}).ToHandleChecked());
+      CHECK(!g->is_compiled(isolate()));
+
+      // Execute g's SFI to initialize g's bytecode, and to get h.
+      DirectHandle<JSFunction> h = Cast<JSFunction>(
+          Execution::Call(isolate(), g, global, {}).ToHandleChecked());
+      CHECK(g->is_compiled(isolate()));
+      CHECK(!h->is_compiled(isolate()));
+
+      CHECK_EQ(top_level->shared()->function_literal_id(kRelaxedLoad),
+               kTopLevelId);
+      CHECK_EQ(f->shared()->function_literal_id(kRelaxedLoad), kFId);
+      CHECK_EQ(g->shared()->function_literal_id(kRelaxedLoad), kGId);
+      CHECK_EQ(h->shared()->function_literal_id(kRelaxedLoad), kHId);
+
+      // Age everything so that subsequent GCs can pick it up if possible.
+      SharedFunctionInfo::EnsureOldForTesting(top_level->shared());
+      SharedFunctionInfo::EnsureOldForTesting(f->shared());
+      SharedFunctionInfo::EnsureOldForTesting(g->shared());
+      SharedFunctionInfo::EnsureOldForTesting(h->shared());
+
+      old_g = scope.CloseAndEscape(g);
+    })();
+
+    IndirectHandle<Script> old_script(Cast<Script>(old_g->shared()->script()),
+                                      isolate());
+
+    // Make sure bytecode is cleared...
+    for (int i = 0; i < 3; ++i) {
+      // We need to invoke GC without stack, otherwise some objects may not be
+      // reclaimed because of conservative stack scanning.
+      DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+          isolate()->heap());
+      InvokeMajorGC();
+    }
+    CHECK(!old_g->is_compiled(isolate()));
+
+    // The top-level script should now be dead.
+    CHECK(old_script->infos()->get(kTopLevelId).IsCleared());
+    // f should still be alive by global reference.
+    CHECK(!old_script->infos()->get(kFId).IsCleared());
+    // g should be kept alive by our old_g handle.
+    CHECK(!old_script->infos()->get(kGId).IsCleared());
+    // h should be dead since g's bytecode was flushed.
+    CHECK(old_script->infos()->get(kHId).IsCleared());
+
+    // Copy the old_script_infos WeakFixedArray, so that we can inspect it after
+    // the merge mutated the original.
+    DirectHandle<WeakFixedArray> unmutated_old_script_list =
+        isolate()->factory()->CopyWeakFixedArray(
+            direct_handle(old_script->infos(), isolate()));
 
     {
-      Tagged<Script> script = Cast<Script>(top_level_sfi->script());
-      CHECK(!script->infos()->get(kTopLevelId).IsCleared());
-      CHECK(!script->infos()->get(kFId).IsCleared());
-      CHECK(!script->infos()->get(kGId).IsCleared());
-      // h in the script infos list was never initialized by the compilation, so
-      // it's the default value for a WeakFixedArray, which is `undefined`.
-      CHECK(Is<Undefined>(script->infos()->get(kHId)));
-    }
+      HandleScope scope(isolate());
+      ScriptStreamingData streamed_source(
+          std::make_unique<DummySourceStream>(source),
+          v8::ScriptCompiler::StreamedSource::UTF8);
+      ScriptCompiler::CompilationDetails details;
+      streamed_source.task = std::make_unique<i::BackgroundCompileTask>(
+          &streamed_source, isolate(), ScriptType::kClassic,
+          ScriptCompiler::CompileOptions::kNoCompileOptions, &details);
 
-    DirectHandle<JSFunction> top_level =
-        Factory::JSFunctionBuilder{isolate(), top_level_sfi,
-                                   isolate()->native_context()}
-            .Build();
+      streamed_source.task->RunOnMainThread(isolate());
 
-    DirectHandle<JSObject> global(isolate()->context()->global_object(),
-                                  isolate());
-    Execution::CallScript(isolate(), top_level, global,
-                          isolate()->factory()->empty_fixed_array())
-        .Check();
+      DirectHandle<SharedFunctionInfo> top_level_sfi;
+      {
+        // Use a manual GC scope, because we want to test a GC in a very precise
+        // spot in the merge.
+        ManualGCScope manual_gc(isolate());
+        // There's one more reference to the old_g -- clear it so that nothing
+        // is keeping it alive
+        CHECK(!old_script->infos()->get(kGId).IsCleared());
+        CHECK(!unmutated_old_script_list->get(kGId).IsCleared());
+        old_g.PatchValue({});
+        CHECK(!old_script->infos()->get(kFId).IsCleared());
 
-    DirectHandle<JSFunction> f = Cast<JSFunction>(
-        JSObject::GetProperty(isolate(), global, "f").ToHandleChecked());
+        DirectHandle<SharedFunctionInfo> unmerged_sfi =
+            streamed_source.task
+                ->FinalizeScript(isolate(), source_string, ScriptDetails(), {})
+                .ToHandleChecked();
+        DirectHandle<Script> new_script(Cast<Script>(unmerged_sfi->script()),
+                                        isolate());
 
-    CHECK(f->is_compiled(isolate()));
+        BackgroundMergeTask merge;
+        merge.SetUpOnMainThread(isolate(), old_script);
 
-    // Execute f to get g's SFI (no g bytecode yet)
-    IndirectHandle<JSFunction> g = Cast<JSFunction>(
-        Execution::Call(isolate(), f, global, {}).ToHandleChecked());
-    CHECK(!g->is_compiled(isolate()));
+        if (timing == GCMergeTiming::kDuringBackgroundMerge) {
+          base::SynchronizationPointSupport::Get()->RequestBlockAt(
+              "BackgroundMerge_BG_FORWARD_POINTERS",
+              base::TimeDelta::FromSeconds(10));
+        }
 
-    // Execute g's SFI to initialize g's bytecode, and to get h.
-    DirectHandle<JSFunction> h = Cast<JSFunction>(
-        Execution::Call(isolate(), g, global, {}).ToHandleChecked());
-    CHECK(g->is_compiled(isolate()));
-    CHECK(!h->is_compiled(isolate()));
+        class OffThreadMerge final : public base::Thread {
+         public:
+          OffThreadMerge(Isolate* isolate, BackgroundMergeTask* merge,
+                         DirectHandle<Script> new_script)
+              : base::Thread(base::Thread::Options("OffThreadMerge")),
+                isolate_(isolate),
+                merge_(merge),
+                persistent_handles_(isolate->NewPersistentHandles()),
+                new_script_(persistent_handles_->NewHandle(*new_script)) {}
+          void Run() override {
+            LocalIsolate local_isolate(isolate_, ThreadKind::kBackground);
+            UnparkedScope unparked_scope(&local_isolate);
+            LocalHandleScope handle_scope(local_isolate.heap());
+            local_isolate.heap()->AttachPersistentHandles(
+                std::move(persistent_handles_));
+            DirectHandle<Script> script =
+                direct_handle(*new_script_, local_isolate.heap());
+            persistent_handles_ =
+                local_isolate.heap()->DetachPersistentHandles();
+            merge_->BeginMergeInBackground(&local_isolate, script);
+          }
 
-    CHECK_EQ(top_level->shared()->function_literal_id(kRelaxedLoad),
-             kTopLevelId);
-    CHECK_EQ(f->shared()->function_literal_id(kRelaxedLoad), kFId);
-    CHECK_EQ(g->shared()->function_literal_id(kRelaxedLoad), kGId);
-    CHECK_EQ(h->shared()->function_literal_id(kRelaxedLoad), kHId);
+         private:
+          Isolate* isolate_;
+          BackgroundMergeTask* merge_;
+          std::unique_ptr<PersistentHandles> persistent_handles_;
+          IndirectHandle<Script> new_script_;
+        };
 
-    // Age everything so that subsequent GCs can pick it up if possible.
-    SharedFunctionInfo::EnsureOldForTesting(top_level->shared());
-    SharedFunctionInfo::EnsureOldForTesting(f->shared());
-    SharedFunctionInfo::EnsureOldForTesting(g->shared());
-    SharedFunctionInfo::EnsureOldForTesting(h->shared());
+        OffThreadMerge merge_thread(isolate(), &merge, new_script);
+        CHECK(merge_thread.Start());
 
-    old_g = scope.CloseAndEscape(g);
-  })();
+        if (timing == GCMergeTiming::kDuringBackgroundMerge) {
+          CHECK(base::SynchronizationPointSupport::Get()->WaitUntilBlocked(
+              "BackgroundMerge_BG_FORWARD_POINTERS",
+              base::TimeDelta::FromSeconds(10)));
 
-  IndirectHandle<Script> old_script(Cast<Script>(old_g->shared()->script()),
+          InvokeMajorGC();
+
+          CHECK(base::SynchronizationPointSupport::Get()->Resume(
+              "BackgroundMerge_BG_FORWARD_POINTERS"));
+          merge_thread.Join();
+        } else {
+          merge_thread.Join();
+          InvokeMajorGC();
+        }
+
+        top_level_sfi = merge.CompleteMergeInForeground(isolate(), new_script);
+        CHECK(!old_script->infos()->get(kFId).IsCleared());
+      }
+
+      CHECK_EQ(top_level_sfi->script(), *old_script);
+
+      DirectHandle<JSFunction> top_level =
+          Factory::JSFunctionBuilder{isolate(), top_level_sfi,
+                                     isolate()->native_context()}
+              .Build();
+
+      DirectHandle<JSObject> global(isolate()->context()->global_object(),
                                     isolate());
 
-  // Make sure bytecode is cleared...
-  for (int i = 0; i < 3; ++i) {
-    // We need to invoke GC without stack, otherwise some objects may not be
-    // reclaimed because of conservative stack scanning.
-    DisableConservativeStackScanningScopeForTesting no_stack_scanning(
-        isolate()->heap());
-    InvokeMajorGC();
-  }
-  CHECK(!old_g->is_compiled(isolate()));
+      DirectHandle<JSFunction> f = Cast<JSFunction>(
+          JSObject::GetProperty(isolate(), global, "f").ToHandleChecked());
 
-  // The top-level script should now be dead.
-  CHECK(old_script->infos()->get(kTopLevelId).IsCleared());
-  // f should still be alive by global reference.
-  CHECK(!old_script->infos()->get(kFId).IsCleared());
-  // g should be kept alive by our old_g handle.
-  CHECK(!old_script->infos()->get(kGId).IsCleared());
-  // h should be dead since g's bytecode was flushed.
-  CHECK(old_script->infos()->get(kHId).IsCleared());
+      // f should normally be compiled (with the old shared function info but
+      // the new bytecode). However, the extra GCs in finalization might cause
+      // it to be flushed, so we can't guarantee this check.
+      // CHECK(f->is_compiled(isolate()));
 
-  // Copy the old_script_infos WeakFixedArray, so that we can inspect it after
-  // the merge mutated the original.
-  DirectHandle<WeakFixedArray> unmutated_old_script_list =
-      isolate()->factory()->CopyWeakFixedArray(
-          direct_handle(old_script->infos(), isolate()));
+      // Execute f to get g's SFI (no g bytecode yet)
+      DirectHandle<JSFunction> g = Cast<JSFunction>(
+          Execution::Call(isolate(), f, global, {}).ToHandleChecked());
+      CHECK(!g->is_compiled(isolate()));
 
-  {
-    HandleScope scope(isolate());
-    ScriptStreamingData streamed_source(
-        std::make_unique<DummySourceStream>(source),
-        v8::ScriptCompiler::StreamedSource::UTF8);
-    ScriptCompiler::CompilationDetails details;
-    streamed_source.task = std::make_unique<i::BackgroundCompileTask>(
-        &streamed_source, isolate(), ScriptType::kClassic,
-        ScriptCompiler::CompileOptions::kNoCompileOptions, &details);
+      // Execute g's SFI to initialize g's bytecode, and to get h.
+      DirectHandle<JSFunction> h = Cast<JSFunction>(
+          Execution::Call(isolate(), g, global, {}).ToHandleChecked());
+      CHECK(g->is_compiled(isolate()));
+      CHECK(!h->is_compiled(isolate()));
 
-    streamed_source.task->RunOnMainThread(isolate());
+      CHECK_EQ(top_level->shared()->function_literal_id(kRelaxedLoad),
+               kTopLevelId);
+      CHECK_EQ(f->shared()->function_literal_id(kRelaxedLoad), kFId);
+      CHECK_EQ(g->shared()->function_literal_id(kRelaxedLoad), kGId);
+      CHECK_EQ(h->shared()->function_literal_id(kRelaxedLoad), kHId);
 
-    DirectHandle<SharedFunctionInfo> top_level_sfi;
-    {
-      // Use a manual GC scope, because we want to test a GC in a very precise
-      // spot in the merge.
-      ManualGCScope manual_gc(isolate());
-      // There's one more reference to the old_g -- clear it so that nothing is
-      // keeping it alive
-      CHECK(!old_script->infos()->get(kGId).IsCleared());
-      CHECK(!unmutated_old_script_list->get(kGId).IsCleared());
-      old_g.PatchValue({});
-      CHECK(!old_script->infos()->get(kFId).IsCleared());
+      CHECK_EQ(top_level->shared()->script(), *old_script);
+      CHECK_EQ(f->shared()->script(), *old_script);
+      CHECK_EQ(g->shared()->script(), *old_script);
+      CHECK_EQ(h->shared()->script(), *old_script);
 
-      BackgroundMergeTask::ForceGCDuringNextMergeForTesting();
+      CHECK_EQ(MakeWeak(top_level->shared()),
+               old_script->infos()->get(kTopLevelId));
+      CHECK_EQ(MakeWeak(f->shared()), old_script->infos()->get(kFId));
+      CHECK_EQ(MakeWeak(g->shared()), old_script->infos()->get(kGId));
+      CHECK_EQ(MakeWeak(h->shared()), old_script->infos()->get(kHId));
 
-      top_level_sfi = streamed_source.task
-                          ->FinalizeScript(isolate(), source_string,
-                                           ScriptDetails(), old_script)
-                          .ToHandleChecked();
-      CHECK(!old_script->infos()->get(kFId).IsCleared());
+      // The old top-level died, so we have a new one.
+      CHECK_NE(MakeWeak(top_level->shared()),
+               unmutated_old_script_list->get(kTopLevelId));
+      // The old f was still alive, so it's the same.
+      CHECK_EQ(MakeWeak(f->shared()), unmutated_old_script_list->get(kFId));
+      // The old g was still alive, so it's the same.
+      CHECK_EQ(MakeWeak(g->shared()), unmutated_old_script_list->get(kGId));
+      // The old h died, so it's different.
+      CHECK_NE(MakeWeak(h->shared()), unmutated_old_script_list->get(kHId));
     }
-
-    CHECK_EQ(top_level_sfi->script(), *old_script);
-
-    DirectHandle<JSFunction> top_level =
-        Factory::JSFunctionBuilder{isolate(), top_level_sfi,
-                                   isolate()->native_context()}
-            .Build();
-
-    DirectHandle<JSObject> global(isolate()->context()->global_object(),
-                                  isolate());
-
-    DirectHandle<JSFunction> f = Cast<JSFunction>(
-        JSObject::GetProperty(isolate(), global, "f").ToHandleChecked());
-
-    // f should normally be compiled (with the old shared function info but the
-    // new bytecode). However, the extra GCs in finalization might cause it to
-    // be flushed, so we can't guarantee this check.
-    // CHECK(f->is_compiled(isolate()));
-
-    // Execute f to get g's SFI (no g bytecode yet)
-    DirectHandle<JSFunction> g = Cast<JSFunction>(
-        Execution::Call(isolate(), f, global, {}).ToHandleChecked());
-    CHECK(!g->is_compiled(isolate()));
-
-    // Execute g's SFI to initialize g's bytecode, and to get h.
-    DirectHandle<JSFunction> h = Cast<JSFunction>(
-        Execution::Call(isolate(), g, global, {}).ToHandleChecked());
-    CHECK(g->is_compiled(isolate()));
-    CHECK(!h->is_compiled(isolate()));
-
-    CHECK_EQ(top_level->shared()->function_literal_id(kRelaxedLoad),
-             kTopLevelId);
-    CHECK_EQ(f->shared()->function_literal_id(kRelaxedLoad), kFId);
-    CHECK_EQ(g->shared()->function_literal_id(kRelaxedLoad), kGId);
-    CHECK_EQ(h->shared()->function_literal_id(kRelaxedLoad), kHId);
-
-    CHECK_EQ(top_level->shared()->script(), *old_script);
-    CHECK_EQ(f->shared()->script(), *old_script);
-    CHECK_EQ(g->shared()->script(), *old_script);
-    CHECK_EQ(h->shared()->script(), *old_script);
-
-    CHECK_EQ(MakeWeak(top_level->shared()),
-             old_script->infos()->get(kTopLevelId));
-    CHECK_EQ(MakeWeak(f->shared()), old_script->infos()->get(kFId));
-    CHECK_EQ(MakeWeak(g->shared()), old_script->infos()->get(kGId));
-    CHECK_EQ(MakeWeak(h->shared()), old_script->infos()->get(kHId));
-
-    // The old top-level died, so we have a new one.
-    CHECK_NE(MakeWeak(top_level->shared()),
-             unmutated_old_script_list->get(kTopLevelId));
-    // The old f was still alive, so it's the same.
-    CHECK_EQ(MakeWeak(f->shared()), unmutated_old_script_list->get(kFId));
-    // The old g was still alive, so it's the same.
-    CHECK_EQ(MakeWeak(g->shared()), unmutated_old_script_list->get(kGId));
-    // The old h died, so it's different.
-    CHECK_NE(MakeWeak(h->shared()), unmutated_old_script_list->get(kHId));
   }
+};
+
+// Tests that a GC mid-background-merge (at a safepoint sync point) doesn't
+// break the merge.
+TEST_F(BackgroundMergeTest, GCDuringMerge) {
+  RunGCMergeTest(GCMergeTiming::kDuringBackgroundMerge);
+}
+
+// Tests that a GC between background and foreground merge doesn't break the
+// merge (runs in all builds, including release builds without test-only sync
+// points).
+TEST_F(BackgroundMergeTest, GCBetweenBackgroundAndForegroundMerge) {
+  RunGCMergeTest(GCMergeTiming::kBetweenBackgroundAndForegroundMerge);
 }
 
 TEST_F(BackgroundMergeTest, MergeWithEval) {
-  v8_flags.verify_code_merge = true;
+  v8_flags.verify_code_merge.Set(true);
 
   HandleScope handle_scope(isolate());
   const char* source =

@@ -9,11 +9,12 @@
 #ifndef LLVM_LIBC_SRC___SUPPORT_MATH_ATAN_UTILS_H
 #define LLVM_LIBC_SRC___SUPPORT_MATH_ATAN_UTILS_H
 
-#include "src/__support/FPUtil/PolyEval.h"
 #include "src/__support/FPUtil/double_double.h"
 #include "src/__support/FPUtil/dyadic_float.h"
 #include "src/__support/FPUtil/multiply_add.h"
+#include "src/__support/FPUtil/polyeval.h"
 #include "src/__support/integer_literals.h"
+#include "src/__support/macros/attributes.h"
 #include "src/__support/macros/config.h"
 
 namespace LIBC_NAMESPACE_DECL {
@@ -115,11 +116,11 @@ LIBC_INLINE_VAR constexpr DoubleDouble ATAN_I[65] = {
   p.hi = x.hi;
   double x_hi_sq = x.hi * x.hi;
   // c0 ~ x_hi^2 * 1/5 - 1/3
-  double c0 = fputil::multiply_add(x_hi_sq, 0x1.999999999999ap-3,
-                                   -0x1.5555555555555p-2);
+  double c0 =
+      fputil::multiply_sub(x_hi_sq, 0x1.999999999999ap-3, 0x1.5555555555555p-2);
   // c1 ~ x_hi^2 * 1/9 - 1/7
-  double c1 = fputil::multiply_add(x_hi_sq, 0x1.c71c71c71c71cp-4,
-                                   -0x1.2492492492492p-3);
+  double c1 =
+      fputil::multiply_sub(x_hi_sq, 0x1.c71c71c71c71cp-4, 0x1.2492492492492p-3);
   // x_hi^3
   double x_hi_3 = x_hi_sq * x.hi;
   // x_hi^4
@@ -228,9 +229,7 @@ LIBC_INLINE_VAR constexpr DFloat128 ATAN_POLY_F128[] = {
 [[maybe_unused]] LIBC_INLINE constexpr DFloat128 atan_eval(const DFloat128 &x) {
   DFloat128 x_sq = fputil::quick_mul(x, x);
   DFloat128 x3 = fputil::quick_mul(x, x_sq);
-  DFloat128 p = fputil::polyeval(x_sq, ATAN_POLY_F128[0], ATAN_POLY_F128[1],
-                                 ATAN_POLY_F128[2], ATAN_POLY_F128[3],
-                                 ATAN_POLY_F128[4], ATAN_POLY_F128[5]);
+  DFloat128 p = fputil::polyeval(x_sq, ATAN_POLY_F128);
   return fputil::multiply_add(x3, p, x);
 }
 
@@ -318,19 +317,15 @@ LIBC_INLINE_VAR constexpr double ATAN_K_OVER_16[17] = {
 // For |x| <= 1/32 and 0 <= i <= 16, return Q(x) such that:
 //   Q(x) ~ (atan(x + i/16) - atan(i/16)) / x.
 LIBC_INLINE double atan_eval(double x, unsigned i) {
-  double x2 = x * x;
-
-  double c0 = fputil::multiply_add(x, ATAN_COEFFS[i][2], ATAN_COEFFS[i][1]);
-  double c1 = fputil::multiply_add(x, ATAN_COEFFS[i][4], ATAN_COEFFS[i][3]);
-  double c2 = fputil::multiply_add(x, ATAN_COEFFS[i][6], ATAN_COEFFS[i][5]);
-  double c3 = fputil::multiply_add(x, ATAN_COEFFS[i][8], ATAN_COEFFS[i][7]);
-
-  double x4 = x2 * x2;
-  double d1 = fputil::multiply_add(x2, c1, c0);
-  double d2 = fputil::multiply_add(x2, c3, c2);
-  double p = fputil::multiply_add(x4, d2, d1);
-  return p;
+  return fputil::estrin_polyeval</*OFFSET=*/1>(x, ATAN_COEFFS[i]);
 }
+
+LIBC_INLINE_VAR constexpr double ATAN_TAYLOR[4] = {
+    -0x1.5555555555555p-2,
+    0x1.999999999999ap-3,
+    -0x1.2492492492492p-3,
+    0x1.c71c71c71c71cp-4,
+};
 
 // Evaluate atan without big lookup table.
 //   atan(n/d) - atan(k/16) = atan((n/d - k/16) / (1 + (n/d) * (k/16)))
@@ -340,22 +335,13 @@ LIBC_INLINE double atan_eval(double x, unsigned i) {
 //   atan(q) ~ q - q^3/3 + q^5/5 - q^7/7 + q^9/9
 LIBC_INLINE double atan_eval_no_table(double num, double den,
                                       double k_over_16) {
-  double num_r = fputil::multiply_add(den, -k_over_16, num);
+  double num_r = fputil::sub_multiply(num, den, k_over_16);
   double den_r = fputil::multiply_add(num, k_over_16, den);
   double q = num_r / den_r;
 
-  constexpr double ATAN_TAYLOR[] = {
-      -0x1.5555555555555p-2,
-      0x1.999999999999ap-3,
-      -0x1.2492492492492p-3,
-      0x1.c71c71c71c71cp-4,
-  };
   double q2 = q * q;
   double q3 = q2 * q;
-  double q4 = q2 * q2;
-  double c0 = fputil::multiply_add(q2, ATAN_TAYLOR[1], ATAN_TAYLOR[0]);
-  double c1 = fputil::multiply_add(q2, ATAN_TAYLOR[3], ATAN_TAYLOR[2]);
-  double d = fputil::multiply_add(q4, c1, c0);
+  double d = fputil::estrin_polyeval(q2, ATAN_TAYLOR);
   return fputil::multiply_add(q3, d, q);
 }
 

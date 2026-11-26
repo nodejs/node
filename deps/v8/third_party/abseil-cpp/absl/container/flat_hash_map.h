@@ -686,6 +686,7 @@ struct FlatHashMapPolicy : FlatHashMapPolicyBase {
   using DefaultHash = DefaultHashContainerHash<K>;
   using DefaultEq = DefaultHashContainerEq<K>;
   using DefaultAlloc = std::allocator<std::pair<const K, V>>;
+  using SlotEq = SlotEqFn<K, /*kDerefSlot=*/false>;
 
   template <class Allocator, class... Args>
   static void construct(Allocator* alloc, slot_type* slot, Args&&... args) {
@@ -706,9 +707,9 @@ struct FlatHashMapPolicy : FlatHashMapPolicyBase {
 
   template <class Hash, bool kIsDefault, size_t kSeedShift>
   static constexpr HashSlotFn get_hash_slot_fn() {
-    return memory_internal::IsLayoutCompatible<K, V>::value
-               ? &TypeErasedApplyToSlotFn<Hash, K, kIsDefault, kSeedShift>
-               : nullptr;
+    static_assert(memory_internal::OffsetOf<std::pair<const K, V>>::kFirst ==
+                  0);
+    return GetTypeErasedApplyToSlotFn<Hash, K, kIsDefault, kSeedShift>();
   }
 
   static std::pair<const K, V>& element(slot_type* slot) { return slot->value; }

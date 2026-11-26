@@ -164,7 +164,7 @@ V8_OBJECT class JSArray : public JSObject {
 inline constexpr int JSArray::kHeaderSize = sizeof(JSArray);
 inline constexpr int JSArray::kInitialMaxFastElementArray =
     (kMaxRegularHeapObjectSize - static_cast<int>(sizeof(FixedArray)) -
-     JSArray::kHeaderSize - static_cast<int>(sizeof(AllocationMemento))) >>
+     JSArray::kHeaderSize) >>
     kDoubleSizeLog2;
 
 // The JSArrayIterator describes JavaScript Array Iterators Objects, as

@@ -14,10 +14,11 @@
 #ifndef LLVM_LIBC_SRC___SUPPORT_MATH_EXP_DOUBLE_EVAL_H
 #define LLVM_LIBC_SRC___SUPPORT_MATH_EXP_DOUBLE_EVAL_H
 
+#include "src/__support/CPP/bit.h"
 #include "src/__support/FPUtil/FPBits.h"
 #include "src/__support/FPUtil/double_double.h"
+#include "src/__support/FPUtil/fp_bitwise.h"
 #include "src/__support/FPUtil/multiply_add.h"
-#include "src/__support/FPUtil/nearest_integer.h"
 #include "src/__support/common.h"
 #include "src/__support/macros/attributes.h"
 #include "src/__support/macros/config.h"
@@ -70,17 +71,25 @@ LIBC_ALWAYS_INLINE double exp(double x) {
   // Range reduction:
   // Let x = k * (log(2) / 2^N) + u
   // in which:
-  //   k = round(x * 2^N * log2(e))
-  //   hi = k >> N
+  //   k   = round(x * 2^N * log2(e))
+  //   hi  = k >> N
   //   idx = k & (2^N - 1)
   // then:
   //   exp(x) = 2^hi * 2^(idx / 2^N) * exp(u).
-  double x_scaled = x * (EXP_SCALE * LOG2_E.hi);
-  double kd = fputil::nearest_integer(x_scaled);
-  int k = static_cast<int>(kd);
+  //
+  // Using ROUND_BIAS, ROUND_SHIFT, and ROUND_MASK (see exp_utils.h), we compute
+  // k_biased = fma(x, LOG2_E_SCALE, ROUND_BIAS) and extract in parallel:
+  //   kd  = (k_biased & ROUND_MASK) - ROUND_SHIFT
+  //   hi  = (int32_t)(k_bits >> 19) >> (13 + N)
+  //   idx = (k_bits >> 32) & (2^N - 1).
+  constexpr double LOG2_E_SCALE = EXP_SCALE * LOG2_E_DD.hi;
 
-  int hi = k >> EXP_N_BITS;
-  unsigned idx = static_cast<unsigned>(k & EXP_MASK);
+  double k_biased = fputil::multiply_add(x, LOG2_E_SCALE, ROUND_BIAS);
+  double kd = fputil::fp_and(k_biased, ROUND_MASK) - ROUND_SHIFT;
+  uint64_t k_bits = cpp::bit_cast<uint64_t>(k_biased);
+
+  int hi = static_cast<int32_t>(k_bits >> 19) >> (13 + EXP_N_BITS);
+  unsigned idx = static_cast<unsigned>(k_bits >> 32) & EXP_MASK;
 
 #ifdef LIBC_MATH_HAS_SKIP_ACCURATE_PASS
   double t1 = fputil::multiply_add(kd, MLOG_2_EXP2_HI, x); // exact
@@ -89,7 +98,8 @@ LIBC_ALWAYS_INLINE double exp(double x) {
 #else // !LIBC_MATH_HAS_SKIP_ACCURATE_PASS
 #ifdef LIBC_TARGET_CPU_HAS_FMA_DOUBLE
   // With FMA, we use the full 53-bit:
-  //   MLOG_2_HI_53 = -2^-7 * log(2) = -LOG_2.hi * EXP_SCALE_INV  (lsb = 2^-60)
+  //   MLOG_2_HI_53 = -2^-7 * log(2) = -LOG_2_DD.hi * EXP_SCALE_INV (lsb =
+  //   2^-60)
   // to compute:
   //   u = x - k * 2^-7 * log(2) ~ t1 + d
   // where:
@@ -111,8 +121,8 @@ LIBC_ALWAYS_INLINE double exp(double x) {
   //   u.lo = fma(t1, d, d),
   // bounding the omitted term:
   //   |t1^2 * P(t1) * d| < 2^-63.
-  constexpr double MLOG_2_HI_53 = -LOG_2.hi * EXP_SCALE_INV;
-  constexpr double MLOG_2_LO_53 = -LOG_2.lo * EXP_SCALE_INV;
+  constexpr double MLOG_2_HI_53 = -LOG_2_DD.hi * EXP_SCALE_INV;
+  constexpr double MLOG_2_LO_53 = -LOG_2_DD.lo * EXP_SCALE_INV;
 
   double t1 = fputil::multiply_add(kd, MLOG_2_HI_53, x); // exact
   double d = kd * MLOG_2_LO_53;

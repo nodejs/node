@@ -113,7 +113,7 @@ class IncrementalStringBuilder {
   // appends that prefix plus "<...>". Useful for error messages.
   void AppendStringCapped(DirectHandle<String> string, uint32_t max_length);
 
-  MaybeDirectHandle<String> Finish();
+  MaybeDirectHandle<String> Finish(ShouldThrow should_throw = kThrowOnError);
 
   V8_INLINE bool HasOverflowed() const { return overflowed_; }
 

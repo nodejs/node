@@ -155,8 +155,8 @@ Reject(JSAny) {
   // For catch prediction, don't treat the .then calls as handling it;
   // instead, recurse outwards.
   if (IsDebugActive()) deferred {
-      SetPropertyStrict(context, reject, kPromiseForwardingHandlerSymbol, True);
-    }
+    SetPropertyStrict(context, reject, kPromiseForwardingHandlerSymbol, True);
+  }
 
   const resolveElementContext =
       CreatePromiseAllResolveElementContext(capability, nativeContext);
@@ -258,9 +258,9 @@ Reject(JSAny) {
         // For catch prediction, mark that rejections here are
         // semantically handled by the combined Promise.
         if (IsDebugActive() && Is<JSPromise>(thenResult)) deferred {
-            SetPropertyStrict(
-                context, thenResult, kPromiseHandledBySymbol, promise);
-          }
+          SetPropertyStrict(
+              context, thenResult, kPromiseHandledBySymbol, promise);
+        }
       } else {
         PerformPromiseThenImpl(
             UnsafeCast<JSPromise>(nextValue), resolveElementFun,
@@ -304,22 +304,21 @@ Reject(JSAny) {
       *valuesRef =
           ExtractFixedArray(values, 0, oldCapacity, newCapacity, PromiseHole);
     }
-  } else
-    deferred {
-      // If remainingElementsCount.[[Value]] is 0, then
-      //     Let valuesArray be CreateArrayFromList(values).
-      //     Perform ? Call(resultCapability.[[Resolve]], undefined,
-      //                    « valuesArray »).
-      const arrayMap =
+  } else deferred {
+    // If remainingElementsCount.[[Value]] is 0, then
+    //     Let valuesArray be CreateArrayFromList(values).
+    //     Perform ? Call(resultCapability.[[Resolve]], undefined,
+    //                    « valuesArray »).
+    const arrayMap =
           *NativeContextSlot(
-          nativeContext, ContextSlot::JS_ARRAY_PACKED_ELEMENTS_MAP_INDEX);
+        nativeContext, ContextSlot::JS_ARRAY_PACKED_ELEMENTS_MAP_INDEX);
 
-      // After this point, values escapes to user code. Clear the slot.
-      *valuesRef = kEmptyFixedArray;
+    // After this point, values escapes to user code. Clear the slot.
+    *valuesRef = kEmptyFixedArray;
 
-      const valuesArray = NewJSArray(arrayMap, values);
-      Call(nativeContext, UnsafeCast<JSAny>(resolve), Undefined, valuesArray);
-    }
+    const valuesArray = NewJSArray(arrayMap, values);
+    Call(nativeContext, UnsafeCast<JSAny>(resolve), Undefined, valuesArray);
+  }
 
   // Return resultCapability.[[Promise]].
   return promise;

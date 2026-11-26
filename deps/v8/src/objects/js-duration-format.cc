@@ -290,7 +290,7 @@ MaybeDirectHandle<JSDurationFormat> JSDurationFormat::New(
   // requestedLocales, opt, %DurationFormat%.[[RelevantExtensionKeys]],
   // %DurationFormat%.[[LocaleData]]).
   Intl::ResolvedLocale r;
-  if (!Intl::ResolveLocale(isolate, JSDurationFormat::GetAvailableLocales(),
+  if (!Intl::ResolveLocale(isolate, JSDurationFormat::GetAvailableLocales,
                            requested_locales, matcher, {"nu"})
            .To(&r)) {
     THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError));

@@ -1,0 +1,6 @@
+Tests stepping into builtin function call (Array.prototype.slice).
+Break 1: testStepInArraySlice at 'debugger;'
+Break 2: testStepInArraySlice at 'var s = Array.prototype.slice.call(a, 2, 3);'
+Break 3: testStepInArraySlice at '}  // expected line'
+Reached expected line: true
+Final state: 4

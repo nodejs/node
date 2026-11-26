@@ -1466,8 +1466,6 @@ TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {
   TNode<Smi> executing = SmiConstant(JSGeneratorObject::kGeneratorExecuting);
   StoreObjectFieldNoWriteBarrier(
       result, offsetof(JSGeneratorObject, continuation_), executing);
-  StoreObjectFieldNoWriteBarrier(
-      result, offsetof(JSGeneratorObject, yielded_value_), UndefinedConstant());
   GotoIfNot(InstanceTypeEqual(LoadMapInstanceType(map),
                               JS_ASYNC_GENERATOR_OBJECT_TYPE),
             &done);
@@ -1620,8 +1618,8 @@ TNode<JSObject> ObjectBuiltinsAssembler::FromPropertyDescriptor(
         context,
         LoadObjectField(desc, offsetof(PropertyDescriptorObject, get_)),
         LoadObjectField(desc, offsetof(PropertyDescriptorObject, set_)),
-        IsSetWord32<PropertyDescriptorObject::IsEnumerableBit>(flags),
-        IsSetWord32<PropertyDescriptorObject::IsConfigurableBit>(flags));
+        IsSetWord32<PropertyDescriptorObject::Flags::IsEnumerableBit>(flags),
+        IsSetWord32<PropertyDescriptorObject::Flags::IsConfigurableBit>(flags));
     Goto(&return_desc);
   }
 
@@ -1630,9 +1628,9 @@ TNode<JSObject> ObjectBuiltinsAssembler::FromPropertyDescriptor(
     js_descriptor = ConstructDataDescriptor(
         context,
         LoadObjectField(desc, offsetof(PropertyDescriptorObject, value_)),
-        IsSetWord32<PropertyDescriptorObject::IsWritableBit>(flags),
-        IsSetWord32<PropertyDescriptorObject::IsEnumerableBit>(flags),
-        IsSetWord32<PropertyDescriptorObject::IsConfigurableBit>(flags));
+        IsSetWord32<PropertyDescriptorObject::Flags::IsWritableBit>(flags),
+        IsSetWord32<PropertyDescriptorObject::Flags::IsEnumerableBit>(flags),
+        IsSetWord32<PropertyDescriptorObject::Flags::IsConfigurableBit>(flags));
     Goto(&return_desc);
   }
 
@@ -1654,10 +1652,10 @@ TNode<JSObject> ObjectBuiltinsAssembler::FromPropertyDescriptor(
     AddToDictionaryIf(IsNotTheHole(value), context, js_desc, properties,
                       factory->value_string(), value, &bailout);
     AddToDictionaryIf(
-        IsSetWord32<PropertyDescriptorObject::HasWritableBit>(flags), context,
-        js_desc, properties, factory->writable_string(),
+        IsSetWord32<PropertyDescriptorObject::Flags::HasWritableBit>(flags),
+        context, js_desc, properties, factory->writable_string(),
         SelectBooleanConstant(
-            IsSetWord32<PropertyDescriptorObject::IsWritableBit>(flags)),
+            IsSetWord32<PropertyDescriptorObject::Flags::IsWritableBit>(flags)),
         &bailout);
 
     TNode<Object> get =
@@ -1670,16 +1668,18 @@ TNode<JSObject> ObjectBuiltinsAssembler::FromPropertyDescriptor(
                       factory->set_string(), set, &bailout);
 
     AddToDictionaryIf(
-        IsSetWord32<PropertyDescriptorObject::HasEnumerableBit>(flags), context,
-        js_desc, properties, factory->enumerable_string(),
+        IsSetWord32<PropertyDescriptorObject::Flags::HasEnumerableBit>(flags),
+        context, js_desc, properties, factory->enumerable_string(),
         SelectBooleanConstant(
-            IsSetWord32<PropertyDescriptorObject::IsEnumerableBit>(flags)),
+            IsSetWord32<PropertyDescriptorObject::Flags::IsEnumerableBit>(
+                flags)),
         &bailout);
     AddToDictionaryIf(
-        IsSetWord32<PropertyDescriptorObject::HasConfigurableBit>(flags),
+        IsSetWord32<PropertyDescriptorObject::Flags::HasConfigurableBit>(flags),
         context, js_desc, properties, factory->configurable_string(),
         SelectBooleanConstant(
-            IsSetWord32<PropertyDescriptorObject::IsConfigurableBit>(flags)),
+            IsSetWord32<PropertyDescriptorObject::Flags::IsConfigurableBit>(
+                flags)),
         &bailout);
 
     js_descriptor = js_desc;

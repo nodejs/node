@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/execution/arguments-inl.h"
+#include "src/execution/messages.h"
 #include "src/objects/js-function.h"
 
 namespace v8 {
@@ -54,9 +55,7 @@ RUNTIME_FUNCTION(Runtime_ShadowRealmThrow) {
 
   MessageTemplate message_id = MessageTemplateFromInt(message_id_smi);
 
-  DirectHandle<String> string = Object::NoSideEffectsToString(isolate, value);
-  THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, ShadowRealmNewTypeErrorCopy(value, message_id, string));
+  return ErrorUtils::ThrowShadowRealmTypeErrorCopy(isolate, value, message_id);
 }
 
 }  // namespace internal

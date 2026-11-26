@@ -114,7 +114,7 @@ ModuleResult DecodeWasmModule(
   if (result.ok()) {
     auto histogram = &Counters::wasm_functions_per_wasm_module;
     delayed_counters->AddSample(
-        histogram, static_cast<int>(result.value()->num_declared_functions));
+        histogram, static_cast<int>(result.value()->num_defined_functions));
   }
 
   // Record event metrics.
@@ -127,7 +127,7 @@ ModuleResult DecodeWasmModule(
       .success = result.ok(),
       .module_size_in_bytes = wire_bytes.size(),
       .function_count =
-          result.ok() ? result.value()->num_declared_functions : 0});
+          result.ok() ? result.value()->num_defined_functions : 0});
   if (!start.IsNull()) {
     base::TimeDelta duration = base::TimeTicks::Now() - start;
     (*metrics_event)->wall_clock_duration_in_us = duration.InMicroseconds();
@@ -460,7 +460,7 @@ class ValidateFunctionsTask : public JobTask {
         module_(module),
         enabled_features_(enabled_features),
         next_function_(module->num_imported_functions),
-        after_last_function_(next_function_ + module->num_declared_functions),
+        after_last_function_(next_function_ + module->num_defined_functions),
         error_out_(error_out),
         detected_features_(detected_features) {
     DCHECK(!error_out->has_error());
@@ -554,8 +554,8 @@ WasmError ValidateFunctions(const WasmModule* module,
                             base::Vector<const uint8_t> wire_bytes,
                             WasmDetectedFeatures* detected_features_out) {
   TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
-              "wasm.ValidateFunctions", "num_declared_functions",
-              module->num_declared_functions);
+              "wasm.ValidateFunctions", "num_defined_functions",
+              module->num_defined_functions);
 
   class NeverYieldDelegate final : public JobDelegate {
    public:

@@ -6,6 +6,7 @@
 
 #include <optional>
 
+#include "src/base/iterator.h"
 #include "src/torque/type-oracle.h"
 
 namespace v8::internal::torque {
@@ -199,6 +200,9 @@ void CfgAssembler::OptimizeCfg() {
       block->instructions().insert(block->instructions().end(),
                                    destination->instructions().begin(),
                                    destination->instructions().end());
+      if (destination->IsDeferred() && block != cfg_.start()) {
+        block->SetDeferred(true);
+      }
 
       --predecessor_count[destination->id()];
       DCHECK_EQ(predecessor_count[destination->id()], 0);
@@ -207,6 +211,38 @@ void CfgAssembler::OptimizeCfg() {
 
   cfg_.UnplaceBlockIf(
       [&](Block* b) { return predecessor_count[b->id()] == 0; });
+
+  // Mark non-start blocks that unconditionally abort with `unreachable` as
+  // deferred, and propagate `deferred` backwards across unconditional `Goto`s
+  // (e.g., helper-macro branches targeting a caller's deferred label).
+  for (Block* block : cfg_.blocks()) {
+    if (block == cfg_.start() || (cfg_.end() && *cfg_.end() == block)) {
+      continue;
+    }
+    if (block->IsDeferred() || block->instructions().empty()) continue;
+    const Instruction& last = block->instructions().back();
+    if (last.Is<AbortInstruction>() &&
+        last.Cast<AbortInstruction>().kind ==
+            AbortInstruction::Kind::kUnreachable) {
+      block->SetDeferred(true);
+    }
+  }
+  bool changed = false;
+  do {
+    changed = false;
+    for (Block* block : base::Reversed(cfg_.blocks())) {
+      if (block == cfg_.start() || (cfg_.end() && *cfg_.end() == block)) {
+        continue;
+      }
+      if (block->IsDeferred() || block->instructions().empty()) continue;
+      const Instruction& last = block->instructions().back();
+      if (last.Is<GotoInstruction>() &&
+          last.Cast<GotoInstruction>().destination->IsDeferred()) {
+        block->SetDeferred(true);
+        changed = true;
+      }
+    }
+  } while (changed);
 }
 
 void CfgAssembler::ComputeInputDefinitions() {

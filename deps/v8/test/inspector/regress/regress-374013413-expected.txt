@@ -1,0 +1,8 @@
+Tests that trying to OSR does not skip loop interrupts for Runtime.evaluate timeout.
+{
+    error : {
+        code : -32000
+        message : Execution was terminated
+    }
+    id : <messageId>
+}

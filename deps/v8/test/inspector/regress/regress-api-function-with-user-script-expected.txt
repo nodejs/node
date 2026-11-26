@@ -1,0 +1,2 @@
+Regression test: step into an API function that has a user script.
+Stepped past the API function.

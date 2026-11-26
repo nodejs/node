@@ -1,0 +1,70 @@
+Tests debug-evaluate-no-side-effect-builtins-2.
+(function func(){}).prototype.constructor.name: func
+(function func(){}).prototype.toString(): [object Object]
+add.bind(null, 10)(2): 12
+add.call(null, 1, 2): 3
+add.apply(null, [1, 2]): 3
+date.setDate(5);: EvalError
+date.setFullYear(5);: EvalError
+date.setHours(5);: EvalError
+date.setMilliseconds(5);: EvalError
+date.setMinutes(5);: EvalError
+date.setMonth(5);: EvalError
+date.setSeconds(5);: EvalError
+date.setTime(5);: EvalError
+date.setUTCDate(5);: EvalError
+date.setUTCFullYear(5);: EvalError
+date.setUTCHours(5);: EvalError
+date.setUTCMilliseconds(5);: EvalError
+date.setUTCMinutes(5);: EvalError
+date.setUTCMonth(5);: EvalError
+date.setUTCSeconds(5);: EvalError
+date.setYear(5);: EvalError
+Boolean(1): true
+new Boolean(1): Boolean
+true.toString(): true
+true.valueOf(): true
+parseInt("1"): 1
+parseFloat("1.3"): 1.3
+decodeURI("abc"): abc
+encodeURI("abc"): abc
+decodeURIComponent("abc"): abc
+encodeURIComponent("abc"): abc
+escape("abc"): abc
+unescape("abc"): abc
+isFinite(0): true
+isNaN(0/0): true
+typeof date: object
+get_number(): number
+map.toString(): [object Map]
+map.get("a"): b
+map.get("x") === undefined: true
+map.has("c"): true
+map.size: 2
+map.delete("a"): EvalError
+map.clear(): EvalError
+map.set("x", "y"): EvalError
+set.toString(): [object Set]
+set.has(1): true
+set.size: 2
+new Set([1]).size: 1
+set.add(2): EvalError
+set.delete(1): EvalError
+set.clear(): EvalError
+weak_map.toString(): [object WeakMap]
+weak_map.get(weak_key): a
+weak_map.get([]) === undefined: true
+weak_map.has(weak_key): true
+new WeakMap([[[], {}]]): EvalError
+weak_map.delete("a"): EvalError
+weak_map.set("x", "y"): EvalError
+weak_set.toString(): [object WeakSet]
+weak_set.has(weak_key): true
+new WeakSet([[], {}]): EvalError
+weak_set.add([]): EvalError
+weak_set.delete("a"): EvalError
+BigInt('10'): 10n
+BigInt.asIntN(10, 10n): 10n
+BigInt.asUintN(10, 10n): 10n
+10n.toString(): 10
+10n.valueOf(): 10n

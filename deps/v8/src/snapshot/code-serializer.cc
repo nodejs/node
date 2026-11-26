@@ -28,10 +28,11 @@
 #include "src/objects/string-inl.h"
 #include "src/objects/visitors.h"
 #include "src/sandbox/check.h"
-#include "src/sandbox/sandbox.h"
+#include "src/sandbox/testing.h"
 #include "src/snapshot/object-deserializer.h"
 #include "src/snapshot/snapshot-utils.h"
 #include "src/snapshot/snapshot.h"
+#include "src/tracing/trace-event.h"
 #include "src/utils/memcopy.h"
 #include "src/utils/version.h"
 
@@ -47,6 +48,34 @@ AlignedCachedData::AlignedCachedData(const uint8_t* data, int length)
     data_ = copy;
     AcquireDataOwnership();
   }
+}
+
+GuardedCodeCacheForTesting::GuardedCodeCacheForTesting(const uint8_t* data,
+                                                       int length) {
+  v8::PageAllocator* page_allocator = GetPlatformPageAllocator();
+  size_t page_size = page_allocator->AllocatePageSize();
+  size_t data_size = RoundUp(base::checked_cast<size_t>(length), page_size);
+  memory_ = VirtualMemory(page_allocator, data_size + page_size, {}, page_size);
+  CHECK(memory_.IsReserved());
+  CHECK(memory_.SetPermissions(memory_.address(), data_size,
+                               PageAllocator::kReadWrite));
+  guard_page_ = memory_.address() + data_size;
+  // Code cache sizes are pointer-aligned, so AlignedCachedData uses the copy as
+  // is.
+  CHECK(IsAligned(length, kPointerAlignment));
+  uint8_t* copy = reinterpret_cast<uint8_t*>(guard_page_ - length);
+  std::copy_n(data, length, copy);
+  data_ = base::VectorOf(copy, length);
+#ifdef V8_ENABLE_MEMORY_CORRUPTION_API
+  SandboxTesting::RegisterSafeMemoryRegion(
+      guard_page_, page_size, SandboxTesting::kOnlyReadAccessIsSafe);
+#endif  // V8_ENABLE_MEMORY_CORRUPTION_API
+}
+
+GuardedCodeCacheForTesting::~GuardedCodeCacheForTesting() {
+#ifdef V8_ENABLE_MEMORY_CORRUPTION_API
+  SandboxTesting::UnregisterSafeMemoryRegion(guard_page_);
+#endif  // V8_ENABLE_MEMORY_CORRUPTION_API
 }
 
 CodeSerializer::CodeSerializer(Isolate* isolate, SourceHash source_hash)
@@ -75,15 +104,18 @@ ScriptCompiler::CachedData* CodeSerializer::Serialize(
   // Serialize code object.
   DirectHandle<String> source(Cast<String>(script->source()), isolate);
   DirectHandle<FixedArray> wrapped_arguments;
+  uint32_t context_extension_count = 0;
   if (script->is_wrapped()) {
     wrapped_arguments =
         DirectHandle<FixedArray>(script->wrapped_arguments(), isolate);
+    context_extension_count = info->context_extension_count();
   }
 
   HandleScope scope(isolate);
-  CodeSerializer cs(isolate, SerializedCodeData::SourceHash(
-                                 source, wrapped_arguments,
-                                 script->origin_options(), isolate));
+  CodeSerializer cs(
+      isolate, SerializedCodeData::SourceHash(source, wrapped_arguments,
+                                              script->origin_options(), isolate,
+                                              context_extension_count));
   DisallowGarbageCollection no_gc;
 
 #ifndef DEBUG
@@ -110,12 +142,14 @@ AlignedCachedData* CodeSerializer::SerializeSharedFunctionInfo(
     Handle<SharedFunctionInfo> info) {
   DisallowGarbageCollection no_gc;
 
-  VisitRootPointer(Root::kHandleScope, nullptr,
-                   FullObjectSlot(info.location()));
-  SerializeDeferredObjects();
-  trusted_serializer_.SerializeExports();
-  trusted_serializer_.FinishSection();
-  FinishSection();
+  if (!isolate()->requires_bytecode_for_code_coverage()) {
+    VisitRootPointer(Root::kHandleScope, nullptr,
+                     FullObjectSlot(info.location()));
+    SerializeDeferredObjects();
+    trusted_serializer_.SerializeExports();
+    trusted_serializer_.FinishSection();
+    FinishUntrustedSection();
+  }
 
   SerializedCodeData data(Payload(),
                           trusted_serializer_.ExternalReferencesPayload(),
@@ -124,32 +158,13 @@ AlignedCachedData* CodeSerializer::SerializeSharedFunctionInfo(
   return data.GetScriptData();
 }
 
-// The untrusted section can only reach exposed trusted objects, and exports
-// all of them. Which trusted objects a code cache may contain is decided by
-// SERIALIZABLE_TRUSTED_OBJECT_MAP_ROOT_LIST (see Serializer::PutRoot).
-bool CodeSerializer::SerializeTrustedExport(Tagged<HeapObject> obj) {
-  if (!V8_ENABLE_SANDBOX_BOOL || !IsExposedTrustedObject(obj)) return false;
-  if (v8_flags.trace_serializer) {
-    PrintF(" Encoding trusted export reference to: ");
-    ShortPrint(obj);
-    PrintF("\n");
-  }
-  sink_.Put(kTrustedExportRef, "TrustedExportRef");
-  sink_.PutUint30(trusted_serializer_.Export(obj), "TrustedExportIndex");
-  return true;
-}
-
-// The untrusted section must not contain external pointers or their tags, so
-// it refers to them by index into a table in the trusted section.
 bool CodeSerializer::SerializeTrustedExternalReference(
     ExternalReferenceEncoder::Value reference, ExternalPointerTag tag) {
+  if (!V8_ENABLE_SANDBOX_BOOL) return false;
   // The tag is read from the external pointer table entry that an in-sandbox
   // object refers to, so it can be the tag of any entry.
   SBXCHECK(base::contains(kSerializableExternalPointerTags, tag));
-  sink_.Put(kTrustedExternalRef, "TrustedExternalRef");
-  sink_.PutUint30(trusted_serializer_.AddExternalReference(reference, tag),
-                  "TrustedExternalRefIndex");
-  return true;
+  return Serializer::SerializeTrustedExternalReference(reference, tag);
 }
 
 void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
@@ -161,9 +176,8 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
   // --interpreted-frames-native-stack is on. See v8:9122 for more context
   if (V8_UNLIKELY(isolate()->interpreted_frames_native_stack()) &&
       IsInterpreterData(*obj)) {
-    SBXCHECK(OutsideSandbox(obj->address()));
-    obj =
-        handle(TrustedCast<InterpreterData>(*obj)->bytecode_array(), isolate());
+    obj = handle(OutsideSandboxCast<InterpreterData>(obj)->bytecode_array(),
+                 isolate());
   }
 
   InstanceType instance_type;
@@ -204,22 +218,10 @@ void CodeSerializer::SerializeGeneric(Handle<HeapObject> heap_object,
   InstanceType instance_type = heap_object->map()->instance_type();
   if (InstanceTypeChecker::IsScript(instance_type)) {
     DirectHandle<FixedArray> host_options;
-    DirectHandle<UnionOf<Smi, Symbol, Undefined>> context_data;
     {
       DisallowGarbageCollection no_gc;
       Tagged<Script> script_obj = Cast<Script>(*heap_object);
       DCHECK(!script_obj->has_eval_origin());
-      // We want to differentiate between undefined and uninitialized_symbol for
-      // context_data for now. It is hack to allow debugging for scripts that
-      // are included as a part of custom snapshot. (see
-      // debug::Script::IsEmbedded())
-      Tagged<UnionOf<Smi, Symbol, Undefined>> raw_context_data =
-          script_obj->context_data();
-      if (raw_context_data != roots.undefined_value() &&
-          raw_context_data != roots.uninitialized_symbol()) {
-        script_obj->set_context_data(roots.undefined_value());
-      }
-      context_data = direct_handle(raw_context_data, isolate());
       // We don't want to serialize host options to avoid serializing
       // unnecessary object graph.
       host_options =
@@ -234,7 +236,6 @@ void CodeSerializer::SerializeGeneric(Handle<HeapObject> heap_object,
       DisallowGarbageCollection no_gc;
       Tagged<Script> script_obj = Cast<Script>(*heap_object);
       script_obj->set_host_defined_options(*host_options);
-      script_obj->set_context_data(*context_data);
     }
     return;
   } else if (InstanceTypeChecker::IsSharedFunctionInfo(instance_type)) {
@@ -536,7 +537,8 @@ MaybeDirectHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
   const SerializedCodeData scd = SerializedCodeData::FromCachedData(
       isolate, cached_data,
       SerializedCodeData::SourceHash(source, wrapped_arguments,
-                                     script_details.origin_options, isolate),
+                                     script_details.origin_options, isolate,
+                                     script_details.context_extension_count),
       &sanity_check_result);
   if (sanity_check_result != SerializedCodeSanityCheckResult::kSuccess) {
     if (v8_flags.profile_deserialization) {
@@ -547,6 +549,7 @@ MaybeDirectHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
         static_cast<int>(sanity_check_result));
     return MaybeDirectHandle<SharedFunctionInfo>();
   }
+  if (scd.IsEmpty()) return MaybeDirectHandle<SharedFunctionInfo>();
 
   // Deserialize.
   MaybeDirectHandle<SharedFunctionInfo> maybe_result =
@@ -620,6 +623,7 @@ void CodeSerializer::StartDeserializeOffThread(LocalIsolate* local_isolate,
     DCHECK(cached_data->rejected());
     return;
   }
+  if (scd.IsEmpty()) return;
 
   MaybeDirectHandle<SharedFunctionInfo> local_maybe_result =
       OffThreadObjectDeserializer::DeserializeSharedFunctionInfo(
@@ -771,47 +775,27 @@ SerializedCodeData::SerializedCodeData(
     const std::vector<uint8_t>* trusted_payload, const CodeSerializer* cs) {
   DisallowGarbageCollection no_gc;
 
-  size_t trusted_length =
-      external_references_payload->size() + trusted_payload->size();
-  size_t payload_length = trusted_length + untrusted_payload->size();
-
-  // Calculate sizes.
-  uint32_t size = base::checked_cast<uint32_t>(kHeaderSize + payload_length);
-  CHECK_LE(size, kMaxInt);
-  DCHECK(IsAligned(size, kPointerAlignment));
-  DCHECK(IsAligned(trusted_length, kPointerAlignment));
-
   // Allocate backing store and create result data.
-  AllocateData(size);
-
-  // Zero out pre-payload data. Part of that is only used for padding.
-  std::fill_n(data_, kHeaderSize, 0);
+  AllocateWithPayload(kHeaderSize, untrusted_payload,
+                      external_references_payload, trusted_payload);
+  CHECK_LE(size_, kMaxInt);
+  DCHECK(IsAligned(size_, kPointerAlignment));
+  DCHECK(IsAligned(GetHeaderValue(kTrustedPayloadLengthOffset),
+                   kPointerAlignment));
 
   // Set header values.
-  SetMagicNumber();
   SetHeaderValue(kVersionHashOffset, Version::Hash());
   SetHeaderSourceHash(cs->source_hash());
   SetHeaderValue(kFlagHashOffset, FlagList::Hash());
   SetHeaderValue(kReadOnlySnapshotChecksumOffset,
                  Snapshot::ExtractReadOnlySnapshotChecksum(
                      cs->isolate()->snapshot_blob()));
-  SetHeaderValue(kPayloadLengthOffset,
-                 base::checked_cast<uint32_t>(payload_length));
-  SetHeaderValue(kTrustedPayloadLengthOffset,
-                 base::checked_cast<uint32_t>(trusted_length));
 
   // Zero out any padding in the header.
   static_assert(kUnalignedHeaderSize <= kHeaderSize);
   std::fill_n(data_ + kUnalignedHeaderSize, kHeaderSize - kUnalignedHeaderSize,
               0);
 
-  // Copy serialized data.
-  CopyBytes(data_ + kHeaderSize, external_references_payload->data(),
-            external_references_payload->size());
-  CopyBytes(data_ + kHeaderSize + external_references_payload->size(),
-            trusted_payload->data(), trusted_payload->size());
-  CopyBytes(data_ + kHeaderSize + trusted_length, untrusted_payload->data(),
-            untrusted_payload->size());
   uint32_t checksum =
       v8_flags.verify_snapshot_checksum ? Checksum(ChecksummedContent()) : 0;
   SetHeaderValue(kChecksumOffset, checksum);
@@ -833,8 +817,9 @@ SerializedCodeSanityCheckResult SerializedCodeData::SanityCheckJustSource(
   if (!script_details.wrapped_arguments.is_null()) {
     wrapped_arguments = script_details.wrapped_arguments.ToHandleChecked();
   }
-  return SanityCheckJustSource(SourceHash(
-      source, wrapped_arguments, script_details.origin_options, isolate));
+  return SanityCheckJustSource(
+      SourceHash(source, wrapped_arguments, script_details.origin_options,
+                 isolate, script_details.context_extension_count));
 }
 
 SerializedCodeSanityCheckResult SerializedCodeData::SanityCheckJustSource(
@@ -898,21 +883,25 @@ SerializedCodeData::SourceHash SerializedCodeData::GetHeaderSourceHash() const {
 
 namespace {
 
-void HashString(LITE_SHA256_CTX* ctx, Isolate* isolate,
+void HashString(Sha256Stream* sha256, Isolate* isolate,
                 DirectHandle<String> string) {
   string = String::Flatten(isolate, string);
   DisallowGarbageCollection no_gc;
-  uint32_t length = string->length();
-  SHA256_update(ctx, &length, sizeof(length));
   SharedStringAccessGuardIfNeeded access_guard(isolate);
   String::FlatContent flat = string->GetFlatContent(no_gc, access_guard);
+  using LengthField = base::BitField<uint32_t, 0, 31>;
+  static_assert(String::kMaxLength <= LengthField::kMax);
+  using IsOneByteField = LengthField::Next<bool, 1>;
+  uint32_t header = LengthField::encode(string->length()) |
+                    IsOneByteField::encode(flat.IsOneByte());
+  sha256->Update(&header, sizeof(header));
   if (flat.IsOneByte()) {
     base::Vector<const uint8_t> chars = flat.ToOneByteVector();
-    SHA256_update(ctx, chars.begin(), chars.length());
+    sha256->Update(chars.begin(), chars.length());
   } else {
     DCHECK(flat.IsTwoByte());
     base::Vector<const base::uc16> chars = flat.ToUC16Vector();
-    SHA256_update(ctx, chars.begin(), chars.length() * sizeof(base::uc16));
+    sha256->Update(chars.begin(), chars.length() * sizeof(base::uc16));
   }
 }
 
@@ -920,10 +909,11 @@ void HashString(LITE_SHA256_CTX* ctx, Isolate* isolate,
 
 SerializedCodeData::SourceHash::SourceHash(
     DirectHandle<String> source, DirectHandle<FixedArray> wrapped_arguments,
-    ScriptOriginOptions origin_options, Isolate* isolate) {
+    ScriptOriginOptions origin_options, Isolate* isolate,
+    uint32_t context_extension_count) {
+  DCHECK_IMPLIES(wrapped_arguments.is_null(), context_extension_count == 0);
   if (v8_flags.code_cache_source_hash_sha256) {
-    LITE_SHA256_CTX ctx;
-    SHA256_init(&ctx);
+    Sha256Stream sha256;
 
     // Hash compilation-affecting metadata bits into the SHA-256 context.
     // Only IsModule() in ScriptOriginOptions affects how JS source text is
@@ -931,26 +921,27 @@ SerializedCodeData::SourceHash::SourceHash(
     uint8_t flags = 0;
     if (!wrapped_arguments.is_null()) flags |= 1;
     if (origin_options.IsModule()) flags |= 2;
-    SHA256_update(&ctx, &flags, sizeof(flags));
+    sha256.Update(&flags, sizeof(flags));
 
     // For CompileFunction, wrapped_arguments holds the parameter names (while
-    // source only holds the function body). Hash the argument count and each
-    // length-prefixed parameter string so parameter changes invalidate the
-    // cache.
+    // source only holds the function body) and context_extension_count holds
+    // the number of outer WITH_SCOPE extensions. Hash the context extension
+    // count, argument count, and each length-prefixed parameter string so
+    // parameter or extension count changes invalidate the cache.
     if (!wrapped_arguments.is_null()) {
+      sha256.Update(&context_extension_count, sizeof(context_extension_count));
       uint32_t argc = wrapped_arguments->ulength().value();
-      SHA256_update(&ctx, &argc, sizeof(argc));
+      sha256.Update(&argc, sizeof(argc));
       for (uint32_t i = 0; i < argc; ++i) {
         DirectHandle<String> arg(Cast<String>(wrapped_arguments->get(i)),
                                  isolate);
-        HashString(&ctx, isolate, arg);
+        HashString(&sha256, isolate, arg);
       }
     }
 
-    HashString(&ctx, isolate, source);
+    HashString(&sha256, isolate, source);
 
-    const uint8_t* digest = SHA256_final(&ctx);
-    std::copy_n(digest, kSizeOfSha256Digest, data_.data());
+    sha256.Final(data_.data());
   } else {
     data_.fill(0);
     using LengthField = base::BitField<uint32_t, 0, 29>;
@@ -965,6 +956,9 @@ SerializedCodeData::SourceHash::SourceHash(
     hash = IsModuleField::update(hash, origin_options.IsModule());
     base::WriteLittleEndianValue<uint32_t>(
         reinterpret_cast<Address>(data_.data()), hash);
+    base::WriteLittleEndianValue<uint32_t>(
+        reinterpret_cast<Address>(data_.data() + kUInt32Size),
+        context_extension_count);
   }
 }
 
@@ -992,6 +986,32 @@ base::Vector<const uint8_t> SerializedCodeData::TrustedPayload() const {
   DCHECK(IsAligned(reinterpret_cast<intptr_t>(payload), kPointerAlignment));
   uint32_t length = GetHeaderValue(kTrustedPayloadLengthOffset);
   return base::Vector<const uint8_t>(payload, length);
+}
+
+// static
+base::Vector<const uint8_t> CodeSerializer::UntrustedPayloadForTesting(
+    base::Vector<const uint8_t> cache) {
+  return SerializedCodeData(cache.begin(),
+                            base::checked_cast<int>(cache.size()))
+      .UntrustedPayload();
+}
+
+// static
+std::vector<uint8_t> CodeSerializer::WithUntrustedPayloadForTesting(
+    base::Vector<const uint8_t> header_and_trusted_section,
+    base::Vector<const uint8_t> untrusted) {
+  std::vector<uint8_t> result(header_and_trusted_section.begin(),
+                              header_and_trusted_section.end());
+  result.insert(result.end(), untrusted.begin(), untrusted.end());
+  // Pad like Serializer::Pad: GetUint30 always reads 4 bytes, so a stream
+  // needs 3 bytes after its last operand even if it is already aligned.
+  result.insert(result.end(), sizeof(int32_t) - 1, kNop);
+  while (!IsAligned(result.size(), kPointerAlignment)) result.push_back(kNop);
+  SerializedCodeData scd(result.data(), base::checked_cast<int>(result.size()));
+  scd.SetHeaderValue(SerializedCodeData::kPayloadLengthOffset,
+                     base::checked_cast<uint32_t>(
+                         result.size() - SerializedCodeData::kHeaderSize));
+  return result;
 }
 
 SerializedCodeData::SerializedCodeData(const AlignedCachedData* data)

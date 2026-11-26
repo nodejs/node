@@ -1,0 +1,49 @@
+Tests that scope chains are populated on debugger and stepInto.
+break 0, scopes: 3
+
+    #debugger; // Break 0.
+    var i = 0; // Break 1.
+
+Next step prepared
+break 1, scopes: 3
+    debugger; // Break 0.
+    var i = #0; // Break 1.
+    i++; // Break 2.
+
+Next step prepared
+break 2, scopes: 3
+    var i = 0; // Break 1.
+    #i++; // Break 2.
+    i++; // Break 3.
+
+Next step prepared
+break 3, scopes: 3
+    i++; // Break 2.
+    #i++; // Break 3.
+    debugger;  // Break 4.
+
+Next step prepared
+break 4, scopes: 3
+    i++; // Break 3.
+    #debugger;  // Break 4.
+    return i  // Break 5.
+
+Next step prepared
+break 5, scopes: 3
+    debugger;  // Break 4.
+    #return i  // Break 5.
+    ; // Break 6.
+
+Next step prepared
+break 6, scopes: 3
+    return i  // Break 5.
+    ;# // Break 6.
+  }());
+
+Next step prepared
+break 7, scopes: 2
+  }());
+#} // Break 7.
+
+
+total breaks: 8

@@ -28,6 +28,7 @@ struct WasmInlinedFunctionData {
   V<EagerFrameState> js_caller_frame_state;
   Handle<SharedFunctionInfo> shared_fct_info;
   SourcePosition call_pos;
+  bool has_break_on_entry = false;
 };
 
 struct WasmBodyInliningResult {
@@ -124,11 +125,12 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
 
   // Overload for the inlined JS-to-Wasm wrapper.
   // Returns the result of the Wasm function converted to a JS value.
-  V<Any> BuildJSToWasmWrapper(V<JSFunction> js_closure, V<Context> js_context,
-                              base::Vector<const OpIndex> arguments,
-                              OptionalV<LazyFrameState> lazy_frame_state,
-                              compiler::LazyDeoptOnThrow lazy_deopt_on_throw,
-                              OptionalV<EagerFrameState> caller_frame_state);
+  V<Any> BuildJSToWasmWrapper(
+      IndirectHandle<WasmInternalFunction> inlined_internal_function,
+      V<Context> js_context, base::Vector<const OpIndex> arguments,
+      OptionalV<LazyFrameState> lazy_frame_state,
+      compiler::LazyDeoptOnThrow lazy_deopt_on_throw,
+      OptionalV<EagerFrameState> caller_frame_state);
 
   // Overload for the "regular" non-inlined compiled JS-to-Wasm wrapper.
   void BuildJSToWasmWrapper();
@@ -149,43 +151,10 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
         input, compiler::AccessBuilder::ForHeapNumberValue());
   }
 
-  V<Object> BuildCheckString(V<Object> input, V<Context> js_context,
-                             CanonicalValueType type) {
-    Block* done = __ NewBlock();
-    Block* type_error = __ NewBlock();
-    ScopedVar<Object> result(this,
-                             __ template LoadRoot<RootIndex::kWasmNull>());
-    __ GotoIf(__ IsSmi(input), type_error, BranchHint::kFalse);
-    if (type.is_nullable()) {
-      Block* not_null = __ NewBlock();
-      __ GotoIfNot(
-          __ TaggedEqual(input, __ template LoadRoot<RootIndex::kNullValue>()),
-          not_null);
-      __ Goto(done);
-      __ Bind(not_null);
-    }
-    // We might be passed a shared object. However, since such object can only
-    // originate from Wasm for now, and we (plan to) put a barrier on the
-    // Wasm->JS transition, we do not need another one here.
-    V<Map> map = LoadMap(input, SharedFlag{false});
-    V<Word32> instance_type = __ LoadInstanceTypeField(map);
-    V<Word32> check = __ Uint32LessThan(
-        instance_type, __ Word32Constant(FIRST_NONSTRING_TYPE));
-    result = input;
-    __ GotoIf(check, done, BranchHint::kTrue);
-    __ Goto(type_error);
-    __ Bind(type_error);
-    __ WasmCallRuntime(__ phase_zone(), Runtime::kWasmThrowJSTypeError, {},
-                       js_context);
-    __ Unreachable();
-    __ Bind(done);
-    return result;
-  }
-
-  // Returns the Word32 value equal to `input` if `input` is in i31 range,
-  // otherwise jumps to `not_i31`.
-  void CanonicalizeHeapNumber(V<HeapNumber> input, Block* not_i31,
-                              ScopedVar<Object>& result) {
+  // Jumps to `done` with the Smi value equal to `input` if `input` is in i31
+  // range, otherwise falls through.
+  void CanonicalizeHeapNumber(V<HeapNumber> input, Label<Object>& done) {
+    Label<> not_i31(&Asm());
     // The heap number might be shared, but we already checked its map, so no
     // need to mark the Load as shared here.
     V<Float64> float_value = __ LoadHeapNumberValue(input);
@@ -195,45 +164,37 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
         __ TruncateFloat64ToInt32OverflowUndefined(float_value);
     V<Word32> is_integral =
         __ Float64Equal(float_value, __ ChangeInt32ToFloat64(int_value));
-    __ GotoIfNot(is_integral, not_i31);
+    GOTO_IF_NOT(is_integral, not_i31);
 
     // Check if value is -0.
-    Block* is_zero = __ NewBlock();
-    Block* is_not_zero = __ NewBlock();
-    Block* done = __ NewBlock();
-    __ Branch(__ Word32Equal(int_value, 0), is_zero, is_not_zero);
+    IF (__ Word32Equal(int_value, 0)) {
+      V<Word32> is_minus_zero =
+          __ Int32LessThan(__ Float64ExtractHighWord32(float_value), 0);
+      GOTO_IF(is_minus_zero, not_i31);
+      GOTO(done, __ TagSmi(int_value));
+    }
 
-    __ Bind(is_zero);
-    V<Word32> is_minus_zero =
-        __ Int32LessThan(__ Float64ExtractHighWord32(float_value), 0);
-    __ Branch(is_minus_zero, not_i31, done);
+    // Check i31 range.
+    GOTO_IF_NOT(__ Int32LessThanOrEqual(wasm::kInt31MinValue, int_value),
+                not_i31);
+    GOTO_IF_NOT(__ Int32LessThanOrEqual(int_value, wasm::kInt31MaxValue),
+                not_i31);
+    GOTO(done, __ TagSmi(int_value));
 
-    __ Bind(is_not_zero);
-    // Check range of float value.
-    V<Word32> in_range = __ Word32BitwiseAnd(
-        __ Float64LessThanOrEqual(__ Float64Constant(wasm::kInt31MinValue),
-                                  float_value),
-        __ Float64LessThanOrEqual(float_value,
-                                  __ Float64Constant(wasm::kInt31MaxValue)));
-    __ Branch(in_range, done, not_i31);
-
-    __ Bind(done);
-    result = __ TagSmi(int_value);
+    BIND(not_i31);
   }
 
-  // If the object is shared, sets `result = input`, otherwise falls back to
-  // `fallback`.
-  void EnsureObjectShareness(V<HeapObject> input, Block* done, Block* fallback,
-                             ScopedVar<Object>& result) {
+  // If the object is shared, jumps to `done` with `input`, otherwise falls back
+  // to `fallback`.
+  void EnsureObjectSharedness(V<HeapObject> input, Label<Object>& done,
+                              Label<>& fallback) {
 #if CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
     // Bail out for read-only objects.
     V<Word32> lower32 =
         __ TruncateWordPtrToWord32(__ BitcastTaggedToWordPtr(input));
-    IF (__ Uint32LessThan(lower32, __ Word32Constant(static_cast<uint32_t>(
-                                       kContiguousReadOnlyReservationSize)))) {
-      result = input;
-      __ Goto(done);
-    }
+    GOTO_IF(__ Uint32LessThan(lower32, static_cast<uint32_t>(
+                                           kContiguousReadOnlyReservationSize)),
+            done, input);
     // Bail out for already-shared objects.
     V<WordPtr> flags = __ LoadPageFlags(input);
     V<WordPtr> page_flags = __ WordPtrBitwiseAnd(
@@ -244,26 +205,23 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
         flags,
         static_cast<uintptr_t>(MemoryChunk::kIsReadOnlyOrSharedHeapMask));
 #endif  // !CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
-    IF (UNLIKELY(__ WordPtrEqual(page_flags, 0))) {
-      // If it isn't shared, yet, use the runtime function.
-      __ Goto(fallback);
-    }
-    result = input;
-    __ Goto(done);
+    // If it isn't shared yet, use the runtime function.
+    GOTO_IF(UNLIKELY(__ WordPtrEqual(page_flags, 0)), fallback);
+    GOTO(done, input);
   }
 
   // Checks that the object is shared or not according to `type`. If not, jumps
   // to `type_error`. Assumes the object cannot be allocated in read-only space.
-  void CheckWasmObjectSharedness(V<Object> input, CanonicalValueType type,
-                                 Block* type_error) {
+  void CheckWasmObjectSharedness(V<HeapObject> input, CanonicalValueType type,
+                                 Label<>& type_error) {
     if (v8_flags.wasm_shared) {
-      V<WordPtr> flags = __ LoadPageFlags(V<HeapObject>::Cast(input));
+      V<WordPtr> flags = __ LoadPageFlags(input);
       V<WordPtr> page_flags = __ WordPtrBitwiseAnd(
           flags, static_cast<uintptr_t>(MemoryChunk::kInSharedHeap));
       if (type.is_shared()) {
-        __ GotoIf(__ WordPtrEqual(page_flags, 0), type_error);
+        GOTO_IF(__ WordPtrEqual(page_flags, 0), type_error);
       } else {
-        __ GotoIfNot(__ WordPtrEqual(page_flags, 0), type_error);
+        GOTO_IF_NOT(__ WordPtrEqual(page_flags, 0), type_error);
       }
 #if CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
       // Wasm GC objects (structs/arrays) are currently never allocated in
@@ -271,267 +229,44 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
       // where constant Wasm objects might be placed in RO space.
       // TSA_DCHECK is only usable in isolate-dependent code.
       if (__ data()->isolate() != nullptr) {
-        TSA_DCHECK(this,
-                   __ Uint32LessThanOrEqual(
-                       __ Word32Constant(static_cast<uint32_t>(
-                           kContiguousReadOnlyReservationSize)),
-                       __ TruncateWordPtrToWord32(__ BitcastTaggedToWordPtr(
-                           V<HeapObject>::Cast(input)))));
+        TSA_DCHECK(
+            this,
+            __ Uint32LessThanOrEqual(
+                static_cast<uint32_t>(kContiguousReadOnlyReservationSize),
+                __ TruncateWordPtrToWord32(__ BitcastTaggedToWordPtr(input))));
       }
 #endif  // CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
     }
   }
 
-  void CheckSmiInI31Range(V<Smi> input, Block* done, Block* not_in_range,
-                          ScopedVar<Object>& result) {
-    if constexpr (SmiValuesAre31Bits()) {
-      result = input;
-      __ Goto(done);
-    } else {
-      V<Word32> val = __ UntagSmi(input);
-      V<Word32> in_range = __ Word32BitwiseAnd(
-          __ Int32LessThanOrEqual(wasm::kInt31MinValue, val),
-          __ Int32LessThanOrEqual(val, wasm::kInt31MaxValue));
-      result = input;
-      __ GotoIf(in_range, done);
-      __ Goto(not_in_range);
-    }
+  V<WasmCustomMap> UnwrapCustomMap(V<Object> wrapper) {
+    V<WasmCustomMap> custom_map =
+        __ Load(wrapper, LoadOp::Kind::TaggedBase().Immutable(),
+                MemoryRepresentation::TaggedPointer(),
+                offsetof(WasmCustomMapWrapper, wrapped_));
+#if DEBUG
+    AbortIfNot(
+        __ HasInstanceType(custom_map, WASM_CUSTOM_MAP_TYPE, SharedFlag{false}),
+        AbortReason::kOperandIsNotAMap);
+#endif
+    return custom_map;
   }
 
-  V<Object> BuildCheckExternRef(V<Object> input, V<Context> context,
-                                CanonicalValueType type) {
-    if (type.is_non_nullable()) {
-      IF (UNLIKELY(__ TaggedEqual(
-              input, __ template LoadRoot<RootIndex::kNullValue>()))) {
-        __ WasmCallRuntime(__ phase_zone(), Runtime::kWasmThrowJSTypeError, {},
-                           context);
-        __ Unreachable();
-      }
-    }
-    if (v8_flags.wasm_shared && type.is_shared()) {
-      Block* done = __ NewBlock();
-      Block* fallback = __ NewBlock();
-      ScopedVar<Object> result(this, input);
-      IF (__ IsSmi(input)) {
-        __ Goto(done);
-      }
-
-      EnsureObjectShareness(V<HeapObject>::Cast(input), done, fallback, result);
-
-      __ Bind(fallback);
-      std::initializer_list<const OpIndex> inputs = {
-          input,
-          __ SmiConstant(Smi::FromInt(static_cast<int>(type.raw_bit_field())))};
-      result = __ WasmCallRuntime(__ phase_zone(), Runtime::kWasmJSToWasmObject,
-                                  inputs, context);
-      __ Goto(done);
-
-      __ Bind(done);
-      return result;
-    } else {
-      return input;
-    }
-  }
-
-  V<Object> BuildCheckAnyRef(V<Object> input, V<Context> context,
-                             CanonicalValueType type) {
-    Block* done = __ NewBlock();
-    Block* type_error = __ NewBlock();
-    Block* process_smi = __ NewBlock();
-    Block* process_heap_number = __ NewBlock();
-    Block* ensure_sharedness = __ NewBlock();
-    Block* fallback = __ NewBlock();
-
-    DCHECK(type.use_wasm_null());
-    ScopedVar<Object> result(this,
-                             __ template LoadRoot<RootIndex::kWasmNull>());
-
-    // null is not allowed for non-nullable (ref any).
-    __ GotoIf(
-        __ TaggedEqual(input, __ template LoadRoot<RootIndex::kNullValue>()),
-        type.is_nullable() ? done : type_error);
-
-    __ GotoIf(__ IsSmi(input), process_smi);
-
-    // A shared object could flow here.
-    __ GotoIf(__ HasInstanceType(input, HEAP_NUMBER_TYPE,
-                                 SharedFlag{v8_flags.wasm_shared}),
-              process_heap_number);
-
-    __ Goto(ensure_sharedness);
-
-    __ Bind(process_smi);
-    CheckSmiInI31Range(V<Smi>::Cast(input), done, fallback, result);
-
-    __ Bind(process_heap_number);
-    CanonicalizeHeapNumber(V<HeapNumber>::Cast(input), ensure_sharedness,
-                           result);
-    __ Goto(done);
-
-    __ Bind(ensure_sharedness);
-    if (v8_flags.wasm_shared && type.is_shared()) {
-      EnsureObjectShareness(V<HeapObject>::Cast(input), done, fallback, result);
-    } else {
-      result = input;
-      __ Goto(done);
+  // {input} must already be non-i31.
+  void BuildCheckIndexedStructOrArray(V<Object> input, CanonicalValueType type,
+                                      Label<Object>& done,
+                                      Label<>& type_error) {
+    wasm::TypeCanonicalizer* type_canonicalizer = wasm::GetTypeCanonicalizer();
+    bool is_descriptor = v8_flags.wasm_merged_descriptors &&
+                         type_canonicalizer->is_descriptor(type.ref_index());
+    if (is_descriptor) {
+      GOTO_IF_NOT(__ HasInstanceType(input, WASM_CUSTOM_MAP_WRAPPER_TYPE,
+                                     SharedFlag{false}),
+                  type_error);
+      input = UnwrapCustomMap(input);
     }
 
-    __ Bind(fallback);
-    // Make sure ValueType fits in a Smi.
-    static_assert(wasm::ValueType::kLastUsedBit + 1 <= kSmiValueSize);
-    std::initializer_list<const OpIndex> inputs = {
-        input,
-        __ SmiConstant(Smi::FromInt(static_cast<int>(type.raw_bit_field())))};
-    result = __ WasmCallRuntime(__ phase_zone(), Runtime::kWasmJSToWasmObject,
-                                inputs, context);
-    __ Goto(done);
-
-    __ Bind(type_error);
-    __ WasmCallRuntime(__ phase_zone(), Runtime::kWasmThrowJSTypeError, {},
-                       context);
-    __ Unreachable();
-
-    __ Bind(done);
-    return result;
-  }
-
-  V<Object> BuildCheckEqRef(V<Object> input, V<Context> js_context,
-                            CanonicalValueType type) {
-    Block* done = __ NewBlock();
-    Block* type_error = __ NewBlock();
-    Block* check_number = __ NewBlock();
-    DCHECK(type.use_wasm_null());
-    ScopedVar<Object> result(this,
-                             __ template LoadRoot<RootIndex::kWasmNull>());
-
-    if (type.is_nullable()) {
-      __ GotoIf(
-          __ TaggedEqual(input, __ template LoadRoot<RootIndex::kNullValue>()),
-          done);
-    }
-
-    __ GotoIf(__ IsSmi(input), check_number);
-
-    // We might be passed a shared object.
-    V<Map> map = LoadMap(input, SharedFlag{v8_flags.wasm_shared});
-    V<Word32> instance_type = __ LoadInstanceTypeField(map);
-    V<Word32> is_wasm_object =
-        __ Word32BitwiseOr(__ Word32Equal(instance_type, WASM_STRUCT_TYPE),
-                           __ Word32Equal(instance_type, WASM_ARRAY_TYPE));
-    __ GotoIfNot(is_wasm_object, check_number, BranchHint::kTrue);
-
-    CheckWasmObjectSharedness(input, type, type_error);
-
-    result = input;
-    __ Goto(done);
-
-    __ Bind(check_number);
-    BuildCheckI31Impl(input, result, done, type_error);
-
-    __ Bind(type_error);
-    __ WasmCallRuntime(__ phase_zone(), Runtime::kWasmThrowJSTypeError, {},
-                       js_context);
-    __ Unreachable();
-
-    __ Bind(done);
-    return result;
-  }
-
-  void BuildCheckI31Impl(V<Object> input, ScopedVar<Object>& result,
-                         Block* done, Block* type_error) {
-    Block* is_heap_object = __ NewBlock();
-    __ GotoIfNot(__ IsSmi(input), is_heap_object);
-
-    CheckSmiInI31Range(V<Smi>::Cast(input), done, type_error, result);
-
-    __ Bind(is_heap_object);
-    // A shared object could flow here.
-    __ GotoIfNot(__ HasInstanceType(input, HEAP_NUMBER_TYPE,
-                                    SharedFlag{v8_flags.wasm_shared}),
-                 type_error);
-
-    CanonicalizeHeapNumber(V<HeapNumber>::Cast(input), type_error, result);
-    __ Goto(done);
-  }
-
-  V<Object> BuildCheckI31Ref(V<Object> input, V<Context> js_context,
-                             CanonicalValueType type) {
-    Block* done = __ NewBlock();
-    Block* type_error = __ NewBlock();
-    ScopedVar<Object> result(this,
-                             __ template LoadRoot<RootIndex::kWasmNull>());
-
-    if (type.is_nullable()) {
-      __ GotoIf(
-          __ TaggedEqual(input, __ template LoadRoot<RootIndex::kNullValue>()),
-          done);
-    }
-
-    BuildCheckI31Impl(input, result, done, type_error);
-
-    __ Bind(type_error);
-    __ WasmCallRuntime(__ phase_zone(), Runtime::kWasmThrowJSTypeError, {},
-                       js_context);
-    __ Unreachable();
-
-    __ Bind(done);
-    return result;
-  }
-
-  V<Object> BuildCheckWasmObject(V<Object> input, V<Context> js_context,
-                                 CanonicalValueType type,
-                                 InstanceType instance_type) {
-    Block* done = __ NewBlock();
-    Block* type_error = __ NewBlock();
-    DCHECK(type.use_wasm_null());
-    ScopedVar<Object> result(this,
-                             __ template LoadRoot<RootIndex::kWasmNull>());
-
-    __ GotoIf(__ IsSmi(input), type_error, BranchHint::kFalse);
-
-    if (type.is_nullable()) {
-      __ GotoIf(
-          __ TaggedEqual(input, __ template LoadRoot<RootIndex::kNullValue>()),
-          done);
-    }
-
-    V<Map> map = LoadMap(input, SharedFlag{v8_flags.wasm_shared});
-    V<Word32> is_wasm_object_of_instance_type =
-        __ Word32Equal(__ LoadInstanceTypeField(map), instance_type);
-    __ GotoIfNot(is_wasm_object_of_instance_type, type_error,
-                 BranchHint::kTrue);
-
-    CheckWasmObjectSharedness(input, type, type_error);
-
-    result = input;
-    __ Goto(done);
-
-    __ Bind(type_error);
-    __ WasmCallRuntime(__ phase_zone(), Runtime::kWasmThrowJSTypeError, {},
-                       js_context);
-    __ Unreachable();
-
-    __ Bind(done);
-    return result;
-  }
-
-  V<Object> BuildCheckIndexedStructOrArray(V<Object> input, V<Context> context,
-                                           CanonicalValueType type) {
-    Block* done = __ NewBlock();
-    Block* mismatch = __ NewBlock();
-
-    ScopedVar<Object> result(this,
-                             __ template LoadRoot<RootIndex::kWasmNull>());
-
-    __ GotoIf(__ IsSmi(input), mismatch, BranchHint::kFalse);
-
-    if (type.is_nullable()) {
-      __ GotoIf(
-          __ TaggedEqual(input, __ template LoadRoot<RootIndex::kNullValue>()),
-          done);
-    }
-
-    V<Map> object_map = LoadMap(input, SharedFlag{v8_flags.wasm_shared});
+    V<Map> object_map = LoadMap(input);
     // Fetch the canonical-types array from isolate roots.
     V<WeakFixedArray> canonical_rtts =
         __ template LoadRoot<RootIndex::kWasmCanonicalRtts>();
@@ -542,19 +277,15 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
         __ template BitcastWordPtrToTagged<Map>(__ WordPtrBitwiseAnd(
             __ BitcastTaggedToWordPtr(cached_map), ~kWeakHeapObjectMask));
 
-    IF (__ TaggedEqual(object_map, supertype_rtt)) {
-      result = input;
-      __ Goto(done);
-    }
+    GOTO_IF(__ TaggedEqual(object_map, supertype_rtt), done, input);
 
     if (type.is_exact()) {
-      __ Goto(mismatch);
-    } else {
-      wasm::TypeCanonicalizer* type_canonicalizer =
-          wasm::GetTypeCanonicalizer();
+      GOTO(type_error);
+      return;
+    }
 
+    if (!is_descriptor) {
       V<Word32> instance_type = __ LoadInstanceTypeField(object_map);
-
       InstanceType expected_instance_type;
       switch (type.ref_type_kind()) {
         case wasm::RefTypeKind::kStruct:
@@ -568,41 +299,28 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
         case wasm::RefTypeKind::kOther:
           UNREACHABLE();
       }
-
-      V<Word32> has_type_info =
-          __ Word32Equal(instance_type, expected_instance_type);
-
-      IF (has_type_info) {
-        uint8_t rtt_depth =
-            type_canonicalizer->GetSubtypingDepth_Slow(type.ref_index());
-
-        V<Object> type_info = __ LoadWasmTypeInfo(object_map);
-        V<Word32> supertypes_length = __ UntagSmi(
-            __ Load(type_info, LoadOp::Kind::TaggedBase().Immutable(),
-                    MemoryRepresentation::TaggedSigned(),
-                    offsetof(WasmTypeInfo, supertypes_length_)));
-
-        IF (__ Uint32LessThan(rtt_depth, supertypes_length)) {
-          V<Object> maybe_match = __ Load(
-              type_info, LoadOp::Kind::TaggedBase().Immutable(),
-              MemoryRepresentation::TaggedPointer(),
-              WasmTypeInfo::kSupertypesOffset + kTaggedSize * rtt_depth);
-          IF (__ TaggedEqual(maybe_match, supertype_rtt)) {
-            result = input;
-            __ Goto(done);
-          }
-        }
-      }
-      __ Goto(mismatch);
+      GOTO_IF_NOT(__ Word32Equal(instance_type, expected_instance_type),
+                  type_error);
     }
 
-    __ Bind(mismatch);
-    __ WasmCallRuntime(__ phase_zone(), Runtime::kWasmThrowJSTypeError, {},
-                       context);
-    __ Unreachable();
+    uint8_t rtt_depth =
+        type_canonicalizer->GetSubtypingDepth_Slow(type.ref_index());
 
-    __ Bind(done);
-    return result;
+    V<Object> type_info = __ LoadWasmTypeInfo(object_map);
+    if (rtt_depth >= wasm::kMinimumSupertypeArraySize) {
+      V<Word32> supertypes_length =
+          __ UntagSmi(__ Load(type_info, LoadOp::Kind::TaggedBase().Immutable(),
+                              MemoryRepresentation::TaggedSigned(),
+                              offsetof(WasmTypeInfo, supertypes_length_)));
+
+      GOTO_IF_NOT(__ Uint32LessThan(rtt_depth, supertypes_length), type_error);
+    }
+    V<Object> maybe_match =
+        __ Load(type_info, LoadOp::Kind::TaggedBase().Immutable(),
+                MemoryRepresentation::TaggedPointer(),
+                WasmTypeInfo::kSupertypesOffset + kTaggedSize * rtt_depth);
+    GOTO_IF(__ TaggedEqual(maybe_match, supertype_rtt), done, input);
+    GOTO(type_error);
   }
 
   V<Float32> BuildChangeTaggedToFloat32(
@@ -621,7 +339,7 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
       // A a shared wasm object could flow here, but we don't need to mark it as
       // shared for TSAN purposes, because we already did so when it flowed into
       // JS.
-      V<Map> map = LoadMap(value, SharedFlag{false});
+      V<Map> map = LoadMap(value);
       // TODO(thibaudm): Handle map packing.
       V<Word32> is_heap_number = __ IsHeapNumberMap(map);
       if (caller_frame_state.valid()) {
@@ -659,7 +377,7 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
       // A a shared wasm object could flow here, but we don't need to mark it as
       // shared for TSAN purposes, because we already did so when it flowed into
       // JS.
-      V<Map> map = LoadMap(value, SharedFlag{false});
+      V<Map> map = LoadMap(value);
       // TODO(thibaudm): Handle map packing.
       V<Word32> is_heap_number = __ IsHeapNumberMap(map);
       if (caller_frame_state.valid()) {
@@ -797,54 +515,59 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
           UNREACHABLE();
       }
     }
+
+    // When inlining JS-to-Wasm wrappers, CanInlineJSToWasmCall() only
+    // allows nullable, non-shared externref, so none of the paths below
+    // that call runtime functions (which can throw) are reachable.
+    // If CanInlineJSToWasmCall() is ever extended to allow more reference
+    // types, the throwing paths would need a frame state to support
+    // lazy deopt on throw.
+    DCHECK_IMPLIES(caller_frame_state.valid(), type == wasm::kWasmExternRef);
+
+    if (type == wasm::kWasmExternRef) {
+      return input;
+    }
+
+    bool want_extern = false;
+    bool want_any = false;
+    bool want_eq = false;
+    bool want_i31 = false;
+    bool want_struct = false;
+    bool want_array = false;
+    bool want_string = false;
+    bool want_none = false;
+    bool want_func = false;
     if (type.is_abstract_ref()) {
-      // When inlining JS-to-Wasm wrappers, CanInlineJSToWasmCall() only
-      // allows nullable, non-shared externref, so none of the paths below
-      // that call runtime functions (which can throw) are reachable.
-      // If CanInlineJSToWasmCall() is ever extended to allow more reference
-      // types, the throwing paths would need a frame state to support
-      // lazy deopt on throw.
-      DCHECK_IMPLIES(caller_frame_state.valid(), type == wasm::kWasmExternRef);
       switch (type.generic_kind()) {
-        // TODO(548685083): Add fast paths for function/continuation types?
         case GenericKind::kExtern:
-          return BuildCheckExternRef(input, context, type);
+          want_extern = true;
+          break;
         case GenericKind::kString:
-          return BuildCheckString(input, context, type);
+          want_string = true;
+          break;
         case GenericKind::kStruct:
-          return BuildCheckWasmObject(input, context, type, WASM_STRUCT_TYPE);
+          want_struct = true;
+          break;
         case GenericKind::kArray:
-          return BuildCheckWasmObject(input, context, type, WASM_ARRAY_TYPE);
+          want_array = true;
+          break;
         case GenericKind::kI31:
-          return BuildCheckI31Ref(input, context, type);
+          want_i31 = true;
+          break;
         case GenericKind::kEq:
-          return BuildCheckEqRef(input, context, type);
+          want_eq = true;
+          break;
         case GenericKind::kAny:
-          return BuildCheckAnyRef(input, context, type);
+          want_any = true;
+          break;
         case GenericKind::kNoExtern:
         case GenericKind::kNoFunc:
-        case GenericKind::kNone: {
-          if (type.is_nullable()) {
-            Block* done = __ NewBlock();
-            V<Object> js_null = __ template LoadRoot<RootIndex::kNullValue>();
-            __ GotoIf(__ TaggedEqual(input, js_null), done);
-            __ WasmCallRuntime(__ phase_zone(), Runtime::kWasmThrowJSTypeError,
-                               {}, context);
-            __ Unreachable();
-            __ Bind(done);
-            return type.use_wasm_null()
-                       ? __ template LoadRoot<RootIndex::kWasmNull>()
-                       : js_null;
-          } else {
-            __ WasmCallRuntime(__ phase_zone(), Runtime::kWasmThrowJSTypeError,
-                               {}, context);
-            __ Unreachable();
-            return OptionalOpIndex::Nullopt();
-          }
-        }
+        case GenericKind::kNone:
+          want_none = true;
+          break;
         case GenericKind::kFunc:
-          break;  // Fall through.
-
+          want_func = true;
+          break;
         case GenericKind::kVoid:
         case GenericKind::kTop:
         case GenericKind::kBottom:
@@ -863,29 +586,162 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
           UNREACHABLE();
       }
     }
-    // Both indexed types and remaining references to abstract types get here.
 
-    if (type.has_index() &&
-        (type.ref_type_kind() == wasm::RefTypeKind::kStruct ||
-         type.ref_type_kind() == wasm::RefTypeKind::kArray) &&
-        // TODO(manoskouk, jkummerow): Also implement descriptor support.
-        !wasm::GetTypeCanonicalizer()->has_descriptor(type.ref_index())) {
-      return BuildCheckIndexedStructOrArray(input, context, type);
-    }
-
-    // Make sure ValueType fits in a Smi.
+    // Make sure ValueType fits in a Smi, for Runtime::kWasmJSToWasmObject.
     static_assert(wasm::ValueType::kLastUsedBit + 1 <= kSmiValueSize);
 
-    std::initializer_list<const OpIndex> inputs = {
-        input,
-        __ IntPtrConstant(IntToSmi(static_cast<int>(type.raw_bit_field())))};
-    return __ WasmCallRuntime(__ phase_zone(), Runtime::kWasmJSToWasmObject,
-                              inputs, context);
+    // TODO(548685083): Add fast paths for function/continuation types?
+    // TODO(manoskouk, jkummerow): Also implement descriptor support.
+    if (want_func ||
+        (type.has_index() &&
+         ((type.ref_type_kind() != wasm::RefTypeKind::kStruct &&
+           type.ref_type_kind() != wasm::RefTypeKind::kArray) ||
+          wasm::GetTypeCanonicalizer()->has_descriptor(type.ref_index())))) {
+      std::initializer_list<const OpIndex> inputs = {
+          input,
+          __ SmiConstant(Smi::FromInt(static_cast<int>(type.raw_bit_field())))};
+      return __ WasmCallRuntime(__ phase_zone(), Runtime::kWasmJSToWasmObject,
+                                inputs, context);
+    }
+
+    Label<Object> done(&Asm());
+    Label<> type_error(&Asm());
+    Label<> runtime(&Asm());
+    Label<> process_smi(&Asm());
+    Label<> process_heap_number(&Asm());
+    Label<> unwrap_custom_map(&Asm());
+    Label<HeapObject> check_sharedness(&Asm());
+
+    // We could skip the Smi check when {want_none}, but that case is not
+    // relevant for real-world performance.
+    IF (__ IsSmi(input)) {
+      if (want_extern) {
+        GOTO(done, input);
+      } else if (want_any || want_eq || want_i31) {
+        if constexpr (SmiValuesAre31Bits()) {
+          GOTO(done, input);
+        } else {
+          GOTO(process_smi);
+        }
+      } else {
+        GOTO(type_error);
+      }
+    }
+
+    // For non-nullable target types, only perform explicit null checks if
+    // they're not implicitly handled by the instance type check later.
+    if (type.is_nullable()) {
+      GOTO_IF(
+          __ TaggedEqual(input, __ template LoadRoot<RootIndex::kNullValue>()),
+          done,
+          type.use_wasm_null() ? __ template LoadRoot<RootIndex::kWasmNull>()
+                               : input);
+    } else if (want_any || want_extern) {
+      GOTO_IF(UNLIKELY(__ TaggedEqual(
+                  input, __ template LoadRoot<RootIndex::kNullValue>())),
+              type_error);
+    }
+
+    if (want_none) {
+      // Null values have already been handled, anything else fails.
+      GOTO(type_error);
+    } else if (want_extern) {
+      GOTO(check_sharedness, V<HeapObject>::Cast(input));
+    } else if (type.has_index()) {
+      BuildCheckIndexedStructOrArray(input, type, done, type_error);
+    } else {
+      V<Map> map = LoadMap(input);
+      V<Word32> instance_type = __ LoadInstanceTypeField(map);
+
+      if (want_string) {
+        V<Word32> is_str =
+            __ Uint32LessThan(instance_type, FIRST_NONSTRING_TYPE);
+        GOTO_IF(LIKELY(is_str), done, input);
+      }
+      if (want_struct || want_eq) {
+        GOTO_IF(__ Word32Equal(instance_type, WASM_STRUCT_TYPE),
+                check_sharedness, V<HeapObject>::Cast(input));
+      }
+      if (want_array || want_eq) {
+        GOTO_IF(__ Word32Equal(instance_type, WASM_ARRAY_TYPE),
+                check_sharedness, V<HeapObject>::Cast(input));
+      }
+      if (want_any || want_eq || want_i31) {
+        GOTO_IF(__ Word32Equal(instance_type, HEAP_NUMBER_TYPE),
+                process_heap_number);
+      }
+      if (v8_flags.wasm_merged_descriptors &&
+          (want_any || want_eq || want_struct)) {
+        GOTO_IF(__ Word32Equal(instance_type, WASM_CUSTOM_MAP_WRAPPER_TYPE),
+                unwrap_custom_map);
+      }
+      if (want_any) {
+        GOTO(check_sharedness, V<HeapObject>::Cast(input));
+      } else {
+        GOTO(type_error);
+      }
+    }
+
+    if constexpr (!SmiValuesAre31Bits()) {
+      if (BIND(process_smi)) {
+        V<Word32> val = __ UntagSmi(V<Smi>::Cast(input));
+        Label<>& out_of_range = want_any ? runtime : type_error;
+        GOTO_IF_NOT(__ Int32LessThanOrEqual(wasm::kInt31MinValue, val),
+                    out_of_range);
+        GOTO_IF_NOT(__ Int32LessThanOrEqual(val, wasm::kInt31MaxValue),
+                    out_of_range);
+        GOTO(done, input);
+      }
+    }
+
+    if (BIND(process_heap_number)) {
+      CanonicalizeHeapNumber(V<HeapNumber>::Cast(input), done);
+      if (want_any) {
+        GOTO(check_sharedness, V<HeapObject>::Cast(input));
+      } else {
+        GOTO(type_error);
+      }
+    }
+
+    if (BIND(unwrap_custom_map)) {
+      GOTO(check_sharedness, UnwrapCustomMap(input));
+    }
+
+    if (BIND(check_sharedness, heap_obj)) {
+      if (want_any || want_extern) {
+        if (v8_flags.wasm_shared && type.is_shared()) {
+          EnsureObjectSharedness(heap_obj, done, runtime);
+        } else {
+          GOTO(done, heap_obj);
+        }
+      } else {
+        CheckWasmObjectSharedness(heap_obj, type, type_error);
+        GOTO(done, heap_obj);
+      }
+    }
+
+    if (BIND(runtime)) {
+      std::initializer_list<const OpIndex> inputs = {
+          input,
+          __ SmiConstant(Smi::FromInt(static_cast<int>(type.raw_bit_field())))};
+      GOTO(done,
+           __ WasmCallRuntime(__ phase_zone(), Runtime::kWasmJSToWasmObject,
+                              inputs, context));
+    }
+
+    if (BIND(type_error)) {
+      __ WasmCallRuntime(__ phase_zone(), Runtime::kWasmThrowJSTypeError, {},
+                         context);
+      __ Unreachable();
+    }
+
+    BIND(done, result);
+    return result;
   }
 
-  V<Map> LoadMap(V<Object> object, SharedFlag shared_base) {
+  V<Map> LoadMap(V<Object> object) {
     // TODO(thibaudm): Handle map packing.
-    V<Map> map_word = __ LoadMapField(object, shared_base);
+    V<Map> map_word = __ LoadMapField(object, SharedFlag{false});
 #ifdef V8_MAP_PACKING
     map_word = __ BitcastTaggedToWordPtrForTagAndSmiBits(map_word);
     // TODO(wenyuzhao): Clear header metadata.
@@ -914,35 +770,29 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
         compiler::AccessBuilder::ForJSFunctionSharedFunctionInfo());
   }
 
-  V<Object> BuildReceiverNode(V<JSFunction> callable_node,
+  V<Object> BuildReceiverNode(wasm::ImportCallKind kind,
+                              V<Context> importer_native_context,
                               V<Context> callee_context,
                               V<Undefined> undefined_node) {
-    // Check function strict bit.
-    V<SharedFunctionInfo> shared_function_info =
-        LoadSharedFunctionInfo(callable_node);
-    OpIndex flags = __ Load(shared_function_info, LoadOp::Kind::TaggedBase(),
-                            MemoryRepresentation::Int32(),
-                            offsetof(SharedFunctionInfo, flags_));
-    OpIndex strict_check = __ Word32BitwiseAnd(
-        flags,
-        __ Word32Constant(SharedFunctionInfo::Flags::IsNativeBit::kMask |
-                          SharedFunctionInfo::Flags::IsStrictBit::kMask));
-
-    // Load global receiver if sloppy else use undefined.
-    ScopedVar<Object> strict_d(this, OpIndex::Invalid());
-    IF (strict_check) {
-      strict_d = undefined_node;
-    } ELSE {
-      V<Map> context_map = LoadMap(callee_context, SharedFlag{false});
-      V<NativeContext> callee_native_context =
-          __ template LoadField<NativeContext>(
-              context_map, compiler::AccessBuilder::ForMapNativeContext());
-      strict_d = __ template LoadField<Object>(
-          callee_native_context,
-          compiler::AccessBuilder::ForContextSlotKnownPointer(
-              Context::GLOBAL_PROXY_INDEX));
+    V<Context> callee_native_context;
+    switch (kind) {
+      case wasm::ImportCallKind::kJSFunctionUndefinedReceiver:
+        return undefined_node;
+      case wasm::ImportCallKind::kJSFunctionSameRealmReceiver:
+        callee_native_context = importer_native_context;
+        break;
+      case wasm::ImportCallKind::kJSFunctionCrossRealmReceiver:
+        callee_native_context = __ template LoadField<NativeContext>(
+            LoadMap(callee_context),
+            compiler::AccessBuilder::ForMapNativeContext());
+        break;
+      default:
+        UNREACHABLE();
     }
-    return strict_d;
+    return __ template LoadField<Object>(
+        callee_native_context,
+        compiler::AccessBuilder::ForContextSlotKnownPointer(
+            Context::GLOBAL_PROXY_INDEX));
   }
 
   V<Context> LoadContextFromJSFunction(V<JSFunction> js_function) {
@@ -1032,7 +882,7 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
 
   void SafeStore(int offset, CanonicalValueType type, OpIndex base,
                  OpIndex value) {
-    int alignment = offset % type.value_kind_size();
+    int alignment = offset % type.value_kind_full_size();
     auto rep = MemoryRepresentation::FromMachineRepresentation(
         type.machine_representation());
     if (COMPRESS_POINTERS_BOOL && rep.IsCompressibleTagged()) {
@@ -1049,17 +899,18 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
     __ Store(base, value, store_kind, rep, compiler::kNoWriteBarrier, offset);
   }
 
-  V<WordPtr> BuildLoadCallTargetFromExportedFunctionData(
-      V<WasmFunctionData> function_data) {
+  V<WordPtr> BuildLoadCallTargetFromCapiFunctionData(
+      V<WasmCapiFunctionData> function_data) {
     // TODO(sroettger): this code should do a signature check, but it's only
     // used for CAPI.
     V<WasmInternalFunction> internal =
         V<WasmInternalFunction>::Cast(__ LoadProtectedPointerField(
             function_data, LoadOp::Kind::TaggedBase().Immutable(),
             offsetof(WasmFunctionData, protected_internal_)));
-    V<Word32> code_pointer = __ Load(
-        internal, LoadOp::Kind::TaggedBase(), MemoryRepresentation::Uint32(),
-        offsetof(WasmInternalFunction, raw_call_target_));
+    V<Word32> code_pointer =
+        __ Load(internal, LoadOp::Kind::TaggedBase().Immutable(),
+                MemoryRepresentation::Uint32(),
+                offsetof(WasmInternalFunction, call_target_));
     constexpr size_t entry_size_log2 =
         std::bit_width(sizeof(wasm::WasmCodePointerTableEntry)) - 1;
     return __ Load(
@@ -1069,7 +920,7 @@ class WasmWrapperTSGraphBuilder : public wasm::WasmGraphBuilderBase<Assembler> {
   }
 
   const OpIndex SafeLoad(OpIndex base, int offset, CanonicalValueType type) {
-    int alignment = offset % type.value_kind_size();
+    int alignment = offset % type.value_kind_full_size();
     auto rep = MemoryRepresentation::FromMachineRepresentation(
         type.machine_representation());
     if (COMPRESS_POINTERS_BOOL && rep.IsCompressibleTagged()) {

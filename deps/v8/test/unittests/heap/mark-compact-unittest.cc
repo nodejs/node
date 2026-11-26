@@ -215,7 +215,8 @@ TEST_F(MarkCompactTest, Regress5829) {
   heap->CreateFillerObjectAt(old_end - kTaggedSize, kTaggedSize);
   heap->FreeMainThreadLinearAllocationAreas();
   NormalPage* page = NormalPage::FromAddress(array->address());
-  for (auto object_and_size : LiveObjectRange(page)) {
+  for (auto object_and_size :
+       LiveObjectRange<ConcurrencyMode::kSynchronous>(page)) {
     EXPECT_FALSE(IsFreeSpaceOrFiller(object_and_size.first));
   }
 }

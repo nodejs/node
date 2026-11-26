@@ -82,3 +82,143 @@ constant pool: [
 handlers: [
 ]
 
+---
+snippet: "
+  var a = 0, b = 1, c = 2;
+  if (a ? b < c : b > c) return 1;
+  return 2;
+"
+frame size: 3
+parameter count: 1
+bytecode array length: 34
+bytecodes: [
+  /*   42 S> */ B(LdaZero),
+                B(Star0),
+  /*   49 S> */ B(LdaSmi), I8(1),
+                B(Star1),
+  /*   56 S> */ B(LdaSmi), I8(2),
+                B(Star2),
+  /*   59 S> */ B(Ldar), R(0),
+                B(JumpIfToBooleanFalse), U8(11),
+                B(Ldar), R(2),
+  /*   69 E> */ B(TestLessThan), R(1), EmbeddedFeedback(),
+                B(JumpIfTrue), U8(11),
+                B(Jump), U8(12),
+                B(Ldar), R(2),
+  /*   77 E> */ B(TestGreaterThan), R(1), EmbeddedFeedback(),
+                B(JumpIfFalse), U8(5),
+  /*   82 S> */ B(LdaSmi), I8(1),
+  /*   91 S> */ B(Return),
+  /*   92 S> */ B(LdaSmi), I8(2),
+  /*  101 S> */ B(Return),
+]
+constant pool: [
+]
+handlers: [
+]
+
+---
+snippet: "
+  var a = 0, b = 1, c = 2;
+  if (!(a ? b : c)) return 1;
+  return 2;
+"
+frame size: 3
+parameter count: 1
+bytecode array length: 28
+bytecodes: [
+  /*   42 S> */ B(LdaZero),
+                B(Star0),
+  /*   49 S> */ B(LdaSmi), I8(1),
+                B(Star1),
+  /*   56 S> */ B(LdaSmi), I8(2),
+                B(Star2),
+  /*   59 S> */ B(Ldar), R(0),
+                B(JumpIfToBooleanFalse), U8(8),
+                B(Ldar), R(1),
+  /*   69 E> */ B(JumpIfToBooleanTrue), U8(11),
+                B(Jump), U8(6),
+                B(Ldar), R(2),
+  /*   73 E> */ B(JumpIfToBooleanTrue), U8(5),
+  /*   77 S> */ B(LdaSmi), I8(1),
+  /*   86 S> */ B(Return),
+  /*   87 S> */ B(LdaSmi), I8(2),
+  /*   96 S> */ B(Return),
+]
+constant pool: [
+]
+handlers: [
+]
+
+---
+snippet: "
+  var a = 0, b = 1, c = 2;
+  if (true ? a < b : c) return 1;
+  return 2;
+"
+frame size: 3
+parameter count: 1
+bytecode array length: 21
+bytecodes: [
+  /*   42 S> */ B(LdaZero),
+                B(Star0),
+  /*   49 S> */ B(LdaSmi), I8(1),
+                B(Star1),
+  /*   56 S> */ B(LdaSmi), I8(2),
+                B(Star2),
+  /*   59 S> */ B(Ldar), R(1),
+  /*   72 E> */ B(TestLessThan), R(0), EmbeddedFeedback(),
+                B(JumpIfFalse), U8(5),
+  /*   81 S> */ B(LdaSmi), I8(1),
+  /*   90 S> */ B(Return),
+  /*   91 S> */ B(LdaSmi), I8(2),
+  /*  100 S> */ B(Return),
+]
+constant pool: [
+]
+handlers: [
+]
+
+---
+snippet: "
+  var a = 0, b = 1, c = 2, d = 3;
+  if (a ? b < c : b ? c < d : a < d) return 1;
+  return 2;
+"
+frame size: 4
+parameter count: 1
+bytecode array length: 50
+bytecodes: [
+  /*   42 S> */ B(LdaZero),
+                B(Star0),
+  /*   49 S> */ B(LdaSmi), I8(1),
+                B(Star1),
+  /*   56 S> */ B(LdaSmi), I8(2),
+                B(Star2),
+  /*   63 S> */ B(LdaSmi), I8(3),
+                B(Star3),
+  /*   66 S> */ B(Ldar), R(0),
+                B(JumpIfToBooleanFalse), U8(11),
+                B(Ldar), R(2),
+  /*   76 E> */ B(TestLessThan), R(1), EmbeddedFeedback(),
+                B(JumpIfTrue), U8(24),
+                B(Jump), U8(25),
+                B(Ldar), R(1),
+  /*   82 E> */ B(JumpIfToBooleanFalse), U8(11),
+                B(Ldar), R(3),
+  /*   88 E> */ B(TestLessThan), R(2), EmbeddedFeedback(),
+                B(JumpIfTrue), U8(11),
+                B(Jump), U8(12),
+                B(Ldar), R(3),
+  /*   96 E> */ B(TestLessThan), R(0), EmbeddedFeedback(),
+                B(JumpIfFalse), U8(5),
+  /*  101 S> */ B(LdaSmi), I8(1),
+  /*  110 S> */ B(Return),
+  /*  111 S> */ B(LdaSmi), I8(2),
+  /*  120 S> */ B(Return),
+]
+constant pool: [
+]
+handlers: [
+]
+

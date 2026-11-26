@@ -1,0 +1,27 @@
+# Build directories
+build/
+out/
+bin/
+
+# Node.js / VSCode Extension
+node_modules/
+*.log
+*.vsix
+
+
+# OS / IDE files
+.DS_Store
+.vscode/
+.clangd/
+
+# LLVM/Clang temporary files
+compile_commands.json
+.cache/
+
+# Jetski CLI
+.jetskicli/
+
+# Clang resource symlink and Python cache
+lib
+__pycache__/
+

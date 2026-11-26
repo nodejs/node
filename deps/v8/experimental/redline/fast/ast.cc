@@ -197,5 +197,18 @@ size_t CountNodes(const Node* node) {
   return count;
 }
 
+size_t CountNodesUpTo(const Node* node, size_t limit) {
+  size_t count = 0;
+  Walk(const_cast<Node*>(node), [&](Node* visited) {
+    (void)visited;
+    if (count > limit) {
+      return false;
+    }
+    count++;
+    return count <= limit;
+  });
+  return count;
+}
+
 }  // namespace fast
 }  // namespace redline

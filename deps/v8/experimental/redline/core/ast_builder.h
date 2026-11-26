@@ -21,6 +21,7 @@ namespace mk {
 using fast::ArrayExpression;
 using fast::ArrowFunctionExpression;
 using fast::AssignmentExpression;
+using fast::AssignmentPattern;
 using fast::AssignOp;
 using fast::AwaitExpression;
 using fast::BigIntLiteral;
@@ -63,6 +64,7 @@ using fast::PrivateIdentifier;
 using fast::Property;
 using fast::PropertyDefinition;
 using fast::RegExpLiteral;
+using fast::RestElement;
 using fast::ReturnStatement;
 using fast::SequenceExpression;
 using fast::SpreadElement;
@@ -106,6 +108,10 @@ Property* Accessor(Tree* t, std::string_view key, FunctionExpression* fn,
                    bool getter);
 Property* Method(Tree* t, std::string_view key, FunctionExpression* fn);
 SpreadElement* Spread(Tree* t, Expression* argument);
+// `...argument`: a rest parameter, or the rest element of a pattern.
+RestElement* Rest(Tree* t, Expression* argument);
+// `left = right`: a parameter or a pattern element with a default value.
+AssignmentPattern* WithDefault(Tree* t, Expression* left, Expression* right);
 
 UnaryExpression* Unary(Tree* t, UnaryOp op, Expression* argument);
 UpdateExpression* Update(Tree* t, UpdateOp op, bool prefix,

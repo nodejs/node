@@ -1,0 +1,2 @@
+Regression test for issue 486383560.
+Test completed successfully.

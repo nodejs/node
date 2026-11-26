@@ -1,240 +1,128 @@
-# Hole Check Elimination in the Parser
+# Stage 1: Parser & Scope Hole Check Elimination
 
-This document details how V8 resolves variables, enforces Temporal Dead Zone (TDZ) rules, and uses caching mechanisms to optimize lookups without breaking source position calculations.
+## Conceptual Overview
 
+The cheapest TDZ hole check is one that is never emitted into the AST or bytecode in the first place. Furthermore, if V8 can prove during scope resolution that **no reference** to a lexical variable `let x = 1` can ever execute before `x`'s initializer, V8 does not even need to pre-initialize `x`'s stack register or context slot with `tdz_hole_value` (`LdaTdzHole`) at block entry!
 
-
-## Simple In-Function Access (The Baseline)
-
-Before considering complex scope walks, the simplest scenario is accessing a variable within the exact same scope where it is declared.
-
-For a simple local, same-scope access without nested closures, V8 compares the pure source location of the variable reference directly against the variable's `initializer_position`. If the access occurs lexically *before* or exactly at the initializer, a hole check is required. The concept of a propagated `access_position` is actually **only relevant for `eval` and nested closures (including classes)**. For simple in-function accesses, raw source positions suffice.
-
-```javascript
-function simple() {
-  console.log(x); // access_position < initializer_position -> TDZ check required
-  let x = 10;     // initializer_position
-  console.log(x); // access_position > initializer_position -> No check needed
-}
-```
-
-> **Note for Bytecode Generation**: The parser communicates this decision to the bytecode generator by marking the `VariableProxy` with a `HoleCheckMode` (`kElided` or `kRequired`). If marked as `kElided`, the bytecode generator skips emitting the hole check instruction entirely.
-
-## Cross-Closure and Eval Accesses
-
-The simple raw position approach breaks down as soon as we introduce JavaScript language features like function hoisting and `eval`. The concept of a propagated `access_position` becomes strictly relevant here.
-
-### The Challenge of Nested Closures
-
-Function declarations are hoisted to the top of their scope (per [FunctionDeclarationInstantiation](https://tc39.es/ecma262/#sec-functiondeclarationinstantiation)), while class declarations are not ([BlockDeclarationInstantiation](https://tc39.es/ecma262/#sec-blockdeclarationinstantiation)). This creates discrepancies between lexical order and execution order.
-
-**Example: Function Declarations vs. Unhoisted Closures**
-```javascript
-function testHoisting() {         // Outer Scope (Starts at Pos 20)
-  // let x = hole
-  inner();
-  let x = 10;                     // initializer_position = Pos 65
-
-  // Function Declarations ARE hoisted.
-  function inner() {              // Inner Scope (Starts at Pos 140)
-    console.log(x);               // raw access_position for hole check = Pos 160
-                                  // access_position after walk = Pos 20
-  }
-
-  // Unhoisted closures (like classes or function expressions) are NOT hoisted.
-  class MyClass {                 // Class Scope (Starts at Pos 200)
-    method() {
-      console.log(x);             // raw access_position for hole check = Pos 240
-                                  // access_position after walk = Pos 240
-    }
-  }
-}
-```
-
-**The Problem with Raw Positions and Hoisting**
-In the `testHoisting` example above, the function `inner` is hoisted. It is called at line 35, *before* `x` is initialized at line 36. However, the raw source position of the access to `x` inside `inner` (line 40, Pos 160) is lexically *after* the initialization of `x` (line 36, Pos 65).
-
-If V8 relied solely on these raw source positions, it would incorrectly conclude that the access at Pos 160 happens after the initialization at Pos 65, and would elide the required hole check.
-
-### The Solution: Propagating `access_position`
-
-To fix this, when V8 encounters a variable access inside a nested closure, it resolves the reference by recursively walking the scope chain outward, updating an `access_position` along the way. This adjusted position projects the inner access onto the boundary of the outer scope.
-
-**How `access_position` solves the hoisting problem:**
-When V8 walks out of a scope, it checks if the scope boundary is hoisted. If it is, it updates the `access_position` to reflect that fact. Because a hoisted function can be called early, the access is effectively projected to the very beginning of the outer scope.
-
-**Lookup Trace for `x` in `console.log(x)` inside `inner` (Hoisted):**
-```text
-[Scope Walk] Current Scope: `inner`
-  - Target           : 'x'
-  - access_position  : 160 (Raw source position)
-  - Result           : Not found. Walking outward...
-
-[Scope Walk] Crossing boundary (`function inner()`)
-  - Boundary type    : Hoisted Function
-  - access_position  : Updated 160 -> 20 (Projected to start of outer scope)
-
-[Scope Walk] Current Scope: `testHoisting`
-  - Result           : Found `let x` (initializer_position: 65)
-
-[TDZ Check]  initializer_position (65) >= access_position (20)
-  - Conclusion       : TRUE (Hole check required!)
-```
-
-**Lookup Trace for `x` in `console.log(x)` inside `MyClass` (Not Hoisted):**
-```text
-[Scope Walk] Current Scope: `MyClass`
-  - Target           : 'x'
-  - access_position  : 240 (Raw source position)
-  - Result           : Not found. Walking outward...
-
-[Scope Walk] Crossing boundary (`class MyClass`)
-  - Boundary type    : Unhoisted Class
-  - access_position  : Unchanged (Remains 240)
-
-[Scope Walk] Current Scope: `testHoisting`
-  - Result           : Found `let x` (initializer_position: 65)
-
-[TDZ Check]  initializer_position (65) >= access_position (240)
-  - Conclusion       : FALSE (No hole check needed)
-```
-
-> **Note for Bytecode Generation**: For references that *do* require a hole check (`kRequired`), the parser also communicates whether the target is in the **same or different closure**. This is because the bytecode compiler performs its own local control-flow analysis on variables that are locally defined (in the same closure) to get more accurate hole check elimination. While it could theoretically be extended to cross-closure variables, V8 currently limits this tracking to the same closure as an **implementation decision** (partially to keep the analysis lightweight and bounded to 64 bits).
-
-## Advanced Closures: `is_hoisted_in_context`
-
-While walking the physical scope chain handles hoisting naturally, this breaks down with two performance features:
-1. **Lazy Compilation**: Compiling functions later must yield the same variable resolution as compiling them immediately.
-2. **Scope Elision**: Removing intermediate scopes that don't need context allocation to reduce the context chain length.
-
-**The Intersection Example:**
-To see how these features collide, consider a hoisted function that returns an inner function:
-
-```javascript
-function outer() {
-  // 1. We execute `hoisted()` and immediately call its return value (`inner()`).
-  // This happens BEFORE `x` is initialized, because `hoisted` is hoisted to the top.
-  hoisted()();
-
-  let x = 10;
-
-  function hoisted() {
-    // 2. ELIDED SCOPE: V8 elides this scope because `hoisted` declares no
-    // context-allocated variables of its own.
-
-    return function inner() {
-      // 3. LAZILY COMPILED UNIT: `inner` is compiled later when invoked.
-      // When compiled, it resolves the reference to `x`.
-      console.log(x); // ReferenceError (TDZ)
-    };
-  }
-}
-```
-
-**The Problem**:
-The scope of the hoisted function (`hoisted`) is elided by V8 to keep the context chain short. However, it contains an *inner* unit (`inner`) that is *lazily compiled* (compiled later). Because the outer function is hoisted, code inside this inner unit can execute early. When the inner unit is eventually compiled, any *references* it contains to variables outside the hoisted function (like `x`) must be resolved correctly.
-
-**The Fix**:
-Since the intermediate scope was elided, the physical boundary that would normally tell us to update the `access_position` for these references is gone. To fix this, V8 sets the `is_hoisted_in_context` flag to `true` on the scope of the lazily-compiled unit `inner`.
-
-Since `inner` is a function expression it is *not* lexically hoisted within its own outer scope (`hoisted`). Still, because `hoisted`'s scope is elided, the runtime context chain connects `inner` directly to `outer`.
-
-**The Runtime Context Chain (When `inner` is compiled):**
-```text
-[ inner() Scope ]  ========>  [ outer() Context ]
-                       ^
-                       | (The `hoisted()` scope is completely missing!)
-```
-
-In that *runtime context*, `inner` executes early because its parent was hoisted. The `is_hoisted_in_context` flag captures exactly this: it tells `inner` that while it isn't lexically hoisted itself, it *is* hoisted relative to the context it will see at runtime. This flag tells `inner` to update the `access_position` during its delayed compilation to the start position of the outer *context* — which, in this specific case, is the start position of `outer()`.
-
-*(Note: This flag must also be stored on the `SharedFunctionInfo` (SFI). Uncompiled functions don't have their own `ScopeInfo` before compilation, but they still need to know how their inner scopes will behave compared to the outer context).*
-
-## Standard Caching and the Stale Position Problem
-
-Walking the scope chain for every single variable access is computationally expensive (O(N) per access). To optimize this, V8 caches the resolved scope on standard lexical variables crossing a compilation-unit boundary. This happens when an inner function is compiled lazily, and it references variables from an outer function that has already been compiled. V8 uses the `ScopeInfo` generated during the outer function's compilation to resolve these variables. This resolution is cached directly on that compilation-unit boundary using **`cache_scope`**.
-
-### The Conflict: Stale `access_position`
-
-When a scope walk is short-circuited by a `cache_scope` hit (because we find a cached resolution from a previous lookup or from the outer `ScopeInfo`), the recursive traversal is skipped. As a direct consequence, the `access_position` that gets passed down to the hole-check logic is "stale" — it has **not** been adjusted by the intermediate scopes because they were skipped.
-
-If V8 relied on this stale `access_position` to recompute the hole check requirement (`var->initializer_position() >= access_position`), it would yield incorrect results.
-
-### The Solution: `HoleCheckState` Caching
-
-To avoid relying on a broken, un-adjusted `access_position`, V8 caches the *result* of the hole check computation directly on the variable (`HoleCheckState::kForce` or `kSkip`) during the *very first* full scope walk. Future lookups bypass the `access_position` calculation entirely.
-
-## The Mechanics of `eval` Scopes
-
-To understand why `eval` complicates hole check elision, it is helpful to review how variables declared *inside* an `eval` are scoped according to the ECMAScript specification:
-
-### Direct `eval` (Sloppy Mode)
-When `eval()` is called directly and strict mode is **not** active:
-- **`var` declarations**: Hoisted out of the `eval` and added to the enclosing function's variable declaration scope (often landing in a `VarBlock` or the function scope itself, introducing `DynamicLocal` behavior).
-- **`let` and `const` declarations**: Stay strictly inside the `eval` block's own scope. They do not leak to the outer function.
-
-### Direct `eval` (Strict Mode)
-When `eval()` is called directly and strict mode **is** active (either via `'use strict'` inside the eval or in the enclosing code):
-- **All declarations** (`var`, `let`, `const`, and functions) stay strictly inside the `eval`'s local scope. They never leak to the outer function. (Yes, `var` can be declared in strict mode `eval`, but it remains local to the `eval` execution context).
-
-### Indirect `eval`
-When `eval` is invoked indirectly (e.g., `(0, eval)("...")` or assigning `eval` to a variable and calling it):
-- The execution context is always the **global scope** (or module scope), not the local function scope.
-- **Sloppy mode**: `var` declarations leak to the global object.
-- **Strict mode**: All declarations stay local to the `eval` scope.
-
-> **Note on Performance**: This behavior exists to enable **static `eval` detection**. If indirect `eval` calls could also pollute the local function scope, V8 would have to conservatively assume that *any* function call (which could be an aliased `eval`) might dynamically introduce variables! This would prevent almost all local variable optimizations. By restricting local scope pollution to statically detectable *direct* `eval` calls, V8 preserves global performance.
-
-## Sloppy Eval and `DynamicLocal`
-
-When a function body contains a sloppy `eval`, V8 cannot statically know what variables it will access or introduce at runtime. Because `eval` might dynamically introduce a shadowing variable as a context extension, lookups within that closure must be treated dynamically.
-
-To handle this, V8 introduces the **`DynamicLocal`** variable mode. V8 caches the statically known lexical target underneath in a property called **`local_if_not_shadowed`** as a fallback.
-*(Note: `with` statements also introduce dynamic scopes, but for `with`, V8 falls back to pure `Dynamic` variables and emits `LdaLookupSlot`, which unconditionally calls out to the runtime with no fast path!)*.
-
-### Example 1: The Challenge of Eval
-
-```javascript
-function testEval() {
-  eval("console.log(y)"); // Throws ReferenceError! 'y' is in the TDZ.
-  let y = 20;
-}
-```
-
-The source position of `console.log(y)` *inside* the eval string is `0` (relative to the string's start). If V8 were to use this raw position `0` when looking up `y` in the outer scope, it would almost always appear to be *before* the outer variable's declaration, triggering unnecessary hole checks (even if the `eval` was called *after* the variable was initialized!).
-
-To solve this, when V8's scope walk crosses the boundary *out* of an `eval` scope, it simply swaps the raw inner `access_position` (which might be `0`) with the exact source position of the `eval()` call in the outer scope. From that point onward, the access is correctly evaluated as if it had physically occurred where `eval()` was invoked!
-
-### Example 2: Visualizing `local_if_not_shadowed`
-
-Let's "fake-add" the `DynamicLocal` concept into the JavaScript code to visualize how it links to the outer variable:
-
-```javascript
-function outer() {
-  // let x = hole
-
-  function inner(str) {
-    eval(str); // might introduce a shadowing 'var x'
-
-    // Conceptually, V8 sees 'x' here as:
-    // Proxy(x) -> DynamicLocal [local_if_not_shadowed -> Variable(x in outer)]
-    console.log(x);
-  }
-
-  let x = 10; // Statically resolved outer variable
-}
-```
-In this scenario, the access to `x` inside `inner` becomes a `DynamicLocal`. V8 caches `x` from the `outer` scope inside `local_if_not_shadowed`. If `str` does not declare a `var x` at runtime, V8 falls back to reading the cached `x` from the outer scope.
+Stage 1 of V8's hole check elision pipeline runs during **Scope Resolution (`Scope::ResolveVariable` -> `Scope::ResolveTo` -> `UpdateNeedsHoleCheck`)** in `src/ast/scopes.cc`. By comparing the source character position of a variable's declaration (`var->initializer_position()`) against the source position of each identifier reference (`access_position`), the parser statically eliminates the vast majority of TDZ checks.
 
 ---
 
-### Can the underlying variable be in the same closure as the `eval`?
-Usually no, with one exception (`VarBlock` scopes for functions with non-simple parameters). To understand why, we must first clarify where `DynamicLocal` variables are introduced: they are created in the **body's declaration scope** if that body contains an `eval` call within the closure. This is because the `eval` might dynamically introduce variables into that declaration scope at runtime, potentially shadowing existing variables.
+## 1. Why Source Position Comparison Is Subtle
 
-Given that, we look at how V8 handles different variable modes in this scenario:
+At first glance, it might seem sufficient to check `var->initializer_position() < proxy->position()`. Consider why that naive rule fails in two classic cases:
 
-- **For `let` and `const`**: `eval` can only introduce `var` declarations into the outer scope (since `let` and `const` stay strictly local to the `eval` itself). If we have a `let` or `const` variable in that same declaration scope, attempting to introduce a `var` with the same name via `eval` is a **SyntaxError** in JavaScript. Thus, a valid `DynamicLocal` can never shadow a `let` or `const` declared in the same declaration scope.
-- **For standard `var`**: If `eval` introduces a `var` that matches an existing `var` in the same closure, V8 simply resolves it directly or merges them rather than creating a `DynamicLocal`.
-- **For `VarBlock` scopes**: A `VarBlock` is a block scope that acts as a declaration scope. V8 uses them for **class static blocks** and for **functions with non-simple parameters**. Since classes are always in strict mode, an `eval` inside a class static block cannot introduce dynamic variables, so `DynamicLocal` is never needed there. For functions with non-simple parameters, parameters are declared as `kLet` with `kNeedsInitialization` in the `FUNCTION_SCOPE`, while the body runs in an inner `VarBlock` within the same closure scope. A `DynamicLocal` in the `VarBlock` can therefore target a parameter in the same closure scope (`target->scope()->IsOuterScopeUpToClosureScopeOf(var->scope())`). Because that `DynamicLocal` variable can be shared between references in the body (`same_closure_scope == true`) and references in inner closures (`same_closure_scope == false`), `HoleCheckState` is not scope-independent and is not cached on the `DynamicLocal` variable in this case; instead, V8 delegates directly to the underlying parameter variable (which never has a stale `access_position` since no closure boundary exists between the `VarBlock` and the `FUNCTION_SCOPE`).
+### Case A: Inner Closures Called Before Declaration
+```javascript
+{
+  function readX() {
+    return x; // proxy->position() is BEFORE `let x = 10`, OR what if readX() is declared AFTER `let x = 10`?
+  }
+  readX();    // Throws ReferenceError!
+  let x = 10;
+}
+```
+What if `readX()` is defined **after** `let x = 10`, so `proxy->position() > var->initializer_position()`, yet `readX()` is hoisted and called **before** `let x = 10`?
+```javascript
+{
+  readX();    // Called at position 10 (BEFORE let x = 10 at position 25!)
+  let x = 10; // Position 25
+  function readX() {
+    return x; // proxy->position() is 55 (AFTER position 25!), yet x is still in TDZ!
+  }
+}
+```
+Because `function readX()` is hoisted to the top of the block/function scope, an access inside an inner closure (`!same_closure_scope`) cannot simply compare `var->initializer_position()` against `proxy->position()` inside `readX`!
 
-Whenever a `DynamicLocal` variable caches `HoleCheckState` (`!target->scope()->IsOuterScopeUpToClosureScopeOf(var->scope())`), the shadowed target is guaranteed to be in a different, outer closure, so `same_closure_scope` is guaranteed to be false for all lookups through it.
+### Case B: Loops and Backward Jumps Within the Same Closure
+```javascript
+for (let i = 0; i < 2; i++) {
+  if (i === 1) console.log(x); // Position 45 (BEFORE `let x = 10` at position 60)
+  let x = 10;                  // Fresh lexical binding per iteration (or inside a switch/label loop)!
+}
+```
+
+How does V8's `Scope::Lookup` and `UpdateNeedsHoleCheck` handle both cases soundly?
+
+---
+
+## 2. How `access_position` Is Adjusted Across Closure Boundaries (`src/ast/scopes.cc`)
+
+When `Scope::ResolveVariable(VariableProxy* proxy)` starts looking up `proxy` from the inner scope outward (`Scope::Lookup`), it initializes:
+```cpp
+int access_position = proxy->position();
+```
+As `Scope::Lookup` walks outward from one scope `s` to `s->outer_scope_`, whenever it crosses a **closure boundary** (a `FUNCTION_SCOPE` or `DeclarationScope` where inner code could be invoked out-of-order relative to outer statements), `Lookup` updates `access_position` (`src/ast/scopes.cc`):
+- If crossing out of a function scope that could be hoisted or invoked early, `access_position` is clamped to the **enclosing scope's `start_position()`** (or the outer function's earliest invocation point)!
+- Consequently, by the time `Lookup` finds `var` in an outer scope, `access_position` represents the **earliest possible source position in `var->scope()`'s closure** at which the reference could execute!
+
+---
+
+## 3. Exact Decision Logic in `UpdateNeedsHoleCheck` (`src/ast/scopes.cc`)
+
+Once `Scope::Lookup` finds `Variable* var`, `Scope::ResolveTo` calls `UpdateNeedsHoleCheck(var, proxy, this, access_position)` (`src/ast/scopes.cc` lines 2441-2543):
+
+```mermaid
+flowchart TD
+    Start["UpdateNeedsHoleCheck(var, proxy, scope, access_position)"] --> CheckCache{"var->hole_check_state()?"}
+    CheckCache -- "kSkip" --> RetFalse["Return false (Elide check)"]
+    CheckCache -- "kForce" --> SetForce["SetNeedsHoleCheck (DifferentClosureScope)<br/>Return true"]
+    CheckCache -- "kUncached" --> CheckDynLocal{"var->mode() == kDynamicLocal?"}
+
+    CheckDynLocal -- "Yes (Sloppy eval shadow candidate)" --> RecurseDyn["Recurse on var->local_if_not_shadowed()<br/>Cache kForce/kSkip if across closure"]
+    CheckDynLocal -- "No" --> CheckDyn{"var->mode() == kDynamic?"}
+
+    CheckDyn -- "Yes (Handled in C++ runtime)" --> ClearDyn["Update target var's initialization flag,<br/>then proxy->clear_needs_hole_check()<br/>Return false"]
+    CheckDyn -- "No" --> CheckInitFlag{"var->initialization_flag() == kCreatedInitialized?<br/>(e.g. var, parameter, function)"}
+
+    CheckInitFlag -- "Yes" --> RetFalse
+    CheckInitFlag -- "No (kNeedsInitialization: let, const, class, using)" --> CheckMod{"var->location() == MODULE<br/>&& !var->IsExport()?"}
+
+    CheckMod -- "Yes (Imported module binding)" --> SetMod["SetNeedsHoleCheck(kHasHoleCheckUseInUnknownScope)<br/>Return true"]
+    CheckMod -- "No" --> CheckPos{"var->initializer_position() >= access_position?"}
+
+    CheckPos -- "Yes (Initialized AFTER or AT access)" --> SetPos["SetNeedsHoleCheck(same_closure_scope ?<br/>SameClosureScope : DifferentClosureScope)<br/>Return true"]
+    CheckPos -- "No (Initialized BEFORE access)" --> CheckSameClosure{"same_closure_scope?<br/>var->scope()->IsOuterScopeUpToClosureScopeOf(scope)"}
+
+    CheckSameClosure -- "Yes" --> CacheSkip["Cache kSkip if from_scope_info()<br/>Return false (Elide check!)"]
+    CheckSameClosure -- "No (Outer closure variable)" --> CheckDist{"initializer_position - scope->start_position<br/>>= ScopeInfo::kMaxVariablePositionDistance?"}
+
+    CheckDist -- "Yes (Too far from scope start to encode in ScopeInfo)" --> SetDist["SetNeedsHoleCheck(DifferentClosureScope)<br/>Return true"]
+    CheckDist -- "No" --> CacheSkip
+```
+
+### Key Rules and Edge Cases in `UpdateNeedsHoleCheck`
+
+1. **`kCreatedInitialized` Variables (`var`, simple parameters, hoisted `function`)**:
+   - Have `var->initialization_flag() == kCreatedInitialized` (initialized to `undefined` or the function closure upon entering the scope). They never need a TDZ hole check (`return false`).
+2. **Module Imports (`var->location() == VariableLocation::MODULE && !var->IsExport()`)**:
+   - Even if an `import { foo } from './b.js'` declaration appears at line 1 of a module, circular ES module dependencies mean `./b.js` might not have initialized `foo` yet when this module executes! Because the exporting module's state is unknown at compile time, non-export `MODULE` bindings **always** require a hole check (`kHasHoleCheckUseInUnknownScope`).
+3. **Sloppy `eval` Shadowing (`VariableMode::kDynamicLocal` and `VariableMode::kDynamic`)**:
+   - When a scope contains a direct sloppy `eval()`, an outer lexical variable `let x` may be wrapped in a `kDynamicLocal` or `kDynamic` variable (in case `eval("var x = 1")` dynamically introduces a shadowing `var`).
+   - For `kDynamicLocal`: `UpdateNeedsHoleCheck` recursively checks `var->local_if_not_shadowed()` so the fallback fast path (when `eval` did *not* shadow `x`) knows whether to check for `tdz_hole`.
+   - For `kDynamic`: the lookup itself goes through the C++ runtime (`Runtime_LoadLookupSlot`), which performs its own TDZ check in C++; However, `UpdateNeedsHoleCheck` still recurses on `local_if_not_shadowed()` first so the underlying `Variable` is marked as needing `tdz_hole` initialization (`ForceHoleInitialization`), and then calls `proxy->clear_needs_hole_check(var)` so `BytecodeGenerator` does not emit a redundant second check!
+4. **Same-Closure vs Cross-Closure Position Distance (`ScopeInfo::kMaxVariablePositionDistance`)**:
+   - Within the **same closure** (`var->scope()->IsOuterScopeUpToClosureScopeOf(scope)`), full AST `Variable` objects have exact 32-bit `initializer_position()` values. If `var->initializer_position() < access_position`, the initializer is guaranteed to have executed before the access (because no statement before `initializer_position()` can jump forward over `let x = ...` into the same block without entering the block from the top), so the hole check is **elided**!
+   - Across **different closures** (`!same_closure_scope`), what if the outer function was already compiled and its AST freed, so a lazily compiled inner function only has the outer function's serialized **`ScopeInfo`**?
+   - `ScopeInfo` does not waste space storing a full 32-bit `initializer_position` for every context local; instead, it packs a small boolean/distance flag indicating whether `var->initializer_position() - var->scope()->start_position() < ScopeInfo::kMaxVariablePositionDistance`. To ensure eager and lazy compilation make identical hole-check decisions, any cross-closure variable whose initializer is at or beyond `kMaxVariablePositionDistance` from its scope's start forces a hole check (`SetNeedsHoleCheck`).
+
+---
+
+## 4. Eliding `LdaTdzHole` Initialization (`ForceHoleInitializationFlag`)
+
+Initializing a variable slot with `tdz_hole_value` at scope entry costs bytecode size and execution time (`LdaTdzHole` + `Star rX` or `StaContextSlot`).
+- A `Variable` starts with `hole_initialization_flag_ == Variable::kHoleInitializationNotForced`.
+- Whenever `UpdateNeedsHoleCheck` decides that a `VariableProxy` **does** need a hole check, `SetNeedsHoleCheck` calls `var->ForceHoleInitialization(flag)` with one of:
+  - `kHasHoleCheckUseInSameClosureScope`
+  - `kHasHoleCheckUseInDifferentClosureScope`
+  - `kHasHoleCheckUseInUnknownScope`
+- If **every** reference to `let x` in the program had its hole check elided by `UpdateNeedsHoleCheck` (and no inner lazy function can observe `x` before initialization), `var->binding_needs_init()` remains **`false`**!
+- When `BytecodeGenerator` enters the block, it skips emitting `LdaTdzHole` for `x` altogether -- `x`'s register is simply written once when its `let x = expr` declaration executes!
+
+---
+
+## Key Source Files
+
+- `src/ast/scopes.cc`: `Scope::ResolveVariable`, `Scope::Lookup`, `Scope::ResolveTo`, `UpdateNeedsHoleCheck`, and `SetNeedsHoleCheck`.
+- `src/ast/variables.h`: `Variable::HoleCheckState` (`kUncached`, `kSkip`, `kForce`) and `Variable::ForceHoleInitializationFlag`.
+- `src/objects/scope-info.h`: `ScopeInfo::kMaxVariablePositionDistance`.

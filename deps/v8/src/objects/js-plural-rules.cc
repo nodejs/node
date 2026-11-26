@@ -101,7 +101,7 @@ MaybeDirectHandle<JSPluralRules> JSPluralRules::New(
   // requestedLocales, opt, %PluralRules%.[[RelevantExtensionKeys]],
   // localeData).
   Intl::ResolvedLocale r;
-  if (!Intl::ResolveLocale(isolate, JSPluralRules::GetAvailableLocales(),
+  if (!Intl::ResolveLocale(isolate, JSPluralRules::GetAvailableLocales,
                            requested_locales, matcher, {})
            .To(&r)) {
     THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError));

@@ -90,6 +90,7 @@ TFJ(ArrayPrototypeUnshift, kDontAdaptArgumentsSentinel) \
 TFC(GenericArrayWith, GenericArrayWith) \
 TFJ(ArrayPrototypeWith, JSParameterCount(2), kReceiver, kIndex, kValue) \
 TFJ(ArraySortContinueFromSnapshotEagerDeoptContinuation, JSParameterCount(3), kReceiver, kComparefn, kTempArray, kOriginalLength) \
+TFJ(ArraySortContinueFromSnapshotAfterCallbackEagerDeoptContinuation, JSParameterCount(4), kReceiver, kComparefn, kTempArray, kOriginalLength, kResult) \
 TFJ(ArraySortContinueFromSnapshotLazyDeoptContinuation, JSParameterCount(4), kReceiver, kComparefn, kTempArray, kOriginalLength, kResult) \
 TFJ(ArrayBufferPrototypeGetByteLength, JSParameterCount(0), kReceiver) \
 TFJ(ArrayBufferPrototypeGetMaxByteLength, JSParameterCount(0), kReceiver) \
@@ -205,7 +206,7 @@ TFJ(FinalizationRegistryConstructor, kDontAdaptArgumentsSentinel) \
 TFJ(FinalizationRegistryRegister, kDontAdaptArgumentsSentinel) \
 TFJ(FunctionPrototypeHasInstance, JSParameterCount(1), kReceiver, kValue) \
 TFJ(FastFunctionPrototypeBind, kDontAdaptArgumentsSentinel) \
-TFJ(GeneratorPrototypeNextLazyDeoptContinuation, JSParameterCount(3), kReceiver, kGenerator, kException, kResult) \
+TFJ(GeneratorPrototypeNextLazyDeoptContinuation, JSParameterCount(2), kReceiver, kException, kResult) \
 TFC(IncBlockCounter, IncBlockCounter) \
 TFC(GetTemplateObject, GetTemplateObject) \
 TFC(ForInNext, ForInNext) \
@@ -256,6 +257,10 @@ TFC(IteratorZipHelperNext, IteratorZipHelperNext) \
 TFJ(IteratorZipKeyed, kDontAdaptArgumentsSentinel) \
 TFC(IteratorZipKeyedHelperNext, IteratorZipKeyedHelperNext) \
 TFJ(IteratorPrototypeIncludes, kDontAdaptArgumentsSentinel) \
+TFJ(IteratorPrototypeChunks, JSParameterCount(1), kReceiver, kChunkSize) \
+TFC(IteratorChunksHelperNext, IteratorChunksHelperNext) \
+TFJ(IteratorPrototypeWindows, kDontAdaptArgumentsSentinel) \
+TFC(IteratorWindowsHelperNext, IteratorWindowsHelperNext) \
 TFJ(MapGroupBy, JSParameterCount(2), kReceiver, kItems, kCallback) \
 TFJ(MathAbs, JSParameterCount(1), kReceiver, kX) \
 TFJ(MathCeil, JSParameterCount(1), kReceiver, kX) \
@@ -392,6 +397,7 @@ TFJ(ReflectDeleteProperty, JSParameterCount(2), kReceiver, kObject, kKey) \
 TFJ(ReflectHas, JSParameterCount(2), kReceiver, kObject, kKey) \
 TFJ(ReflectGetOwnPropertyDescriptor, JSParameterCount(2), kReceiver, kTarget, kPropertyKey) \
 TFC(RegExpPrototypeExecSlow, RegExpPrototypeExecSlow) \
+TFC(RegExpPrototypeExecFast, RegExpPrototypeExecFast) \
 TFJ(RegExpPrototypeExec, JSParameterCount(1), kReceiver, kString) \
 TFJ(RegExpPrototypeMatchAll, JSParameterCount(1), kReceiver, kString) \
 TFJ(RegExpStringIteratorPrototypeNext, JSParameterCount(0), kReceiver) \
@@ -626,7 +632,6 @@ TFC(WasmStringNewWtf8, WasmStringNewWtf8) \
 TFC(WasmStringNewWtf8Array, WasmStringNewWtf8Array) \
 TFC(WasmStringNewWtf16, WasmStringNewWtf16) \
 TFC(WasmStringNewWtf16Array, WasmStringNewWtf16Array) \
-TFC(WasmStringFromDataSegment, WasmStringFromDataSegment) \
 TFC(WasmStringAsWtf16, WasmStringAsWtf16) \
 TFC(WasmStringConst, WasmStringConst) \
 TFC(WasmStringMeasureUtf8, WasmStringMeasureUtf8) \

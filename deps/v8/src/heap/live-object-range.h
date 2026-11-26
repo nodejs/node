@@ -7,6 +7,7 @@
 
 #include <utility>
 
+#include "src/common/globals.h"
 #include "src/heap/marking.h"
 #include "src/objects/heap-object.h"
 
@@ -14,6 +15,7 @@ namespace v8::internal {
 
 class NormalPage;
 
+template <ConcurrencyMode kConcurrencyMode>
 class LiveObjectRange final {
  public:
   class iterator final {
@@ -41,6 +43,8 @@ class LiveObjectRange final {
    private:
     inline bool AdvanceToNextMarkedObject();
     inline void AdvanceToNextValidObject();
+    static inline std::pair<Tagged<Map>, SafeHeapObjectSize> ReadMapAndSize(
+        Tagged<HeapObject> object);
 
     const NormalPage* const page_ = nullptr;
     const MarkBit::CellType* const cells_ = nullptr;

@@ -54,6 +54,8 @@ JSHeapBroker::JSHeapBroker(Isolate* isolate, Zone* broker_zone,
       root_index_map_(isolate),
       tracing_enabled_(tracing_enabled),
       code_kind_(code_kind),
+      is_context_slot_not_assigned_unreliable_(
+          isolate->is_context_slot_not_assigned_unreliable()),
       feedback_(zone()),
       property_access_infos_(zone()) {
   TRACE(this, "Constructing heap broker");
@@ -153,7 +155,7 @@ Address* JSHeapBroker::AllocatePersistentHandle(Tagged<Object> object) {
 
 bool JSHeapBroker::StackHasOverflowed() const {
   DCHECK_IMPLIES(local_isolate_ == nullptr,
-                 ThreadId::Current() == isolate_->thread_id());
+                 base::ThreadId::Current() == isolate_->thread_id());
   return (local_isolate_ != nullptr)
              ? StackLimitCheck::HasOverflowed(local_isolate_)
              : StackLimitCheck(isolate_).HasOverflowed();
@@ -402,7 +404,9 @@ ElementAccessFeedback::ElementAccessFeedback(Zone* zone,
 }
 
 bool ElementAccessFeedback::HasOnlyStringMaps(JSHeapBroker* broker) const {
+  if (transition_groups().empty()) return false;
   for (auto const& group : transition_groups()) {
+    DCHECK(!group.empty());
     for (MapRef map : group) {
       if (!map.IsStringMap()) return false;
     }
@@ -678,7 +682,7 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForGlobalAccess(
 
     // Lexical script-context const slots can be mutated via the debugger.
     bool immutable = FeedbackNexus::ImmutabilityBit::decode(number) &&
-                     !isolate()->is_context_slot_not_assigned_unreliable();
+                     !is_context_slot_not_assigned_unreliable();
     return *zone()->New<GlobalAccessFeedback>(context, context_slot_index,
                                               immutable, nexus.kind());
   }
@@ -824,7 +828,11 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForCall(
 
   float frequency = nexus.ComputeCallFrequency();
   SpeculationMode mode = nexus.GetSpeculationMode();
-  CallFeedbackContent content = nexus.GetCallFeedbackContent();
+  CallFeedbackContent content = CallFeedbackContent::kTarget;
+  if (target_ref.has_value() && target_ref->map(this).is_callable()) {
+    DCHECK(target_ref->IsJSFunction() || target_ref->IsJSBoundFunction());
+    content = nexus.GetCallFeedbackContent();
+  }
   return *zone()->New<CallFeedback>(target_ref, frequency, mode, content,
                                     nexus.kind());
 }

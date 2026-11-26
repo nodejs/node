@@ -16,9 +16,8 @@ using RunWasmExceptionsUninitializedTest = WasmUninitializedTestBase;
 #define WASM_UNINITIALIZED_EXEC_TEST_SUITE RunWasmExceptionsUninitializedTest
 
 WASM_EXEC_TEST(TryCatchThrow) {
-  TestSignatures sigs;
   WasmRunner<uint32_t, uint32_t> r(execution_tier);
-  uint8_t except = r.builder().AddException(sigs.v_v());
+  uint8_t except = r.builder().AddException(TestSignatures::v_v());
   constexpr uint32_t kResult0 = 23;
   constexpr uint32_t kResult1 = 42;
 
@@ -35,9 +34,8 @@ WASM_EXEC_TEST(TryCatchThrow) {
 }
 
 WASM_EXEC_TEST(TryCatchThrowWithValue) {
-  TestSignatures sigs;
   WasmRunner<uint32_t, uint32_t> r(execution_tier);
-  uint8_t except = r.builder().AddException(sigs.v_i());
+  uint8_t except = r.builder().AddException(TestSignatures::v_i());
   constexpr uint32_t kResult0 = 23;
   constexpr uint32_t kResult1 = 42;
 
@@ -55,10 +53,9 @@ WASM_EXEC_TEST(TryCatchThrowWithValue) {
 }
 
 WASM_EXEC_TEST(TryMultiCatchThrow) {
-  TestSignatures sigs;
   WasmRunner<uint32_t, uint32_t> r(execution_tier);
-  uint8_t except1 = r.builder().AddException(sigs.v_v());
-  uint8_t except2 = r.builder().AddException(sigs.v_v());
+  uint8_t except1 = r.builder().AddException(TestSignatures::v_v());
+  uint8_t except2 = r.builder().AddException(TestSignatures::v_v());
   constexpr uint32_t kResult0 = 23;
   constexpr uint32_t kResult1 = 42;
   constexpr uint32_t kResult2 = 51;
@@ -80,9 +77,8 @@ WASM_EXEC_TEST(TryMultiCatchThrow) {
 }
 
 WASM_EXEC_TEST(TryCatchAllThrow) {
-  TestSignatures sigs;
   WasmRunner<uint32_t, uint32_t> r(execution_tier);
-  uint8_t except = r.builder().AddException(sigs.v_v());
+  uint8_t except = r.builder().AddException(TestSignatures::v_v());
   constexpr uint32_t kResult0 = 23;
   constexpr uint32_t kResult1 = 42;
 
@@ -99,10 +95,9 @@ WASM_EXEC_TEST(TryCatchAllThrow) {
 }
 
 WASM_EXEC_TEST(TryCatchCatchAllThrow) {
-  TestSignatures sigs;
   WasmRunner<uint32_t, uint32_t> r(execution_tier);
-  uint8_t except1 = r.builder().AddException(sigs.v_v());
-  uint8_t except2 = r.builder().AddException(sigs.v_v());
+  uint8_t except1 = r.builder().AddException(TestSignatures::v_v());
+  uint8_t except2 = r.builder().AddException(TestSignatures::v_v());
   constexpr uint32_t kResult0 = 23;
   constexpr uint32_t kResult1 = 42;
   constexpr uint32_t kResult2 = 51;
@@ -124,10 +119,9 @@ WASM_EXEC_TEST(TryCatchCatchAllThrow) {
 }
 
 WASM_EXEC_TEST(TryImplicitRethrow) {
-  TestSignatures sigs;
   WasmRunner<uint32_t, uint32_t> r(execution_tier);
-  uint8_t except1 = r.builder().AddException(sigs.v_v());
-  uint8_t except2 = r.builder().AddException(sigs.v_v());
+  uint8_t except1 = r.builder().AddException(TestSignatures::v_v());
+  uint8_t except2 = r.builder().AddException(TestSignatures::v_v());
   constexpr uint32_t kResult0 = 23;
   constexpr uint32_t kResult1 = 42;
   constexpr uint32_t kResult2 = 51;
@@ -148,9 +142,8 @@ WASM_EXEC_TEST(TryImplicitRethrow) {
 }
 
 WASM_EXEC_TEST(TryDelegate) {
-  TestSignatures sigs;
   WasmRunner<uint32_t, uint32_t> r(execution_tier);
-  uint8_t except = r.builder().AddException(sigs.v_v());
+  uint8_t except = r.builder().AddException(TestSignatures::v_v());
   constexpr uint32_t kResult0 = 23;
   constexpr uint32_t kResult1 = 42;
 
@@ -170,9 +163,8 @@ WASM_EXEC_TEST(TryDelegate) {
 }
 
 WASM_EXEC_TEST(TestCatchlessTry) {
-  TestSignatures sigs;
   WasmRunner<uint32_t> r(execution_tier);
-  uint8_t except = r.builder().AddException(sigs.v_i());
+  uint8_t except = r.builder().AddException(TestSignatures::v_i());
   r.Build({WASM_TRY_CATCH_T(
       kWasmI32,
       WASM_TRY_T(kWasmI32, WASM_STMTS(WASM_I32V(0), WASM_THROW(except))),
@@ -181,10 +173,9 @@ WASM_EXEC_TEST(TestCatchlessTry) {
 }
 
 WASM_EXEC_TEST(TryCatchRethrow) {
-  TestSignatures sigs;
   WasmRunner<uint32_t, uint32_t> r(execution_tier);
-  uint8_t except1 = r.builder().AddException(sigs.v_v());
-  uint8_t except2 = r.builder().AddException(sigs.v_v());
+  uint8_t except1 = r.builder().AddException(TestSignatures::v_v());
+  uint8_t except2 = r.builder().AddException(TestSignatures::v_v());
   constexpr uint32_t kResult0 = 23;
   constexpr uint32_t kResult1 = 42;
   constexpr uint32_t kUnreachable = 51;
@@ -209,9 +200,8 @@ WASM_EXEC_TEST(TryCatchRethrow) {
 }
 
 WASM_EXEC_TEST(TryDelegateToCaller) {
-  TestSignatures sigs;
   WasmRunner<uint32_t, uint32_t> r(execution_tier);
-  uint8_t except = r.builder().AddException(sigs.v_v());
+  uint8_t except = r.builder().AddException(TestSignatures::v_v());
   constexpr uint32_t kResult0 = 23;
   constexpr uint32_t kResult1 = 42;
 
@@ -232,14 +222,13 @@ WASM_EXEC_TEST(TryDelegateToCaller) {
 }
 
 WASM_EXEC_TEST(TryCatchCallDirect) {
-  TestSignatures sigs;
   WasmRunner<uint32_t, uint32_t> r(execution_tier);
-  uint8_t except = r.builder().AddException(sigs.v_v());
+  uint8_t except = r.builder().AddException(TestSignatures::v_v());
   constexpr uint32_t kResult0 = 23;
   constexpr uint32_t kResult1 = 42;
 
   // Build a throwing helper function.
-  WasmFunctionCompiler& throw_func = r.NewFunction(sigs.i_ii());
+  WasmFunctionCompiler& throw_func = r.NewFunction(TestSignatures::i_ii());
   throw_func.Build({WASM_THROW(except)});
 
   // Build the main test function.
@@ -259,14 +248,13 @@ WASM_EXEC_TEST(TryCatchCallDirect) {
 }
 
 WASM_EXEC_TEST(TryCatchAllCallDirect) {
-  TestSignatures sigs;
   WasmRunner<uint32_t, uint32_t> r(execution_tier);
-  uint8_t except = r.builder().AddException(sigs.v_v());
+  uint8_t except = r.builder().AddException(TestSignatures::v_v());
   constexpr uint32_t kResult0 = 23;
   constexpr uint32_t kResult1 = 42;
 
   // Build a throwing helper function.
-  WasmFunctionCompiler& throw_func = r.NewFunction(sigs.i_ii());
+  WasmFunctionCompiler& throw_func = r.NewFunction(TestSignatures::i_ii());
   throw_func.Build({WASM_THROW(except)});
 
   // Build the main test function.
@@ -286,14 +274,13 @@ WASM_EXEC_TEST(TryCatchAllCallDirect) {
 }
 
 WASM_EXEC_TEST(TryCatchCallIndirect) {
-  TestSignatures sigs;
   WasmRunner<uint32_t, uint32_t> r(execution_tier);
-  uint8_t except = r.builder().AddException(sigs.v_v());
+  uint8_t except = r.builder().AddException(TestSignatures::v_v());
   constexpr uint32_t kResult0 = 23;
   constexpr uint32_t kResult1 = 42;
 
   // Build a throwing helper function.
-  WasmFunctionCompiler& throw_func = r.NewFunction(sigs.i_ii());
+  WasmFunctionCompiler& throw_func = r.NewFunction(TestSignatures::i_ii());
   throw_func.Build({WASM_THROW(except)});
 
   // Add an indirect function table.
@@ -319,14 +306,13 @@ WASM_EXEC_TEST(TryCatchCallIndirect) {
 }
 
 WASM_EXEC_TEST(TryCatchAllCallIndirect) {
-  TestSignatures sigs;
   WasmRunner<uint32_t, uint32_t> r(execution_tier);
-  uint8_t except = r.builder().AddException(sigs.v_v());
+  uint8_t except = r.builder().AddException(TestSignatures::v_v());
   constexpr uint32_t kResult0 = 23;
   constexpr uint32_t kResult1 = 42;
 
   // Build a throwing helper function.
-  WasmFunctionCompiler& throw_func = r.NewFunction(sigs.i_ii());
+  WasmFunctionCompiler& throw_func = r.NewFunction(TestSignatures::i_ii());
   throw_func.Build({WASM_THROW(except)});
 
   // Add an indirect function table.
@@ -352,13 +338,12 @@ WASM_EXEC_TEST(TryCatchAllCallIndirect) {
 }
 
 WASM_COMPILED_EXEC_TEST(TryCatchCallExternal) {
-  TestSignatures sigs;
   HandleScope scope(WasmExecutionTestBase::InitIsolateOnce());
   const char* source = "(function() { throw 'ball'; })";
   DirectHandle<JSFunction> js_function =
       Cast<JSFunction>(v8::Utils::OpenDirectHandle(
           *v8::Local<v8::Function>::Cast(CompileRun(source))));
-  ManuallyImportedJSFunction import = {sigs.i_ii(), js_function};
+  ManuallyImportedJSFunction import = {TestSignatures::i_ii(), js_function};
   WasmRunner<uint32_t, uint32_t> r(execution_tier, &import);
   constexpr uint32_t kResult0 = 23;
   constexpr uint32_t kResult1 = 42;
@@ -380,13 +365,12 @@ WASM_COMPILED_EXEC_TEST(TryCatchCallExternal) {
 }
 
 WASM_COMPILED_EXEC_TEST(TryCatchAllCallExternal) {
-  TestSignatures sigs;
   HandleScope scope(WasmExecutionTestBase::InitIsolateOnce());
   const char* source = "(function() { throw 'ball'; })";
   DirectHandle<JSFunction> js_function =
       Cast<JSFunction>(v8::Utils::OpenDirectHandle(
           *v8::Local<v8::Function>::Cast(CompileRun(source))));
-  ManuallyImportedJSFunction import = {sigs.i_ii(), js_function};
+  ManuallyImportedJSFunction import = {TestSignatures::i_ii(), js_function};
   WasmRunner<uint32_t, uint32_t> r(execution_tier, &import);
   constexpr uint32_t kResult0 = 23;
   constexpr uint32_t kResult1 = 42;
@@ -411,7 +395,6 @@ namespace {
 
 void TestTrapNotCaught(uint8_t* code, size_t code_size,
                        TestExecutionTier execution_tier) {
-  TestSignatures sigs;
   WasmRunner<uint32_t> r(execution_tier, nullptr, "main");
   r.builder().AddMemory(kWasmPageSize);
   constexpr uint32_t kResultSuccess = 23;
@@ -422,7 +405,7 @@ void TestTrapNotCaught(uint8_t* code, size_t code_size,
   r.builder().AddIndirectFunctionTable(nullptr, kTableSize);
 
   // Build a trapping helper function.
-  WasmFunctionCompiler& trap_func = r.NewFunction(sigs.i_ii());
+  WasmFunctionCompiler& trap_func = r.NewFunction(TestSignatures::i_ii());
   trap_func.Build(base::VectorOf(code, code_size));
 
   // Build the main test function.
@@ -472,7 +455,6 @@ WASM_EXEC_TEST(TryCatchTrapTableFill) {
 }
 
 UNINITIALIZED_WASM_EXEC_TEST(TestStackOverflowNotCaught) {
-  TestSignatures sigs;
   // v8_flags.stack_size must be set before isolate initialization.
   FlagScope<int32_t> stack_size(&v8_flags.stack_size, 8);
 
@@ -481,7 +463,7 @@ UNINITIALIZED_WASM_EXEC_TEST(TestStackOverflowNotCaught) {
   WasmRunner<uint32_t> r(isolate_scope.isolate(), execution_tier);
 
   // Build a function that calls itself until stack overflow.
-  WasmFunctionCompiler& stack_overflow = r.NewFunction(sigs.v_v());
+  WasmFunctionCompiler& stack_overflow = r.NewFunction(TestSignatures::v_v());
   stack_overflow.Build({kExprCallFunction,
                         static_cast<uint8_t>(stack_overflow.function_index())});
 

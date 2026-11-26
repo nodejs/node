@@ -91,7 +91,7 @@ LIBC_INLINE float16 atan2f16(float16 y, float16 x) {
 
   double k_d = fputil::nearest_integer(q_d * 0x1.0p4);
   int idx = static_cast<int>(k_d);
-  q_d = fputil::multiply_add(k_d, -0x1.0p-4, q_d);
+  q_d = fputil::sub_multiply(q_d, k_d, 0x1.0p-4);
 
   double p = atan_eval(q_d, static_cast<unsigned>(idx));
   double r = final_sign *

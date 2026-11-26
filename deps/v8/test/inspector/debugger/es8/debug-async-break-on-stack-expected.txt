@@ -1,0 +1,10 @@
+Tests debug-async-break-on-stack.
+  setbreaks();
+  #throw 1;  // B1
+}
+
+  } catch (e) {}
+  #return 2;  // B2
+}
+
+break_count: 2

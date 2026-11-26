@@ -4,6 +4,11 @@
 """Pure text formatting shared by the `v8` command renderers."""
 
 
+def is_js_identifier(text):
+  # Python's isidentifier() covers JavaScript identifiers except for `$`.
+  return text.replace("$", "_").isidentifier()
+
+
 def format_frame_location(annotation):
   """Format "<function_name> @ <script_name>:<line>:<column>" for a JS frame.
 
@@ -21,7 +26,11 @@ def format_frame_location(annotation):
   return location
 
 
-def format_frame_trailer(receiver, argc, arg_previews=None):
+def format_arg_label(index, param_names):
+  return param_names.get(index) or f"[{index}]"
+
+
+def format_frame_trailer(receiver, argc, arg_previews=None, param_names=None):
   """Format the frame trailer as " (this=0x..., ...)" or an empty string.
 
   If `arg_previews` is given, the trailer lists them and adds a
@@ -34,7 +43,8 @@ def format_frame_trailer(receiver, argc, arg_previews=None):
   if arg_previews is None:
     parts.append(f"argc={argc if argc is not None else '?'}")
   else:
-    parts.extend(f"[{i}]={preview}" for i, preview in enumerate(arg_previews))
+    parts.extend(f"{format_arg_label(i, param_names)}={preview}"
+                 for i, preview in enumerate(arg_previews))
     if argc is not None and argc > len(arg_previews):
       parts.append(f"... (argc={argc})")
   return " (" + ", ".join(parts) + ")"

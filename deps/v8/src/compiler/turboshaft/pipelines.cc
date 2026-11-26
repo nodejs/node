@@ -32,7 +32,6 @@ void SimplificationAndNormalizationPhase::Run(PipelineData* data,
 }
 
 bool Pipeline::AllocateRegisters(const RegisterConfiguration* config,
-                                 CallDescriptor* call_descriptor,
                                  bool run_verifier) {
   // Don't track usage for this zone in compiler stats.
   std::unique_ptr<Zone> verifier_zone;
@@ -52,7 +51,11 @@ bool Pipeline::AllocateRegisters(const RegisterConfiguration* config,
   data_->sequence()->ValidateDeferredBlockExitPaths();
 #endif
 
-  data_->InitializeRegisterComponent(config, call_descriptor);
+  data_->InitializeRegisterComponent(config);
+  struct V8_NODISCARD ClearRegisterComponentScope {
+    PipelineData* data;
+    ~ClearRegisterComponentScope() { data->ClearRegisterComponent(); }
+  } clear_register_component{data_};
 
   RUN_MAYBE_ABORT(MeetRegisterConstraintsPhase);
   RUN_MAYBE_ABORT(ResolvePhisPhase);
@@ -83,7 +86,6 @@ bool Pipeline::AllocateRegisters(const RegisterConfiguration* config,
     RUN_MAYBE_ABORT(AllocateSimd128RegistersPhase<LinearScanAllocator>);
   }
 
-  RUN_MAYBE_ABORT(DecideSpillingModePhase);
   RUN_MAYBE_ABORT(AssignSpillSlotsPhase);
 
   // The prologue grows the frame with a single stack pointer decrement, before
@@ -92,11 +94,10 @@ bool Pipeline::AllocateRegisters(const RegisterConfiguration* config,
   // unchecked stack pointer jump of arbitrary size.
   // When replacing this bailout with a different strategy, consider doing the
   // same in Maglev as well.
-  constexpr int kMaxStackSlots = 4 * KB / kSystemPointerSize;
   if (data_->info()->IsOptimizing() &&
-      data_->frame()->GetTotalFrameSlotCount() > kMaxStackSlots) {
+      data_->frame()->GetTotalFrameSlotCount() >
+          Frame::kMaxOptimizedJSFrameSlots) {
     data_->info()->AbortOptimization(BailoutReason::kFunctionTooBig);
-    data()->ClearRegisterComponent();
     return false;
   }
 
@@ -132,7 +133,6 @@ bool Pipeline::AllocateRegisters(const RegisterConfiguration* config,
                                        data_->register_allocation_data());
   }
 
-  data()->ClearRegisterComponent();
   return true;
 }
 
@@ -142,6 +142,7 @@ bool Pipeline::AllocateRegisters(const RegisterConfiguration* config,
     const ProfileDataFromFile* profile, int initial_graph_hash) {
   // Run code generation. If we optimize jumps, we repeat this a second time.
   data()->InitializeCodegenComponent(osr_helper, jump_optimization_info);
+  ClearComponentsOnFailureScope clear_on_failure(data());
 
   // Perform instruction selection and register allocation.
   if (!PrepareForInstructionSelection(profile)) return false;
@@ -167,6 +168,7 @@ bool Pipeline::AllocateRegisters(const RegisterConfiguration* config,
     // Generate the final machine code.
     if (!AssembleCode(linkage)) return false;
   }
+  clear_on_failure.MarkSucceeded();
   return true;
 }
 

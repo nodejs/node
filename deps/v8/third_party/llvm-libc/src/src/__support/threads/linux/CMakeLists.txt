@@ -67,8 +67,8 @@ add_object_library(
     libc.hdr.errno_macros
     libc.hdr.sched_macros
     libc.hdr.sys_mman_macros
-    libc.src.errno.errno
     libc.src.__support.CPP.atomic
+    libc.src.__support.CPP.optional
     libc.src.__support.CPP.stringstream
     libc.src.__support.CPP.string_view
     libc.src.__support.common
@@ -90,6 +90,9 @@ add_object_library(
     libc.src.__support.OSUtil.linux.syscall_wrappers.write
     libc.src.__support.threads.thread_common
     libc.src.__support.threads.thread_attributes
+    libc.src.__support.time.linux.cpu_clock
+  COMPILE_OPTIONS
+    ${libc_opt_high_flag}
 )
 
 add_header_library(

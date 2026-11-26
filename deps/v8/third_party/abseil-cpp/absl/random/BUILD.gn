@@ -82,7 +82,6 @@ absl_source_set("bit_gen_ref") {
   public = [ "bit_gen_ref.h" ]
   deps = [
     ":mocking_access",
-    ":random",
     "//third_party/abseil-cpp/absl/base:config",
     "//third_party/abseil-cpp/absl/base:core_headers",
     "//third_party/abseil-cpp/absl/base:fast_type_id",

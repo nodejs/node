@@ -19,10 +19,16 @@
 #include "src/base/atomic-utils.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/time.h"
-#include "src/execution/thread-id.h"
+#include "src/base/thread-id.h"
 #include "src/logging/tracing-flags.h"
-#include "src/tracing/traced-value.h"
 #include "src/tracing/tracing-category-observer.h"
+
+namespace v8::tracing {
+// Forward-declare TracedValue to avoid pulling in src/tracing/traced-value.h
+// (and transitively the Perfetto SDK headers) into every translation unit that
+// includes runtime-call-stats.h.
+class TracedValue;
+}  // namespace v8::tracing
 
 #endif  // V8_RUNTIME_CALL_STATS
 
@@ -247,7 +253,6 @@ namespace v8::internal {
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, BytecodeGraphBuilder)              \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, CommitAssignment)                  \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, ConnectRanges)                     \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, DecideSpillingMode)                \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, EarlyGraphTrimming)                \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, EarlyOptimization)                 \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, EscapeAnalysis)                    \
@@ -459,6 +464,7 @@ namespace v8::internal {
   V(KeyedStoreIC_StoreFastElementStub)            \
   V(LoadGlobalIC_LoadScriptContextField)          \
   V(LoadGlobalIC_SlowStub)                        \
+  V(LoadIC_FunctionNameStub)                      \
   V(LoadIC_FunctionPrototypeStub)                 \
   V(LoadIC_HandlerCacheHit_Accessor)              \
   V(LoadIC_LoadAccessorDH)                        \
@@ -664,7 +670,7 @@ class RuntimeCallStats final {
   V8_EXPORT_PRIVATE void Print();
   V8_NOINLINE void Dump(v8::tracing::TracedValue* value);
 
-  ThreadId thread_id() const { return thread_id_; }
+  base::ThreadId thread_id() const { return thread_id_; }
   RuntimeCallTimer* current_timer() { return current_timer_.Value(); }
   RuntimeCallCounter* current_counter() { return current_counter_.Value(); }
   bool InUse() { return in_use_; }
@@ -714,7 +720,7 @@ class RuntimeCallStats final {
   // Used to track nested tracing scopes.
   bool in_use_;
   ThreadType thread_type_;
-  ThreadId thread_id_;
+  base::ThreadId thread_id_ = base::ThreadId::Invalid();
   RuntimeCallCounter counters_[kNumberOfCounters];
 };
 
@@ -740,7 +746,7 @@ class WorkerThreadRuntimeCallStats final {
   // Since this is for creating worker thread runtime-call stats, record the
   // main thread ID to ensure we never create a worker RCS table for the main
   // thread.
-  ThreadId isolate_thread_id_;
+  base::ThreadId isolate_thread_id_;
 };
 
 // Creating a WorkerThreadRuntimeCallStatsScope will provide a thread-local

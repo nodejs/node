@@ -194,8 +194,9 @@ class DebuggerSession:
   def frame_trailer(self, function_name):
     """Parse the `(this=0xADDR, ...)` trailer for one JS frame.
 
-    Returns `(receiver, argc)`, where argc is the number of `[N]=` previews
-    or the total from the `... (argc=N)` tail when the previews were capped.
+    Returns `(receiver, argc)`, where argc is the number of `[N]=` or `name=`
+    previews, or the total from the `... (argc=N)` tail when the previews were
+    capped.
     """
     bt = self.run_command("bt")
     pattern = re.compile(rf"\[{re.escape(function_name)}[^\[\]]*\][^\n]*"
@@ -209,7 +210,7 @@ class DebuggerSession:
     if tail:
       argc = int(tail.group(1))
     else:
-      argc = len(re.findall(r"\[\d+\]=", rest))
+      argc = len(re.findall(r", (?:\[\d+\]|[A-Za-z_$][\w$]*)=", rest))
     return m.group(1), argc
 
   def frame_receiver(self, function_name):

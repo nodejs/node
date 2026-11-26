@@ -35,6 +35,7 @@
 #include "experimental/redline/core/program.h"
 #include "experimental/redline/core/random.h"
 #include "experimental/redline/corpus/corpus.h"
+#include "experimental/redline/engine/config.h"
 #include "experimental/redline/engine/prelude.h"
 #include "experimental/redline/exec/runner.h"
 #include "experimental/redline/exec/target_options.h"
@@ -725,7 +726,7 @@ class Shell {
     }
     Random rng(seed);
     std::unique_ptr<fast::Tree> tree = current_->CopyTree();
-    Builder builder(tree.get(), &rng);
+    Builder builder(tree.get(), &rng, &env_);
     std::vector<fast::Statement*> out;
     Builder::Slot slot;
     bool generated = false;
@@ -1034,8 +1035,17 @@ class Shell {
       return;
     }
     std::unique_ptr<fast::Tree> work = current_->CopyTree();
-    MinimizationResult result =
-        minimizer_.MinimizeWith(reducers, work.get(), oracle, &checker_);
+    MinimizerOptions options;
+    if (oracle_name == "crash") {
+      // Keep crash minimization uncapped by adaptive scaling and early
+      // stopping.
+      options.target_time_ms = 0;
+      options.expressions_share = 1.0;
+    } else {
+      options = FuzzConfig().minimizer.ForProgram(first.exec_time_us);
+    }
+    MinimizationResult result = minimizer_.MinimizeWith(
+        reducers, work.get(), oracle, &checker_, options);
     if (result.accepted == 0) {
       printf("%s: nothing could be removed (%d tests, %.1f s)\n", which.c_str(),
              result.tests, static_cast<double>(result.time_us) / 1e6);

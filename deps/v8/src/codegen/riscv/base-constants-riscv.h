@@ -230,11 +230,11 @@ static_assert(kMaxTracepointCode < kMaxStopCode);
 // For example:
 //
 // __ Debug(TRACE_ENABLE | LOG_TRACE);
-// starts tracing: set v8_flags.trace-sim is true.
+// starts tracing: calls Simulator::SetInstructionTracing(true).
 // __ Debug(TRACE_ENABLE | LOG_REGS);
 // PrintAllregs.
 // __ Debug(TRACE_DISABLE | LOG_TRACE);
-// stops tracing: set v8_flags.trace-sim is false.
+// stops tracing: calls Simulator::SetInstructionTracing(false).
 const unsigned kDebuggerTracingDirectivesMask = 0b111 << 3;
 enum DebugParameters : uint32_t {
   NO_PARAM = 1 << 5,
@@ -340,7 +340,7 @@ constexpr int kRvvELEN = 64;
 // Maximum supported VLEN in bits.
 // Code that could fail with larger VLEN should static_assert against this
 // constant.
-constexpr int kMaxRvvVLEN = 512;
+constexpr int kMaxRvvVLEN = 1024;
 
 #if V8_TARGET_ARCH_RISCV64
 constexpr int kRvXLEN = 64;
@@ -754,7 +754,10 @@ class InstructionBase {
     return FirstHalfWord == 0;
   }
 
-  bool IsShortInstruction() const;
+  inline bool IsShortInstruction() const {
+    uint8_t FirstByte = *reinterpret_cast<const uint8_t*>(this);
+    return (FirstByte & 0x03) <= C2;
+  }
 
   inline uint8_t InstructionSize() const {
     return (this->IsShortInstruction()) ? kShortInstrSize : kInstrSize;
@@ -828,6 +831,44 @@ class InstructionBase {
 
   // Get the encoding type of the instruction.
   Type InstructionType() const;
+
+  // Get the encoding type of a 32-bit instruction from its major opcode.
+  static constexpr Type BaseOpcodeType(Instr bits) {
+    switch (bits & kBaseOpcodeMask) {
+      case LOAD:
+      case LOAD_FP:
+      case MISC_MEM:
+      case OP_IMM:
+      case OP_IMM_32:
+      case JALR:
+      case SYSTEM:
+        return kIType;
+      case AUIPC:
+      case LUI:
+        return kUType;
+      case STORE:
+      case STORE_FP:
+        return kSType;
+      case AMO:
+      case OP:
+      case OP_32:
+      case OP_FP:
+        return kRType;
+      case MADD:
+      case MSUB:
+      case NMSUB:
+      case NMADD:
+        return kR4Type;
+      case BRANCH:
+        return kBType;
+      case JAL:
+        return kJType;
+      case OP_V:
+        return kVType;
+      default:
+        return kUnsupported;
+    }
+  }
 
  protected:
   InstructionBase() {}
@@ -910,13 +951,25 @@ class InstructionGetters : public T {
 
   inline int RvcRs1Value() const { return this->RvcRdValue(); }
 
-  int RvcRdValue() const;
+  inline int RvcRdValue() const {
+    DCHECK(this->IsShortInstruction());
+    return this->Bits(kRvcRdShift + kRvcRdBits - 1, kRvcRdShift);
+  }
 
-  int RvcRs2Value() const;
+  inline int RvcRs2Value() const {
+    DCHECK(this->IsShortInstruction());
+    return this->Bits(kRvcRs2Shift + kRvcRs2Bits - 1, kRvcRs2Shift);
+  }
 
-  int RvcRs1sValue() const;
+  inline int RvcRs1sValue() const {
+    DCHECK(this->IsShortInstruction());
+    return 0b1000 + this->Bits(kRvcRs1sShift + kRvcRs1sBits - 1, kRvcRs1sShift);
+  }
 
-  int RvcRs2sValue() const;
+  inline int RvcRs2sValue() const {
+    DCHECK(this->IsShortInstruction());
+    return 0b1000 + this->Bits(kRvcRs2sShift + kRvcRs2sBits - 1, kRvcRs2sShift);
+  }
 
   int Funct7Value() const;
 
@@ -934,15 +987,30 @@ class InstructionGetters : public T {
     return this->Bits(kFunct5Shift + kFunct5Bits - 1, kFunct5Shift);
   }
 
-  int RvcFunct6Value() const;
+  inline int RvcFunct6Value() const {
+    DCHECK(this->IsShortInstruction());
+    return this->Bits(kRvcFunct6Shift + kRvcFunct6Bits - 1, kRvcFunct6Shift);
+  }
 
-  int RvcFunct4Value() const;
+  inline int RvcFunct4Value() const {
+    DCHECK(this->IsShortInstruction());
+    return this->Bits(kRvcFunct4Shift + kRvcFunct4Bits - 1, kRvcFunct4Shift);
+  }
 
-  int RvcFunct3Value() const;
+  inline int RvcFunct3Value() const {
+    DCHECK(this->IsShortInstruction());
+    return this->Bits(kRvcFunct3Shift + kRvcFunct3Bits - 1, kRvcFunct3Shift);
+  }
 
-  int RvcFunct2Value() const;
+  inline int RvcFunct2Value() const {
+    DCHECK(this->IsShortInstruction());
+    return this->Bits(kRvcFunct2Shift + kRvcFunct2Bits - 1, kRvcFunct2Shift);
+  }
 
-  int RvcFunct2BValue() const;
+  inline int RvcFunct2BValue() const {
+    DCHECK(this->IsShortInstruction());
+    return this->Bits(kRvcFunct2BShift + kRvcFunct2Bits - 1, kRvcFunct2BShift);
+  }
 
   inline int CsrValue() const {
     DCHECK(this->InstructionType() == InstructionBase::kIType &&
@@ -1003,6 +1071,11 @@ class InstructionGetters : public T {
     //  31        12
     int32_t Bits = this->InstructionBits();
     return Bits >> 12;
+  }
+
+  inline uint32_t Imm20UValueUnsigned() const {
+    DCHECK(this->InstructionType() == InstructionBase::kUType);
+    return static_cast<uint32_t>(this->InstructionBits()) >> 12;
   }
 
   inline int Imm20JValue() const {

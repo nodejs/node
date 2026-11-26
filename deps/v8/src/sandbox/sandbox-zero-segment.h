@@ -24,7 +24,7 @@ namespace v8::internal {
 // platform/allocator as an inaccessible or read-only zero segment to mitigate
 // Smi<->HeapObject (and Wasm i31ref<->WasmStruct/WasmCustomMap) confusion bugs
 // in which a 32-bit value is treated as a pointer and dereferenced.
-inline constexpr size_t kZeroSegmentBaseSize = 4UL * GB;
+inline constexpr size_t kZeroSegmentBaseSize = size_t{4} * GB;
 
 // Smi<->HeapObject confusion in JS can lead to property accesses at an offset
 // from a Smi value near 4GB:

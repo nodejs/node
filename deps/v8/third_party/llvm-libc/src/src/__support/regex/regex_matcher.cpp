@@ -42,27 +42,10 @@ uint8_t ctx_at(cpp::string_view input, size_t pos, int cflags, int eflags) {
 
 } // namespace
 
-bool nullable(ExprId id, uint8_t anchor_ctx, const ExprPool &pool) {
-  const Expr &e = pool.get(id);
-  if (!e.has_anchors)
-    return e.nullable;
-  switch (e.kind) {
-  case ExprKind::Anchor:
-    return (anchor_ctx & e.anchor_mask) == e.anchor_mask;
-  case ExprKind::Concat:
-    return nullable(e.bin.left, anchor_ctx, pool) &&
-           nullable(e.bin.right, anchor_ctx, pool);
-  case ExprKind::Alt:
-    return nullable(e.bin.left, anchor_ctx, pool) ||
-           nullable(e.bin.right, anchor_ctx, pool);
-  default:
-    return e.nullable;
-  }
-}
-
 ErrorOr<ExprId> derivative(ExprId id, char c, ExprPool &pool,
                            uint8_t ctx_before) {
-  // Copy the 16-byte node by value as recursive calls below mutate pool.
+  if (!pool.is_valid_input(id))
+    return Error(REG_BADPAT);
   const Expr e = pool.get(id);
   switch (e.kind) {
   case ExprKind::EmptySet:
@@ -107,12 +90,35 @@ ErrorOr<ExprId> derivative(ExprId id, char c, ExprPool &pool,
       return d_body;
     return pool.make_concat(*d_body, id);
   }
+  case ExprKind::Repeat: {
+    // Bounded Repetition Rule:
+    // D_c(R{m,n}) = D_c(R) . R{nullable(R, ctx_before) ? 0 : max(0,m-1), n-1}.
+    // When R is nullable at ctx_before (e.g. via '^'), up to m - 1 leading
+    // copies may match empty at ctx_before before the copy that consumes c.
+    ErrorOr<ExprId> d_body = derivative(e.rep.body, c, pool, ctx_before);
+    if (!d_body.has_value() || *d_body == EMPTY_SET_ID)
+      return d_body;
+    uint16_t next_min =
+        (e.rep.min > 1 && !nullable(e.rep.body, ctx_before, pool))
+            ? static_cast<uint16_t>(e.rep.min - 1)
+            : static_cast<uint16_t>(0);
+    uint16_t next_max = (e.rep.max == REPEAT_INF)
+                            ? REPEAT_INF
+                            : static_cast<uint16_t>(e.rep.max - 1);
+    ErrorOr<ExprId> tail = pool.make_repeat(e.rep.body, next_min, next_max);
+    if (!tail.has_value())
+      return tail;
+    return pool.make_concat(*d_body, *tail);
   }
+  }
+  LIBC_ASSERT(false);
   __builtin_unreachable();
 }
 
 MatchResult match(ExprPool &pool, const ExprId pattern, cpp::string_view input,
                   int cflags, int eflags) {
+  if (!pool.is_valid_input(pattern) || pattern == EMPTY_SET_ID)
+    return MatchResult::NoMatch;
   uint8_t ctx = ctx_at(input, 0, cflags, eflags);
   if (nullable(pattern, ctx, pool))
     return MatchResult::Match;

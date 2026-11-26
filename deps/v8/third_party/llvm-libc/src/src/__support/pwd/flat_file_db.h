@@ -16,29 +16,17 @@
 
 #include "hdr/errno_macros.h"
 #include "hdr/stdio_macros.h"
-#include "hdr/types/size_t.h"
 #include "src/__support/CPP/functional.h"
-#include "src/__support/CPP/limits.h"
 #include "src/__support/CPP/span.h"
 #include "src/__support/File/file.h"
+#include "src/__support/File/line_reader.h"
+#include "src/__support/dynamic_buffer.h"
 #include "src/__support/error_or.h"
 #include "src/__support/macros/attributes.h"
 #include "src/__support/macros/config.h"
-#include "src/__support/pwd/dynamic_buffer.h"
 
 namespace LIBC_NAMESPACE_DECL {
 namespace pwd {
-
-// Struct to hold the result of a line read operation.
-struct ReadLineResult {
-  size_t bytes_read;
-  bool truncated;
-  // True only when zero raw bytes were read because the stream was already at
-  // EOF. A blank line ("\n") or a final line without a trailing newline
-  // consumes at least one raw byte and returns eof == false (with
-  // bytes_read == 0 for "\n"); the following call returns eof == true.
-  bool eof;
-};
 
 // Parses a record in place and fills entry.
 // line is the record bytes including the terminating NUL (line.back() == '\0').
@@ -53,7 +41,7 @@ ErrorOr<void> parse_line(cpp::span<char> line, cpp::span<char> scratch,
 // Generic flat colon-delimited database engine.
 template <typename EntryType> class FlatFileDatabase {
 public:
-  using Matcher = cpp::function<bool(const EntryType &)>;
+  using Matcher = cpp::function_ref<bool(const EntryType &)>;
 
 private:
   const char *file_path;
@@ -68,115 +56,6 @@ private:
         return Error(result);
     }
     return {};
-  }
-
-  // Reads a single line from the given file into the provided buffer, stripping
-  // any trailing '\n' and ensuring the result is null-terminated. A line too
-  // long for the buffer is reported as truncated.
-  //
-  // Note: POSIX getline/getdelim cannot be used here because user database
-  // iteration and lookups must operate in-place within a fixed, bounded buffer
-  // without dynamic heap allocations during getnext. See read_line_growing for
-  // the variant used by the non-reentrant interfaces, which own their buffer
-  // and may grow it.
-  LIBC_INLINE static ErrorOr<ReadLineResult> read_line(File *f,
-                                                       cpp::span<char> buf) {
-    if (!f)
-      return Error(EINVAL);
-    if (buf.size() < 2)
-      return Error(ERANGE);
-
-    File::FileLock lock(f);
-    size_t bytes_read = 0;
-    FileIOResult result(0);
-    bool truncated = false;
-
-    for (char &ch : buf.first(buf.size() - 1)) {
-      result = f->read_unlocked(&ch, 1);
-      if (result.has_error())
-        return Error(result.error);
-      if (result.value != 1)
-        break;
-      ++bytes_read;
-      if (ch == '\n')
-        break;
-    }
-
-    bool eof = (bytes_read == 0);
-
-    auto read_span = buf.first(bytes_read);
-    if (result.value == 1 && !read_span.empty() && read_span.back() != '\n') {
-      char c = '\0';
-      while (true) {
-        result = f->read_unlocked(&c, 1);
-        if (result.has_error())
-          return Error(result.error);
-        if (result.value != 1 || c == '\n')
-          break;
-        truncated = true;
-      }
-    }
-
-    if (f->error_unlocked())
-      return Error(EIO);
-
-    // If the line ended with a newline, strip it.
-    if (!read_span.empty() && read_span.back() == '\n')
-      --bytes_read;
-
-    buf[bytes_read] = '\0';
-    return ReadLineResult{bytes_read, truncated, eof};
-  }
-
-  // Reads a single line into a caller-owned buffer, growing it as needed so
-  // that arbitrarily long records can be read. Otherwise behaves as read_line;
-  // the result is never truncated.
-  LIBC_INLINE static ErrorOr<ReadLineResult>
-  read_line_growing(File *f, DynamicBuffer &buf) {
-    if (!f)
-      return Error(EINVAL);
-
-    File::FileLock lock(f);
-    size_t bytes_read = 0;
-
-    while (true) {
-      // One byte for the character about to be read, one for the terminator.
-      if (bytes_read > cpp::numeric_limits<size_t>::max() - 2 ||
-          !buf.reserve(bytes_read + 2)) {
-        char c = '\0';
-        while (true) {
-          FileIOResult drain = f->read_unlocked(&c, 1);
-          if (drain.has_error())
-            return Error(drain.error);
-          if (drain.value != 1 || c == '\n')
-            break;
-        }
-        return Error(ENOMEM);
-      }
-
-      char ch = '\0';
-      FileIOResult result = f->read_unlocked(&ch, 1);
-      if (result.has_error())
-        return Error(result.error);
-      if (result.value != 1)
-        break;
-
-      buf.span()[bytes_read++] = ch;
-      if (ch == '\n')
-        break;
-    }
-
-    if (f->error_unlocked())
-      return Error(EIO);
-
-    bool eof = (bytes_read == 0);
-
-    // If the line ended with a newline, strip it.
-    if (bytes_read > 0 && buf.span()[bytes_read - 1] == '\n')
-      --bytes_read;
-
-    buf.span()[bytes_read] = '\0';
-    return ReadLineResult{bytes_read, /*truncated=*/false, eof};
   }
 
 public:
@@ -233,7 +112,7 @@ public:
 
     while (true) {
       auto original_pos = file->tell();
-      auto result = read_line(file, buffer);
+      auto result = read_line(file, buffer.first(buffer.size() - 1));
       if (!result.has_value())
         return Error(result.error());
 
@@ -251,8 +130,10 @@ public:
         return Error(ERANGE);
       }
 
-      // Slicing at bytes_read + 1 includes the terminating null byte written
-      // by read_line; the remainder of the buffer serves as scratch space.
+      buffer[res.bytes_read] = '\0';
+
+      // Slicing at bytes_read + 1 includes the terminating null byte; the
+      // remainder of the buffer serves as scratch space.
       auto parse_res =
           parse_line<EntryType>(buffer.first(res.bytes_read + 1),
                                 buffer.subspan(res.bytes_read + 1), entry);
@@ -279,7 +160,7 @@ public:
     }
 
     while (true) {
-      auto result = read_line_growing(file, buffer);
+      auto result = read_line(file, buffer);
       if (!result.has_value())
         return Error(result.error());
 
@@ -291,10 +172,13 @@ public:
       if (res.bytes_read == 0)
         continue;
 
+      if (!buffer.reserve(res.bytes_read + 1))
+        return Error(ENOMEM);
+      buffer.span()[res.bytes_read] = '\0';
+
       while (true) {
-        // Slicing at bytes_read + 1 includes the terminating null byte written
-        // by read_line_growing; the remainder of the buffer serves as scratch
-        // space.
+        // Slicing at bytes_read + 1 includes the terminating null byte; the
+        // remainder of the buffer serves as scratch space.
         auto parse_res = parse_line<EntryType>(
             buffer.span().first(res.bytes_read + 1),
             buffer.span().subspan(res.bytes_read + 1), entry);

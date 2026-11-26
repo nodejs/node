@@ -7,8 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "src/string/strndup.h"
-#include "src/__support/CPP/new.h"
-#include "src/__support/alloc-checker.h"
+#include "src/__support/checked_ptr.h"
 #include "src/__support/common.h"
 #include "src/__support/macros/config.h"
 #include "src/string/memory_utils/inline_memcpy.h"
@@ -24,13 +23,12 @@ LLVM_LIBC_FUNCTION(char *, strndup, (const char *src, size_t size)) {
   size_t len = internal::string_length(src);
   if (len > size)
     len = size;
-  AllocChecker ac;
-  char *dest = new (ac) char[len + 1];
-  if (!ac)
+  CheckedPtr<char[]> dest = make_unique_for_overwrite<char[]>(len + 1);
+  if (!dest)
     return nullptr;
-  inline_memcpy(dest, src, len + 1);
+  inline_memcpy(dest.get(), src, len + 1);
   dest[len] = '\0';
-  return dest;
+  return dest.release();
 }
 
 } // namespace LIBC_NAMESPACE_DECL

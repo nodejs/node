@@ -1060,6 +1060,17 @@ class BodyGen {
                    ? data->getPseudoRandom<uint64_t>() & 0x1ffffffff
                    : data->getPseudoRandom<uint32_t>();
     }
+    // Revec: when generating the second operand tree from a cloned DataRange,
+    // shift contiguous-capable loads by 16 bytes so that they can be packed.
+    if (memory_op == kExprS128LoadMem && s128_load_offset_delta_ != 0) {
+      if (!builder_->builder()->IsMemory64(memory_index) &&
+          offset + s128_load_offset_delta_ >=
+              std::numeric_limits<uint32_t>::max()) {
+        offset -= s128_load_offset_delta_;
+      } else {
+        offset += s128_load_offset_delta_;
+      }
+    }
 
     // Generate the index and the arguments, if any.
     builder_->builder()->IsMemory64(memory_index)
@@ -1672,18 +1683,18 @@ class BodyGen {
       // Map the type index to a function index.
       // TODO(14034): Consider choosing a random function from among those
       // matching the signature (including function subtyping?).
-      uint32_t declared_func_index =
+      uint32_t defined_func_index =
           index.index - static_cast<uint32_t>(arrays_.size() + structs_.size());
-      size_t num_functions = mbuilder->NumDeclaredFunctions();
+      size_t num_functions = mbuilder->NumDefinedFunctions();
       const FunctionSig* sig = mbuilder->GetSignature(index);
       for (size_t i = 0; i < num_functions; ++i) {
-        if (sig == mbuilder->GetFunction(declared_func_index)->signature()) {
+        if (sig == mbuilder->GetFunction(defined_func_index)->signature()) {
           uint32_t absolute_func_index =
-              NumImportedFunctions() + declared_func_index;
+              NumImportedFunctions() + defined_func_index;
           builder_->EmitWithU32V(kExprRefFunc, absolute_func_index);
           return true;
         }
-        declared_func_index = (declared_func_index + 1) % num_functions;
+        defined_func_index = (defined_func_index + 1) % num_functions;
       }
       // We did not find a function matching the requested signature.
       builder_->EmitWithI32V(kExprRefNull, index.index);
@@ -4307,6 +4318,12 @@ class BodyGen {
     }
   }
 
+  // Used by the revec generator: S128LoadMem instructions generated while the
+  // delta is non-zero get their offset shifted by {delta}.
+  void set_s128_load_offset_delta(uint32_t delta) {
+    s128_load_offset_delta_ = delta;
+  }
+
   void InitializeNonDefaultableLocals(DataRange* data) {
     for (uint32_t i = 0; i < locals_.size(); i++) {
       if (!locals_[i].is_defaultable()) {
@@ -4326,6 +4343,7 @@ class BodyGen {
 
   const WasmModuleGenerationOptions options_;
   WasmFunctionBuilder* const builder_;
+  uint32_t s128_load_offset_delta_ = 0;
   std::vector<std::vector<ValueType>> blocks_;
   const std::vector<ModuleTypeIndex>& functions_;
   std::vector<ModuleTypeIndex> function_types_;
@@ -4692,8 +4710,25 @@ class ModuleGen {
     const bool kIsFinal = true;
     for (auto& import : *imports) {
       import.sig_index = builder_->ForceAddSignature(import.sig, kIsFinal);
+      WasmModuleBuilder::ImportEncoding encoding =
+          WasmModuleBuilder::ImportEncoding::kRegular;
+      if (v8_flags.wasm_compact_imports) {
+        switch (module_range_->get<uint8_t>() % 3) {
+          case 0:
+            encoding = WasmModuleBuilder::ImportEncoding::kCompactByModule;
+            break;
+          case 1:
+            encoding =
+                WasmModuleBuilder::ImportEncoding::kCompactByModuleAndType;
+            break;
+          case 2:
+            encoding = WasmModuleBuilder::ImportEncoding::kRegular;
+            break;
+        }
+      }
       uint32_t index =
-          builder_->AddImport(import.name, import.sig, import.module_name);
+          builder_->AddImport(import.name, import.sig, import.module_name,
+                              /*force_new_sig=*/false, encoding);
       import.index = index;
     }
     imports_ = imports;
@@ -4755,28 +4790,79 @@ class ModuleGen {
 
     // The signatures of compile-time imports must be defined in singleton
     // recgroups, so we can't allow them to get deduplicated against existing
-    // signatures that might be in nontrivial recgroups.
-    static constexpr bool kForceNewSig = true;
-#define STRINGFUNC(name, sig, group) \
-  strings.name = builder_->AddImport(#name, &sig, group, kForceNewSig)
+    // signatures that might be in nontrivial recgroups. However, compile-time
+    // imports with identical signatures can share the same singleton-recgroup
+    // signature, which also enables compact imports by module and type (0x7E).
+    static constexpr bool kIsFinal = true;
+    const ModuleTypeIndex sig_e_r =
+        builder_->ForceAddSignature(&kSig_e_r, kIsFinal);
+    const ModuleTypeIndex sig_i_r =
+        builder_->ForceAddSignature(&kSig_i_r, kIsFinal);
+    const ModuleTypeIndex sig_e_i =
+        builder_->ForceAddSignature(&kSig_e_i, kIsFinal);
+    const ModuleTypeIndex sig_i_ri =
+        builder_->ForceAddSignature(&kSig_i_ri, kIsFinal);
+    const ModuleTypeIndex sig_e_rr =
+        builder_->ForceAddSignature(&kSig_e_rr, kIsFinal);
+    const ModuleTypeIndex sig_e_rii =
+        builder_->ForceAddSignature(&kSig_e_rii, kIsFinal);
+    const ModuleTypeIndex sig_i_rr =
+        builder_->ForceAddSignature(&kSig_i_rr, kIsFinal);
+    const ModuleTypeIndex sig_from_a16 =
+        builder_->ForceAddSignature(&kSig_from_a16, kIsFinal);
+    const ModuleTypeIndex sig_into_a16 =
+        builder_->ForceAddSignature(&kSig_into_a16, kIsFinal);
+    const ModuleTypeIndex sig_into_a8 =
+        builder_->ForceAddSignature(&kSig_into_a8, kIsFinal);
+    const ModuleTypeIndex sig_to_a8 =
+        builder_->ForceAddSignature(&kSig_to_a8, kIsFinal);
+    const ModuleTypeIndex sig_from_a8 =
+        builder_->ForceAddSignature(&kSig_from_a8, kIsFinal);
 
-    STRINGFUNC(cast, kSig_e_r, kJsString);
-    STRINGFUNC(test, kSig_i_r, kJsString);
-    STRINGFUNC(fromCharCode, kSig_e_i, kJsString);
-    STRINGFUNC(fromCodePoint, kSig_e_i, kJsString);
-    STRINGFUNC(charCodeAt, kSig_i_ri, kJsString);
-    STRINGFUNC(codePointAt, kSig_i_ri, kJsString);
-    STRINGFUNC(length, kSig_i_r, kJsString);
-    STRINGFUNC(concat, kSig_e_rr, kJsString);
-    STRINGFUNC(substring, kSig_e_rii, kJsString);
-    STRINGFUNC(equals, kSig_i_rr, kJsString);
-    STRINGFUNC(compare, kSig_i_rr, kJsString);
-    STRINGFUNC(fromCharCodeArray, kSig_from_a16, kJsString);
-    STRINGFUNC(intoCharCodeArray, kSig_into_a16, kJsString);
-    STRINGFUNC(measureStringAsUTF8, kSig_i_r, kTextEncoder);
-    STRINGFUNC(encodeStringIntoUTF8Array, kSig_into_a8, kTextEncoder);
-    STRINGFUNC(encodeStringToUTF8Array, kSig_to_a8, kTextEncoder);
-    STRINGFUNC(decodeStringFromUTF8Array, kSig_from_a8, kTextDecoder);
+    using ImportEncoding = WasmModuleBuilder::ImportEncoding;
+    const uint8_t compact_mode =
+        v8_flags.wasm_compact_imports ? (module_range_->get<uint8_t>() % 4) : 4;
+    auto pick_encoding = [&](bool shares_sig_with_neighbor) -> ImportEncoding {
+      switch (compact_mode) {
+        case 0:
+          return shares_sig_with_neighbor
+                     ? ImportEncoding::kCompactByModuleAndType
+                     : ImportEncoding::kCompactByModule;
+        case 1:
+          return ImportEncoding::kCompactByModule;
+        case 2:
+          return ImportEncoding::kCompactByModuleAndType;
+        case 3:
+          if (shares_sig_with_neighbor) {
+            return ImportEncoding::kCompactByModuleAndType;
+          }
+          return ImportEncoding::kRegular;
+        default:
+          return ImportEncoding::kRegular;
+      }
+    };
+
+#define STRINGFUNC(name, sig, group, shares_sig_with_neighbor) \
+  strings.name = builder_->AddImport(#name, sig, group,        \
+                                     pick_encoding(shares_sig_with_neighbor))
+
+    STRINGFUNC(cast, sig_e_r, kJsString, false);
+    STRINGFUNC(test, sig_i_r, kJsString, false);
+    STRINGFUNC(length, sig_i_r, kJsString, false);
+    STRINGFUNC(fromCharCode, sig_e_i, kJsString, true);
+    STRINGFUNC(fromCodePoint, sig_e_i, kJsString, true);
+    STRINGFUNC(charCodeAt, sig_i_ri, kJsString, true);
+    STRINGFUNC(codePointAt, sig_i_ri, kJsString, true);
+    STRINGFUNC(concat, sig_e_rr, kJsString, false);
+    STRINGFUNC(substring, sig_e_rii, kJsString, false);
+    STRINGFUNC(equals, sig_i_rr, kJsString, true);
+    STRINGFUNC(compare, sig_i_rr, kJsString, true);
+    STRINGFUNC(fromCharCodeArray, sig_from_a16, kJsString, false);
+    STRINGFUNC(intoCharCodeArray, sig_into_a16, kJsString, false);
+    STRINGFUNC(measureStringAsUTF8, sig_i_r, kTextEncoder, false);
+    STRINGFUNC(encodeStringIntoUTF8Array, sig_into_a8, kTextEncoder, false);
+    STRINGFUNC(encodeStringToUTF8Array, sig_to_a8, kTextEncoder, false);
+    STRINGFUNC(decodeStringFromUTF8Array, sig_from_a8, kTextDecoder, false);
 
 #undef STRINGFUNC
 
@@ -5076,7 +5162,7 @@ WasmInitExpr GenerateInitExpr(Zone* zone, DataRange& range,
                                        arrays, recursion_depth);
         } else {
           DCHECK(builder->IsSignature(index));
-          for (int i = 0; i < builder->NumDeclaredFunctions(); ++i) {
+          for (int i = 0; i < builder->NumDefinedFunctions(); ++i) {
             if (builder->GetFunction(i)->sig_index() == index) {
               return WasmInitExpr::RefFuncConst(
                   builder->NumImportedFunctions() + i);
@@ -5123,7 +5209,7 @@ WasmInitExpr GenerateInitExpr(Zone* zone, DataRange& range,
         }
         case GenericKind::kFunc: {
           uint32_t index =
-              range.get<uint32_t>() % (builder->NumDeclaredFunctions() +
+              range.get<uint32_t>() % (builder->NumDefinedFunctions() +
                                        builder->NumImportedFunctions());
           return WasmInitExpr::RefFuncConst(index);
         }
@@ -5607,7 +5693,7 @@ void EmitCallAndReturnValues(BodyGen gen_body, WasmFunctionBuilder* f,
       f->EmitWithU32V(kExprCallRef, callee->sig_index());
       break;
     case 2:
-      // Note that this assumes that the declared function index is the same as
+      // Note that this assumes that the defined function index is the same as
       // the index of the function in the table.
       use_table64 ? f->EmitI64Const(callee->func_index())
                   : f->EmitI32Const(callee->func_index());
@@ -5622,7 +5708,7 @@ void EmitCallAndReturnValues(BodyGen gen_body, WasmFunctionBuilder* f,
       f->EmitWithU32V(kExprReturnCallRef, callee->sig_index());
       break;
     case 5:
-      // Note that this assumes that the declared function index is the same as
+      // Note that this assumes that the defined function index is the same as
       // the index of the function in the table.
       use_table64 ? f->EmitI64Const(callee->func_index())
                   : f->EmitI32Const(callee->func_index());
@@ -5635,6 +5721,32 @@ void EmitCallAndReturnValues(BodyGen gen_body, WasmFunctionBuilder* f,
   gen_body.ConsumeAndGenerate(callee_sig->returns(),
                               return_types.SubVectorFrom(returns_split), data);
 }
+
+// Consumes an S128 value from the stack and pushes
+// lane(v, 0) ^ lane(v, 1) ^ lane(v, 2) ^ lane(v, 3) as i32.
+void EmitXorOfI32x4Lanes(WasmFunctionBuilder* f) {
+  uint32_t value = f->AddLocal(kWasmS128);
+  f->EmitTeeLocal(value);
+  f->EmitWithPrefix(kExprI32x4ExtractLane);
+  f->EmitByte(0);
+  for (uint8_t lane = 1; lane < 4; ++lane) {
+    f->EmitGetLocal(value);
+    f->EmitWithPrefix(kExprI32x4ExtractLane);
+    f->EmitByte(lane);
+    f->Emit(kExprI32Xor);
+  }
+}
+
+// Emits a S128 load or store. Format of the instruction (supports
+// multi-memory): memory_op (align | 0x40) memory_index offset
+void EmitS128MemOp(WasmFunctionBuilder* f, WasmOpcode memory_op, uint8_t align,
+                   uint8_t memory_index, uint64_t offset) {
+  f->EmitWithPrefix(memory_op);
+  f->EmitU32V(align | 0x40);
+  f->EmitU32V(memory_index);
+  f->EmitU64V(offset);
+}
+
 }  // anonymous namespace
 
 base::Vector<uint8_t> GenerateWasmModuleForDeopt(
@@ -5782,8 +5894,8 @@ base::Vector<uint8_t> GenerateWasmModuleForDeopt(
 
   // Create inlinee bodies.
   for (int i = 0; i < num_inlinees; ++i) {
-    uint32_t declared_func_index = i + num_call_targets;
-    WasmFunctionBuilder* f = functions[declared_func_index];
+    uint32_t defined_func_index = i + num_call_targets;
+    WasmFunctionBuilder* f = functions[defined_func_index];
     DataRange function_range = range.split();
     BodyGen gen_body(options, f, function_signatures, {}, {}, struct_types,
                      array_types, strings, nullptr, &function_range,
@@ -5796,8 +5908,8 @@ base::Vector<uint8_t> GenerateWasmModuleForDeopt(
                                &function_range);
     } else {
       // All other inlinees call the previous inlinee.
-      uint32_t callee_declared_index = declared_func_index - 1;
-      EmitCallAndReturnValues(gen_body, f, functions[callee_declared_index],
+      uint32_t callee_defined_index = defined_func_index - 1;
+      EmitCallAndReturnValues(gen_body, f, functions[callee_defined_index],
                               table_index, use_table64, &function_range);
     }
     f->Emit(kExprEnd);
@@ -5809,8 +5921,8 @@ base::Vector<uint8_t> GenerateWasmModuleForDeopt(
 
   // Create main function body.
   {
-    uint32_t declared_func_index = num_functions - 1;
-    WasmFunctionBuilder* f = functions[declared_func_index];
+    uint32_t defined_func_index = num_functions - 1;
+    WasmFunctionBuilder* f = functions[defined_func_index];
     DataRange function_range = range.split();
     BodyGen gen_body(options, f, function_signatures, {}, {}, struct_types,
                      array_types, strings, nullptr, &function_range,
@@ -5827,8 +5939,8 @@ base::Vector<uint8_t> GenerateWasmModuleForDeopt(
                                &function_range);
     } else {
       // Otherwise call the "outer-most" inlinee.
-      uint32_t callee_declared_index = declared_func_index - 1;
-      EmitCallAndReturnValues(gen_body, f, functions[callee_declared_index],
+      uint32_t callee_defined_index = defined_func_index - 1;
+      EmitCallAndReturnValues(gen_body, f, functions[callee_defined_index],
                               table_index, use_table64, &function_range);
     }
 
@@ -5867,7 +5979,8 @@ base::Vector<uint8_t> GenerateWasmModuleForDeopt(
 base::Vector<uint8_t> GenerateWasmModuleForRevec(
     Zone* zone, base::Vector<const uint8_t> data) {
   constexpr WasmModuleGenerationOptions options = {
-      {WasmModuleGenerationOption::kGenerateSIMD}};
+      {WasmModuleGenerationOption::kGenerateSIMD,
+       WasmModuleGenerationOption::kGenerateWasmGC}};
   WasmModuleBuilder builder(zone);
 
   // Split input data in two parts:
@@ -5884,17 +5997,38 @@ base::Vector<uint8_t> GenerateWasmModuleForRevec(
   CHECK_GE(max_num_functions, 1);
   uint8_t num_functions = 1 + (module_range.get<uint8_t>() % max_num_functions);
 
-  constexpr uint8_t kNumStructs = 0;
-  constexpr uint8_t kNumArrays = 0;
-  constexpr uint16_t kNumTypes = kNumStructs + kNumArrays;
+  // Structs and arrays need to be added before the signatures; see
+  // GenerateRandomWasmModule.
+  constexpr uint8_t kNumDefaultArrayTypesForWasmGC = 2;
+  const uint8_t num_structs = 1 + module_range.get<uint8_t>() % kMaxStructs;
+  const uint8_t num_arrays =
+      kNumDefaultArrayTypesForWasmGC + module_range.get<uint8_t>() % kMaxArrays;
   std::vector<ModuleTypeIndex> array_types;
   std::vector<ModuleTypeIndex> struct_types;
 
   uint8_t num_signatures = num_functions;
   ModuleGen gen_module(zone, options, &builder, &module_range, num_functions,
-                       kNumStructs, kNumArrays, num_signatures);
+                       num_structs, num_arrays, num_signatures);
 
   gen_module.GenerateRandomMemories();
+
+  // Add default array types.
+  static constexpr ModuleTypeIndex kArrayI8{0};
+  static constexpr ModuleTypeIndex kArrayI16{1};
+  {
+    ArrayType* a8 = zone->New<ArrayType>(kWasmI8, 1, SharedFlag{false});
+    CHECK_EQ(kArrayI8, builder.AddArrayType(a8, true, kNoSuperType));
+    array_types.push_back(kArrayI8);
+    ArrayType* a16 = zone->New<ArrayType>(kWasmI16, 1, SharedFlag{false});
+    CHECK_EQ(kArrayI16, builder.AddArrayType(a16, true, kNoSuperType));
+    array_types.push_back(kArrayI16);
+  }
+  static_assert(kNumDefaultArrayTypesForWasmGC == kArrayI16.index + 1);
+
+  std::map<uint8_t, uint8_t> explicit_rec_groups =
+      gen_module.GenerateRandomRecursiveGroups();
+  gen_module.GenerateRandomStructs(explicit_rec_groups, struct_types);
+  gen_module.GenerateRandomArrays(explicit_rec_groups, array_types);
 
   // We keep the signature for the first (main) function constant.
   constexpr bool kIsFinal = true;
@@ -5906,10 +6040,11 @@ base::Vector<uint8_t> GenerateWasmModuleForRevec(
   // Other function signatures: return void with random params.
   constexpr base::Vector<const ValueType> kNoReturnType;
   for (int i = 1; i < num_signatures; ++i) {
-    const FunctionSig* function_sig = CreateSignature(
-        builder.zone(),
-        base::VectorOf(GenerateTypes(options, &module_range, kNumTypes)),
-        kNoReturnType);
+    const FunctionSig* function_sig =
+        CreateSignature(builder.zone(),
+                        base::VectorOf(GenerateTypes(options, &module_range,
+                                                     num_structs + num_arrays)),
+                        kNoReturnType);
     function_signatures.push_back(
         builder.ForceAddSignature(function_sig, kIsFinal));
   }
@@ -5918,7 +6053,7 @@ base::Vector<uint8_t> GenerateWasmModuleForRevec(
   int num_exceptions = 1 + (module_range.get<uint8_t>() % kMaxExceptions);
   gen_module.GenerateRandomExceptions(num_exceptions);
 
-  StringImports strings = StringImports();
+  StringImports strings = gen_module.AddImportedStringImports();
 
   TypesFixer types_fixer;
   gen_module.FixupTypeDefinitions(types_fixer);
@@ -5944,10 +6079,13 @@ base::Vector<uint8_t> GenerateWasmModuleForRevec(
   }
 
   // Generate function bodies.
-  // Revec uses two contiguous S128Store instructions as seeds, the two
-  // instructions share the same memory_index/alignment/index, the values to be
-  // stored should be generated from the same DataRange. The second offset is 16
-  // bytes larger than the first offset.
+  // Revec uses two kinds of seeds. Each function randomly generates one:
+  // - Store seeds: two contiguous S128Store instructions. They share the same
+  //   memory_index/alignment/index, the values to be stored are generated from
+  //   the same (cloned) or a split DataRange. The second offset is 16 bytes
+  //   larger than the first offset.
+  // - Reduce seeds: two same-kind S128 values combined by a binop (see
+  //   REDUCE_SEED_KIND in wasm-revec-reducer.h), without any store.
   for (int i = 0; i < num_functions; ++i) {
     WasmFunctionBuilder* f = functions[i];
     // On the last function don't split the DataRange but just use the
@@ -5961,9 +6099,12 @@ base::Vector<uint8_t> GenerateWasmModuleForRevec(
     const FunctionSig* sig = f->signature();
     base::Vector<const ValueType> return_types(sig->returns().begin(),
                                                sig->return_count());
-    gen_body.InitializeNonDefaultableLocals(&function_range);
+    // Do not call {InitializeNonDefaultableLocals}: With too little input data
+    // it emits unconditionally trapping code (e.g. ref.null + ref.cast), which
+    // makes the seeds below dead code. Without it, non-nullable locals are
+    // simply never read.
 
-    // Atomic operations need to be aligned exactly to their max alignment.
+    // Alignment (log2) shared by all S128 loads and stores of this function.
     const uint8_t align = function_range.getPseudoRandom<uint8_t>() % (4 + 1);
 
     // Only memory0 is supported in revec for now.
@@ -5979,42 +6120,46 @@ base::Vector<uint8_t> GenerateWasmModuleForRevec(
 
     auto first_data = function_range.split();
 
-    // === The first store. ===
+    // Either seed revec with a pair of contiguous stores (store seeds), or with
+    // a reduction of two same-kind SIMD operations without stores (reduce
+    // seeds).
+    const bool reduce_mode = function_range.get<bool>();
+    // Only the main function (i == 0) can return the reduction as i32.
+    const bool needs_index = !reduce_mode || i != 0;
+
     // Generate the index.
-    uint32_t index;
-    if (f->builder()->IsMemory64(kMemoryIndex0)) {
-      index = f->AddLocal(kWasmI64);
-      gen_body.Generate<kI64>(&first_data);
-    } else {
-      index = f->AddLocal(kWasmI32);
-      gen_body.Generate<kI32>(&first_data);
+    uint32_t index = 0;
+    if (needs_index) {
+      if (f->builder()->IsMemory64(kMemoryIndex0)) {
+        index = f->AddLocal(kWasmI64);
+        gen_body.Generate<kI64>(&first_data);
+      } else {
+        index = f->AddLocal(kWasmI32);
+        gen_body.Generate<kI32>(&first_data);
+      }
+      // The reduce mode keeps the index on the stack below the value; the store
+      // mode keeps it in the local.
+      reduce_mode ? f->EmitTeeLocal(index) : f->EmitSetLocal(index);
     }
-    f->EmitTeeLocal(index);
 
-    // Generate the S128 value to be stored.
-    // With 50% chance generated from the same sequence.
-    DataRange store2_range = function_range.get<bool>()
-                                 ? function_range.clone()
-                                 : function_range.split();
+    // With 50% chance the second value is generated from the same sequence (a
+    // clone of the DataRange), otherwise from a split. In the first case nested
+    // S128 loads of the second sequence get offsets that are 16 larger, so that
+    // they are contiguous with the loads of the first sequence.
+    const bool cloned = function_range.get<bool>();
+    DataRange second_range =
+        cloned ? function_range.clone() : function_range.split();
 
+    // Generate the first S128 value (the first value to be stored, or the first
+    // operand of the reduce op).
     gen_body.Generate<kS128>(&function_range);
-
-    // Format of the instruction (supports multi-memory):
-    // memory_op (align | 0x40) memory_index offset
-    f->EmitWithPrefix(kExprS128StoreMem);
-    f->EmitU32V(align | 0x40);
-    f->EmitU32V(kMemoryIndex0);
-    f->EmitU64V(offset);
-
-    // === The second store. ===
-    // Share the same index, value generated from same
-    // DataRange and offset is 16 larger.
-    f->EmitGetLocal(index);
-    gen_body.Generate<kS128>(&store2_range);
-
-    f->EmitWithPrefix(kExprS128StoreMem);
-    f->EmitU32V(align | 0x40);
-    f->EmitU32V(kMemoryIndex0);
+    uint32_t first_value = 0;
+    if (!reduce_mode) {
+      // Evaluate both values before the first store: A store between the two
+      // value trees would be a side effect that prevents packing their loads.
+      first_value = f->AddLocal(kWasmS128);
+      f->EmitSetLocal(first_value);
+    }
 
     uint64_t offset2;
     // offset + 16 shouldn't exceed the 32-bit range.
@@ -6024,56 +6169,63 @@ base::Vector<uint8_t> GenerateWasmModuleForRevec(
     } else {
       offset2 = offset + 16;
     }
-    f->EmitU64V(offset2);
 
-    // int32_t main(int32_t, int32_t, int32_t)
-    // S128 a = load(index + offset)
-    // S128 b = load(index + offset2)
-    // S128 c = a ^ b
-    // return lane(c, 0) ^ lane(c, 1) ^ lane(c, 2) ^ lane(c, 3)
-    if (i == 0) {
-      // a = load(index + offset)
+    if (reduce_mode) {
+      // === Reduce seed: binop(first, second), no pair of stores. ===
+      if (cloned) gen_body.set_s128_load_offset_delta(16);
+      gen_body.Generate<kS128>(&second_range);
+      gen_body.set_s128_load_offset_delta(0);
+
+      static constexpr WasmOpcode kReduceOps[] = {
+          kExprI64x2Add,           kExprI32x4Add,
+          kExprI8x16Add,           kExprI16x8AddSatS,
+          kExprI16x8AddSatU,       kExprI8x16AddSatS,
+          kExprI8x16AddSatU,       kExprI16x8SConvertI32x4,
+          kExprI16x8UConvertI32x4, kExprI8x16SConvertI16x8,
+          kExprI8x16UConvertI16x8};
+      f->EmitWithPrefix(
+          kReduceOps[function_range.get<uint8_t>() % arraysize(kReduceOps)]);
+
+      if (i == 0) {
+        EmitXorOfI32x4Lanes(f);
+      } else {
+        // Keep the result alive with a single store (not a store seed).
+        EmitS128MemOp(f, kExprS128StoreMem, align, kMemoryIndex0, offset);
+      }
+    } else {
+      // === The second value. ===
+      if (cloned) gen_body.set_s128_load_offset_delta(16);
+      gen_body.Generate<kS128>(&second_range);
+      gen_body.set_s128_load_offset_delta(0);
+      uint32_t second_value = f->AddLocal(kWasmS128);
+      f->EmitSetLocal(second_value);
+
+      // === The first store. ===
       f->EmitGetLocal(index);
-      f->EmitWithPrefix(kExprS128LoadMem);
-      f->EmitU32V(align | 0x40);
-      f->EmitU32V(kMemoryIndex0);
-      f->EmitU64V(offset);
+      f->EmitGetLocal(first_value);
+      EmitS128MemOp(f, kExprS128StoreMem, align, kMemoryIndex0, offset);
 
-      // b = load(index + offset2)
+      // === The second store. ===
+      // Share the same index and alignment, the value comes from the second
+      // DataRange and the offset is 16 larger (or smaller, close to the 32-bit
+      // limit).
       f->EmitGetLocal(index);
-      f->EmitWithPrefix(kExprS128LoadMem);
-      f->EmitU32V(align | 0x40);
-      f->EmitU32V(kMemoryIndex0);
-      f->EmitU64V(offset2);
+      f->EmitGetLocal(second_value);
+      EmitS128MemOp(f, kExprS128StoreMem, align, kMemoryIndex0, offset2);
 
-      // c = a ^ b
-      f->EmitWithPrefix(kExprS128Xor);
-
-      uint32_t xor_result = f->AddLocal(kWasmS128);
-      f->EmitTeeLocal(xor_result);
-      f->EmitWithPrefix(kExprI32x4ExtractLane);
-      f->EmitByte(0);
-
-      f->EmitGetLocal(xor_result);
-      f->EmitWithPrefix(kExprI32x4ExtractLane);
-      f->EmitByte(1);
-
-      // lane(c, 0) ^ lane(c, 1)
-      f->Emit(kExprI32Xor);
-
-      f->EmitGetLocal(xor_result);
-      f->EmitWithPrefix(kExprI32x4ExtractLane);
-      f->EmitByte(2);
-
-      f->EmitGetLocal(xor_result);
-      f->EmitWithPrefix(kExprI32x4ExtractLane);
-      f->EmitByte(3);
-
-      // lane(c, 2) ^ lane(c, 3)
-      f->Emit(kExprI32Xor);
-
-      // lane(c, 0) ^ lane(c, 1) ^ lane(c, 2) ^ lane(c, 3)
-      f->Emit(kExprI32Xor);
+      // int32_t main(int32_t, int32_t, int32_t)
+      // S128 a = load(index + offset)
+      // S128 b = load(index + offset2)
+      // S128 c = a ^ b
+      // return lane(c, 0) ^ lane(c, 1) ^ lane(c, 2) ^ lane(c, 3)
+      if (i == 0) {
+        f->EmitGetLocal(index);
+        EmitS128MemOp(f, kExprS128LoadMem, align, kMemoryIndex0, offset);
+        f->EmitGetLocal(index);
+        EmitS128MemOp(f, kExprS128LoadMem, align, kMemoryIndex0, offset2);
+        f->EmitWithPrefix(kExprS128Xor);
+        EmitXorOfI32x4Lanes(f);
+      }
     }
 
     f->Emit(kExprEnd);

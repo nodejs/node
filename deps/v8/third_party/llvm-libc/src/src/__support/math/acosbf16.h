@@ -67,12 +67,12 @@ LIBC_INLINE bfloat16 acosbf16(bfloat16 x) {
     // using reduction for acos:
     // acos(|x|) = 2*asin(sqrt((1 - |x|)/2)),
     // and acos(x) = acos(|x|) for x >= 0, pi - acos(|x|) for x < 0
-    float t = fputil::multiply_add<float>(xf_abs, -0.5f, 0.5f);
+    float t = fputil::sub_multiply<float>(0.5f, xf_abs, 0.5f);
     float t_sqrt = fputil::sqrt<float>(t);
     float asin_sqrt_t = t_sqrt * asin_internal::asin_eval_float(t);
 
     return fputil::cast<bfloat16>(
-        (sign) ? fputil::multiply_add(asin_sqrt_t, -2.0f, PI)
+        (sign) ? fputil::sub_multiply(PI, asin_sqrt_t, 2.0f)
                : 2.0f * asin_sqrt_t);
   }
   // case 3: NaN or |x| > 1

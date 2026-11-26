@@ -51,13 +51,19 @@ class FlagValue {
   // use it for computing other constants.
   constexpr T value() const { return value_; }
 
-  // Assign a new value (defined below). This does not update the Flag metadata
-  // or check for contradictions.
-  inline FlagValue<T>& operator=(T new_value);
+  // Overwrite the flag value without updating Flag metadata or checking for
+  // contradictions. Prefer {Set} unless you specifically need to bypass
+  // metadata updates (e.g. changing a default before CLI parsing or
+  // temporarily mutating/restoring a flag at runtime).
+  inline void Overwrite(T new_value);
 
   // Set a new value (updates Flag metadata and checks for flag contradictions).
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
   void Set(T new_value);
+
+  constexpr FlagValue(const FlagValue&) V8_NOEXCEPT = default;
+  // Use {Set} instead of {operator=}.
+  FlagValue& operator=(const FlagValue&) = delete;
 
  private:
   T value_;
@@ -176,7 +182,7 @@ class V8_EXPORT_PRIVATE FlagList {
 
  private:
   // Reset the flag hash on flag changes. This is a private method called from
-  // {FlagValue<T>::operator=}; there should be no need to call it from any
+  // {FlagValue<T>::Overwrite}; there should be no need to call it from any
   // other place.
   static void ResetFlagHash();
 
@@ -186,12 +192,11 @@ class V8_EXPORT_PRIVATE FlagList {
 };
 
 template <typename T>
-FlagValue<T>& FlagValue<T>::operator=(T new_value) {
+void FlagValue<T>::Overwrite(T new_value) {
   if (new_value != value_) {
     FlagList::ResetFlagHash();
     value_ = new_value;
   }
-  return *this;
 }
 
 }  // namespace v8::internal

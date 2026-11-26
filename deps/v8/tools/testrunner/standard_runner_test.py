@@ -318,7 +318,7 @@ class StandardRunnerTest(TestRunnerTest):
         "cfi=True, code_comments=False, component_build=False, "
         "dcheck_always_on=True, debug_code=False, debugging_features=False, "
         "deopt_fuzzer=False, device_type=None, "
-        "dict_property_const_tracking=False, disassembler=False, dumpling=False, "
+        "dict_prototypes=False, disassembler=False, dumpling=False, "
         "endurance_fuzzer=False, full_debug=False, gc_fuzzer=False, "
         "gc_stress=False, gdbjit=False, has_jitless=False, has_maglev=False, "
         "has_turbofan=False, has_webassembly=True, i18n=True, "

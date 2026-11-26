@@ -4,6 +4,7 @@
 
 #include "experimental/redline/core/program.h"
 
+#include "experimental/redline/base/log.h"
 #include "experimental/redline/fast/parser.h"
 #include "experimental/redline/fast/printer.h"
 
@@ -34,6 +35,7 @@ std::shared_ptr<Program> Program::FromTree(std::unique_ptr<fast::Tree> tree,
                                            std::string source) {
   std::shared_ptr<Program> program(new Program());
   program->tree_ = std::move(tree);
+  program->tree_ptr_.store(program->tree_.get(), std::memory_order_release);
   program->source_ = std::move(source);
   program->hash_ = HashSource(program->source_);
   program->node_count_ = fast::CountNodes(program->tree_->root());
@@ -56,11 +58,59 @@ std::shared_ptr<Program> Program::Parse(std::string_view source,
   return FromTree(std::move(tree), std::move(lineage));
 }
 
+const fast::Tree& Program::EnsureTree() const {
+  std::scoped_lock<std::mutex> lock(tree_mutex_);
+  if (tree_ == nullptr) {
+    fast::ParseError parse_error;
+    tree_ =
+        fast::Parser::ParseScript(source_, fast::ParseOptions(), &parse_error);
+    if (tree_ == nullptr) {
+      Fatal("Program::EnsureTree: failed to parse stored source: %s",
+            parse_error.message.c_str());
+    }
+    tree_ptr_.store(tree_.get(), std::memory_order_release);
+  }
+  return *tree_;
+}
+
+const fast::Tree& Program::tree() const {
+  if (const fast::Tree* cached = tree_ptr_.load(std::memory_order_acquire)) {
+    return *cached;
+  }
+  return EnsureTree();
+}
+
+std::unique_ptr<fast::Tree> Program::CopyTree() const { return tree().Copy(); }
+
 const fast::ScopeAnalysis& Program::scopes() const {
-  std::call_once(scopes_once_, [this] {
+  if (const fast::ScopeAnalysis* cached =
+          scopes_ptr_.load(std::memory_order_acquire)) {
+    return *cached;
+  }
+  std::scoped_lock<std::mutex> lock(tree_mutex_);
+  if (tree_ == nullptr) {
+    fast::ParseError parse_error;
+    tree_ =
+        fast::Parser::ParseScript(source_, fast::ParseOptions(), &parse_error);
+    if (tree_ == nullptr) {
+      Fatal("Program::scopes: failed to parse stored source: %s",
+            parse_error.message.c_str());
+    }
+    tree_ptr_.store(tree_.get(), std::memory_order_release);
+  }
+  if (scopes_ == nullptr) {
     scopes_ = fast::ScopeAnalysis::Analyze(tree_.get());
-  });
+    scopes_ptr_.store(scopes_.get(), std::memory_order_release);
+  }
   return *scopes_;
+}
+
+void Program::ReleaseTree() const {
+  std::scoped_lock<std::mutex> lock(tree_mutex_);
+  scopes_ptr_.store(nullptr, std::memory_order_release);
+  scopes_.reset();
+  tree_ptr_.store(nullptr, std::memory_order_release);
+  tree_.reset();
 }
 
 }  // namespace redline

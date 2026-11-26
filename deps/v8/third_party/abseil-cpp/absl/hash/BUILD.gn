@@ -29,7 +29,6 @@ absl_source_set("hash") {
     "//third_party/abseil-cpp/absl/types:variant",
     "//third_party/abseil-cpp/absl/utility",
   ]
-  check_includes_strict = CHECK_INCLUDES_STRICT_PUBLIC_INCLUDES_PRIVATE
 }
 
 absl_source_set("hash_testing") {
@@ -125,6 +124,30 @@ absl_source_set("weakly_mixed_integer") {
     "//third_party/abseil-cpp/absl/types:*",
   ]
   deps = [ "//third_party/abseil-cpp/absl/base:config" ]
+}
+
+absl_source_set("canonical_hash") {
+  public = [ "internal/canonical_hash.h" ]
+  visibility = [
+    ":*",
+    "//third_party/abseil-cpp/absl/container:*",
+  ]
+  deps = [
+    ":hash",
+    "//third_party/abseil-cpp/absl/base",
+    "//third_party/abseil-cpp/absl/base:config",
+    "//third_party/abseil-cpp/absl/meta:type_traits",
+  ]
+}
+
+absl_test("canonical_hash_test") {
+  sources = [ "internal/canonical_hash_test.cc" ]
+  deps = [
+    ":canonical_hash",
+    ":hash",
+    "//third_party/abseil-cpp/absl/base:config",
+    "//third_party/abseil-cpp/absl/strings:string_view",
+  ]
 }
 
 absl_test("low_level_hash_test") {

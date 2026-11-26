@@ -249,8 +249,8 @@ class FixedIntegerArrayBase : public Base {
 
  public:
   // {MoreArgs...} allows passing the `AllocationType` if `Base` is `ByteArray`.
-  template <typename... MoreArgs>
-  static Handle<FixedIntegerArrayBase<T, Base>> New(Isolate* isolate,
+  template <typename IsolateT, typename... MoreArgs>
+  static Handle<FixedIntegerArrayBase<T, Base>> New(IsolateT* isolate,
                                                     uint32_t length,
                                                     MoreArgs&&... more_args);
 

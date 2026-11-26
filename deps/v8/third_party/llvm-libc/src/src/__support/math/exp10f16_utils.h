@@ -40,7 +40,7 @@ LIBC_INLINE ExpRangeReduction exp10_range_reduction(float16 x) {
   unsigned x_hi = static_cast<unsigned>(x_hi_mid) >> 3;
   unsigned x_mid = static_cast<unsigned>(x_hi_mid) & 0x7;
   // lo = x - (hi + mid) = round(x * 2^3 * log2(10)) * log10(2) * (-2^(-3)) + x
-  float lo = fputil::multiply_add(kf, LOG10F_2 * -0x1.0p-3f, xf);
+  float lo = fputil::sub_multiply(xf, kf, LOG10F_2 * 0x1.0p-3f);
 
   uint32_t exp2_hi_mid_bits =
       EXP2_MID_BITS[x_mid] +

@@ -46,14 +46,17 @@ namespace cbor {
 // Checks whether |msg| is a cbor message.
 bool IsCBORMessage(span<uint8_t> msg);
 
-// Performs a leightweight check of |msg|.
+// Performs a lightweight check of |msg|. If the check succeeds, evenlope outer
+// size is returned, otherwise an error status.
 // Disallows:
 // - Empty message
 // - Not starting with the two bytes 0xd8, 0x5a
 // - Empty envelope (all length bytes are 0)
 // - Not starting with a map after the envelope stanza
+// - Envelope outer size exceeding input span (`msg`) size
 // DevTools messages should pass this check.
-Status CheckCBORMessage(span<uint8_t> msg);
+
+StatusOr<size_t> CheckCBORMessage(span<uint8_t> msg);
 
 // =============================================================================
 // Encoding individual CBOR items
@@ -251,10 +254,12 @@ class CBORTokenizer {
   // To be called only if ::TokenTag() == CBORTokenTag::STRING8.
   span<uint8_t> GetString8() const;
 
-  // Wire representation for STRING16 is low byte first (little endian).
-  // To be called only if ::TokenTag() == CBORTokenTag::STRING16. The result is
-  // guaranteed to have even length.
-  span<uint8_t> GetString16WireRep() const;
+  // Returns the STRING16 token contents in host byte order, guaranteed to be
+  // aligned to a 2-byte boundary (alignof(uint16_t)).
+  // To be called only if ::TokenTag() == CBORTokenTag::STRING16.
+  // The returned span<> is only valid for the current token (i.e. until
+  // ::Next(), ::EnterEnvelope(), or the tokenizer is destroyed).
+  span<uint16_t> GetString16View() const;
 
   // To be called only if ::TokenTag() == CBORTokenTag::BINARY.
   span<uint8_t> GetBinary() const;
@@ -289,6 +294,9 @@ class CBORTokenizer {
   MajorType token_start_type_;
   uint64_t token_start_internal_value_;
   EnvelopeHeader envelope_header_;
+  // Scratch buffer used by GetString16View() when the wire bytes are not
+  // aligned to alignof(uint16_t) or when byte-order conversion is needed.
+  mutable std::vector<uint16_t> string16_buffer_;
 };
 
 // =============================================================================
@@ -317,11 +325,19 @@ Status AppendString8EntryToCBORMap(span<uint8_t> string8_key,
 // complex values. If the key is not found, or if it is found more than once,
 // or if it contains nested maps/arrays, returns an empty span.
 // Explicitly rejects duplicate keys and non-STRING8 values.
+// |string8_key| should be ASCII. Decoders do not agree on the keys and values
+// below, so each of them makes the result an empty span:
+// - a STRING16 key with the same characters as |string8_key|;
+// - a top-level STRING8 key that is not well-formed UTF8;
+// - a value for |string8_key| that is not well-formed UTF8.
 span<uint8_t> GetString8ValueFromMap(span<uint8_t> message,
                                      span<uint8_t> string8_key);
 // Safely checks if |key| exists in the top-level of a CBOR encoded map wrapped
 // in an envelope. Shallow parser that skips nested structures.
+// |key| should be ASCII. Supports STRING8 and STRING16 keys.
 // Returns true as soon as the key is found at the top level.
+// Also returns true for a top-level STRING8 key that is not well-formed UTF8,
+// because a decoder that drops the ill-formed bytes can read it as |key|.
 bool HasKeyInMap(span<uint8_t> message, span<uint8_t> key);
 
 namespace internals {  // Exposed only for writing tests.

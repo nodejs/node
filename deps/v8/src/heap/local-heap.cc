@@ -133,6 +133,9 @@ LocalHeap::~LocalHeap() {
   }
 
   DCHECK(gc_epilogue_callbacks_.IsEmpty());
+#ifdef VERIFY_HEAP
+  DCHECK(pending_object_verify_scopes_.empty());
+#endif  // VERIFY_HEAP
 }
 
 void LocalHeap::SetUpMainThreadForTesting() {
@@ -189,6 +192,11 @@ void LocalHeap::SetUpSharedMarking() {
             ->incremental_marking()
             ->IsMajorMarking()) {
       marking_barrier_->ActivateShared();
+      // For the main thread, Isolate::Init() sets the isolate-level shared
+      // marking flag right after SetIsolateThreadLocals(). For background
+      // threads, it must already be set.
+      DCHECK_EQ(isolate->isolate_data()->is_shared_marking(),
+                !is_main_thread());
     }
   }
 }
@@ -219,6 +227,10 @@ bool LocalHeap::ContainsPersistentHandle(Address* location) {
 
 bool LocalHeap::ContainsLocalHandle(Address* location) {
   return handles_ ? handles_->Contains(location) : false;
+}
+
+bool LocalHeap::ContainsStrongRoot(FullObjectSlot slot) {
+  return heap_->ContainsStrongRoot(this, slot);
 }
 
 bool LocalHeap::IsHandleDereferenceAllowed() {

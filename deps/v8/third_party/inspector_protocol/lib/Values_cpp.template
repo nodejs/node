@@ -83,7 +83,7 @@ class ValueParserHandler : public ParserHandler {
 
   void HandleString16(span<uint16_t> chars) override {
     AddStringToParent(
-        StringUtil::fromUTF16LE(chars.data(), chars.size()));
+        StringUtil::fromUTF16(chars.data(), chars.size()));
   }
 
   void HandleBinary(span<uint8_t> bytes) override {

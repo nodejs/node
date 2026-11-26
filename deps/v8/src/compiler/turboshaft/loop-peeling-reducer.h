@@ -183,7 +183,7 @@ class LoopPeelingReducer : public Next {
 
   LoopFinder loop_finder_{__ phase_zone(), &__ modifiable_input_graph(),
                           LoopFinder::Config{}};
-  JSHeapBroker* broker_ = __ data() -> broker();
+  JSHeapBroker* broker_ = __ data()->broker();
 };
 
 #undef TRACE

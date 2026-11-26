@@ -15,28 +15,9 @@
 #include "src/__support/macros/properties/architectures.h"
 #include "src/__support/macros/properties/cpu_features.h"
 
-#if (defined(LIBC_TARGET_ARCH_IS_X86_64) && defined(LIBC_TARGET_CPU_HAS_SSE4_2))
-#include "x86_64/nearest_integer.h"
-#elif (defined(LIBC_TARGET_ARCH_IS_AARCH64) &&                                 \
-       defined(LIBC_TARGET_CPU_HAS_FPU_FLOAT) &&                               \
-       defined(LIBC_TARGET_CPU_HAS_FPU_DOUBLE))
-#include "aarch64/nearest_integer.h"
-#elif defined(LIBC_TARGET_ARCH_IS_GPU)
-
 namespace LIBC_NAMESPACE_DECL {
 namespace fputil {
-
-LIBC_INLINE float nearest_integer(float x) { return __builtin_rintf(x); }
-
-LIBC_INLINE double nearest_integer(double x) { return __builtin_rint(x); }
-
-} // namespace fputil
-} // namespace LIBC_NAMESPACE_DECL
-
-#else
-
-namespace LIBC_NAMESPACE_DECL {
-namespace fputil {
+namespace generic {
 
 // This is a fast implementation for rounding to a nearest integer that.
 //
@@ -87,6 +68,44 @@ LIBC_INLINE constexpr double nearest_integer(double x) {
     return r;
   }
   return x;
+}
+
+} // namespace generic
+} // namespace fputil
+} // namespace LIBC_NAMESPACE_DECL
+
+// The target specific headers below define fputil::nearest_integer using the
+// rounding instructions of the target, and dispatch to generic::nearest_integer
+// during constant evaluation.
+#if (defined(LIBC_TARGET_ARCH_IS_X86_64) && defined(LIBC_TARGET_CPU_HAS_SSE4_2))
+#include "x86_64/nearest_integer.h"
+#elif (defined(LIBC_TARGET_ARCH_IS_AARCH64) &&                                 \
+       defined(LIBC_TARGET_CPU_HAS_FPU_FLOAT) &&                               \
+       defined(LIBC_TARGET_CPU_HAS_FPU_DOUBLE))
+#include "aarch64/nearest_integer.h"
+#elif defined(LIBC_TARGET_ARCH_IS_GPU)
+
+namespace LIBC_NAMESPACE_DECL {
+namespace fputil {
+
+LIBC_INLINE float nearest_integer(float x) { return __builtin_rintf(x); }
+
+LIBC_INLINE double nearest_integer(double x) { return __builtin_rint(x); }
+
+} // namespace fputil
+} // namespace LIBC_NAMESPACE_DECL
+
+#else
+
+namespace LIBC_NAMESPACE_DECL {
+namespace fputil {
+
+LIBC_INLINE constexpr float nearest_integer(float x) {
+  return generic::nearest_integer(x);
+}
+
+LIBC_INLINE constexpr double nearest_integer(double x) {
+  return generic::nearest_integer(x);
 }
 
 } // namespace fputil

@@ -84,10 +84,6 @@ enum ContextLookupFlags {
 
 #define NATIVE_CONTEXT_FIELDS(V)                                               \
   V(GLOBAL_PROXY_INDEX, JSGlobalProxy, global_proxy_object)                    \
-  /* TODO(ishell): Actually we store exactly EmbedderDataArray here but */     \
-  /* it's already UBSan-fiendly and doesn't require a star... So declare */    \
-  /* it as a HeapObject for now. */                                            \
-  V(EMBEDDER_DATA_INDEX, HeapObject, embedder_data)                            \
   V(CONTINUATION_PRESERVED_EMBEDDER_DATA_INDEX, HeapObject,                    \
     continuation_preserved_embedder_data)                                      \
   V(GENERATOR_NEXT_INTERNAL, JSFunction, generator_next_internal)              \
@@ -125,6 +121,13 @@ enum ContextLookupFlags {
   V(RAB_GSAB_FLOAT32_ARRAY_MAP_INDEX, Map, rab_gsab_float32_array_map)         \
   V(RAB_GSAB_FLOAT64_ARRAY_MAP_INDEX, Map, rab_gsab_float64_array_map)         \
   V(RAB_GSAB_FLOAT16_ARRAY_MAP_INDEX, Map, rab_gsab_float16_array_map)         \
+  /* All primitive constructor functions. These must appear early because */   \
+  /* their index is stored in a uint8_t in Map. */                             \
+  V(BIGINT_FUNCTION_INDEX, JSFunction, bigint_function)                        \
+  V(BOOLEAN_FUNCTION_INDEX, JSFunction, boolean_function)                      \
+  V(NUMBER_FUNCTION_INDEX, JSFunction, number_function)                        \
+  V(STRING_FUNCTION_INDEX, JSFunction, string_function)                        \
+  V(SYMBOL_FUNCTION_INDEX, JSFunction, symbol_function)                        \
   /* Below is alpha-sorted */                                                  \
   V(ABSTRACT_MODULE_SOURCE_FUNCTION_INDEX, JSFunction,                         \
     abstract_module_source_function)                                           \
@@ -144,8 +147,6 @@ enum ContextLookupFlags {
   V(ASYNC_FUNCTION_OBJECT_MAP_INDEX, Map, async_function_object_map)           \
   V(ASYNC_GENERATOR_FUNCTION_FUNCTION_INDEX, JSFunction,                       \
     async_generator_function_function)                                         \
-  V(BIGINT_FUNCTION_INDEX, JSFunction, bigint_function)                        \
-  V(BOOLEAN_FUNCTION_INDEX, JSFunction, boolean_function)                      \
   V(BOUND_FUNCTION_WITH_CONSTRUCTOR_MAP_INDEX, Map,                            \
     bound_function_with_constructor_map)                                       \
   V(BOUND_FUNCTION_WITHOUT_CONSTRUCTOR_MAP_INDEX, Map,                         \
@@ -234,6 +235,8 @@ enum ContextLookupFlags {
   V(ITERATOR_CONCAT_HELPER_MAP_INDEX, Map, iterator_concat_helper_map)         \
   V(ITERATOR_ZIP_HELPER_MAP_INDEX, Map, iterator_zip_helper_map)               \
   V(ITERATOR_ZIP_KEYED_HELPER_MAP_INDEX, Map, iterator_zip_keyed_helper_map)   \
+  V(ITERATOR_CHUNKS_HELPER_MAP_INDEX, Map, iterator_chunks_helper_map)         \
+  V(ITERATOR_WINDOWS_HELPER_MAP_INDEX, Map, iterator_windows_helper_map)       \
   V(ITERATOR_FUNCTION_INDEX, JSFunction, iterator_function)                    \
   V(VALID_ITERATOR_WRAPPER_MAP_INDEX, Map, valid_iterator_wrapper_map)         \
   V(ITERATOR_RESULT_MAP_INDEX, Map, iterator_result_map)                       \
@@ -290,7 +293,6 @@ enum ContextLookupFlags {
   V(MATH_RANDOM_CACHE_INDEX, (UnionOf<Undefined, FixedDoubleArray>),           \
     math_random_cache)                                                         \
   V(NORMALIZED_MAP_CACHE_INDEX, Object, normalized_map_cache)                  \
-  V(NUMBER_FUNCTION_INDEX, JSFunction, number_function)                        \
   V(OBJECT_FUNCTION_INDEX, JSFunction, object_function)                        \
   V(OBJECT_FUNCTION_PROTOTYPE_INDEX, JSObject, object_function_prototype)      \
   V(OBJECT_FUNCTION_PROTOTYPE_MAP_INDEX, Map, object_function_prototype_map)   \
@@ -362,9 +364,7 @@ enum ContextLookupFlags {
   V(ASYNC_GENERATOR_FUNCTION_WITH_NAME_MAP_INDEX, Map,                         \
     async_generator_function_with_name_map)                                    \
   V(CLASS_FUNCTION_MAP_INDEX, Map, class_function_map)                         \
-  V(STRING_FUNCTION_INDEX, JSFunction, string_function)                        \
   V(STRING_FUNCTION_PROTOTYPE_MAP_INDEX, Map, string_function_prototype_map)   \
-  V(SYMBOL_FUNCTION_INDEX, JSFunction, symbol_function)                        \
   V(IS_WASM_JS_INSTALLED_INDEX, Smi, is_wasm_js_installed)                     \
   V(IS_WASM_JSPI_INSTALLED_INDEX, Smi, is_wasm_jspi_installed)                 \
   V(WASM_WEBASSEMBLY_OBJECT_INDEX, JSObject, wasm_webassembly_object)          \
@@ -437,8 +437,6 @@ enum ContextLookupFlags {
   V(WEAKSET_ADD_INDEX, JSFunction, weakset_add)                                \
   V(WRAPPED_FUNCTION_MAP_INDEX, Map, wrapped_function_map)                     \
   V(RETAINED_MAPS, Object, retained_maps)                                      \
-  V(SHARED_SPACE_JS_OBJECT_HAS_INSTANCE_INDEX, JSFunction,                     \
-    shared_space_js_object_has_instance)                                       \
   NATIVE_CONTEXT_FIELDS_TEMPORAL(V)
 
 // JSFunctions are pairs (context, function code), sometimes also called
@@ -551,7 +549,11 @@ V8_OBJECT class Context : public HeapObject {
     // This slot only exists if ScopeInfo::HasContextExtensionSlot returns true.
     EXTENSION_INDEX,
 
-// These slots are only in native contexts.
+    // These slots are only in native contexts.
+    FIRST_EMBEDDER_DATA_INDEX,
+    LAST_EMBEDDER_DATA_INDEX =
+        FIRST_EMBEDDER_DATA_INDEX +
+        V8_EMBEDDER_DATA_ARRAY_SIZE * kEmbedderDataSlotSizeInTaggedSlots - 1,
 #define NATIVE_CONTEXT_SLOT(index, type, name) index,
     NATIVE_CONTEXT_FIELDS(NATIVE_CONTEXT_SLOT)
 #undef NATIVE_CONTEXT_SLOT
@@ -584,6 +586,13 @@ V8_OBJECT class Context : public HeapObject {
   static const int FIRST_FIXED_TYPED_ARRAY_FUN_INDEX = UINT8_ARRAY_FUN_INDEX;
   static const int FIRST_RAB_GSAB_TYPED_ARRAY_MAP_INDEX =
       RAB_GSAB_UINT8_ARRAY_MAP_INDEX;
+
+  // Primitive constructor function indices are stored in a uint8_t in Map.
+  static_assert(BIGINT_FUNCTION_INDEX <= kMaxUInt8);
+  static_assert(BOOLEAN_FUNCTION_INDEX <= kMaxUInt8);
+  static_assert(NUMBER_FUNCTION_INDEX <= kMaxUInt8);
+  static_assert(STRING_FUNCTION_INDEX <= kMaxUInt8);
+  static_assert(SYMBOL_FUNCTION_INDEX <= kMaxUInt8);
 
   static const int kNoContext = 0;
 
@@ -837,20 +846,25 @@ V8_OBJECT class NativeContext : public Context {
   DECL_PRINTER(NativeContext)
   DECL_VERIFIER(NativeContext)
 
+  static constexpr int GetEmbedderFieldOffset(int index) {
+    return kEmbedderDataOffset + (kEmbedderDataSlotSize * index);
+  }
+
   // Layout description.
-#define NATIVE_CONTEXT_FIELDS_DEF(V)                                        \
-  /* TODO(ishell): move definition of common context offsets to Context. */ \
-  V(kStartOfNativeContextFieldsOffset,                                      \
-    (FIRST_WEAK_SLOT - MIN_CONTEXT_EXTENDED_SLOTS) * kTaggedSize)           \
-  V(kEndOfStrongFieldsOffset, 0)                                            \
-  V(kStartOfWeakFieldsOffset,                                               \
-    (NATIVE_CONTEXT_SLOTS - FIRST_WEAK_SLOT) * kTaggedSize)                 \
-  V(kEndOfWeakFieldsOffset, 0)                                              \
-  V(kEndOfNativeContextFieldsOffset, 0)                                     \
-  V(kEndOfTaggedFieldsOffset, 0)                                            \
-  /* Raw data. */                                                           \
-  V(kMicrotaskQueueOffset, kMicrotaskQueueSlotSize)                         \
-  /* Total size. */                                                         \
+#define NATIVE_CONTEXT_FIELDS_DEF(V)                                         \
+  /* TODO(ishell): move definition of common context offsets to Context. */  \
+  V(kEmbedderDataOffset, V8_EMBEDDER_DATA_ARRAY_SIZE* kEmbedderDataSlotSize) \
+  V(kStartOfNativeContextFieldsOffset,                                       \
+    (FIRST_WEAK_SLOT - LAST_EMBEDDER_DATA_INDEX - 1) * kTaggedSize)          \
+  V(kEndOfStrongFieldsOffset, 0)                                             \
+  V(kStartOfWeakFieldsOffset,                                                \
+    (NATIVE_CONTEXT_SLOTS - FIRST_WEAK_SLOT) * kTaggedSize)                  \
+  V(kEndOfWeakFieldsOffset, 0)                                               \
+  V(kEndOfNativeContextFieldsOffset, 0)                                      \
+  V(kEndOfTaggedFieldsOffset, 0)                                             \
+  /* Raw data. */                                                            \
+  V(kMicrotaskQueueOffset, kMicrotaskQueueSlotSize)                          \
+  /* Total size. */                                                          \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(Context::kExtendedHeaderSize,
@@ -874,7 +888,9 @@ V8_OBJECT class NativeContext : public Context {
   // TaggedMember<Object> elements_[Context::NATIVE_CONTEXT_SLOTS];
   // CppHeapMember<MicrotaskQueue> microtask_queue_;
 
-  static_assert(OffsetOfElementAt(EMBEDDER_DATA_INDEX) ==
+  static_assert(OffsetOfElementAt(FIRST_EMBEDDER_DATA_INDEX) ==
+                Internals::kNativeContextEmbedderDataOffset);
+  static_assert(kEmbedderDataOffset ==
                 Internals::kNativeContextEmbedderDataOffset);
 } V8_OBJECT_END;
 

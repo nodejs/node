@@ -24,8 +24,7 @@ class JSTrampolineAssembler : public CodeStubAssembler {
   template <typename Function>
   void TieringBuiltinImpl(const Function& Impl);
 
-
-  void CompileLazy(TNode<JSFunction> function, TNode<Context> context);
+  TNode<Uint16T> LoadIncomingParameterCount();
 };
 
 }  // namespace v8::internal

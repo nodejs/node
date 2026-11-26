@@ -14,6 +14,8 @@
 #ifndef LLVM_LIBC_SRC___SUPPORT_OSUTIL_SYSCALL_WRAPPERS_LISTXATTR_H
 #define LLVM_LIBC_SRC___SUPPORT_OSUTIL_SYSCALL_WRAPPERS_LISTXATTR_H
 
+#include "hdr/types/size_t.h"
+#include "hdr/types/ssize_t.h"
 #include "src/__support/OSUtil/linux/syscall.h"
 #include "src/__support/common.h"
 #include "src/__support/error_or.h"

@@ -91,7 +91,7 @@
 ### Tests
 
 1. **V8 unit and integration tests:**
-   `<list of mjsunit/unittests/cctest/inspector/intl files and .status check>`
+   `<list of mjsunit/unittests/inspector/intl files and .status check>`
 2. **Spec tests:**
    `<test262 or wasm-spec-tests / wasm-js status and upstream comparison>`
 3. **Web Platform Tests (WPTs):** `<WPT coverage status>`

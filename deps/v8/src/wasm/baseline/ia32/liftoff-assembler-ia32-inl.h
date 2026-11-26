@@ -232,7 +232,7 @@ int LiftoffAssembler::PrepareStackFrame() {
   return offset;
 }
 
-void LiftoffAssembler::CallFrameSetupStub(int declared_function_index) {
+void LiftoffAssembler::CallFrameSetupStub(int defined_function_index) {
 // The standard library used by gcc tryjobs does not consider `std::find` to be
 // `constexpr`, so wrap it in a `#ifdef __clang__` block.
 #ifdef __clang__
@@ -243,7 +243,7 @@ void LiftoffAssembler::CallFrameSetupStub(int declared_function_index) {
 #endif
 
   LoadConstant(LiftoffRegister(kLiftoffFrameSetupFunctionReg),
-               WasmValue(declared_function_index));
+               WasmValue(defined_function_index));
   CallBuiltin(Builtin::kWasmLiftoffFrameSetup);
 }
 
@@ -401,7 +401,7 @@ bool LiftoffAssembler::NeedsAlignment(ValueKind kind) {
   return is_reference(kind);
 }
 
-void LiftoffAssembler::CheckTierUp(int declared_func_index, int budget_used,
+void LiftoffAssembler::CheckTierUp(int defined_func_index, int budget_used,
                                    Label* ool_label,
                                    const FreezeCacheState& frozen) {
   {
@@ -418,7 +418,7 @@ void LiftoffAssembler::CheckTierUp(int declared_func_index, int budget_used,
         FieldOperand(instance_data,
                      WasmTrustedInstanceData::kTieringBudgetArrayOffset));
 
-    int array_offset = kInt32Size * declared_func_index;
+    int array_offset = kInt32Size * defined_func_index;
     sub(Operand{budget_array, array_offset}, Immediate(budget_used));
   }
   j(negative, ool_label);
@@ -575,8 +575,23 @@ void LiftoffAssembler::AtomicStoreTaggedPointer(
     Register dst_addr, Register offset_reg, int32_t offset_imm, Register src,
     LiftoffRegList pinned, AtomicMemoryOrder memory_order,
     uint32_t* trapping_store_pc) {
-  StoreTaggedPointer(dst_addr, offset_reg, offset_imm, src, pinned,
-                     trapping_store_pc);
+  if (memory_order != AtomicMemoryOrder::kSeqCst) {
+    StoreTaggedPointer(dst_addr, offset_reg, offset_imm, src, pinned,
+                       trapping_store_pc);
+    return;
+  }
+  DCHECK_GE(offset_imm, 0);
+  static_assert(kTaggedSize == kInt32Size);
+  Operand dst_op = liftoff::MemOperand(dst_addr, offset_reg, offset_imm);
+
+  Register scratch = GetUnusedRegister(kGpReg, pinned).gp();
+  mov(scratch, src);
+  if (trapping_store_pc) *trapping_store_pc = pc_offset();
+  xchg(scratch, dst_op);
+
+  if (v8_flags.disable_write_barriers) return;
+
+  EmitWriteBarrier(dst_addr, dst_op, src, pinned);
 }
 
 void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
@@ -1367,26 +1382,18 @@ void LiftoffAssembler::AtomicCompareExchangeTaggedPointer(
     Register dst_addr, Register offset_reg, uintptr_t offset_imm,
     LiftoffRegister expected, LiftoffRegister new_value, LiftoffRegister result,
     uint32_t* trapping_load_pc, LiftoffRegList pinned) {
-  // We expect that the offset has already been added to {dst_addr}, and no
-  // {offset_reg} is provided. This is to save registers.
-  DCHECK_EQ(offset_reg, no_reg);
   DCHECK_EQ(result, expected);
-  // "Save" the value to be stored as it is needed for the write barrier.
-  Register new_value_for_write_barrier =
-      pinned.set(GetUnusedRegister(RegClass::kGpReg, pinned)).gp();
-  mov(new_value_for_write_barrier, new_value.gp());
   Register value_reg = new_value.gp();
   Register result_reg = expected.gp();
-  // The cmpxchg instruction uses rax to store the old value of the
+  // The cmpxchg instruction uses eax to store the old value of the
   // compare-exchange primitive. Therefore we have to spill the register and
   // move any use to another register.
-  ClearRegister(eax, {&dst_addr, &value_reg, &new_value_for_write_barrier},
-                pinned);
+  ClearRegister(eax, {&dst_addr, &offset_reg, &value_reg}, pinned);
   if (expected.gp() != eax) {
     mov(eax, expected.gp());
   }
 
-  Operand dst_op = Operand(dst_addr, offset_imm);
+  Operand dst_op = liftoff::MemOperand(dst_addr, offset_reg, offset_imm);
   lock();
   cmpxchg(dst_op, value_reg);
   if (result_reg != eax) {
@@ -1397,14 +1404,15 @@ void LiftoffAssembler::AtomicCompareExchangeTaggedPointer(
   Label done;
   j(not_equal, &done, Label::kNear);
   // This assumes that the caller didn't pin any additional registers.
-  // {expected}, {value_reg} and {new_value} are no longer needed; we need to
-  // unpin them so that enough registers are available for the write barrier.
-  LiftoffRegList new_pinned{dst_addr, new_value_for_write_barrier, result_reg};
-  DCHECK(pinned.MaskOut(new_pinned)
-             .MaskOut(LiftoffRegList{expected, new_value, eax, value_reg})
-             .is_empty());
+  // If one of the inputs started in {eax}, {ClearRegister} moved it to a
+  // replacement register and kept {eax} in {pinned}; unpin {eax} (unless
+  // {result_reg == eax}) so that enough registers are available for the write
+  // barrier.
+  LiftoffRegList new_pinned{dst_addr, value_reg, result_reg};
+  if (offset_reg != no_reg) new_pinned.set(offset_reg);
+  DCHECK(pinned.MaskOut(new_pinned).MaskOut(LiftoffRegList{eax}).is_empty());
   pinned = new_pinned;
-  EmitWriteBarrier(dst_addr, dst_op, new_value_for_write_barrier, pinned);
+  EmitWriteBarrier(dst_addr, dst_op, value_reg, pinned);
   bind(&done);
 }
 
@@ -5293,6 +5301,7 @@ void LiftoffAssembler::TailCallIndirect(
 }
 
 void LiftoffAssembler::CallBuiltin(Builtin builtin) {
+  DCHECK(!Builtins::BypassesReturnAddressPrediction(builtin));
   // A direct call to a builtin. Just encode the builtin index. This will be
   // patched at relocation.
   wasm_call(static_cast<Address>(builtin), RelocInfo::WASM_STUB_CALL);

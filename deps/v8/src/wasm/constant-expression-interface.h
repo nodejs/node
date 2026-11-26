@@ -58,6 +58,8 @@ class V8_EXPORT_PRIVATE ConstantExpressionInterface {
     DCHECK_NOT_NULL(isolate);
   }
 
+  // Validation-only constructor (`outer_module` is non-null before the Code
+  // section to record `ref.func` declarations).
   explicit ConstantExpressionInterface(WasmModule* outer_module)
       : module_(nullptr), outer_module_(outer_module), isolate_(nullptr) {}
 

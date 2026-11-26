@@ -12,6 +12,7 @@
 #include "src/base/bit-field.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
+#include "src/objects/bit-field-group.h"
 #include "src/objects/managed.h"
 #include "src/objects/objects.h"
 
@@ -142,72 +143,111 @@ V8_OBJECT class JSDurationFormat : public JSObject {
   inline void set_fractional_digits(int32_t digits);
   inline int32_t fractional_digits() const;
 
-  // Bit positions in |display_flags|.
-  using YearsDisplayBit =
-      base::BitField<JSDurationFormat::Display, 0, 1, uint32_t>;
-  using MonthsDisplayBit = YearsDisplayBit::Next<JSDurationFormat::Display, 1>;
-  using WeeksDisplayBit = MonthsDisplayBit::Next<JSDurationFormat::Display, 1>;
-  using DaysDisplayBit = WeeksDisplayBit::Next<JSDurationFormat::Display, 1>;
-  using HoursDisplayBit = DaysDisplayBit::Next<JSDurationFormat::Display, 1>;
-  using MinutesDisplayBit = HoursDisplayBit::Next<JSDurationFormat::Display, 1>;
-  using SecondsDisplayBit =
-      MinutesDisplayBit::Next<JSDurationFormat::Display, 1>;
-  using MillisecondsDisplayBit =
-      SecondsDisplayBit::Next<JSDurationFormat::Display, 1>;
-  using MicrosecondsDisplayBit =
-      MillisecondsDisplayBit::Next<JSDurationFormat::Display, 1>;
-  using NanosecondsDisplayBit =
-      MicrosecondsDisplayBit::Next<JSDurationFormat::Display, 1>;
-  using FractionalDigitsBits = NanosecondsDisplayBit::Next<int32_t, 4>;
-  // Bit positions in |style_flags|.
-  using StyleBits = base::BitField<JSDurationFormat::Style, 0, 2, uint32_t>;
-  using YearsStyleBits = StyleBits::Next<JSDurationFormat::FieldStyle, 2>;
-  using MonthsStyleBits = YearsStyleBits::Next<JSDurationFormat::FieldStyle, 2>;
-  using WeeksStyleBits = MonthsStyleBits::Next<JSDurationFormat::FieldStyle, 2>;
-  using DaysStyleBits = WeeksStyleBits::Next<JSDurationFormat::FieldStyle, 2>;
-  using HoursStyleBits = DaysStyleBits::Next<JSDurationFormat::FieldStyle, 3>;
-  using MinutesStyleBits =
-      HoursStyleBits::Next<JSDurationFormat::FieldStyle, 3>;
-  using SecondsStyleBits =
-      MinutesStyleBits::Next<JSDurationFormat::FieldStyle, 3>;
-  using MillisecondsStyleBits =
-      SecondsStyleBits::Next<JSDurationFormat::FieldStyle, 3>;
-  using MicrosecondsStyleBits =
-      MillisecondsStyleBits::Next<JSDurationFormat::FieldStyle, 3>;
-  using NanosecondsStyleBits =
-      MicrosecondsStyleBits::Next<JSDurationFormat::FieldStyle, 3>;
-  using SeparatorBits =
-      NanosecondsStyleBits::Next<JSDurationFormat::Separator, 2>;
+  struct DisplayFlags : BitFieldGroup<DisplayFlags, uint32_t> {
+    using BitFieldGroup::BitFieldGroup;
 
-  static_assert(YearsDisplayBit::is_valid(Display::kMax));
-  static_assert(MonthsDisplayBit::is_valid(Display::kMax));
-  static_assert(WeeksDisplayBit::is_valid(Display::kMax));
-  static_assert(DaysDisplayBit::is_valid(Display::kMax));
-  static_assert(HoursDisplayBit::is_valid(Display::kMax));
-  static_assert(MinutesDisplayBit::is_valid(Display::kMax));
-  static_assert(SecondsDisplayBit::is_valid(Display::kMax));
-  static_assert(MillisecondsDisplayBit::is_valid(Display::kMax));
-  static_assert(MicrosecondsDisplayBit::is_valid(Display::kMax));
-  static_assert(NanosecondsDisplayBit::is_valid(Display::kMax));
+    using YearsDisplayBit = First<JSDurationFormat::Display, 1>;
+    using MonthsDisplayBit =
+        YearsDisplayBit::Next<JSDurationFormat::Display, 1>;
+    using WeeksDisplayBit =
+        MonthsDisplayBit::Next<JSDurationFormat::Display, 1>;
+    using DaysDisplayBit = WeeksDisplayBit::Next<JSDurationFormat::Display, 1>;
+    using HoursDisplayBit = DaysDisplayBit::Next<JSDurationFormat::Display, 1>;
+    using MinutesDisplayBit =
+        HoursDisplayBit::Next<JSDurationFormat::Display, 1>;
+    using SecondsDisplayBit =
+        MinutesDisplayBit::Next<JSDurationFormat::Display, 1>;
+    using MillisecondsDisplayBit =
+        SecondsDisplayBit::Next<JSDurationFormat::Display, 1>;
+    using MicrosecondsDisplayBit =
+        MillisecondsDisplayBit::Next<JSDurationFormat::Display, 1>;
+    using NanosecondsDisplayBit =
+        MicrosecondsDisplayBit::Next<JSDurationFormat::Display, 1>;
+    using FractionalDigitsBits = NanosecondsDisplayBit::Next<int32_t, 4>;
 
-  static_assert(StyleBits::is_valid(Style::kMax));
+    BIT_FIELD_GROUP_ACCESSORS(years_display, YearsDisplayBit)
+    BIT_FIELD_GROUP_ACCESSORS(months_display, MonthsDisplayBit)
+    BIT_FIELD_GROUP_ACCESSORS(weeks_display, WeeksDisplayBit)
+    BIT_FIELD_GROUP_ACCESSORS(days_display, DaysDisplayBit)
+    BIT_FIELD_GROUP_ACCESSORS(hours_display, HoursDisplayBit)
+    BIT_FIELD_GROUP_ACCESSORS(minutes_display, MinutesDisplayBit)
+    BIT_FIELD_GROUP_ACCESSORS(seconds_display, SecondsDisplayBit)
+    BIT_FIELD_GROUP_ACCESSORS(milliseconds_display, MillisecondsDisplayBit)
+    BIT_FIELD_GROUP_ACCESSORS(microseconds_display, MicrosecondsDisplayBit)
+    BIT_FIELD_GROUP_ACCESSORS(nanoseconds_display, NanosecondsDisplayBit)
+    BIT_FIELD_GROUP_ACCESSORS(fractional_digits, FractionalDigitsBits)
+  };
 
-  static_assert(YearsStyleBits::is_valid(FieldStyle::kStyle3Max));
-  static_assert(MonthsStyleBits::is_valid(FieldStyle::kStyle3Max));
-  static_assert(WeeksStyleBits::is_valid(FieldStyle::kStyle3Max));
-  static_assert(DaysStyleBits::is_valid(FieldStyle::kStyle3Max));
-  static_assert(HoursStyleBits::is_valid(FieldStyle::kStyle5Max));
-  static_assert(MinutesStyleBits::is_valid(FieldStyle::kStyle5Max));
-  static_assert(SecondsStyleBits::is_valid(FieldStyle::kStyle5Max));
-  static_assert(MillisecondsStyleBits::is_valid(FieldStyle::kStyle4Max));
-  static_assert(MicrosecondsStyleBits::is_valid(FieldStyle::kStyle4Max));
-  static_assert(NanosecondsStyleBits::is_valid(FieldStyle::kStyle4Max));
+  struct StyleFlags : BitFieldGroup<StyleFlags, uint32_t> {
+    using BitFieldGroup::BitFieldGroup;
 
-  inline int style_flags() const;
-  inline void set_style_flags(int value);
+    using StyleBits = First<JSDurationFormat::Style, 2>;
+    using YearsStyleBits = StyleBits::Next<JSDurationFormat::FieldStyle, 2>;
+    using MonthsStyleBits =
+        YearsStyleBits::Next<JSDurationFormat::FieldStyle, 2>;
+    using WeeksStyleBits =
+        MonthsStyleBits::Next<JSDurationFormat::FieldStyle, 2>;
+    using DaysStyleBits = WeeksStyleBits::Next<JSDurationFormat::FieldStyle, 2>;
+    using HoursStyleBits = DaysStyleBits::Next<JSDurationFormat::FieldStyle, 3>;
+    using MinutesStyleBits =
+        HoursStyleBits::Next<JSDurationFormat::FieldStyle, 3>;
+    using SecondsStyleBits =
+        MinutesStyleBits::Next<JSDurationFormat::FieldStyle, 3>;
+    using MillisecondsStyleBits =
+        SecondsStyleBits::Next<JSDurationFormat::FieldStyle, 3>;
+    using MicrosecondsStyleBits =
+        MillisecondsStyleBits::Next<JSDurationFormat::FieldStyle, 3>;
+    using NanosecondsStyleBits =
+        MicrosecondsStyleBits::Next<JSDurationFormat::FieldStyle, 3>;
+    using SeparatorBits =
+        NanosecondsStyleBits::Next<JSDurationFormat::Separator, 2>;
 
-  inline int display_flags() const;
-  inline void set_display_flags(int value);
+    BIT_FIELD_GROUP_ACCESSORS(style, StyleBits)
+    BIT_FIELD_GROUP_ACCESSORS(years_style, YearsStyleBits)
+    BIT_FIELD_GROUP_ACCESSORS(months_style, MonthsStyleBits)
+    BIT_FIELD_GROUP_ACCESSORS(weeks_style, WeeksStyleBits)
+    BIT_FIELD_GROUP_ACCESSORS(days_style, DaysStyleBits)
+    BIT_FIELD_GROUP_ACCESSORS(hours_style, HoursStyleBits)
+    BIT_FIELD_GROUP_ACCESSORS(minutes_style, MinutesStyleBits)
+    BIT_FIELD_GROUP_ACCESSORS(seconds_style, SecondsStyleBits)
+    BIT_FIELD_GROUP_ACCESSORS(milliseconds_style, MillisecondsStyleBits)
+    BIT_FIELD_GROUP_ACCESSORS(microseconds_style, MicrosecondsStyleBits)
+    BIT_FIELD_GROUP_ACCESSORS(nanoseconds_style, NanosecondsStyleBits)
+    BIT_FIELD_GROUP_ACCESSORS(separator, SeparatorBits)
+  };
+
+  static_assert(DisplayFlags::YearsDisplayBit::is_valid(Display::kMax));
+  static_assert(DisplayFlags::MonthsDisplayBit::is_valid(Display::kMax));
+  static_assert(DisplayFlags::WeeksDisplayBit::is_valid(Display::kMax));
+  static_assert(DisplayFlags::DaysDisplayBit::is_valid(Display::kMax));
+  static_assert(DisplayFlags::HoursDisplayBit::is_valid(Display::kMax));
+  static_assert(DisplayFlags::MinutesDisplayBit::is_valid(Display::kMax));
+  static_assert(DisplayFlags::SecondsDisplayBit::is_valid(Display::kMax));
+  static_assert(DisplayFlags::MillisecondsDisplayBit::is_valid(Display::kMax));
+  static_assert(DisplayFlags::MicrosecondsDisplayBit::is_valid(Display::kMax));
+  static_assert(DisplayFlags::NanosecondsDisplayBit::is_valid(Display::kMax));
+
+  static_assert(StyleFlags::StyleBits::is_valid(Style::kMax));
+
+  static_assert(StyleFlags::YearsStyleBits::is_valid(FieldStyle::kStyle3Max));
+  static_assert(StyleFlags::MonthsStyleBits::is_valid(FieldStyle::kStyle3Max));
+  static_assert(StyleFlags::WeeksStyleBits::is_valid(FieldStyle::kStyle3Max));
+  static_assert(StyleFlags::DaysStyleBits::is_valid(FieldStyle::kStyle3Max));
+  static_assert(StyleFlags::HoursStyleBits::is_valid(FieldStyle::kStyle5Max));
+  static_assert(StyleFlags::MinutesStyleBits::is_valid(FieldStyle::kStyle5Max));
+  static_assert(StyleFlags::SecondsStyleBits::is_valid(FieldStyle::kStyle5Max));
+  static_assert(
+      StyleFlags::MillisecondsStyleBits::is_valid(FieldStyle::kStyle4Max));
+  static_assert(
+      StyleFlags::MicrosecondsStyleBits::is_valid(FieldStyle::kStyle4Max));
+  static_assert(
+      StyleFlags::NanosecondsStyleBits::is_valid(FieldStyle::kStyle4Max));
+
+  inline StyleFlags style_flags() const;
+  inline void set_style_flags(StyleFlags value);
+
+  inline DisplayFlags display_flags() const;
+  inline void set_display_flags(DisplayFlags value);
 
   inline Tagged<Managed<icu::Locale>> icu_locale() const;
   inline void set_icu_locale(Tagged<Managed<icu::Locale>> value,
@@ -225,10 +265,8 @@ V8_OBJECT class JSDurationFormat : public JSObject {
   static const int kHeaderSize;
 
  public:
-  TaggedMember<Smi> style_flags_
-      V8_TQ_TYPE(SmiTagged<JSDurationFormatStyleFlags>);
-  TaggedMember<Smi> display_flags_
-      V8_TQ_TYPE(SmiTagged<JSDurationFormatDisplayFlags>);
+  SmiBitFieldMember<StyleFlags> style_flags_;
+  SmiBitFieldMember<DisplayFlags> display_flags_;
   TaggedMember<Foreign> icu_locale_;
   TaggedMember<Foreign> icu_number_formatter_;
 } V8_OBJECT_END;

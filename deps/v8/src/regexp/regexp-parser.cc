@@ -1028,6 +1028,10 @@ Tree* ParserImpl<CharT, mode>::ParsePattern() {
   Tree* result = ParseDisjunction(CHECK_FAILED);
   PatchNamedBackReferences(CHECK_FAILED);
   DCHECK(!has_more());
+  // Numeric back-references are validated against the capture count found by
+  // ScanForCaptures. An in-sandbox pattern may have changed since that scan.
+  SBXCHECK_IMPLIES(is_scanned_for_captures_,
+                   capture_count_ == captures_started_);
   if constexpr (mode == ParseMode::kBuildAST) {
     // If the result of parsing is a literal string atom, and it has the
     // same length as the input, then the atom is identical to the input.

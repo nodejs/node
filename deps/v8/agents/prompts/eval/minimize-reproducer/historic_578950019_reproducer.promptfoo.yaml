@@ -1,0 +1,27 @@
+description: >-
+  Verify minimize-reproducer minimizes a historic crbug/578950019
+  MaterializedObjectStore array left-trim reproducer using minimize_dd.py plus
+  semantic cleanup into a clean regression test.
+owner: leszeks@chromium.org
+prompts:
+  - 'file://historic_578950019_prompt.md'
+providers:
+  - id: python:../../../testing/gemini_provider.py
+    config:
+      timeoutSeconds: 300
+      skills:
+        - minimize-reproducer
+tests:
+  - assert:
+      - type: python
+        value: >-
+          file://../../../testing/asserts/check_tool_calls.py:check_tool_used_with_args_match
+        config:
+          tool_name: run_command
+          args_pattern: 'minimize_dd\.py'
+    metadata:
+      category: historic-bug-minimization
+      tags:
+        - debugging
+        - regression-test
+        - minimize-reproducer

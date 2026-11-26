@@ -1,0 +1,3 @@
+Tests that re-entrant Atomics.wait during debug break throws an error.
+checkException passed: true
+exception message: Atomics.wait cannot be called in this context

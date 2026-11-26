@@ -30,38 +30,36 @@ void JSDisplayNames::set_internal(
   internal_.store(this, value, mode);
 }
 
-int JSDisplayNames::flags() const { return flags_.load().value(); }
-void JSDisplayNames::set_flags(int value) {
-  flags_.store(this, Smi::FromInt(value));
-}
+JSDisplayNames::Flags JSDisplayNames::flags() const { return flags_.load(); }
+void JSDisplayNames::set_flags(Flags value) { flags_.store(value); }
 
 inline void JSDisplayNames::set_style(Style style) {
-  DCHECK(StyleBits::is_valid(style));
-  set_flags(StyleBits::update(flags(), style));
+  DCHECK(Flags::StyleBits::is_valid(style));
+  set_flags(flags().with_style(style));
 }
 
 inline JSDisplayNames::Style JSDisplayNames::style() const {
-  return StyleBits::decode(flags());
+  return flags().style();
 }
 
 inline void JSDisplayNames::set_fallback(Fallback fallback) {
-  DCHECK(FallbackBit::is_valid(fallback));
-  set_flags(FallbackBit::update(flags(), fallback));
+  DCHECK(Flags::FallbackBit::is_valid(fallback));
+  set_flags(flags().with_fallback(fallback));
 }
 
 inline JSDisplayNames::Fallback JSDisplayNames::fallback() const {
-  return FallbackBit::decode(flags());
+  return flags().fallback();
 }
 
 inline void JSDisplayNames::set_language_display(
     LanguageDisplay language_display) {
-  DCHECK(LanguageDisplayBit::is_valid(language_display));
-  set_flags(LanguageDisplayBit::update(flags(), language_display));
+  DCHECK(Flags::LanguageDisplayBit::is_valid(language_display));
+  set_flags(flags().with_language_display(language_display));
 }
 
 inline JSDisplayNames::LanguageDisplay JSDisplayNames::language_display()
     const {
-  return LanguageDisplayBit::decode(flags());
+  return flags().language_display();
 }
 }  // namespace internal
 }  // namespace v8

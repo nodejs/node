@@ -238,14 +238,14 @@ struct Flag {
     change_flag = CheckFlagChange(set_by, change_flag);
     if (change_flag) {
       DCHECK(!IsReadOnly());
-      *reinterpret_cast<FlagValue<T>*>(valptr_) = new_value;
+      reinterpret_cast<FlagValue<T>*>(valptr_)->Overwrite(new_value);
     }
   }
 
   // Compare this flag's current value against the default.
   bool IsDefault() const;
 
-  void ReleaseDynamicAllocations();
+  V8_EXPORT_PRIVATE void ReleaseDynamicAllocations();
 
   // Set a flag back to its default value.
   V8_EXPORT_PRIVATE void Reset();

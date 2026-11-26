@@ -261,8 +261,7 @@ void JSFunction::RequestOptimization(Isolate* isolate, CodeKind target_kind,
          ActiveTierIsBaseline(isolate) || ActiveTierIsMaglev(isolate));
   DCHECK(!ActiveTierIsTurbofan(isolate));
   DCHECK(shared()->HasBytecodeArray());
-  DCHECK(shared()->allows_lazy_compilation() ||
-         !shared()->optimization_disabled(target_kind));
+  DCHECK(!shared()->optimization_disabled(target_kind));
 
   if (IsConcurrent(mode)) {
     if (tiering_in_progress()) {
@@ -419,14 +418,24 @@ Maybe<bool> JSFunctionOrBoundFunctionOrWrappedFunction::CopyNameAndLength(
 
 // static
 MaybeHandle<String> JSBoundFunction::GetName(
-    Isolate* isolate, DirectHandle<JSBoundFunction> function) {
+    Isolate* isolate, DirectHandle<JSBoundFunction> function,
+    ShouldThrow should_throw) {
   Handle<String> prefix = isolate->factory()->bound__string();
   Handle<String> target_name = prefix;
   Factory* factory = isolate->factory();
+  auto TryNewConsString = [&](Handle<String> left,
+                              Handle<String> right) -> MaybeHandle<String> {
+    if (should_throw == kDontThrow &&
+        left->length() + right->length() > String::kMaxLength) {
+      return {};
+    }
+    return factory->NewConsString(left, right);
+  };
   // Concatenate the "bound " up to the last non-bound target.
   while (IsJSBoundFunction(function->bound_target_function())) {
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, target_name,
-                               factory->NewConsString(prefix, target_name));
+    if (!TryNewConsString(prefix, target_name).ToHandle(&target_name)) {
+      return {};
+    }
     function = direct_handle(
         Cast<JSBoundFunction>(function->bound_target_function()), isolate);
   }
@@ -434,15 +443,17 @@ MaybeHandle<String> JSBoundFunction::GetName(
     DirectHandle<JSWrappedFunction> target(
         Cast<JSWrappedFunction>(function->bound_target_function()), isolate);
     Handle<String> name;
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, name,
-                               JSWrappedFunction::GetName(isolate, target));
-    return factory->NewConsString(target_name, name);
+    if (!JSWrappedFunction::GetName(isolate, target, should_throw)
+             .ToHandle(&name)) {
+      return {};
+    }
+    return TryNewConsString(target_name, name);
   }
   if (IsJSFunction(function->bound_target_function())) {
     DirectHandle<JSFunction> target(
         Cast<JSFunction>(function->bound_target_function()), isolate);
     Handle<String> name = JSFunction::GetName(isolate, target);
-    return factory->NewConsString(target_name, name);
+    return TryNewConsString(target_name, name);
   }
   // This will omit the proper target name for bound JSProxies.
   return target_name;
@@ -498,16 +509,26 @@ DirectHandle<String> JSBoundFunction::ToString(
 
 // static
 MaybeHandle<String> JSWrappedFunction::GetName(
-    Isolate* isolate, DirectHandle<JSWrappedFunction> function) {
-  STACK_CHECK(isolate, MaybeHandle<String>());
+    Isolate* isolate, DirectHandle<JSWrappedFunction> function,
+    ShouldThrow should_throw) {
+  if (should_throw == kThrowOnError) {
+    STACK_CHECK(isolate, MaybeHandle<String>());
+  } else {
+    StackLimitCheck stack_check(isolate);
+    if (V8_UNLIKELY(stack_check.HasOverflowed())) {
+      return {};
+    }
+  }
   Factory* factory = isolate->factory();
   Handle<String> target_name = factory->empty_string();
   DirectHandle<JSReceiver> target(function->wrapped_target_function(), isolate);
   if (IsJSBoundFunction(*target)) {
     return JSBoundFunction::GetName(
-        isolate, direct_handle(
-                     Cast<JSBoundFunction>(function->wrapped_target_function()),
-                     isolate));
+        isolate,
+        direct_handle(
+            Cast<JSBoundFunction>(function->wrapped_target_function()),
+            isolate),
+        should_throw);
   } else if (IsJSFunction(*target)) {
     return JSFunction::GetName(
         isolate,
@@ -696,11 +717,14 @@ void JSFunction::CreateAndAttachFeedbackVector(
       v8_flags.profile_guided_optimization_for_empty_feedback_vector &&
       function->feedback_vector()->length().value() == 0) {
     if (function->shared()->cached_tiering_decision() ==
-        CachedTieringDecision::kEarlyMaglev) {
+            CachedTieringDecision::kEarlyMaglev &&
+        !function->shared()->optimization_disabled(CodeKind::MAGLEV)) {
       function->RequestOptimization(isolate, CodeKind::MAGLEV,
                                     ConcurrencyMode::kConcurrent);
     } else if (function->shared()->cached_tiering_decision() ==
-               CachedTieringDecision::kEarlyTurbofan) {
+                   CachedTieringDecision::kEarlyTurbofan &&
+               !function->shared()->optimization_disabled(
+                   CodeKind::TURBOFAN_JS)) {
       function->RequestOptimization(isolate, CodeKind::TURBOFAN_JS,
                                     ConcurrencyMode::kConcurrent);
     }
@@ -1076,11 +1100,14 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
     case JS_WEAK_REF_TYPE:
     case JS_WEAK_SET_TYPE:
 #if V8_ENABLE_WEBASSEMBLY
+    case WASM_EXCEPTION_PACKAGE_TYPE:
     case WASM_GLOBAL_OBJECT_TYPE:
     case WASM_INSTANCE_OBJECT_TYPE:
     case WASM_MEMORY_OBJECT_TYPE:
     case WASM_MODULE_OBJECT_TYPE:
+    case WASM_SUSPENDING_OBJECT_TYPE:
     case WASM_TABLE_OBJECT_TYPE:
+    case WASM_TAG_OBJECT_TYPE:
     case WASM_VALUE_OBJECT_TYPE:
 #endif  // V8_ENABLE_WEBASSEMBLY
       return true;
@@ -1448,25 +1475,27 @@ bool JSFunction::SetName(Isolate* isolate, DirectHandle<JSFunction> function,
 
 namespace {
 
-DirectHandle<String> NativeCodeFunctionSourceString(
-    Isolate* isolate, DirectHandle<SharedFunctionInfo> shared_info) {
+MaybeDirectHandle<String> NativeCodeFunctionSourceString(
+    Isolate* isolate, DirectHandle<SharedFunctionInfo> shared_info,
+    ShouldThrow should_throw) {
   IncrementalStringBuilder builder(isolate);
   builder.AppendCStringLiteral("function ");
   builder.AppendString(direct_handle(shared_info->Name(), isolate));
   builder.AppendCStringLiteral("() { [native code] }");
-  return builder.Finish().ToHandleChecked();
+  return builder.Finish(should_throw);
 }
 
 }  // namespace
 
 // static
-DirectHandle<String> JSFunction::ToString(Isolate* isolate,
-                                          DirectHandle<JSFunction> function) {
+MaybeDirectHandle<String> JSFunction::ToString(
+    Isolate* isolate, DirectHandle<JSFunction> function,
+    ShouldThrow should_throw) {
   DirectHandle<SharedFunctionInfo> shared_info(function->shared(), isolate);
 
   // Check if {function} should hide its source code.
   if (!shared_info->IsUserJavaScript()) {
-    return NativeCodeFunctionSourceString(isolate, shared_info);
+    return NativeCodeFunctionSourceString(isolate, shared_info, should_throw);
   }
 
   if (IsClassConstructor(shared_info->kind())) {
@@ -1488,7 +1517,7 @@ DirectHandle<String> JSFunction::ToString(Isolate* isolate,
   // Check if we have source code for the {function}.
   if (!shared_info->HasSourceCode() ||
       shared_info->StartPosition() == shared_info->EndPosition()) {
-    return NativeCodeFunctionSourceString(isolate, shared_info);
+    return NativeCodeFunctionSourceString(isolate, shared_info, should_throw);
   }
 
   if (shared_info->function_token_position() == kNoSourcePosition) {
@@ -1497,7 +1526,7 @@ DirectHandle<String> JSFunction::ToString(Isolate* isolate,
     // giving inconsistent call behaviour.
     isolate->CountUsage(
         v8::Isolate::UseCounterFeature::kFunctionTokenOffsetTooLongForToString);
-    return NativeCodeFunctionSourceString(isolate, shared_info);
+    return NativeCodeFunctionSourceString(isolate, shared_info, should_throw);
   }
   return Cast<String>(
       SharedFunctionInfo::GetSourceCodeHarmony(isolate, shared_info));

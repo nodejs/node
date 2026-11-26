@@ -1030,9 +1030,7 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
       Goto(&to_name_failed);
 
       BIND(&to_name_failed);
-      // TODO(duongn): use GetPropertyWithReceiver builtin once
-      // |lookup_element_in_holder| supports elements.
-      exit_point->ReturnCallRuntime(Runtime::kGetPropertyWithReceiver,
+      exit_point->ReturnCallBuiltin(Builtin::kGetPropertyWithReceiver,
                                     p->context(), holder, p->name(),
                                     p->receiver(), SmiConstant(on_nonexistent));
     } else {
@@ -1520,37 +1518,6 @@ void AccessorAssembler::HandleStoreICNativeDataProperty(
                   holder, accessor_info, p->name(), p->value());
 }
 
-void AccessorAssembler::HandleStoreICSmiHandlerJSSharedStructFieldCase(
-    TNode<Context> context, TNode<Word32T> handler_word, TNode<JSObject> holder,
-    TNode<Object> value) {
-  CSA_DCHECK(this,
-             Word32Equal(DecodeWord32<StoreHandler::KindBits>(handler_word),
-                         STORE_KIND(kSharedStructField)));
-  CSA_DCHECK(
-      this,
-      Word32Equal(DecodeWord32<StoreHandler::RepresentationBits>(handler_word),
-                  Int32Constant(Representation::kTagged)));
-
-  TVARIABLE(Object, shared_value, value);
-  SharedValueBarrier(context, &shared_value);
-
-  TNode<BoolT> is_inobject =
-      IsSetWord32<StoreHandler::IsInobjectBits>(handler_word);
-  TNode<HeapObject> property_storage = Select<HeapObject>(
-      is_inobject, [&]() { return holder; },
-      [&]() { return LoadFastProperties(holder, true); });
-
-  TNode<UintPtrT> offset_in_words =
-      DecodeWordFromWord32<StoreHandler::StorageOffsetInWordsBits>(
-          handler_word);
-  TNode<IntPtrT> offset = Signed(TimesTaggedSize(offset_in_words));
-
-  StoreSharedObjectField(property_storage, offset, shared_value.value());
-
-  // Return the original value.
-  Return(value);
-}
-
 void AccessorAssembler::HandleStoreICHandlerCase(
     const StoreICParameters* p, TNode<MaybeObject> handler, Label* miss,
     ICMode ic_mode, ElementSupport support_elements) {
@@ -1594,53 +1561,75 @@ void AccessorAssembler::HandleStoreICHandlerCase(
 
     TVARIABLE(IntPtrT, var_name_index);
     Label dictionary_found(this, &var_name_index);
-    if (p->IsAnyDefineOwn()) {
+    if (p->IsAnyDefineOwn() && !p->IsDefineNamedOwnInLiteral()) {
+      // When dealing with class fields defined with DefineKeyedOwnIC or
+      // DefineNamedOwnIC, use the slow path to check the existing property.
       NameDictionaryLookup<PropertyDictionary>(properties, CAST(p->name()),
                                                &if_slow, nullptr, miss);
     } else {
       NameDictionaryLookup<PropertyDictionary>(properties, CAST(p->name()),
                                                &dictionary_found,
                                                &var_name_index, miss);
-    }
-
-    // When dealing with class fields defined with DefineKeyedOwnIC or
-    // DefineNamedOwnIC, use the slow path to check the existing property.
-    if (!p->IsAnyDefineOwn()) {
       BIND(&dictionary_found);
       {
-        Label if_constant(this), done(this);
+        Label done(this);
         TNode<Uint32T> details =
             LoadDetailsByKeyIndex(properties, var_name_index.value());
-        // Check that the property is a writable data property (no accessor).
-        const int kTypeAndReadOnlyMask =
-            PropertyDetails::KindField::kMask |
-            PropertyDetails::kAttributesReadOnlyMask;
-        static_assert(static_cast<int>(PropertyKind::kData) == 0);
-        GotoIf(IsSetWord32(details, kTypeAndReadOnlyMask), miss);
+        if (p->IsDefineNamedOwnInLiteral()) {
+          // The receiver is a fresh, unescaped object literal, so
+          // PropertyConstness::kConst is preserved. Its entries are expected
+          // to be NONE data properties; anything else takes the slow path.
+          const int kTypeAndAttributesMask =
+              PropertyDetails::KindField::kMask |
+              PropertyDetails::AttributesField::kMask;
+          static_assert(static_cast<int>(PropertyKind::kData) == 0);
+          static_assert(PropertyAttributes::NONE == 0);
+          GotoIf(IsSetWord32(details, kTypeAndAttributesMask), &if_slow);
+        } else {
+          DCHECK_EQ(p->mode(), StoreICMode::kDefault);
+          // Check that the property is a writable data property (no accessor).
+          const int kTypeAndReadOnlyMask =
+              PropertyDetails::KindField::kMask |
+              PropertyDetails::kAttributesReadOnlyMask;
+          static_assert(static_cast<int>(PropertyKind::kData) == 0);
+          GotoIf(IsSetWord32(details, kTypeAndReadOnlyMask), miss);
 
-        if (V8_DICT_PROPERTY_CONST_TRACKING_BOOL) {
-          GotoIf(IsPropertyDetailsConst(details), miss);
+          if constexpr (V8_DICT_PROPERTY_CONST_TRACKING_BOOL) {
+            Label overwrite(this);
+            GotoIfNot(IsPropertyDetailsConst(details), &overwrite);
+            TNode<Object> prev_value =
+                LoadValueByKeyIndex(properties, var_name_index.value());
+            GotoIf(TaggedEqual(prev_value, p->value()), &done);
+            if constexpr (V8_DICT_PROTOTYPES_BOOL) {
+              Goto(miss);
+            } else {
+              TNode<Smi> new_details = SmiFromInt32(
+                  Signed(UpdateWord32<PropertyDetails::ConstnessField>(
+                      details, Uint32Constant(static_cast<uint32_t>(
+                                   PropertyConstness::kMutable)))));
+              StoreDetailsByKeyIndex<PropertyDictionary>(
+                  properties, var_name_index.value(), new_details);
+              Goto(&overwrite);
+            }
+            BIND(&overwrite);
+          }
         }
-
         StoreValueByKeyIndex<PropertyDictionary>(
             properties, var_name_index.value(), p->value());
+        Goto(&done);
+
+        BIND(&done);
         Return(p->value());
       }
     }
     BIND(&if_fast_smi);
     {
-      Label data(this), shared_struct_field(this), native_data_property(this);
-      GotoIf(Word32Equal(handler_kind, STORE_KIND(kNativeDataProperty)),
-             &native_data_property);
-      Branch(Word32Equal(handler_kind, STORE_KIND(kSharedStructField)),
-             &shared_struct_field, &data);
+      Label data(this), native_data_property(this);
+      Branch(Word32Equal(handler_kind, STORE_KIND(kNativeDataProperty)),
+             &native_data_property, &data);
 
       BIND(&native_data_property);
       HandleStoreICNativeDataProperty(p, CAST(holder), handler_word);
-
-      BIND(&shared_struct_field);
-      HandleStoreICSmiHandlerJSSharedStructFieldCase(p->context(), handler_word,
-                                                     CAST(holder), p->value());
 
       BIND(&data);
       // Handle non-transitioning field stores.
@@ -1820,7 +1809,8 @@ void AccessorAssembler::UpdateMayHaveInterestingProperty(
     flags = SmiOr(
         flags,
         SmiConstant(
-            NameDictionary::MayHaveInterestingPropertiesBit::encode(true)));
+            NameDictionary::Flags::MayHaveInterestingPropertiesBit::encode(
+                true)));
     SetNameDictionaryFlags(dict, flags);
     Goto(&done);
   }
@@ -1874,7 +1864,7 @@ void AccessorAssembler::CheckFieldType(TNode<DescriptorArray> descriptors,
       GotoIf(TaggedEqual(field_type, BitcastWordToTagged(IntPtrConstant(
                                          FieldType::None().ptr()))),
              &check_done);
-      CSA_DCHECK(this, IsMap(GetHeapObjectAssumeWeak(field_type)));
+      CSA_DCHECK(this, IsMapOrCustomMap(GetHeapObjectAssumeWeak(field_type)));
       Goto(&check_done);
       BIND(&check_done);
     }
@@ -2039,56 +2029,6 @@ void AccessorAssembler::OverwriteExistingFastDataProperty(
   BIND(&done);
 }
 
-void AccessorAssembler::StoreJSSharedStructField(
-    TNode<Context> context, TNode<HeapObject> shared_struct,
-    TNode<Map> shared_struct_map, TNode<DescriptorArray> descriptors,
-    TNode<IntPtrT> descriptor_name_index, TNode<Uint32T> details,
-    TNode<Object> maybe_local_value) {
-  CSA_DCHECK(this, IsJSSharedStruct(shared_struct));
-
-  Label done(this);
-
-  TNode<UintPtrT> field_word_offset =
-      DecodeWordFromWord32<PropertyDetails::OffsetInWordsField>(details);
-  TNode<BoolT> is_in_object =
-      IsSetWord32<PropertyDetails::InObjectField>(details);
-
-  TVARIABLE(Object, shared_value, maybe_local_value);
-  SharedValueBarrier(context, &shared_value);
-
-  Label inobject(this), backing_store(this);
-  Branch(is_in_object, &inobject, &backing_store);
-
-  BIND(&inobject);
-  {
-    TNode<IntPtrT> field_offset = Signed(TimesTaggedSize(field_word_offset));
-    StoreSharedObjectField(shared_struct, field_offset, shared_value.value());
-    Goto(&done);
-  }
-
-  BIND(&backing_store);
-  {
-    // TODO(leszeks): The field_word_offset already represents the offset
-    // inside the property array, we could do a direct (scaled) access to the
-    // property array.
-    TNode<IntPtrT> backing_store_index = Signed(IntPtrSub(
-        field_word_offset,
-        IntPtrConstant(OFFSET_OF_DATA_START(PropertyArray) / kTaggedSize)));
-
-    CSA_DCHECK(
-        this,
-        Word32Equal(DecodeWord32<PropertyDetails::RepresentationField>(details),
-                    Int32Constant(Representation::kTagged)));
-    TNode<PropertyArray> properties =
-        CAST(LoadFastProperties(CAST(shared_struct), true));
-    StoreJSSharedStructPropertyArrayElement(properties, backing_store_index,
-                                            shared_value.value());
-    Goto(&done);
-  }
-
-  BIND(&done);
-}
-
 TNode<MaybeObject> AccessorAssembler::CheckPrototypeValidityCell(
     TNode<Object> maybe_validity_cell, Label* miss) {
   TVARIABLE(MaybeObject, var_cell_value,
@@ -2149,6 +2089,7 @@ void AccessorAssembler::HandleStoreICProtoHandler(
       // on_found_on_lookup_start_object
       [=, this](TNode<PropertyDictionary> properties,
                 TNode<IntPtrT> name_index) {
+        Label done(this);
         TNode<Uint32T> details = LoadDetailsByKeyIndex(properties, name_index);
         // Check that the property is a writable data property (no accessor).
         const int kTypeAndReadOnlyMask =
@@ -2157,8 +2098,30 @@ void AccessorAssembler::HandleStoreICProtoHandler(
         static_assert(static_cast<int>(PropertyKind::kData) == 0);
         GotoIf(IsSetWord32(details, kTypeAndReadOnlyMask), miss);
 
+        if constexpr (V8_DICT_PROPERTY_CONST_TRACKING_BOOL) {
+          Label overwrite(this);
+          GotoIfNot(IsPropertyDetailsConst(details), &overwrite);
+          TNode<Object> prev_value =
+              LoadValueByKeyIndex(properties, name_index);
+          GotoIf(TaggedEqual(prev_value, p->value()), &done);
+          if constexpr (V8_DICT_PROTOTYPES_BOOL) {
+            Goto(miss);
+          } else {
+            TNode<Smi> new_details = SmiFromInt32(
+                Signed(UpdateWord32<PropertyDetails::ConstnessField>(
+                    details, Uint32Constant(static_cast<uint32_t>(
+                                 PropertyConstness::kMutable)))));
+            StoreDetailsByKeyIndex<PropertyDictionary>(properties, name_index,
+                                                       new_details);
+            Goto(&overwrite);
+          }
+          BIND(&overwrite);
+        }
         StoreValueByKeyIndex<PropertyDictionary>(properties, name_index,
                                                  p->value());
+        Goto(&done);
+
+        BIND(&done);
         Return(p->value());
       },
       miss, ic_mode);
@@ -2414,14 +2377,18 @@ void AccessorAssembler::CheckHeapObjectTypeMatchesDescriptor(
   GotoIf(TaggedIsSmi(value), bailout);
 
   Label done(this);
-  // Skip field type check in favor of constant value check when storing
-  // to constant field.
-  if (mode != StoreICMode::kDefineNamedOwnInLiteral) {
-    // DefineNamedOwnInLiteral skips the constant value check
-    // when storing, so we need to do this field type check here.
-    GotoIf(Word32Equal(DecodeWord32<StoreHandler::KindBits>(handler_word),
-                       STORE_KIND(kConstField)),
-           &done);
+  switch (mode) {
+    case StoreICMode::kDefault:
+      // Skip field type check in favor of constant value check when storing
+      // to constant field.
+      GotoIf(Word32Equal(DecodeWord32<StoreHandler::KindBits>(handler_word),
+                         STORE_KIND(kConstField)),
+             &done);
+      break;
+    case StoreICMode::kDefineNamedOwn:
+    case StoreICMode::kDefineNamedOwnInLiteral:
+    case StoreICMode::kDefineKeyedOwn:
+      break;
   }
   TNode<IntPtrT> descriptor =
       Signed(DecodeWordFromWord32<StoreHandler::DescriptorBits>(handler_word));
@@ -2442,7 +2409,7 @@ void AccessorAssembler::CheckHeapObjectTypeMatchesDescriptor(
       GotoIf(TaggedEqual(field_type, BitcastWordToTagged(IntPtrConstant(
                                          FieldType::None().ptr()))),
              &check_done);
-      CSA_DCHECK(this, IsMap(GetHeapObjectAssumeWeak(field_type)));
+      CSA_DCHECK(this, IsMapOrCustomMap(GetHeapObjectAssumeWeak(field_type)));
       Goto(&check_done);
       BIND(&check_done);
     }
@@ -2554,24 +2521,31 @@ void AccessorAssembler::HandleStoreFieldAndReturn(
 
   // Do constant value check if necessary. In
   // StoreICMode::kDefineNamedOwnInLiteral, we can store to const fields without
-  // invalidating the constness.
+  // invalidating the constness because the freshly created literal object is
+  // not yet observable.
   Label do_store(this);
-  if (mode == StoreICMode::kDefineNamedOwnInLiteral) {
-    Goto(&do_store);
-  } else {
-    GotoIfNot(Word32Equal(DecodeWord32<StoreHandler::KindBits>(handler_word),
-                          STORE_KIND(kConstField)),
-              &do_store);
-    if (store_value_as_double) {
-      CSA_DCHECK(this, IsHeapNumber(property_storage));
-      TNode<Float64T> current_value =
-          LoadObjectField<Float64T>(property_storage, offset);
-      GotoIfNotSameNumberBitPattern(current_value, *double_value, miss);
-      Return(value);
-    } else {
-      TNode<Object> current_value = LoadObjectField(property_storage, offset);
-      GotoIfNot(TaggedEqual(current_value, value), miss);
-      Return(value);
+  switch (mode) {
+    case StoreICMode::kDefineNamedOwnInLiteral:
+      Goto(&do_store);
+      break;
+    case StoreICMode::kDefault:
+    case StoreICMode::kDefineNamedOwn:
+    case StoreICMode::kDefineKeyedOwn: {
+      GotoIfNot(Word32Equal(DecodeWord32<StoreHandler::KindBits>(handler_word),
+                            STORE_KIND(kConstField)),
+                &do_store);
+      if (store_value_as_double) {
+        CSA_DCHECK(this, IsHeapNumber(property_storage));
+        TNode<Float64T> current_value =
+            LoadObjectField<Float64T>(property_storage, offset);
+        GotoIfNotSameNumberBitPattern(current_value, *double_value, miss);
+        Return(value);
+      } else {
+        TNode<Object> current_value = LoadObjectField(property_storage, offset);
+        GotoIfNot(TaggedEqual(current_value, value), miss);
+        Return(value);
+      }
+      break;
     }
   }
 
@@ -2721,7 +2695,7 @@ void AccessorAssembler::EmitElementLoad(
     int32_t kinds[] = {
         // Handled by if_fast_packed.
         PACKED_SMI_ELEMENTS, PACKED_ELEMENTS, PACKED_NONEXTENSIBLE_ELEMENTS,
-        PACKED_SEALED_ELEMENTS, PACKED_FROZEN_ELEMENTS, SHARED_ARRAY_ELEMENTS,
+        PACKED_SEALED_ELEMENTS, PACKED_FROZEN_ELEMENTS,
         // Handled by if_fast_holey.
         HOLEY_SMI_ELEMENTS, HOLEY_ELEMENTS, HOLEY_NONEXTENSIBLE_ELEMENTS,
         HOLEY_FROZEN_ELEMENTS, HOLEY_SEALED_ELEMENTS,
@@ -2731,7 +2705,7 @@ void AccessorAssembler::EmitElementLoad(
         HOLEY_DOUBLE_ELEMENTS};
     Label* labels[] = {// FAST_{SMI,}_ELEMENTS
                        &if_fast_packed, &if_fast_packed, &if_fast_packed,
-                       &if_fast_packed, &if_fast_packed, &if_fast_packed,
+                       &if_fast_packed, &if_fast_packed,
                        // FAST_HOLEY_{SMI,}_ELEMENTS
                        &if_fast_holey, &if_fast_holey, &if_fast_holey,
                        &if_fast_holey, &if_fast_holey,
@@ -3287,7 +3261,7 @@ enum AccessorAssembler::StubCacheTable : int {
 TNode<IntPtrT> AccessorAssembler::StubCachePrimaryOffset(TNode<Name> name,
                                                          TNode<Map> map) {
   // Compute the hash of the name (use entire hash field).
-  TNode<Uint32T> raw_hash_field = LoadNameRawHash(name);
+  TNode<Uint32T> raw_hash_field = LoadNameRawHashField(name);
   CSA_DCHECK(this,
              Word32Equal(Word32And(raw_hash_field,
                                    Int32Constant(Name::kHashNotComputedMask)),
@@ -3341,10 +3315,10 @@ void AccessorAssembler::TryProbeStubCacheTable(
   TNode<ExternalReference> key_base = ExternalConstant(
       ExternalReference::Create(stub_cache->key_reference(table)));
 
-  // Check that the key in the entry matches the name.
-  DCHECK_EQ(0, offsetof(StubCache::Entry, key));
-  TNode<HeapObject> cached_key =
-      CAST(Load(MachineType::TaggedPointer(), key_base, entry_offset));
+  // Check that the key in the entry matches the name. The key of an empty
+  // entry is Smi zero, which never equals a name.
+  static_assert(0 == offsetof(StubCache::Entry, key));
+  TNode<Object> cached_key = Load<Object>(key_base, entry_offset);
   GotoIf(TaggedNotEqual(name, cached_key), if_miss);
 
   // Check that the map in the entry matches.
@@ -4840,22 +4814,33 @@ void AccessorAssembler::GenerateLoadIC_Megamorphic() {
   TVARIABLE(MaybeObject, var_handler);
   Label if_handler(this, &var_handler), miss(this, Label::kDeferred);
 
-  CSA_DCHECK(
-      this,
-      Word32Any(
-          // Either the IC is in regular megamorphic state...
-          TaggedEqual(LoadFeedbackVectorSlot(CAST(vector), slot),
-                      MegamorphicSymbolConstant()),
-          // ... or it's homomorphic ...
-          IsWeakHomomorphicFixedArrayMap(
-              LoadMap(CAST(LoadFeedbackVectorSlot(CAST(vector), slot)))),
-          // ...or it's monomorphic but using a slow handler. Compilers
-          // are free to approximate this by using the generic stub for
-          // everything.
-          TaggedEqual(LoadFeedbackVectorSlot(CAST(vector), slot, kTaggedSize),
-                      SmiConstant(*LoadHandler::LoadSlow(isolate()))),
-          TaggedEqual(LoadFeedbackVectorSlot(CAST(vector), slot, kTaggedSize),
-                      SmiConstant(LoadHandler::LoadGeneric()))));
+  CSA_DCHECK(this,
+             LogicalAny(
+                 // Either the IC is in regular megamorphic state...
+                 TaggedEqual(LoadFeedbackVectorSlot(CAST(vector), slot),
+                             MegamorphicSymbolConstant()),
+                 // ... or it's homomorphic ...
+                 [&] {
+                   TNode<MaybeObject> maybe_homomorphic =
+                       LoadFeedbackVectorSlot(CAST(vector), slot);
+                   return LogicalAnd(IsStrong(maybe_homomorphic), [&] {
+                     return IsWeakHomomorphicFixedArrayMap(
+                         LoadMap(CAST(maybe_homomorphic)));
+                   });
+                 },
+                 // ...or it's monomorphic but using a slow handler. Compilers
+                 // are free to approximate this by using the generic stub for
+                 // everything.
+                 [&] {
+                   return TaggedEqual(
+                       LoadFeedbackVectorSlot(CAST(vector), slot, kTaggedSize),
+                       SmiConstant(*LoadHandler::LoadSlow(isolate())));
+                 },
+                 [&] {
+                   return TaggedEqual(
+                       LoadFeedbackVectorSlot(CAST(vector), slot, kTaggedSize),
+                       SmiConstant(LoadHandler::LoadGeneric()));
+                 }));
 
   LoadICParameters p =
       MakeLoadICParameters(context, receiver, name, slot, vector);

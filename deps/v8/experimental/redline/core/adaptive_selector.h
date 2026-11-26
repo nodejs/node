@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cmath>
 #include <cstdint>
 #include <functional>
 #include <mutex>
@@ -57,6 +58,8 @@ class AdaptiveSelector final : public Selector<T> {
     double prior_executions = 30000;
     double min_factor = 0.25;
     double max_factor = 4.0;
+    // Change-based fuzzing: the extra gain of one new target feature, in edges.
+    double target_reward = 0;
   };
 
   static std::vector<ParamSpec> Specs() {
@@ -80,6 +83,10 @@ class AdaptiveSelector final : public Selector<T> {
          "lowest multiple of the base weight"},
         {"max_factor", ParamSpec::Type::kNumber, "4",
          "highest multiple of the base weight"},
+        {"target_reward", ParamSpec::Type::kNumber, "0",
+         "change-based fuzzing, reward \"edges\": extra gain of one new "
+         "target feature, in edges (0: target features count like other "
+         "edges)"},
     };
   }
 
@@ -93,6 +100,7 @@ class AdaptiveSelector final : public Selector<T> {
         params.GetNumber("prior_executions", p.prior_executions);
     p.min_factor = params.GetNumber("min_factor", p.min_factor);
     p.max_factor = params.GetNumber("max_factor", p.max_factor);
+    p.target_reward = params.GetNumber("target_reward", p.target_reward);
     return p;
   }
 
@@ -100,11 +108,11 @@ class AdaptiveSelector final : public Selector<T> {
     if (p.window < 0 || p.window_sec < 0 ||
         (p.window == 0 && p.window_sec == 0) || p.ema <= 0 || p.ema > 1 ||
         p.prior_executions < 0 || p.min_factor <= 0 ||
-        p.max_factor < p.min_factor) {
+        p.max_factor < p.min_factor || p.target_reward < 0) {
       *error =
           "need window >= 0, window_sec >= 0 (not both 0), 0 < ema <= 1, "
           "prior_executions >= 0, "
-          "0 < min_factor <= max_factor";
+          "0 < min_factor <= max_factor, target_reward >= 0";
       return false;
     }
     return true;
@@ -149,30 +157,14 @@ class AdaptiveSelector final : public Selector<T> {
 
   size_t Pick(const Candidates& candidates, Random& rng,
               const Filter& eligible) override {
-    std::scoped_lock<std::mutex> lock(mutex_);
-    ++picks_since_update_;
-    const bool picks_due =
-        params_.window > 0 &&
-        picks_since_update_ >= static_cast<uint64_t>(params_.window);
-    const bool time_due = params_.window_sec > 0 &&
-                          NowUs() - last_update_us_ >=
-                              static_cast<uint64_t>(params_.window_sec * 1e6);
-    if (picks_due || time_due) {
-      UpdateLocked();
-    }
-    std::vector<double> weights(candidates.size(), 0.0);
-    double total = 0;
-    for (size_t i = 0; i < candidates.size() && i < base_.size(); i++) {
-      if (base_[i] <= 0 || !eligible(*candidates[i])) {
-        continue;
-      }
-      weights[i] = base_[i] * factor_[i];
-      total += weights[i];
-    }
-    if (total <= 0) {
-      return kNoChoice;
-    }
-    return rng.Weighted(weights);
+    return PickImpl(candidates, rng, eligible, nullptr);
+  }
+
+  // The mask multiplies the current weights (base * factor), thus the
+  // workers of a swarm still share what the strategy learns.
+  size_t PickMasked(const Candidates& candidates, Random& rng,
+                    const Filter& eligible, const WeightMask& mask) override {
+    return PickImpl(candidates, rng, eligible, &mask);
   }
 
   double WeightOf(const T& candidate) const override {
@@ -204,11 +196,45 @@ class AdaptiveSelector final : public Selector<T> {
     params.Add("prior_executions", params_.prior_executions);
     params.Add("min_factor", params_.min_factor)
         .Add("max_factor", params_.max_factor);
+    params.Add("target_reward", params_.target_reward);
     return params;
   }
 
  private:
   uint64_t NowUs() const { return clock_ ? clock_() : MonotonicNowUs(); }
+
+  // Pick() without a mask (mask == nullptr) and with a mask.
+  size_t PickImpl(const Candidates& candidates, Random& rng,
+                  const Filter& eligible, const WeightMask* mask) {
+    std::scoped_lock<std::mutex> lock(mutex_);
+    ++picks_since_update_;
+    const bool picks_due =
+        params_.window > 0 &&
+        picks_since_update_ >= static_cast<uint64_t>(params_.window);
+    const bool time_due = params_.window_sec > 0 &&
+                          NowUs() - last_update_us_ >=
+                              static_cast<uint64_t>(params_.window_sec * 1e6);
+    if (picks_due || time_due) {
+      UpdateLocked();
+    }
+    std::vector<double> weights(candidates.size(), 0.0);
+    double total = 0;
+    for (size_t i = 0; i < candidates.size() && i < base_.size(); i++) {
+      double weight = base_[i] > 0 ? base_[i] * factor_[i] : 0.0;
+      if (mask != nullptr) {
+        weight = mask->Apply(i, weight);
+      }
+      if (weight <= 0 || !eligible(*candidates[i])) {
+        continue;
+      }
+      weights[i] = weight;
+      total += weight;
+    }
+    if (total <= 0) {
+      return kNoChoice;
+    }
+    return rng.Weighted(weights);
+  }
 
   bool SetBaseLocked(std::string_view candidate_name, double weight) {
     for (size_t i = 0; i < candidates_.size(); i++) {
@@ -221,9 +247,10 @@ class AdaptiveSelector final : public Selector<T> {
   }
 
   // The yield of a candidate over a window is gain / cost. With
-  // reward_edges: gain = new edges of its corpus programs, cost = every
-  // target execution it caused (`spent`, or `executed` if nothing was
-  // spent). Otherwise: gain = corpus adds, cost = executed results.
+  // reward_edges, gain = the new edges of its corpus programs, plus
+  // target_reward for each new target feature. Then cost = every target
+  // execution it caused (`spent`, or `executed` if nothing was spent).
+  // Otherwise: gain = corpus adds, cost = executed results.
   void UpdateLocked() {
     picks_since_update_ = 0;
     last_update_us_ = NowUs();
@@ -238,7 +265,11 @@ class AdaptiveSelector final : public Selector<T> {
       uint64_t g = stats.interesting.load(std::memory_order_relaxed);
       if (params_.reward_edges) {
         c = spent > 0 ? spent : executed;
-        g = stats.new_edges.load(std::memory_order_relaxed);
+        g = stats.new_edges.load(std::memory_order_relaxed) +
+            static_cast<uint64_t>(
+                std::llround(params_.target_reward *
+                             static_cast<double>(stats.new_targets.load(
+                                 std::memory_order_relaxed))));
       }
       cost[i] = c - std::min(c, last_cost_[i]);
       gain[i] = g - std::min(g, last_gain_[i]);

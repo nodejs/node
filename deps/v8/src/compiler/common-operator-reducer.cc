@@ -312,8 +312,19 @@ Reduction CommonOperatorReducer::ReducePhi(Node* node) {
 
             if (machine()->Word32Select().IsSupported()) {
               // Select positive value with conditional move if is supported.
+              // If {vfalse}'s left input (0) is wrapped in a value identity
+              // (e.g. TypeGuard pinned inside {if_false}), we cannot reuse
+              // {vfalse} directly at {merge} as doing so would hoist it out of
+              // {if_false}. Create a fresh Int32Sub using the unwrapped
+              // constant instead.
+              Node* false_value = vfalse;
+              if (NodeProperties::IsValueIdentity(mvfalse.left().node())) {
+                Node* zero = graph()->NewNode(common()->Int32Constant(0));
+                false_value =
+                    graph()->NewNode(machine()->Int32Sub(), zero, vtrue);
+              }
               Node* abs = graph()->NewNode(machine()->Word32Select().op(), cond,
-                                           vtrue, vfalse);
+                                           vtrue, false_value);
               return Replace(abs);
             } else {
               // Generate absolute integer value.

@@ -1,0 +1,7 @@
+Tests regress-prepare-break-while-recompile.
+function bar() {
+  var x = #2;
+  return x;
+
+foo isUnoptimized before finalize: true
+foo isUnoptimized after finalize: true

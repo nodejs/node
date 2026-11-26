@@ -63,9 +63,11 @@ void DebugInfo::set_shared(Tagged<SharedFunctionInfo> value,
   shared_.store(this, value, mode);
 }
 
-int DebugInfo::debugger_hints() const { return debugger_hints_.load().value(); }
-void DebugInfo::set_debugger_hints(int value) {
-  debugger_hints_.store(this, Smi::FromInt(value));
+DebugInfo::DebuggerHints DebugInfo::debugger_hints() const {
+  return debugger_hints_.load();
+}
+void DebugInfo::set_debugger_hints(DebuggerHints value) {
+  debugger_hints_.store(value);
 }
 
 Tagged<FixedArray> DebugInfo::break_points() const {
@@ -77,10 +79,10 @@ void DebugInfo::set_break_points(Tagged<FixedArray> value,
 }
 
 DebugInfo::Flags DebugInfo::flags(RelaxedLoadTag) const {
-  return Flags(flags_.Relaxed_Load().value());
+  return flags_.Relaxed_Load();
 }
 void DebugInfo::set_flags(Flags value, RelaxedStoreTag) {
-  flags_.Relaxed_Store(this, Smi::From31BitPattern(value));
+  flags_.Relaxed_Store(value);
 }
 
 Tagged<UnionOf<CoverageInfo, Undefined>> DebugInfo::coverage_info() const {
@@ -140,13 +142,13 @@ void DebugInfo::clear_debug_bytecode_array() {
 }
 
 BIT_FIELD_ACCESSORS(DebugInfo, debugger_hints, side_effect_state,
-                    DebugInfo::SideEffectStateBits)
+                    DebugInfo::DebuggerHints::SideEffectStateBits)
 BIT_FIELD_ACCESSORS(DebugInfo, debugger_hints, debug_is_blackboxed,
-                    DebugInfo::DebugIsBlackboxedBit)
+                    DebugInfo::DebuggerHints::DebugIsBlackboxedBit)
 BIT_FIELD_ACCESSORS(DebugInfo, debugger_hints, computed_debug_is_blackboxed,
-                    DebugInfo::ComputedDebugIsBlackboxedBit)
+                    DebugInfo::DebuggerHints::ComputedDebugIsBlackboxedBit)
 BIT_FIELD_ACCESSORS(DebugInfo, debugger_hints, debugging_id,
-                    DebugInfo::DebuggingIdBits)
+                    DebugInfo::DebuggerHints::DebuggingIdBits)
 
 bool DebugInfo::HasInstrumentedBytecodeArray() {
   return has_debug_bytecode_array();
@@ -160,7 +162,8 @@ Tagged<BytecodeArray> DebugInfo::OriginalBytecodeArray(Isolate* isolate) {
 Tagged<BytecodeArray> DebugInfo::DebugBytecodeArray(Isolate* isolate) {
   DCHECK(HasInstrumentedBytecodeArray());
   Tagged<BytecodeArray> result = debug_bytecode_array(kAcquireLoad);
-  DCHECK_EQ(shared()->GetActiveBytecodeArray(isolate), result);
+  DCHECK_WITH_SANDBOX_ACCESS(shared()->GetActiveBytecodeArray(isolate) ==
+                             result);
   return result;
 }
 
@@ -172,7 +175,7 @@ StackFrameInfo::StackFrameInfo(
     : Struct(witness.roots().stack_frame_info_map()),
       shared_or_script_(witness, shared_or_script),
       function_name_(witness, function_name),
-      flags_(Smi::FromInt(IsConstructorBit::encode(is_constructor))),
+      flags_(Flags{}.with_is_constructor(is_constructor)),
       bytecode_offset_or_source_position_(
           Smi::FromInt(bytecode_offset_or_source_position)) {}
 
@@ -189,7 +192,7 @@ Tagged<String> StackFrameInfo::function_name() const {
   return function_name_.load();
 }
 
-int StackFrameInfo::flags() const { return flags_.load().value(); }
+StackFrameInfo::Flags StackFrameInfo::flags() const { return flags_.load(); }
 
 Tagged<Script> StackFrameInfo::script() const {
   Tagged<HeapObject> object = shared_or_script();
@@ -205,8 +208,7 @@ int StackFrameInfo::bytecode_offset_or_source_position() const {
 void StackFrameInfo::set_bytecode_offset_or_source_position(int value) {
   bytecode_offset_or_source_position_.store(this, Smi::FromInt(value));
 }
-BOOL_GETTER(StackFrameInfo, flags, is_constructor,
-            StackFrameInfo::IsConstructorBit::kShift)
+bool StackFrameInfo::is_constructor() const { return flags().is_constructor(); }
 
 StackTraceInfo::StackTraceInfo(const AllocationWitness& witness, int id,
                                Tagged<FixedArray> frames)

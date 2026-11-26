@@ -47,20 +47,20 @@ var slow_proto = new SlowPrototype;
 function ic() { return slow_proto.bar; }
 ic();
 ic();
-assertEquals(!%IsDictPropertyConstTrackingEnabled(),
+assertEquals(!%IsDictPrototypesEnabled(),
              %HasFastProperties(slow_proto.__proto__));
 
 // Prototypes stay fast even after deleting properties.
-assertEquals(!%IsDictPropertyConstTrackingEnabled(),
+assertEquals(!%IsDictPrototypesEnabled(),
              %HasFastProperties(SlowPrototype.prototype));
 var fast_proto = new SlowPrototype();
-assertEquals(!%IsDictPropertyConstTrackingEnabled(),
+assertEquals(!%IsDictPrototypesEnabled(),
              %HasFastProperties(SlowPrototype.prototype));
-assertEquals(!%IsDictPropertyConstTrackingEnabled(),
+assertEquals(!%IsDictPrototypesEnabled(),
              %HasFastProperties(fast_proto.__proto__));
 
 
-if (!%IsDictPropertyConstTrackingEnabled()) {
+if (!%IsDictPrototypesEnabled()) {
   assertTrue(%HasFastProperties(SlowPrototype.prototype));
   assertTrue(%HasFastProperties(fast_proto.__proto__));
 }

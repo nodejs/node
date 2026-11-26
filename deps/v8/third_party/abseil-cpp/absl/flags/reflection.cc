@@ -191,6 +191,7 @@ void ForEachFlag(std::function<void(CommandLineFlag&)> visitor) {
 
   if (registry.finalized_flags_.load(std::memory_order_acquire)) {
     for (const auto& i : registry.flat_flags_) visitor(*i);
+    return;
   }
 
   FlagRegistryLock frl(registry);

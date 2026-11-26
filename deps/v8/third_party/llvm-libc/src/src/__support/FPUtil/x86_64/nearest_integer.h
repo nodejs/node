@@ -9,6 +9,7 @@
 #ifndef LLVM_LIBC_SRC___SUPPORT_FPUTIL_X86_64_NEAREST_INTEGER_H
 #define LLVM_LIBC_SRC___SUPPORT_FPUTIL_X86_64_NEAREST_INTEGER_H
 
+#include "src/__support/CPP/type_traits.h"
 #include "src/__support/common.h"
 #include "src/__support/macros/config.h"
 #include "src/__support/macros/properties/architectures.h"
@@ -28,6 +29,8 @@
 namespace LIBC_NAMESPACE_DECL {
 namespace fputil {
 
+namespace internal {
+
 // The legacy SSE4.1 `roundss` and `roundsd` are 2-operand instructions that
 // preserve the upper bits of the destination XMM register (unlike AVX's
 // 3-operand `vroundss` and `vroundsd`, where `_mm_round_ss(xmm, xmm, ...)`
@@ -39,7 +42,10 @@ namespace fputil {
 // assembly with `"+x"(x)` forces identical source and destination registers
 // without the extra lane-zeroing instructions required by `_mm_round_ps` /
 // `_mm_round_pd`.
-LIBC_INLINE float nearest_integer(float x) {
+//
+// These wrappers are kept out of the constexpr functions below because inline
+// assembly is not allowed in a constexpr function before C++20.
+LIBC_INLINE float hardware_nearest_integer(float x) {
 #if defined(__AVX__) || defined(LIBC_COMPILER_IS_MSVC)
   __m128 xmm = _mm_set_ss(x); // NOLINT
   __m128 ymm =
@@ -52,7 +58,7 @@ LIBC_INLINE float nearest_integer(float x) {
 #endif
 }
 
-LIBC_INLINE double nearest_integer(double x) {
+LIBC_INLINE double hardware_nearest_integer(double x) {
 #if defined(__AVX__) || defined(LIBC_COMPILER_IS_MSVC)
   __m128d xmm = _mm_set_sd(x); // NOLINT
   __m128d ymm =
@@ -63,6 +69,27 @@ LIBC_INLINE double nearest_integer(double x) {
                                                        _MM_FROUND_NO_EXC));
   return x;
 #endif
+}
+
+} // namespace internal
+
+// generic::nearest_integer is defined in
+// "src/__support/FPUtil/nearest_integer.h", the only header that includes this
+// file.
+LIBC_INLINE LIBC_CONSTEXPR_DEFAULT float nearest_integer(float x) {
+  if (cpp::is_constant_evaluated()) {
+    return generic::nearest_integer(x);
+  } else {
+    return internal::hardware_nearest_integer(x);
+  }
+}
+
+LIBC_INLINE LIBC_CONSTEXPR_DEFAULT double nearest_integer(double x) {
+  if (cpp::is_constant_evaluated()) {
+    return generic::nearest_integer(x);
+  } else {
+    return internal::hardware_nearest_integer(x);
+  }
 }
 
 } // namespace fputil

@@ -17,6 +17,7 @@
 #include "hdr/fenv_macros.h"
 #include "hdr/stdint_proxy.h"
 #include "hdr/types/fenv_t.h"
+#include "src/__support/CPP/type_traits.h"
 #include "src/__support/macros/attributes.h" // For LIBC_INLINE_ASM
 #include "src/__support/macros/config.h"     // For LIBC_INLINE
 
@@ -150,19 +151,23 @@ LIBC_INLINE int raise_except(int excepts) {
   return 0;
 }
 
-LIBC_INLINE int get_round() {
-  uint32_t rm = (FEnv::get_usr() >> FEnv::RND_SHIFT) & FEnv::RND_MASK;
-  switch (rm) {
-  case FEnv::RND_TONEAREST:
+LIBC_INLINE LIBC_CONSTEXPR_DEFAULT int get_round() {
+  if (cpp::is_constant_evaluated()) {
     return FE_TONEAREST;
-  case FEnv::RND_TOWARDZERO:
-    return FE_TOWARDZERO;
-  case FEnv::RND_DOWNWARD:
-    return FE_DOWNWARD;
-  case FEnv::RND_UPWARD:
-    return FE_UPWARD;
-  default:
-    return -1; // Error value.
+  } else {
+    uint32_t rm = (FEnv::get_usr() >> FEnv::RND_SHIFT) & FEnv::RND_MASK;
+    switch (rm) {
+    case FEnv::RND_TONEAREST:
+      return FE_TONEAREST;
+    case FEnv::RND_TOWARDZERO:
+      return FE_TOWARDZERO;
+    case FEnv::RND_DOWNWARD:
+      return FE_DOWNWARD;
+    case FEnv::RND_UPWARD:
+      return FE_UPWARD;
+    default:
+      return -1; // Error value.
+    }
   }
 }
 

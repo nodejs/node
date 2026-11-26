@@ -18,38 +18,50 @@ Before minimizing, understand exactly what "reproduction" looks like.
   flaky, you'll need to run it multiple times at every step. Use the bundled
   \`repro_check.sh\` script.
 
-### 2. Command-Line Flag Minimization
+### 2. Mechanical Minimization First (`minimize_dd.py`)
 
-Find the minimal set of V8 flags required to reproduce the issue.
+Delegate brute-force line, block, and flag deletion to the bundled
+delta-debugging script in one shell invocation instead of spending turns
+deleting lines or testing flags one by one:
 
-- **Batch Removal:** Start by removing larger batches of flags (e.g., all flags
-  starting with \`--no-\` or all optimization flags).
-- **One-by-One:** Progressively remove individual flags until only the essential
-  ones remain.
-- **Common Critical Flags:** Pay attention to flags like \`--sandbox-fuzzing\`,
-  \`--memory-corruption-via-watchpoints\`, or \`--turbofan\`, as these often
-  control the underlying feature being tested.
-- **Validation:** Test reproduction after every step. If it stops failing,
-  restore the last flag removed.
+```bash
+vpython3 agents/skills/minimize-reproducer/scripts/minimize_dd.py \
+  --cmd "out/x64.release/d8 {flags} {file}" \
+  --flags "--fuzzing --future --expose-gc" \
+  --match "DCHECK failed: .*|AddressSanitizer" \
+  --file poc.js \
+  --out poc-min.js
+```
 
-### 3. File Minimization (The Iterative Phase)
+- **Always Pass `--match`**: Match the exact crash/assertion signature on
+  combined stdout/stderr so unrelated `SyntaxError`s or timeouts from partial
+  deletions are rejected.
+- **Umbrella Flags**: Strip umbrella fuzzer flags (`--fuzzing`,
+  `--experimental-fuzzing`, `--jit-fuzzing`) first or test minimal leaf flags
+  such as `--sandbox-testing`, `--turbofan`, or `--expose-gc`.
+- **Flaky Reproducers**: If the bug fails probabilistically, wrap the command
+  with `repro_check.sh` or stabilize the trigger with a loop before running
+  `minimize_dd.py`.
 
-Reduce the input JavaScript file systematically. Always work on a copy (e.g.,
-\`poc-copy.js\`) and maintain a \`poc-min.js\` as your "best known" version.
+### 3. Smart Semantic Minimization & Re-`ddmin`
 
-- **Remove Large Blocks:** Start by removing entire functions, classes, or large
-  blocks of code (e.g., fuzzer boilerplate, unused libraries).
-- **Binary Search:** If a large block is present, try removing half. If it still
-  fails, that half was unnecessary.
-- **Remove Individual Lines:** Once large blocks are gone, try removing
-  individual lines.
-- **Inline Functions:** If a function is called only once, inline its content
-  and remove the definition.
-- **Simplify Wrappers:** Remove \`try-catch\` blocks but retain the code inside
-  the \`try\` block.
-- **Stabilize with Loops:** If a reproduction is flaky (e.g., it only fails 10%
-  of the time), add a loop around the triggering logic to increase the failure
-  probability to 100%.
+After `minimize_dd.py` strips dead code, apply semantic simplifications that
+line-level `ddmin` cannot discover on its own (and re-run `minimize_dd.py`
+whenever a rewrite exposes newly dead helpers):
+
+- **Replace Fuzzer Patterns with Direct V8 Idioms**: Replace CPU-spinning warmup
+  loops, allocation sprays, or harness scaffolding with explicit intrinsics
+  (`%PrepareFunctionForOptimization`, `%OptimizeFunctionOnNextCall`, `gc()`,
+  `gc({ type: 'minor' })`) when investigating root causes.
+- **Collapse Abstractions & Control Flow**: Inline single-use functions, remove
+  unused parameters, replace complex class/Proxy/eval scaffolding with plain
+  objects or direct calls, and unwrap non-essential `try-catch` blocks.
+- **Simplify Expressions & Data**: Shrink large constants, strings, or arrays to
+  the smallest values that preserve the failing shape/bounds, and split
+  multi-statement lines when sub-expressions look irrelevant.
+- **Stabilize Flaky Triggers**: If a reduced case still flakes, tighten the loop
+  or add an explicit `gc()` around the trigger to make failure 100%
+  deterministic.
 
 ### 4. Wasm Minimization
 

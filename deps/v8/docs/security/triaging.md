@@ -34,7 +34,6 @@ These bugs are currently treated differently from regular security bugs.
 Specifically, the following properties are different from regular security bugs:
 
 - **Severity**: S2
-- **[Security_Impact-None][hl-impact-none]**
 - **[v8-sandbox][hl-sandbox]**
 
 Note that further mitigating factors may additionally apply.
@@ -152,15 +151,17 @@ To make this clear, V8 will automatically remove any calls to unsupported functi
 V8 uses snapshots that are deserialized at startup.
 These snapshots are fully trusted and outside of the attacker model, see the Chrome Security FAQ regarding [physically local attacks](https://chromium.googlesource.com/chromium/src/+/HEAD/docs/security/faq.md#why-arent-physically_local-attacks-in-chromes-threat-model).
 
-### Bugs reproducing only with `--enable-inspector`
+### V8 Inspector and debugger issues (`inspector-test`)
 
-Fields: **[component=Platform>DevTools][c-devtools]**, **Type=Bug**, **[Security_Impact-None][hl-impact-none]**
+Fields: **[component=Platform>DevTools][c-devtools]**, **Status=New** (unassigned)
 
-In addition, assignee should be one of the [OWNERS](../../src/inspector/OWNERS).
+Issues that only reproduce with the inspector or debugger (`inspector-test` or Chrome DevTools/CDP) are owned by the DevTools team, even if the crash occurs outside `src/inspector/` or `src/debug/`.
+Keep or reset the status to **New** without assigning an individual so the report is not missed in triage.
+If the bug also reproduces without the debugger (e.g., in `d8`), route it to the relevant [Blink>JavaScript][c-javascript] subcomponent instead.
+See [V8 Inspector Security](../../src/inspector/SECURITY.md) for validity, threat model, and severity guidelines.
 
-Rationale: `--enable-inspector` does not accurately represent the production behavior of DevTools.
-`inspector-test` should be used for valid reproductions.
-For more details see [security documentation](../../src/inspector/SECURITY.md).
+Note: `d8 --enable-inspector` was removed in [573042262](https://crbug.com/573042262).
+Reports that rely on `--enable-inspector` are invalid (WontFix, Infeasible) and must be reproduced using `inspector-test` (or Chrome) instead.
 
 ### Sandbox: Reliance on libc++ hardening
 

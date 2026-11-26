@@ -310,6 +310,8 @@ namespace compiler {
   V(Arm64CompareAndBranch32)                         \
   V(Arm64CompareAndBranch)                           \
   V(Arm64Claim)                                      \
+  V(Arm64ClaimPoke)                                  \
+  V(Arm64ClaimPokePair)                              \
   V(Arm64Poke)                                       \
   V(Arm64PokePair)                                   \
   V(Arm64Peek)                                       \

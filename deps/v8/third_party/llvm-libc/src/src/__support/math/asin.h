@@ -67,7 +67,7 @@ LIBC_INLINE double asin(double x) {
       double normalize_const = (x_exp == 0) ? eps : 0.0;
       double scaled_normal =
           fputil::multiply_add(x + normalize_const, 0x1.0p54, eps);
-      return fputil::multiply_add(scaled_normal, 0x1.0p-54, -normalize_const);
+      return fputil::multiply_sub(scaled_normal, 0x1.0p-54, normalize_const);
 #endif // LIBC_MATH_HAS_SKIP_ACCURATE_PASS
     }
 
@@ -110,7 +110,7 @@ LIBC_INLINE double asin(double x) {
 #ifdef LIBC_TARGET_CPU_HAS_FMA_DOUBLE
     // u = x^2 - idx/64
     DFloat128 u_hi(
-        fputil::multiply_add(static_cast<double>(idx), -0x1.0p-6, x_sq.hi));
+        fputil::sub_multiply(x_sq.hi, static_cast<double>(idx), 0x1.0p-6));
     DFloat128 u = fputil::quick_add(u_hi, DFloat128(x_sq.lo));
 #else
     DFloat128 x_sq_f128 = fputil::quick_mul(x_f128, x_f128);
@@ -176,7 +176,7 @@ LIBC_INLINE double asin(double x) {
   //   asin(x) ~ pi/2 - 2 * sqrt(u) * P(u),
 
   // u = (1 - |x|)/2
-  double u = fputil::multiply_add(x_abs, -0.5, 0.5);
+  double u = fputil::sub_multiply(0.5, x_abs, 0.5);
   // v_hi + v_lo ~ sqrt(u).
   // Let:
   //   h = u - v_hi^2 = (sqrt(u) - v_hi) * (sqrt(u) + v_hi)
@@ -197,7 +197,7 @@ LIBC_INLINE double asin(double x) {
 #else
 
 #ifdef LIBC_TARGET_CPU_HAS_FMA_DOUBLE
-  double h = fputil::multiply_add(v_hi, -v_hi, u);
+  double h = fputil::sub_multiply(u, v_hi, v_hi);
 #else
   DoubleDouble v_hi_sq = fputil::exact_mult(v_hi, v_hi);
   double h = (u - v_hi_sq.hi) - v_hi_sq.lo;
@@ -229,7 +229,7 @@ LIBC_INLINE double asin(double x) {
   double r_upper = fputil::multiply_add(
       r.hi, x_sign, fputil::multiply_add(r_lo, x_sign, err));
   double r_lower = fputil::multiply_add(
-      r.hi, x_sign, fputil::multiply_add(r_lo, x_sign, -err));
+      r.hi, x_sign, fputil::multiply_sub(r_lo, x_sign, err));
 #else
   r_lo *= x_sign;
   r.hi *= x_sign;
@@ -264,7 +264,7 @@ LIBC_INLINE double asin(double x) {
   // Get the rounding error of vl = 2 * v_lo ~ h / vh
   // Get full product of vh * vl
 #ifdef LIBC_TARGET_CPU_HAS_FMA_DOUBLE
-  double vl_lo = fputil::multiply_add(-v_hi, vl, h) / v_hi;
+  double vl_lo = fputil::sub_multiply(h, v_hi, vl) / v_hi;
 #else
   DoubleDouble vh_vl = fputil::exact_mult(v_hi, vl);
   double vl_lo = ((h - vh_vl.hi) - vh_vl.lo) / v_hi;
@@ -279,8 +279,7 @@ LIBC_INLINE double asin(double x) {
 
   // Perform computations in DFloat128:
   //   asin(x) = pi/2 - (v_hi + v_lo + vll) * P(u).
-  DFloat128 y_f128(
-      fputil::multiply_add(static_cast<double>(idx), -0x1.0p-6, u));
+  DFloat128 y_f128(fputil::sub_multiply(u, static_cast<double>(idx), 0x1.0p-6));
 
   DFloat128 p_f128 = asin_eval(y_f128, idx);
   DFloat128 r0_f128 = fputil::quick_mul(m_v, p_f128);

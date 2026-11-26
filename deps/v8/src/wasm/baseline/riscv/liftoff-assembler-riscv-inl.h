@@ -66,7 +66,7 @@ void LiftoffAssembler::PrepareTailCall(int num_callee_stack_params,
 
 void LiftoffAssembler::AlignFrameSize() {}
 
-void LiftoffAssembler::CheckTierUp(int declared_func_index, int budget_used,
+void LiftoffAssembler::CheckTierUp(int defined_func_index, int budget_used,
                                    Label* ool_label,
                                    const FreezeCacheState& frozen) {
   UseScratchRegisterScope temps(this);
@@ -81,7 +81,7 @@ void LiftoffAssembler::CheckTierUp(int declared_func_index, int budget_used,
            FieldMemOperand(instance_data,
                            WasmTrustedInstanceData::kTieringBudgetArrayOffset));
 
-  int budget_arr_offset = kInt32Size * declared_func_index;
+  int budget_arr_offset = kInt32Size * defined_func_index;
   // TODO(kasperl@rivosinc.com): We cannot currently use {temps} to acquire a
   // suitable scratch register because {CheckTierUp} is sometimes called from
   // a context that only leaves us with a single available scratch register.
@@ -1116,8 +1116,7 @@ void LiftoffAssembler::emit_i8x16_bitmask(LiftoffRegister dst,
 void LiftoffAssembler::emit_i8x16_shl(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   VU.SetSimd128(E8);
-  andi(kScratchReg, rhs.gp(), 8 - 1);
-  vsll_vx(dst.simd128(), lhs.simd128(), kScratchReg);
+  vsll_vx(dst.simd128(), lhs.simd128(), rhs.gp());
 }
 
 void LiftoffAssembler::emit_i8x16_shli(LiftoffRegister dst, LiftoffRegister lhs,
@@ -1130,8 +1129,7 @@ void LiftoffAssembler::emit_i8x16_shr_s(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
   VU.SetSimd128(E8);
-  andi(kScratchReg, rhs.gp(), 8 - 1);
-  vsra_vx(dst.simd128(), lhs.simd128(), kScratchReg);
+  vsra_vx(dst.simd128(), lhs.simd128(), rhs.gp());
 }
 
 void LiftoffAssembler::emit_i8x16_shri_s(LiftoffRegister dst,
@@ -1144,8 +1142,7 @@ void LiftoffAssembler::emit_i8x16_shr_u(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
   VU.SetSimd128(E8);
-  andi(kScratchReg, rhs.gp(), 8 - 1);
-  vsrl_vx(dst.simd128(), lhs.simd128(), kScratchReg);
+  vsrl_vx(dst.simd128(), lhs.simd128(), rhs.gp());
 }
 
 void LiftoffAssembler::emit_i8x16_shri_u(LiftoffRegister dst,
@@ -1252,8 +1249,7 @@ void LiftoffAssembler::emit_i16x8_bitmask(LiftoffRegister dst,
 void LiftoffAssembler::emit_i16x8_shl(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   VU.SetSimd128(E16);
-  andi(kScratchReg, rhs.gp(), 16 - 1);
-  vsll_vx(dst.simd128(), lhs.simd128(), kScratchReg);
+  vsll_vx(dst.simd128(), lhs.simd128(), rhs.gp());
 }
 
 void LiftoffAssembler::emit_i16x8_shli(LiftoffRegister dst, LiftoffRegister lhs,
@@ -1266,8 +1262,7 @@ void LiftoffAssembler::emit_i16x8_shr_s(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
   VU.SetSimd128(E16);
-  andi(kScratchReg, rhs.gp(), 16 - 1);
-  vsra_vx(dst.simd128(), lhs.simd128(), kScratchReg);
+  vsra_vx(dst.simd128(), lhs.simd128(), rhs.gp());
 }
 
 void LiftoffAssembler::emit_i16x8_shri_s(LiftoffRegister dst,
@@ -1280,8 +1275,7 @@ void LiftoffAssembler::emit_i16x8_shr_u(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
   VU.SetSimd128(E16);
-  andi(kScratchReg, rhs.gp(), 16 - 1);
-  vsrl_vx(dst.simd128(), lhs.simd128(), kScratchReg);
+  vsrl_vx(dst.simd128(), lhs.simd128(), rhs.gp());
 }
 
 void LiftoffAssembler::emit_i16x8_shri_u(LiftoffRegister dst,
@@ -1394,8 +1388,7 @@ void LiftoffAssembler::emit_i32x4_bitmask(LiftoffRegister dst,
 void LiftoffAssembler::emit_i32x4_shl(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   VU.SetSimd128(E32);
-  andi(kScratchReg, rhs.gp(), 32 - 1);
-  vsll_vx(dst.simd128(), lhs.simd128(), kScratchReg);
+  vsll_vx(dst.simd128(), lhs.simd128(), rhs.gp());
 }
 
 void LiftoffAssembler::emit_i32x4_shli(LiftoffRegister dst, LiftoffRegister lhs,
@@ -1413,8 +1406,7 @@ void LiftoffAssembler::emit_i32x4_shr_s(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
   VU.SetSimd128(E32);
-  andi(kScratchReg, rhs.gp(), 32 - 1);
-  vsra_vx(dst.simd128(), lhs.simd128(), kScratchReg);
+  vsra_vx(dst.simd128(), lhs.simd128(), rhs.gp());
 }
 
 void LiftoffAssembler::emit_i32x4_shri_s(LiftoffRegister dst,
@@ -1432,8 +1424,7 @@ void LiftoffAssembler::emit_i32x4_shr_u(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
   VU.SetSimd128(E32);
-  andi(kScratchReg, rhs.gp(), 32 - 1);
-  vsrl_vx(dst.simd128(), lhs.simd128(), kScratchReg);
+  vsrl_vx(dst.simd128(), lhs.simd128(), rhs.gp());
 }
 
 void LiftoffAssembler::emit_i32x4_shri_u(LiftoffRegister dst,
@@ -1639,8 +1630,7 @@ void LiftoffAssembler::emit_i64x2_alltrue(LiftoffRegister dst,
 void LiftoffAssembler::emit_i64x2_shl(LiftoffRegister dst, LiftoffRegister lhs,
                                       LiftoffRegister rhs) {
   VU.SetSimd128(E64);
-  andi(kScratchReg, rhs.gp(), 64 - 1);
-  vsll_vx(dst.simd128(), lhs.simd128(), kScratchReg);
+  vsll_vx(dst.simd128(), lhs.simd128(), rhs.gp());
 }
 
 void LiftoffAssembler::emit_i64x2_shli(LiftoffRegister dst, LiftoffRegister lhs,
@@ -1658,8 +1648,7 @@ void LiftoffAssembler::emit_i64x2_shr_s(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
   VU.SetSimd128(E64);
-  andi(kScratchReg, rhs.gp(), 64 - 1);
-  vsra_vx(dst.simd128(), lhs.simd128(), kScratchReg);
+  vsra_vx(dst.simd128(), lhs.simd128(), rhs.gp());
 }
 
 void LiftoffAssembler::emit_i64x2_shri_s(LiftoffRegister dst,
@@ -1677,8 +1666,7 @@ void LiftoffAssembler::emit_i64x2_shr_u(LiftoffRegister dst,
                                         LiftoffRegister lhs,
                                         LiftoffRegister rhs) {
   VU.SetSimd128(E64);
-  andi(kScratchReg, rhs.gp(), 64 - 1);
-  vsrl_vx(dst.simd128(), lhs.simd128(), kScratchReg);
+  vsrl_vx(dst.simd128(), lhs.simd128(), rhs.gp());
 }
 
 void LiftoffAssembler::emit_i64x2_shri_u(LiftoffRegister dst,
@@ -2489,8 +2477,7 @@ void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
   AddWord(sp, sp, Operand(static_cast<int64_t>(size)));
 }
 
-
-void LiftoffAssembler::CallFrameSetupStub(int declared_function_index) {
+void LiftoffAssembler::CallFrameSetupStub(int defined_function_index) {
 // The standard library used by gcc tryjobs does not consider `std::find` to be
 // `constexpr`, so wrap it in a `#ifdef __clang__` block.
 #ifdef __clang__
@@ -2505,7 +2492,7 @@ void LiftoffAssembler::CallFrameSetupStub(int declared_function_index) {
   // up the frame here.
   EnterFrame(StackFrame::WASM);
   LoadConstant(LiftoffRegister(kLiftoffFrameSetupFunctionReg),
-               WasmValue(declared_function_index));
+               WasmValue(defined_function_index));
   CallBuiltin(Builtin::kWasmLiftoffFrameSetup);
 }
 

@@ -150,6 +150,8 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(WasmAllocateArray)                    \
   V(WasmAllocateStruct)                   \
   V(WasmRefFunc)                          \
+  V(WasmRefI31)                           \
+  V(WasmI31Get)                           \
   V(StringAsWtf16)                        \
   V(StringPrepareForGetCodeUnit)          \
   V(ProcessWasmArgument)
@@ -374,7 +376,7 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(Allocate)                              \
   V(MajorGCForCompilerTesting)             \
   V(JSStackCheck)                          \
-  IF_SANDBOX(V, LoadExternalPointer)
+  IF_COMPRESS_POINTERS(V, LoadExternalPointer)
 
 #define TURBOSHAFT_OPERATION_LIST_NOT_BLOCK_TERMINATOR(V) \
   TURBOSHAFT_WASM_OPERATION_LIST(V)                       \
@@ -748,11 +750,16 @@ struct __attribute__((packed)) OpEffects {
     result.consumes.control_flow = true;
     return result;
   }
-  // Writing heap memory that existed before the operation started. Initializing
-  // newly allocated memory doesn't count.
-  constexpr OpEffects CanWriteHeapMemory() const {
+  // Like `CanWriteHeapMemory()`, but the heap write is an internal cache or
+  // memoization update (e.g., caching a string's hash in
+  // `Name::raw_hash_field_`, internalizing a string key in place, or caching a
+  // JS wrapper) that is not language-observable if the operation is removed
+  // when unused. Unlike `CanWriteHeapMemory()`, this does not set
+  // `required_when_unused`, so the operation remains eliminatable unless
+  // another effect requires it, while still modeling `store_heap_memory` for
+  // load elimination, GVN, and scheduling when live.
+  constexpr OpEffects CanWriteHeapMemoryIfUsed() const {
     OpEffects result = *this;
-    result.required_when_unused = true;
     result.produces.store_heap_memory = true;
     // Do not reorder before stores.
     result.consumes.store_heap_memory = true;
@@ -761,6 +768,11 @@ struct __attribute__((packed)) OpEffects {
     // Do not move before deopting or aborting operations.
     result.consumes.control_flow = true;
     return result;
+  }
+  // Writing heap memory that existed before the operation started. Initializing
+  // newly allocated memory doesn't count.
+  constexpr OpEffects CanWriteHeapMemory() const {
+    return CanWriteHeapMemoryIfUsed().RequiredWhenUnused();
   }
   // Writing any memory or other output, on- or off-heap.
   constexpr OpEffects CanWriteMemory() const {
@@ -1432,8 +1444,8 @@ struct FixedArityOperationT : OperationT<Derived> {
   V(word64_popcnt, Word64Popcnt)                           \
   V(word32_reverse_bits, Word32ReverseBits)                \
   V(word64_reverse_bits, Word64ReverseBits)                \
-  V(float32_select, Float32Select)                         \
-  V(float64_select, Float64Select)                         \
+  V(float32_cmove, Float32Select)                          \
+  V(float64_cmove, Float64Select)                          \
   V(float64_min_max, Float64MinMax)                        \
   V(int32_abs_with_overflow, Int32AbsWithOverflow)         \
   V(int64_abs_with_overflow, Int64AbsWithOverflow)         \
@@ -1441,8 +1453,8 @@ struct FixedArityOperationT : OperationT<Derived> {
   V(word64_rol, Word64Rol)                                 \
   V(word64_rol_lowerable, Word64RolLowerable)              \
   V(sat_conversion_is_safe, SatConversionIsSafe)           \
-  V(word32_select, Word32Select)                           \
-  V(word64_select, Word64Select)                           \
+  V(word32_cmove, Word32Select)                            \
+  V(word64_cmove, Word64Select)                            \
   V(float16_mem_access, Float16MemAccess)                  \
   V(float16_raw_bits_conversion, Float16RawBitsConversion) \
   V(float16_arithmetic, Float16Arithmetic)
@@ -2398,7 +2410,7 @@ struct ChangeOp : FixedArityOperationT<1, ChangeOp> {
   RegisterRepresentation from;
   RegisterRepresentation to;
 
-  // Returns true if change<kind>(change<reverse_kind>(a)) == a for all a.
+  // Returns true if change<reverse_kind>(change<kind>(a)) == a for all a.
   // This assumes that change<reverse_kind> uses the inverted {from} and {to}
   // representations, i.e. the input to the inner change op has the same
   // representation as the result of the outer change op.
@@ -2454,7 +2466,7 @@ struct ChangeOp : FixedArityOperationT<1, ChangeOp> {
       case Kind::kTruncate:
         DCHECK_EQ(from, RegisterRepresentation::Word64());
         DCHECK_EQ(to, RegisterRepresentation::Word32());
-        return reverse_kind == Kind::kBitcast;
+        return false;
       case Kind::kBitcast:
         return reverse_kind == Kind::kBitcast;
     }
@@ -2488,11 +2500,14 @@ struct ChangeOp : FixedArityOperationT<1, ChangeOp> {
       : Base(input), kind(kind), assumption(assumption), from(from), to(to) {}
 
   void Validate(const Graph& graph) const {
+    // Bitcasts from and to Tagged should use a TaggedBitcast instead (which has
+    // different effects, since it's unsafe to reorder such bitcasts across
+    // GCs).
     DCHECK_NE(from, RegisterRepresentation::Tagged());
     DCHECK_NE(to, RegisterRepresentation::Tagged());
-    // Bitcasts from and to Tagged should use a TaggedBitcast instead (which has
-    // different effects, since it's unsafe to reorder such bitcasts accross
-    // GCs).
+    // Bitcasts must preserve bit width (e.g. Word32 -> Word64 should use
+    // kZeroExtend or kSignExtend instead).
+    DCHECK_IMPLIES(kind == Kind::kBitcast, from.bit_width() == to.bit_width());
   }
   auto options() const { return std::tuple{kind, assumption, from, to}; }
 };
@@ -2728,16 +2743,16 @@ struct SelectOp : FixedArityOperationT<3, SelectOp> {
     if (implem == Implementation::kForceCMove) {
       switch (rep.value()) {
         case RegisterRepresentation::Enum::kWord32:
-          DCHECK(SupportedOperations::word32_select());
+          DCHECK(SupportedOperations::word32_cmove());
           break;
         case RegisterRepresentation::Enum::kWord64:
-          DCHECK(SupportedOperations::word64_select());
+          DCHECK(SupportedOperations::word64_cmove());
           break;
         case RegisterRepresentation::Enum::kFloat32:
-          DCHECK(SupportedOperations::float32_select());
+          DCHECK(SupportedOperations::float32_cmove());
           break;
         case RegisterRepresentation::Enum::kFloat64:
-          DCHECK(SupportedOperations::float64_select());
+          DCHECK(SupportedOperations::float64_cmove());
           break;
 
         case RegisterRepresentation::Enum::kCompressed:
@@ -3110,6 +3125,12 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
 // not decompress the value.
 struct LoadOp : OperationT<LoadOp> {
   struct __attribute__((packed)) Kind {
+    enum Atomicity : uint8_t {
+      kNonAtomic,
+      kSeqCst,
+      kAcqRel,
+    };
+
     // The `base` input is a tagged pointer to a HeapObject.
     bool tagged_base : 1;
     // The effective address might be unaligned. This is only set to true if
@@ -3149,10 +3170,36 @@ struct LoadOp : OperationT<LoadOp> {
     bool load_eliminable : 1;
     // The loaded value may not change.
     bool is_immutable : 1;
-    // The load should be atomic.
-    bool is_atomic : 1;
+    // Whether the access is atomic, and if so with what memory order.
+    Atomicity atomicity : 2;
     // The `base` input *may* be a tagged pointer to a shared HeapObject.
     bool shared_base : 1;
+
+    static constexpr Atomicity ToAtomicity(AtomicMemoryOrder memory_order) {
+      switch (memory_order) {
+        case AtomicMemoryOrder::kSeqCst:
+          return Atomicity::kSeqCst;
+        case AtomicMemoryOrder::kAcqRel:
+          return Atomicity::kAcqRel;
+      }
+      UNREACHABLE();
+    }
+
+    constexpr bool is_atomic() const {
+      return atomicity != Atomicity::kNonAtomic;
+    }
+
+    constexpr std::optional<AtomicMemoryOrder> memory_order() const {
+      switch (atomicity) {
+        case Atomicity::kNonAtomic:
+          return std::nullopt;
+        case Atomicity::kSeqCst:
+          return AtomicMemoryOrder::kSeqCst;
+        case Atomicity::kAcqRel:
+          return AtomicMemoryOrder::kAcqRel;
+      }
+      UNREACHABLE();
+    }
 
     static constexpr Kind Aligned(BaseTaggedness base_is_tagged) {
       switch (base_is_tagged) {
@@ -3169,7 +3216,7 @@ struct LoadOp : OperationT<LoadOp> {
               .with_trap_handler = false,
               .load_eliminable = true,
               .is_immutable = false,
-              .is_atomic = false,
+              .atomicity = Atomicity::kNonAtomic,
               .shared_base = false};
     }
     static constexpr Kind RawAligned() {
@@ -3178,7 +3225,7 @@ struct LoadOp : OperationT<LoadOp> {
               .with_trap_handler = false,
               .load_eliminable = true,
               .is_immutable = false,
-              .is_atomic = false,
+              .atomicity = Atomicity::kNonAtomic,
               .shared_base = false};
     }
     static constexpr Kind RawUnaligned() {
@@ -3187,7 +3234,7 @@ struct LoadOp : OperationT<LoadOp> {
               .with_trap_handler = false,
               .load_eliminable = true,
               .is_immutable = false,
-              .is_atomic = false,
+              .atomicity = Atomicity::kNonAtomic,
               .shared_base = false};
     }
     static constexpr Kind Trapping() {
@@ -3196,7 +3243,7 @@ struct LoadOp : OperationT<LoadOp> {
               .with_trap_handler = true,
               .load_eliminable = true,
               .is_immutable = false,
-              .is_atomic = false,
+              .atomicity = Atomicity::kNonAtomic,
               .shared_base = false};
     }
     static constexpr Kind TrapOnNull() {
@@ -3205,7 +3252,7 @@ struct LoadOp : OperationT<LoadOp> {
               .with_trap_handler = true,
               .load_eliminable = true,
               .is_immutable = false,
-              .is_atomic = false,
+              .atomicity = Atomicity::kNonAtomic,
               .shared_base = false};
     }
     static constexpr Kind MaybeUnaligned(MemoryRepresentation rep) {
@@ -3228,9 +3275,10 @@ struct LoadOp : OperationT<LoadOp> {
       return new_kind;
     }
 
-    [[nodiscard]] constexpr Kind Atomic() const {
+    [[nodiscard]] constexpr Kind Atomic(AtomicMemoryOrder memory_order) const {
+      DCHECK(!is_atomic());
       Kind new_kind(*this);
-      new_kind.is_atomic = true;
+      new_kind.atomicity = ToAtomicity(memory_order);
       return new_kind;
     }
 
@@ -3242,11 +3290,16 @@ struct LoadOp : OperationT<LoadOp> {
 
     auto operator<=>(const Kind& other) const = default;
   };
+  static_assert(sizeof(Kind) == 1);
   Kind kind;
   MemoryRepresentation loaded_rep;
   RegisterRepresentation result_rep;
   uint8_t element_size_log2;  // multiply index with 2^element_size_log2
   int32_t offset;             // add offset to scaled index
+
+  std::optional<AtomicMemoryOrder> memory_order() const {
+    return kind.memory_order();
+  }
 
   OpEffects Effects() const {
     // Loads might depend on checks for pointer validity, object layout, bounds
@@ -3259,7 +3312,7 @@ struct LoadOp : OperationT<LoadOp> {
       effects = effects.CanReadMemory();
     }
     if (kind.with_trap_handler) effects = effects.CanLeaveCurrentFunction();
-    if (kind.is_atomic) {
+    if (kind.is_atomic()) {
       // Atomic load should not be reordered with other loads.
       effects = effects.CanWriteMemory();
     }
@@ -3312,7 +3365,7 @@ struct LoadOp : OperationT<LoadOp> {
     DCHECK(loaded_rep.ToRegisterRepresentation() == result_rep ||
            (loaded_rep.IsCompressibleTagged() &&
             result_rep == RegisterRepresentation::Compressed()) ||
-           kind.is_atomic);
+           kind.is_atomic());
     DCHECK_IMPLIES(element_size_log2 > 0, index().valid());
     DCHECK_IMPLIES(kind.maybe_unaligned,
                    !SupportedOperations::IsUnalignedLoadSupported(loaded_rep));
@@ -3340,7 +3393,8 @@ V8_INLINE size_t hash_value(LoadOp::Kind kind) {
   return base::hash_value(
       static_cast<int>(kind.tagged_base) | (kind.maybe_unaligned << 1) |
       (kind.load_eliminable << 2) | (kind.is_immutable << 3) |
-      (kind.with_trap_handler << 4) | (kind.is_atomic << 5));
+      (kind.with_trap_handler << 4) | (static_cast<int>(kind.atomicity) << 5) |
+      (kind.shared_base << 7));
 }
 
 #if V8_ENABLE_SANDBOX
@@ -3362,7 +3416,7 @@ struct LoadTrustedPointerOp : FixedArityOperationT<2, LoadTrustedPointerOp> {
                                 TrustedPointerTagRange tag_range, int offset)
       : Base(base, table), kind(kind), tag_range(tag_range), offset(offset) {
     DCHECK(kind.tagged_base);
-    DCHECK(!kind.is_atomic);
+    DCHECK(!kind.is_atomic());
     DCHECK(!kind.maybe_unaligned);
   }
 
@@ -3730,16 +3784,10 @@ struct StoreOp : OperationT<StoreOp> {
   uint8_t element_size_log2;  // multiply index with 2^element_size_log2
   int32_t offset;             // add offset to scaled index
   bool maybe_initializing_or_transitioning;
-
- private:
-  AtomicMemoryOrder memory_order_;  // use the padding after prev field
-
- public:
   uint16_t trusted_pointer_tag_;
 
   std::optional<AtomicMemoryOrder> memory_order() const {
-    if (kind.is_atomic) return memory_order_;
-    return std::nullopt;
+    return kind.memory_order();
   }
 
   // TODO(saelo): now that we have a pointer tag in these low-level operations,
@@ -3757,7 +3805,7 @@ struct StoreOp : OperationT<StoreOp> {
     if (maybe_initializing_or_transitioning) {
       effects = effects.CanDoRawHeapAccess();
     }
-    if (kind.is_atomic) {
+    if (kind.is_atomic()) {
       // Atomic stores should not be eliminated away, even if the situation
       // seems to allow e.g. store-store elimination. Elimination is avoided by
       // setting the `CanReadMemory` effect.
@@ -3793,8 +3841,8 @@ struct StoreOp : OperationT<StoreOp> {
 
   StoreOp(OpIndex base, OptionalOpIndex index, OpIndex value, Kind kind,
           MemoryRepresentation stored_rep, WriteBarrierKind write_barrier,
-          std::optional<AtomicMemoryOrder> memory_order, int32_t offset,
-          uint8_t element_size_log2, bool maybe_initializing_or_transitioning,
+          int32_t offset, uint8_t element_size_log2,
+          bool maybe_initializing_or_transitioning,
           TrustedPointerTag maybe_trusted_pointer_tag = kTrustedPointerNullTag)
       : Base(2 + index.valid()),
         kind(kind),
@@ -3804,7 +3852,6 @@ struct StoreOp : OperationT<StoreOp> {
         offset(offset),
         maybe_initializing_or_transitioning(
             maybe_initializing_or_transitioning),
-        memory_order_(memory_order.value_or(AtomicMemoryOrder::kSeqCst)),
         trusted_pointer_tag_(static_cast<uint16_t>(maybe_trusted_pointer_tag)) {
     DCHECK_EQ(trusted_pointer_tag(), maybe_trusted_pointer_tag);
     input(0) = base;
@@ -3817,27 +3864,24 @@ struct StoreOp : OperationT<StoreOp> {
   template <typename Fn, typename Mapper>
   V8_INLINE auto Explode(Fn fn, Mapper& mapper) const {
     return fn(mapper.Map(base()), mapper.Map(index()), mapper.Map(value()),
-              kind, stored_rep, write_barrier, memory_order(), offset,
-              element_size_log2, maybe_initializing_or_transitioning,
-              trusted_pointer_tag());
+              kind, stored_rep, write_barrier, offset, element_size_log2,
+              maybe_initializing_or_transitioning, trusted_pointer_tag());
   }
 
   void Validate(const Graph& graph) const {
     DCHECK_IMPLIES(element_size_log2 > 0, index().valid());
     DCHECK_IMPLIES(kind.maybe_unaligned,
                    !SupportedOperations::IsUnalignedLoadSupported(stored_rep));
-    DCHECK_EQ(kind.is_atomic, memory_order().has_value());
   }
   static StoreOp& New(
       Graph* graph, OpIndex base, OptionalOpIndex index, OpIndex value,
       Kind kind, MemoryRepresentation stored_rep,
-      WriteBarrierKind write_barrier,
-      std::optional<AtomicMemoryOrder> memory_order, int32_t offset,
-      uint8_t element_size_log2, bool maybe_initializing_or_transitioning,
+      WriteBarrierKind write_barrier, int32_t offset, uint8_t element_size_log2,
+      bool maybe_initializing_or_transitioning,
       TrustedPointerTag maybe_trusted_pointer_tag = kTrustedPointerNullTag) {
     return Base::New(graph, 2 + index.valid(), base, index, value, kind,
-                     stored_rep, write_barrier, memory_order, offset,
-                     element_size_log2, maybe_initializing_or_transitioning,
+                     stored_rep, write_barrier, offset, element_size_log2,
+                     maybe_initializing_or_transitioning,
                      maybe_trusted_pointer_tag);
   }
 
@@ -3847,7 +3891,6 @@ struct StoreOp : OperationT<StoreOp> {
     return std::tuple{kind,
                       stored_rep,
                       write_barrier,
-                      memory_order(),
                       offset,
                       element_size_log2,
                       maybe_initializing_or_transitioning,
@@ -3895,7 +3938,7 @@ struct AllocateOp : FixedArityOperationT<1, AllocateOp> {
   }
 };
 
-#if V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
 struct LoadExternalPointerOp : FixedArityOperationT<1, LoadExternalPointerOp> {
   ExternalPointerTagRange tag_range;
 
@@ -5309,6 +5352,7 @@ struct ObjectIsNumericValueOp
 struct ConvertOp : FixedArityOperationT<1, ConvertOp> {
   enum class Kind : uint8_t {
     kObject,
+    kHeapObject,
     kBoolean,
     kNumber,
     kNumberOrOddball,
@@ -5968,6 +6012,7 @@ struct DebugPrintOp : OperationT<DebugPrintOp> {
                                            .CanChangeControlFlow()
                                            .CanDependOnChecks()
                                            .CanReadMemory()
+                                           .CanAllocate()
                                            .RequiredWhenUnused();
   base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
 
@@ -6004,7 +6049,7 @@ struct DebugPrintOp : OperationT<DebugPrintOp> {
   }
 };
 
-struct BigIntBinopOp : FixedArityOperationT<3, BigIntBinopOp> {
+struct BigIntBinopOp : OperationT<BigIntBinopOp> {
   enum class Kind : uint8_t {
     kAdd,
     kSub,
@@ -6018,6 +6063,10 @@ struct BigIntBinopOp : FixedArityOperationT<3, BigIntBinopOp> {
     kShiftRightArithmetic,
   };
   Kind kind;
+
+  static bool CanTerminate(Kind kind) {
+    return kind == any_of(Kind::kMul, Kind::kDiv, Kind::kMod);
+  }
 
   // These operations can deopt (abort), allocate and read immutable data.
   static constexpr OpEffects effects =
@@ -6037,15 +6086,46 @@ struct BigIntBinopOp : FixedArityOperationT<3, BigIntBinopOp> {
 
   V<BigInt> left() const { return Base::input<BigInt>(0); }
   V<BigInt> right() const { return Base::input<BigInt>(1); }
-  V<EagerFrameState> frame_state() const {
+  V<EagerFrameState> eager_frame_state() const {
     return Base::input<EagerFrameState>(2);
   }
+  OptionalV<LazyFrameState> lazy_frame_state() const {
+    return input_count > 3 ? Base::input<LazyFrameState>(3)
+                           : OptionalV<LazyFrameState>::Nullopt();
+  }
 
-  BigIntBinopOp(V<BigInt> left, V<BigInt> right, V<EagerFrameState> frame_state,
-                Kind kind)
-      : Base(left, right, frame_state), kind(kind) {}
+  BigIntBinopOp(V<BigInt> left, V<BigInt> right,
+                V<EagerFrameState> eager_frame_state,
+                OptionalV<LazyFrameState> lazy_frame_state, Kind kind)
+      : Base(3 + lazy_frame_state.has_value()), kind(kind) {
+    input(0) = left;
+    input(1) = right;
+    input(2) = eager_frame_state;
+    if (lazy_frame_state.has_value()) {
+      input(3) = lazy_frame_state.value();
+    }
+  }
+
+  static BigIntBinopOp& New(Graph* graph, V<BigInt> left, V<BigInt> right,
+                            V<EagerFrameState> eager_frame_state,
+                            OptionalV<LazyFrameState> lazy_frame_state,
+                            Kind kind) {
+    return Base::New(graph, 3 + lazy_frame_state.has_value(), left, right,
+                     eager_frame_state, lazy_frame_state, kind);
+  }
+
+  template <typename Fn, typename Mapper>
+  V8_INLINE auto Explode(Fn fn, Mapper& mapper) const {
+    return fn(mapper.Map(left()), mapper.Map(right()),
+              mapper.Map(eager_frame_state()), mapper.Map(lazy_frame_state()),
+              kind);
+  }
+
   void Validate(const Graph& graph) const {
-    DCHECK(Get(graph, frame_state()).Is<FrameStateOp>());
+    DCHECK(Get(graph, eager_frame_state()).Is<FrameStateOp>());
+    DCHECK_EQ(lazy_frame_state().has_value(), CanTerminate(kind));
+    DCHECK_IMPLIES(lazy_frame_state().has_value(),
+                   Get(graph, lazy_frame_state().value()).Is<FrameStateOp>());
   }
 
   auto options() const { return std::tuple{kind}; }
@@ -7179,15 +7259,20 @@ struct Float64SameValueOp : FixedArityOperationT<2, Float64SameValueOp> {
 
 struct FastApiCallParameters : public NON_EXPORTED_BASE(ZoneObject) {
   FastApiCallFunction c_function;
+  FeedbackSource feedback;
 
   const CFunctionInfo* c_signature() const { return c_function.signature; }
+  bool NeedsEagerFrameState() const {
+    return fast_api_call::NeedsEagerFrameState(c_signature());
+  }
 
-  explicit FastApiCallParameters(FastApiCallFunction c_function)
-      : c_function(c_function) {}
+  FastApiCallParameters(FastApiCallFunction c_function, FeedbackSource feedback)
+      : c_function(c_function), feedback(feedback) {}
 
   static const FastApiCallParameters* Create(FastApiCallFunction c_function,
+                                             FeedbackSource feedback,
                                              Zone* graph_zone) {
-    return graph_zone->New<FastApiCallParameters>(c_function);
+    return graph_zone->New<FastApiCallParameters>(c_function, feedback);
   }
 };
 
@@ -7201,23 +7286,30 @@ struct FastApiCallOp : OperationT<FastApiCallOp> {
 
   static constexpr OpEffects effects = OpEffects().CanCallAnything();
 
-  // There are three inputs that are not parameters, the frame state, the data
-  // argument, and the context.
-  static constexpr int kNumNonParamInputs = 3;
+  bool HasEagerFrameState() const { return parameters->NeedsEagerFrameState(); }
+
+  // There are three inputs that are not parameters (the lazy frame state, the
+  // data argument, and the context), plus an optional eager frame state when
+  // the signature has kPointer or kSeqOneByteString arguments.
+  int NumNonParamInputs() const { return 3 + HasEagerFrameState(); }
 
   // The outputs are produced by the `DidntThrow` operation.
   base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
       ZoneVector<MaybeRegisterRepresentation>& storage) const {
-    DCHECK_EQ(inputs().size(),
-              kNumNonParamInputs + parameters->c_signature()->ArgumentCount());
+    const int num_non_param_inputs = NumNonParamInputs();
+    DCHECK_EQ(inputs().size(), num_non_param_inputs +
+                                   parameters->c_signature()->ArgumentCount());
     storage.resize(inputs().size());
     storage[0] = MaybeRegisterRepresentation::None();
-    storage[1] = MaybeRegisterRepresentation::Tagged();
-    storage[2] = MaybeRegisterRepresentation::Tagged();
+    if (HasEagerFrameState()) {
+      storage[1] = MaybeRegisterRepresentation::None();
+    }
+    storage[1 + HasEagerFrameState()] = MaybeRegisterRepresentation::Tagged();
+    storage[2 + HasEagerFrameState()] = MaybeRegisterRepresentation::Tagged();
     for (unsigned i = 0; i < parameters->c_signature()->ArgumentCount(); ++i) {
-      storage[i + kNumNonParamInputs] = argument_representation(i);
+      storage[i + num_non_param_inputs] = argument_representation(i);
     }
     return base::VectorOf(storage);
   }
@@ -7227,10 +7319,12 @@ struct FastApiCallOp : OperationT<FastApiCallOp> {
     const CTypeInfo& arg_type =
         parameters->c_signature()->ArgumentInfo(argument_index);
     uint8_t flags = static_cast<uint8_t>(arg_type.GetFlags());
+    START_ALLOW_USE_DEPRECATED()
     if (flags & (static_cast<uint8_t>(CTypeInfo::Flags::kEnforceRangeBit) |
                  static_cast<uint8_t>(CTypeInfo::Flags::kClampBit))) {
       return MaybeRegisterRepresentation::Float64();
     }
+    END_ALLOW_USE_DEPRECATED()
     switch (arg_type.GetType()) {
       case CTypeInfo::Type::kVoid:
         UNREACHABLE();
@@ -7260,47 +7354,70 @@ struct FastApiCallOp : OperationT<FastApiCallOp> {
 
   V<LazyFrameState> frame_state() const { return input<LazyFrameState>(0); }
 
-  V<Object> data_argument() const { return input<Object>(1); }
-
-  V<Context> context() const { return input<Context>(2); }
-
-  base::Vector<const OpIndex> arguments() const {
-    return inputs().SubVector(kNumNonParamInputs, inputs().size());
+  OptionalV<EagerFrameState> eager_frame_state() const {
+    return HasEagerFrameState() ? input<EagerFrameState>(1)
+                                : OptionalV<EagerFrameState>::Nullopt();
   }
 
-  FastApiCallOp(V<LazyFrameState> frame_state, V<Object> data_argument,
-                V<Context> context, base::Vector<const OpIndex> arguments,
+  V<Object> data_argument() const {
+    return input<Object>(1 + HasEagerFrameState());
+  }
+
+  V<Context> context() const {
+    return input<Context>(2 + HasEagerFrameState());
+  }
+
+  base::Vector<const OpIndex> arguments() const {
+    return inputs().SubVector(NumNonParamInputs(), inputs().size());
+  }
+
+  FastApiCallOp(V<LazyFrameState> frame_state,
+                OptionalV<EagerFrameState> eager_frame_state,
+                V<Object> data_argument, V<Context> context,
+                base::Vector<const OpIndex> arguments,
                 const FastApiCallParameters* parameters,
                 base::Vector<const RegisterRepresentation> out_reps)
-      : Base(kNumNonParamInputs + arguments.size()),
+      : Base(3 + eager_frame_state.valid() + arguments.size()),
         parameters(parameters),
         out_reps(out_reps),
         lazy_deopt_on_throw(LazyDeoptOnThrow{false}) {
+    DCHECK_EQ(eager_frame_state.valid(), parameters->NeedsEagerFrameState());
     base::Vector<OpIndex> inputs = this->inputs();
     inputs[0] = frame_state;
-    inputs[1] = data_argument;
-    inputs[2] = context;
-    inputs.SubVector(kNumNonParamInputs, kNumNonParamInputs + arguments.size())
+    if (eager_frame_state.valid()) {
+      inputs[1] = eager_frame_state.value();
+    }
+    inputs[1 + eager_frame_state.valid()] = data_argument;
+    inputs[2 + eager_frame_state.valid()] = context;
+    inputs
+        .SubVector(3 + eager_frame_state.valid(),
+                   3 + eager_frame_state.valid() + arguments.size())
         .OverwriteWith(arguments);
   }
 
   template <typename Fn, typename Mapper>
   V8_INLINE auto Explode(Fn fn, Mapper& mapper) const {
     V<LazyFrameState> mapped_frame_state = mapper.Map(frame_state());
+    OptionalV<EagerFrameState> mapped_eager_frame_state =
+        OptionalV<EagerFrameState>::Cast(mapper.Map(eager_frame_state()));
     OpIndex mapped_data_argument = mapper.Map(data_argument());
     V<Context> mapped_context = mapper.Map(context());
     auto mapped_arguments = mapper.template Map<8>(arguments());
-    return fn(mapped_frame_state, mapped_data_argument, mapped_context,
+    return fn(mapped_frame_state, mapped_eager_frame_state,
+              mapped_data_argument, mapped_context,
               base::VectorOf(mapped_arguments), parameters, out_reps);
   }
 
   static FastApiCallOp& New(
-      Graph* graph, V<LazyFrameState> frame_state, V<Object> data_argument,
+      Graph* graph, V<LazyFrameState> frame_state,
+      OptionalV<EagerFrameState> eager_frame_state, V<Object> data_argument,
       V<Context> context, base::Vector<const OpIndex> arguments,
       const FastApiCallParameters* parameters,
       base::Vector<const RegisterRepresentation> out_reps) {
-    return Base::New(graph, kNumNonParamInputs + arguments.size(), frame_state,
-                     data_argument, context, arguments, parameters, out_reps);
+    DCHECK_EQ(eager_frame_state.valid(), parameters->NeedsEagerFrameState());
+    return Base::New(graph, 3 + eager_frame_state.valid() + arguments.size(),
+                     frame_state, eager_frame_state, data_argument, context,
+                     arguments, parameters, out_reps);
   }
 
   // out_reps[0] is always word32.
@@ -7452,10 +7569,11 @@ struct FindOrderedHashEntryOp
       case Kind::kFindOrderedHashSetEntry:
         // Looking up a string key can internalize it in place into a
         // ThinString, overwriting its payload (e.g., ConsString::first_).
+        // The write is unobservable if the lookup result is unused.
         return OpEffects()
             .CanDependOnChecks()
             .CanReadMemory()
-            .CanWriteHeapMemory()
+            .CanWriteHeapMemoryIfUsed()
             .CanAllocate();
       case Kind::kFindOrderedHashMapEntryForInt32Key:
         return OpEffects().CanDependOnChecks().CanReadMemory();
@@ -7632,8 +7750,6 @@ struct RootConstantOp : FixedArityOperationT<0, RootConstantOp> {
     return {};
   }
 
-  void Validate(const Graph& graph) const {}
-
   auto options() const { return std::tuple{index}; }
 };
 
@@ -7739,10 +7855,6 @@ struct AssertNotNullOp : OperationT<AssertNotNullOp> {
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
       ZoneVector<MaybeRegisterRepresentation>& storage) const {
     return MaybeRepVector<MaybeRegisterRepresentation::Tagged()>();
-  }
-
-  void Validate(const Graph& graph) const {
-    // TODO(14108): Validate.
   }
 
   auto options() const { return std::tuple{type, trap_id}; }
@@ -7960,9 +8072,11 @@ struct AnyConvertExternOp : FixedArityOperationT<1, AnyConvertExternOp> {
   bool is_nullable;
 
   static constexpr OpEffects effects =
-      SmiValuesAre31Bits()
-          ? OpEffects().CanReadMemory()
-          : OpEffects().CanReadMemory().CanAllocateWithoutIdentity();
+      SmiValuesAre31Bits() ? OpEffects().CanDependOnChecks().CanReadMemory()
+                           : OpEffects()
+                                 .CanDependOnChecks()
+                                 .CanReadMemory()
+                                 .CanAllocateWithoutIdentity();
 
   explicit AnyConvertExternOp(V<Object> object, SharedFlag is_shared,
                               bool is_nullable)
@@ -7993,7 +8107,13 @@ struct ExternConvertAnyOp : FixedArityOperationT<1, ExternConvertAnyOp> {
   // Cares about non-null values actually being non-null. We could eliminate
   // the dependency on "checks" if we marked this as a trapping instruction
   // when necessary.
-  static constexpr OpEffects effects = OpEffects().CanDependOnChecks();
+  // May allocate a JS wrapper when converting a WasmCustomMap; the wrapper is
+  // cached on the map so repeated conversions do not create distinct
+  // identities.
+  static constexpr OpEffects effects = OpEffects()
+                                           .CanDependOnChecks()
+                                           .CanReadMemory()
+                                           .CanAllocateWithoutIdentity();
 
   explicit ExternConvertAnyOp(V<Object> object, bool is_nullable)
       : Base(object), is_nullable(is_nullable) {}
@@ -8640,6 +8760,56 @@ struct WasmRefFuncOp : FixedArityOperationT<1, WasmRefFuncOp> {
   auto options() const { return std::tuple{function_index}; }
 };
 
+struct WasmRefI31Op : FixedArityOperationT<1, WasmRefI31Op> {
+  SharedFlag is_shared;
+
+  static constexpr OpEffects effects = OpEffects();
+
+  explicit WasmRefI31Op(V<Word32> input, SharedFlag is_shared)
+      : Base(input), is_shared(is_shared) {}
+
+  V<Word32> input() const { return Base::input<Word32>(0); }
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Tagged()>();
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<MaybeRegisterRepresentation::Word32()>();
+  }
+
+  auto options() const { return std::tuple{is_shared}; }
+};
+
+// Extracts the signed or unsigned 31-bit integer from a non-null i31ref (Smi).
+// Any Wasm null check must be emitted beforehand (e.g. via AssertNotNullOp).
+struct WasmI31GetOp : FixedArityOperationT<1, WasmI31GetOp> {
+  bool is_signed;
+
+  static constexpr OpEffects effects = OpEffects();
+
+  explicit WasmI31GetOp(V<Smi> input, bool is_signed)
+      : Base(input), is_signed(is_signed) {}
+
+  void PrintOptions(std::ostream& os) const {
+    os << "[" << (is_signed ? "signed" : "unsigned") << "]";
+  }
+
+  V<Smi> input() const { return Base::input<Smi>(0); }
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Word32()>();
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return MaybeRepVector<MaybeRegisterRepresentation::Tagged()>();
+  }
+
+  auto options() const { return std::tuple{is_signed}; }
+};
+
 // Casts a JavaScript string to a flattened wtf16 string.
 // TODO(14108): Can we optimize stringref operations without adding this as a
 // special operations?
@@ -8648,7 +8818,8 @@ struct StringAsWtf16Op : FixedArityOperationT<1, StringAsWtf16Op> {
       OpEffects()
           // This should not float above a protective null/length check.
           .CanDependOnChecks()
-          .CanReadMemory();
+          .CanReadMemory()
+          .CanAllocateWithoutIdentity();
 
   explicit StringAsWtf16Op(V<String> string) : Base(string) {}
 
@@ -8719,10 +8890,6 @@ struct Simd128ConstantOp : FixedArityOperationT<0, Simd128ConstantOp> {
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
       ZoneVector<MaybeRegisterRepresentation>& storage) const {
     return {};
-  }
-
-  void Validate(const Graph& graph) const {
-    // TODO(14108): Validate.
   }
 
   bool IsZero() const {
@@ -10385,10 +10552,6 @@ struct Simd256ConstantOp : FixedArityOperationT<0, Simd256ConstantOp> {
     return {};
   }
 
-  void Validate(const Graph& graph) const {
-    // TODO(14108): Validate.
-  }
-
   bool IsZero() const {
     return std::memcmp(kZero, value.data(), kSimd256Size) == 0;
   }
@@ -11368,8 +11531,8 @@ TURBOSHAFT_THROWING_OPERATIONS_LIST(THROWING_OP_LOOKS_VALID)
 // instance, a SmiConstant is always a Smi, and a HeapObject constant is never a
 // Smi.
 enum class IsSmiDecision : uint8_t { kUnknown, kTrue, kFalse };
-IsSmiDecision DecideObjectIsSmi(const Graph& graph, V<Object> idx,
-                                int depth = 0);
+V8_EXPORT_PRIVATE IsSmiDecision DecideObjectIsSmi(const Graph& graph,
+                                                  V<Object> idx, int depth = 0);
 
 }  // namespace v8::internal::compiler::turboshaft
 

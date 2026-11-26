@@ -17,6 +17,7 @@
 #include "src/base/strong-alias.h"
 #include "src/base/threaded-list.h"
 #include "src/common/globals.h"
+#include "src/common/scoped-modification.h"
 #include "src/parsing/import-attributes.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parser-base.h"
@@ -207,6 +208,23 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   bool parse_lazily() const { return mode_ == PARSE_LAZILY; }
   enum Mode { PARSE_LAZILY, PARSE_EAGERLY };
+
+  // Restores lazy parsing mode for inner functions inside arrow function
+  // heads and bodies when compiling an outer arrow function eagerly.
+  class V8_NODISCARD LazyParsingScope : public ScopedModification<Mode> {
+   public:
+    explicit LazyParsingScope(Parser* parser)
+        : ScopedModification<Mode>(&parser->mode_, parser->allow_lazy_
+                                                       ? PARSE_LAZILY
+                                                       : PARSE_EAGERLY) {}
+  };
+
+  // No-op in Parser; PreParser uses this to record skippable arrow functions.
+  class V8_NODISCARD SkippableArrowFunctionScope {
+   public:
+    SkippableArrowFunctionScope(Parser*, DeclarationScope*, bool) {}
+    void Finish(int) {}
+  };
 
   // Runtime encoding of different completion modes.
   enum CompletionKind {
@@ -883,8 +901,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
       scope->DeclareParameter(
           is_simple ? parameter->name() : ast_value_factory()->empty_string(),
           is_simple ? VariableMode::kVar : VariableMode::kTemporary,
-          is_optional, parameter->is_rest(), ast_value_factory(),
-          parameter->position);
+          is_optional, parameter->is_rest(), parameter->position);
     }
   }
 

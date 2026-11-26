@@ -118,13 +118,15 @@ class WasmMemoryContentTable
         offset_keys_(zone) {}
 
   void OnNewKey(Key key, OpIndex value) {
-    if (value.valid()) {
+    if (value.valid() && key.data().mem.mutability) {
       AddKeyInBaseOffsetMaps(key);
     }
   }
 
   void OnValueChange(Key key, OpIndex old_value, OpIndex new_value) {
     DCHECK_NE(old_value, new_value);
+    // `base_keys_` and `offset_keys_` only track mutable keys for invalidation.
+    if (!key.data().mem.mutability) return;
     if (old_value.valid() && !new_value.valid()) {
       RemoveKeyFromBaseOffsetMaps(key);
     } else if (new_value.valid() && !old_value.valid()) {
@@ -140,21 +142,43 @@ class WasmMemoryContentTable
                                     module_->heap_type(type2), module_);
   }
 
-  void Invalidate(int offset, wasm::ModuleTypeIndex type_index) {
-    // This is like LateLoadElimination's {InvalidateAtOffset}, but based
-    // on Wasm types instead of tracked JS maps.
+  void Invalidate(OpIndex base, int offset, wasm::ModuleTypeIndex type_index) {
+    // This is like LateLoadElimination's {Invalidate} and {InvalidateAtOffset},
+    // but based on Wasm types instead of tracked JS maps.
+    base = ResolveBase(base);
+
+    if (non_aliasing_objects_.Get(base)) {
+      // Since {base} is non-aliasing, it's enough to just iterate the values at
+      // this base.
+      auto base_keys = base_keys_.find(base);
+      if (base_keys == base_keys_.end()) return;
+      for (auto it = base_keys->second.with_offsets.begin();
+           it != base_keys->second.with_offsets.end();) {
+        Key key = *it;
+        DCHECK(key.data().mem.mutability);
+        DCHECK_EQ(key.data().mem.base, base);
+        if (offset == key.data().mem.offset) {
+          it = base_keys->second.with_offsets.RemoveAt(it);
+          Set(key, OpIndex::Invalid());
+        } else {
+          ++it;
+        }
+      }
+      return;
+    }
+
     auto offset_keys = offset_keys_.find(offset);
     if (offset_keys == offset_keys_.end()) return;
     for (auto it = offset_keys->second.begin();
          it != offset_keys->second.end();) {
       Key key = *it;
+      DCHECK(key.data().mem.mutability);
       DCHECK_EQ(offset, key.data().mem.offset);
-      OpIndex base = key.data().mem.base;
+      OpIndex other_base = key.data().mem.base;
 
-      // If the base is guaranteed non-aliasing, we don't need to clear any
-      // other entries. Any existing entry for this base will be overwritten
-      // by {Insert(set)}.
-      if (non_aliasing_objects_.Get(base)) {
+      // If {other_base} is guaranteed non-aliasing, it cannot alias with
+      // {base}.
+      if (non_aliasing_objects_.Get(other_base)) {
         ++it;
         continue;
       }
@@ -170,12 +194,13 @@ class WasmMemoryContentTable
   }
 
   void Invalidate(const StructSetOp& set) {
-    Invalidate(WasmStruct::FieldOffset(set.type, set.field_index),
+    Invalidate(set.object(), WasmStruct::FieldOffset(set.type, set.field_index),
                set.type_index);
   }
 
   void Invalidate(const StructAtomicRMWOp& rmw_op) {
-    Invalidate(WasmStruct::FieldOffset(rmw_op.type, rmw_op.field_index),
+    Invalidate(rmw_op.object(),
+               WasmStruct::FieldOffset(rmw_op.type, rmw_op.field_index),
                rmw_op.type_index);
   }
 
@@ -194,10 +219,7 @@ class WasmMemoryContentTable
         for (auto it = base_keys.second.with_offsets.begin();
              it != base_keys.second.with_offsets.end();) {
           Key key = *it;
-          if (key.data().mem.mutability == false) {
-            ++it;
-            continue;
-          }
+          DCHECK(key.data().mem.mutability);
           // It's important to remove with RemoveAt before Setting the key to
           // invalid, otherwise OnKeyChange will remove {key} from {base_keys},
           // which will invalidate {it}.
@@ -213,12 +235,12 @@ class WasmMemoryContentTable
       for (auto it = base_keys.second.with_offsets.begin();
            it != base_keys.second.with_offsets.end();) {
         Key key = *it;
-        if (!key.data().mem.mutability ||
-            // As long as we do not have indirect strings in shared space,
-            // shared string shape cannot change and it is safe to keep
-            // kStringPrepareForGetCodeunitIndex (which is the only mutable
-            // loadlike type).
-            key.data().mem.type_index == kLoadLikeType ||
+        DCHECK(key.data().mem.mutability);
+        // As long as we do not have indirect strings in shared space,
+        // shared string shape cannot change and it is safe to keep
+        // kStringPrepareForGetCodeunitIndex (which is the only mutable
+        // loadlike type).
+        if (key.data().mem.type_index == kLoadLikeType ||
             !module_->type(key.data().mem.type_index).is_shared) {
           ++it;
           continue;
@@ -323,23 +345,14 @@ class WasmMemoryContentTable
     WasmMemoryAddress mem{base, offset, type_index, size, mutability};
     auto existing_key = all_keys_.find(mem);
     if (existing_key != all_keys_.end()) {
-      if (mutability) {
-        Set(existing_key->second, value);
-      } else {
-        SetNoNotify(existing_key->second, value);
-      }
+      Set(existing_key->second, value);
       return;
     }
 
     // Creating a new key.
     Key key = NewKey({mem});
     all_keys_.insert({mem, key});
-    if (mutability) {
-      Set(key, value);
-    } else {
-      // Call `SetNoNotify` to avoid calls to `OnNewKey` and `OnValueChanged`.
-      SetNoNotify(key, value);
-    }
+    Set(key, value);
   }
 
  public:
@@ -358,12 +371,17 @@ class WasmMemoryContentTable
         base = cast->object();
         continue;
       }
+      if (WasmTypeAnnotationOp* annot = op.TryCast<WasmTypeAnnotationOp>()) {
+        base = annot->value();
+        continue;
+      }
       break;  // Terminate if nothing happened.
     }
     return base;
   }
 
   void AddKeyInBaseOffsetMaps(Key key) {
+    DCHECK(key.data().mem.mutability);
     // Inserting in {base_keys_}.
     OpIndex base = key.data().mem.base;
     auto base_keys = base_keys_.find(base);
@@ -388,6 +406,7 @@ class WasmMemoryContentTable
   }
 
   void RemoveKeyFromBaseOffsetMaps(Key key) {
+    DCHECK(key.data().mem.mutability);
     // Removing from {base_keys_}.
     v8::base::DoublyThreadedList<Key, BaseListTraits>::Remove(key);
     v8::base::DoublyThreadedList<Key, OffsetListTraits>::Remove(key);
@@ -449,12 +468,13 @@ class V8_EXPORT_PRIVATE WasmLoadEliminationAnalyzer {
   void ProcessArrayGet(OpIndex op_idx, const ArrayGetOp& op);
   void ProcessArraySet(OpIndex op_idx, const ArraySetOp& op);
   void ProcessWasmAllocateArray(OpIndex op_idx, const WasmAllocateArrayOp& op);
+  void ProcessWasmAllocateStruct(OpIndex op_idx,
+                                 const WasmAllocateStructOp& op);
   void ProcessStringAsWtf16(OpIndex op_idx, const StringAsWtf16Op& op);
   void ProcessStringPrepareForGetCodeUnit(
       OpIndex op_idx, const StringPrepareForGetCodeUnitOp& op);
   void ProcessAnyConvertExtern(OpIndex op_idx, const AnyConvertExternOp& op);
   void ProcessAssertNotNull(OpIndex op_idx, const AssertNotNullOp& op);
-  void ProcessAllocate(OpIndex op_idx, const AllocateOp& op);
   void ProcessCall(OpIndex op_idx, const CallOp& op);
   void ProcessPhi(OpIndex op_idx, const PhiOp& op);
   OpIndex MaybeReplacePhi(const PhiOp& phi);

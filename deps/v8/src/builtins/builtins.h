@@ -270,6 +270,27 @@ class Builtins {
     return static_cast<int>(id);
   }
 
+#if V8_ENABLE_WEBASSEMBLY
+  // Calling a stack-switching WasmFX builtin with `call` pushes the caller's
+  // return address onto the CPU's return stack buffer (RSB), which the target
+  // stack's `ret` immediately pops, causing a guaranteed misprediction penalty.
+  // When true, callers push the return address and jump without touching the
+  // RSB, and the builtin returns via an indirect jump instead of `ret`.
+  // Disabled under CET (IBT needs `endbr64`; shadow stacks need `call`/`ret`).
+  static constexpr bool BypassesReturnAddressPrediction(Builtin builtin) {
+#if (V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32) && \
+    !defined(V8_ENABLE_CET_IBT) && !defined(V8_ENABLE_CET_SHADOW_STACK)
+    return builtin == Builtin::kWasmFXResume ||
+           builtin == Builtin::kWasmFXResumeThrow ||
+           builtin == Builtin::kWasmFXResumeThrowRef ||
+           builtin == Builtin::kWasmFXSuspend ||
+           builtin == Builtin::kWasmFXSwitch;
+#else
+    return false;
+#endif
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
+
   // The different builtin kinds are documented in builtins-definitions.h.
   enum Kind { CPP, TFJ_TSA, TFJ, TFC_TSA, TFC, TFS, TFH, BCH_TSA, BCH, ASM };
 

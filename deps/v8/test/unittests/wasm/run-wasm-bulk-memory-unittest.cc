@@ -389,14 +389,14 @@ void TestTableCopyElems(TestExecutionTier execution_tier, int table_dst,
                         int table_src) {
   Isolate* isolate = WasmExecutionTestBase::InitIsolateOnce();
   HandleScope scope(isolate);
-  TestSignatures sigs;
   WasmRunner<uint32_t, uint32_t, uint32_t, uint32_t> r(execution_tier);
   const uint32_t kTableSize = 5;
   uint16_t function_indexes[kTableSize];
-  const ModuleTypeIndex sig_index = r.builder().AddSignature(sigs.i_v());
+  const ModuleTypeIndex sig_index =
+      r.builder().AddSignature(TestSignatures::i_v());
 
   for (uint32_t i = 0; i < kTableSize; ++i) {
-    WasmFunctionCompiler& fn = r.NewFunction(sigs.i_v(), "f");
+    WasmFunctionCompiler& fn = r.NewFunction(TestSignatures::i_v(), "f");
     fn.Build({WASM_I32V_1(i)});
     fn.SetSigIndex(sig_index);
     function_indexes[i] = fn.function_index();
@@ -466,14 +466,14 @@ void TestTableCopyCalls(TestExecutionTier execution_tier, int table_dst,
                         int table_src) {
   Isolate* isolate = WasmExecutionTestBase::InitIsolateOnce();
   HandleScope scope(isolate);
-  TestSignatures sigs;
   WasmRunner<uint32_t, uint32_t, uint32_t, uint32_t> r(execution_tier);
   const uint32_t kTableSize = 5;
   uint16_t function_indexes[kTableSize];
-  const ModuleTypeIndex sig_index = r.builder().AddSignature(sigs.i_v());
+  const ModuleTypeIndex sig_index =
+      r.builder().AddSignature(TestSignatures::i_v());
 
   for (uint32_t i = 0; i < kTableSize; ++i) {
-    WasmFunctionCompiler& fn = r.NewFunction(sigs.i_v(), "f");
+    WasmFunctionCompiler& fn = r.NewFunction(TestSignatures::i_v(), "f");
     fn.Build({WASM_I32V_1(i)});
     fn.SetSigIndex(sig_index);
     function_indexes[i] = fn.function_index();
@@ -483,7 +483,7 @@ void TestTableCopyCalls(TestExecutionTier execution_tier, int table_dst,
     r.builder().AddIndirectFunctionTable(function_indexes, kTableSize);
   }
 
-  WasmFunctionCompiler& call = r.NewFunction(sigs.i_i(), "call");
+  WasmFunctionCompiler& call = r.NewFunction(TestSignatures::i_i(), "call");
   call.Build(
       {WASM_CALL_INDIRECT_TABLE(table_dst, sig_index, WASM_LOCAL_GET(0))});
   const uint32_t call_index = call.function_index();
@@ -536,14 +536,14 @@ void TestTableCopyOobWrites(TestExecutionTier execution_tier, int table_dst,
                             int table_src) {
   Isolate* isolate = WasmExecutionTestBase::InitIsolateOnce();
   HandleScope scope(isolate);
-  TestSignatures sigs;
   WasmRunner<uint32_t, uint32_t, uint32_t, uint32_t> r(execution_tier);
   const uint32_t kTableSize = 5;
   uint16_t function_indexes[kTableSize];
-  const ModuleTypeIndex sig_index = r.builder().AddSignature(sigs.i_v());
+  const ModuleTypeIndex sig_index =
+      r.builder().AddSignature(TestSignatures::i_v());
 
   for (uint32_t i = 0; i < kTableSize; ++i) {
-    WasmFunctionCompiler& fn = r.NewFunction(sigs.i_v(), "f");
+    WasmFunctionCompiler& fn = r.NewFunction(TestSignatures::i_v(), "f");
     fn.Build({WASM_I32V_1(i)});
     fn.SetSigIndex(sig_index);
     function_indexes[i] = fn.function_index();

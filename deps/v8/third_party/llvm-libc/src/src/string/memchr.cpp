@@ -20,6 +20,9 @@ namespace LIBC_NAMESPACE_DECL {
 LLVM_LIBC_FUNCTION(void *, memchr, (const void *src, int c, size_t n)) {
   if (n)
     LIBC_CRASH_ON_NULLPTR(src);
+#if __has_cpp_attribute(clang::always_inline)
+  [[clang::always_inline]]
+#endif
   return internal::find_first_character(
       reinterpret_cast<const unsigned char *>(src),
       static_cast<unsigned char>(c), n);

@@ -2633,8 +2633,7 @@ IGNITION_HANDLER(CreateArrayLiteral, InterpreterAssembler) {
   {
     ConstructorBuiltinsAssembler constructor_assembler(state());
     TNode<JSArray> result = constructor_assembler.CreateShallowArrayLiteral(
-        CAST(feedback_vector), slot, context, TRACK_ALLOCATION_SITE,
-        &call_runtime);
+        CAST(feedback_vector), slot, context, &call_runtime);
     SetAccumulator(result);
     Dispatch();
   }
@@ -3231,8 +3230,15 @@ IGNITION_HANDLER(FindNonDefaultConstructorOrConstruct, InterpreterAssembler) {
 
   BIND(&found_default_base_ctor);
   {
-    // Create an object directly, without calling the default base ctor.
     TNode<Object> new_target = LoadRegisterAtOperandIndex(1);
+    // Creating the instance reads new_target.prototype, which can run user
+    // code unless new_target is a JSFunction with a prototype slot (e.g. if
+    // it's a Proxy or a bound function). In that case, don't create the
+    // instance here; the regular Construct path will do it.
+    GotoIfNot(IsJSFunctionWithPrototype(CAST(new_target)),
+              &found_something_else);
+
+    // Create an object directly, without calling the default base ctor.
     TNode<Object> instance = CallBuiltin(Builtin::kFastNewObject, context,
                                          constructor.value(), new_target);
 

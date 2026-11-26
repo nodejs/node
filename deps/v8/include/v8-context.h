@@ -109,7 +109,7 @@ class V8_EXPORT Context : public Data {
    *
    * \param context_data_deserializer An optional callback used
    * to deserialize embedder data set by
-   * v8::Context::SetAlignedPointerInEmbedderData() in the default
+   * v8::Context::SetAlignedPointerInEmbedderDataV2() in the default
    * context from the default context snapshot. It does not need to be
    * configured if the default context snapshot contains no pointer embedder
    * data, or if no custom startup snapshot is configured in the
@@ -281,17 +281,9 @@ class V8_EXPORT Context : public Data {
 
   /**
    * Gets the embedder data with the given index, which must have been set by a
-   * previous call to SetEmbedderData with the same index.
+   * previous call to SetEmbedderDataV3 with the same index.
    */
   V8_INLINE Local<Data> GetEmbedderDataV2(int index);
-
-  /**
-   * Sets the embedder data with the given index, growing the data as
-   * needed. Note that index 0 currently has a special meaning for Chrome's
-   * debugger.
-   */
-  V8_DEPRECATE_SOON("Use SetEmbedderDataV3 instead")
-  void SetEmbedderDataV2(int index, Local<Data> value);
 
   /**
    * Sets the embedder data with the given index. The index must be in the
@@ -301,7 +293,7 @@ class V8_EXPORT Context : public Data {
 
   /**
    * Gets the embedder data with the given index, which must have been set by a
-   * previous call to SetEmbedderData with the same index.
+   * previous call to SetEmbedderDataV3 with the same index.
    */
   V8_DEPRECATE_SOON("Use GetEmbedderDataV2 instead")
   V8_INLINE Local<Value> GetEmbedderData(int index);
@@ -315,17 +307,9 @@ class V8_EXPORT Context : public Data {
   Local<Object> GetExtrasBindingObject();
 
   /**
-   * Sets the embedder data with the given index, growing the data as
-   * needed. Note that index 0 currently has a special meaning for Chrome's
-   * debugger.
-   */
-  V8_DEPRECATE_SOON("Use SetEmbedderDataV3 instead")
-  void SetEmbedderData(int index, Local<Value> value);
-
-  /**
    * Gets a 2-byte-aligned native pointer from the embedder data with the given
    * index, which must have been set by a previous call to
-   * SetAlignedPointerInEmbedderData with the same index. Note that index 0
+   * SetAlignedPointerInEmbedderDataV2 with the same index. Note that index 0
    * currently has a special meaning for Chrome's debugger.
    */
   V8_INLINE void* GetAlignedPointerFromEmbedderData(Isolate* isolate, int index,
@@ -336,19 +320,6 @@ class V8_EXPORT Context : public Data {
     requires cppgc::IsGarbageCollectedTypeV<T>
   V8_INLINE T* GetAlignedPointerFromEmbedderData(Isolate* isolate, int index,
                                                  CppHeapPointerTag tag);
-
-  V8_DEPRECATE_SOON("Use SetAlignedPointerInEmbedderDataV2 instead")
-  void SetAlignedPointerInEmbedderData(int index, void* value,
-                                       EmbedderDataTypeTag tag);
-
-  template <typename T>
-    requires(!std::is_void_v<T>) && cppgc::IsGarbageCollectedTypeV<T>
-  V8_DEPRECATE_SOON("Use SetAlignedPointerInEmbedderDataV2 instead")
-  void SetAlignedPointerInEmbedderData(int index, T* value,
-                                       CppHeapPointerTag tag) {
-    SetAlignedPointerInEmbedderDataInternal(index, static_cast<void*>(value),
-                                            tag);
-  }
 
   void SetAlignedPointerInEmbedderDataV2(int index, void* value,
                                          EmbedderDataTypeTag tag);
@@ -488,8 +459,6 @@ class V8_EXPORT Context : public Data {
   Local<Value> SlowGetEmbedderData(int index);
   Local<Data> SlowGetEmbedderDataV2(int index);
   void* SlowGetAlignedPointerFromEmbedderData(int index, CppHeapPointerTag tag);
-  void SetAlignedPointerInEmbedderDataInternal(int index, void* value,
-                                               CppHeapPointerTag tag);
   void SetAlignedPointerInEmbedderDataInternalV2(int index, void* value,
                                                  CppHeapPointerTag tag);
 };
@@ -501,19 +470,17 @@ Local<Value> Context::GetEmbedderData(int index) {
   using A = internal::Address;
   using I = internal::Internals;
   A ctx = internal::ValueHelper::ValueAsAddress(this);
-  A embedder_data =
-      I::ReadTaggedPointerField(ctx, I::kNativeContextEmbedderDataOffset);
   int value_offset =
-      I::kEmbedderDataArrayHeaderSize + (I::kEmbedderDataSlotSize * index);
+      I::kNativeContextEmbedderDataOffset + (I::kEmbedderDataSlotSize * index);
 #ifdef V8_COMPRESS_POINTERS
   // The tagged payload lives in the low kTaggedSize half of the slot (at
   // kTaggedPayloadOffset == 0). Read it as a 32-bit field so the correct half
   // is picked on both little and big endian targets. A full width read plus
   // truncation would return the CppHeap pointer half on big endian.
-  uint32_t compressed = I::ReadRawField<uint32_t>(embedder_data, value_offset);
-  A value = I::DecompressTaggedField(embedder_data, compressed);
+  uint32_t compressed = I::ReadRawField<uint32_t>(ctx, value_offset);
+  A value = I::DecompressTaggedField(ctx, compressed);
 #else
-  A value = I::ReadRawField<A>(embedder_data, value_offset);
+  A value = I::ReadRawField<A>(ctx, value_offset);
 #endif
 
   auto* isolate = I::GetCurrentIsolate();
@@ -528,19 +495,17 @@ V8_INLINE Local<Data> Context::GetEmbedderDataV2(int index) {
   using A = internal::Address;
   using I = internal::Internals;
   A ctx = internal::ValueHelper::ValueAsAddress(this);
-  A embedder_data =
-      I::ReadTaggedPointerField(ctx, I::kNativeContextEmbedderDataOffset);
   int value_offset =
-      I::kEmbedderDataArrayHeaderSize + (I::kEmbedderDataSlotSize * index);
+      I::kNativeContextEmbedderDataOffset + (I::kEmbedderDataSlotSize * index);
 #ifdef V8_COMPRESS_POINTERS
   // The tagged payload lives in the low kTaggedSize half of the slot (at
   // kTaggedPayloadOffset == 0). Read it as a 32-bit field so the correct half
   // is picked on both little and big endian targets. A full-width read plus
   // truncation would return the CppHeap pointer half on big endian.
-  uint32_t compressed = I::ReadRawField<uint32_t>(embedder_data, value_offset);
-  A value = I::DecompressTaggedField(embedder_data, compressed);
+  uint32_t compressed = I::ReadRawField<uint32_t>(ctx, value_offset);
+  A value = I::DecompressTaggedField(ctx, compressed);
 #else
-  A value = I::ReadRawField<A>(embedder_data, value_offset);
+  A value = I::ReadRawField<A>(ctx, value_offset);
 #endif
 
   auto* isolate = I::GetCurrentIsolate();
@@ -563,13 +528,11 @@ T* Context::GetAlignedPointerFromEmbedderData(Isolate* isolate, int index,
   using A = internal::Address;
   using I = internal::Internals;
   A ctx = internal::ValueHelper::ValueAsAddress(this);
-  A embedder_data =
-      I::ReadTaggedPointerField(ctx, I::kNativeContextEmbedderDataOffset);
-  int value_offset = I::kEmbedderDataArrayHeaderSize +
+  int value_offset = I::kNativeContextEmbedderDataOffset +
                      (I::kEmbedderDataSlotSize * index) +
                      I::kEmbedderDataSlotCppHeapPointerOffset;
-  return internal::ReadCppHeapPointerField<T>(
-      isolate, embedder_data, value_offset, CppHeapPointerTagRange(tag, tag));
+  return internal::ReadCppHeapPointerField<T>(isolate, ctx, value_offset,
+                                              CppHeapPointerTagRange(tag, tag));
 #else
   return static_cast<T*>(SlowGetAlignedPointerFromEmbedderData(index, tag));
 #endif

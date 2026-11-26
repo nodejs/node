@@ -13,7 +13,6 @@
 #include "src/compiler/zone-stats.h"
 #include "src/diagnostics/compilation-statistics.h"
 #include "src/objects/code-kind.h"
-#include "src/tracing/trace-event.h"
 
 namespace v8 {
 namespace internal {
@@ -21,7 +20,7 @@ namespace compiler {
 
 class PhaseScope;
 
-class PipelineStatisticsBase {
+class V8_EXPORT_PRIVATE PipelineStatisticsBase {
  protected:
   using Base = PipelineStatisticsBase;
 
@@ -93,8 +92,9 @@ class PipelineStatisticsBase {
   CommonStats phase_stats_;
 };
 
-class TurbofanPipelineStatistics : public PipelineStatisticsBase,
-                                   public Malloced {
+class V8_EXPORT_PRIVATE TurbofanPipelineStatistics
+    : public PipelineStatisticsBase,
+      public Malloced {
  public:
   TurbofanPipelineStatistics(OptimizedCompilationInfo* info,
                              std::shared_ptr<CompilationStatistics> turbo_stats,
@@ -104,11 +104,30 @@ class TurbofanPipelineStatistics : public PipelineStatisticsBase,
   TurbofanPipelineStatistics& operator=(const TurbofanPipelineStatistics&) =
       delete;
 
-  // We log detailed phase information about the pipeline
-  // in both the v8.turbofan and the v8.wasm.turbofan categories.
-  static constexpr char kTraceCategory[] =
-      TRACE_DISABLED_BY_DEFAULT("v8.turbofan") ","  // --
-      TRACE_DISABLED_BY_DEFAULT("v8.wasm.turbofan");
+  static bool IsJsTracingEnabled();
+#if V8_ENABLE_WEBASSEMBLY
+  static bool IsWasmTracingEnabled();
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+  class V8_NODISCARD TraceScheduleAndVerifyScope {
+   public:
+    explicit TraceScheduleAndVerifyScope(
+        TurbofanPipelineStatistics* pipeline_stats)
+        : pipeline_stats_(pipeline_stats) {
+      if (V8_UNLIKELY(pipeline_stats_ != nullptr)) BeginTrace();
+    }
+    ~TraceScheduleAndVerifyScope() {
+      if (V8_UNLIKELY(pipeline_stats_ != nullptr)) EndTrace();
+    }
+    TraceScheduleAndVerifyScope(const TraceScheduleAndVerifyScope&) = delete;
+    TraceScheduleAndVerifyScope& operator=(const TraceScheduleAndVerifyScope&) =
+        delete;
+
+   private:
+    V8_EXPORT_PRIVATE static void BeginTrace();
+    V8_EXPORT_PRIVATE static void EndTrace();
+    TurbofanPipelineStatistics* const pipeline_stats_;
+  };
 
   void BeginPhaseKind(const char* name);
   void EndPhaseKind();

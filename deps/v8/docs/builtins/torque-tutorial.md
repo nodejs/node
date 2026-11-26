@@ -110,17 +110,21 @@ An important reason is code space: builtins are generated at compile-time and in
 
 ## Testing stub-linkage builtins
 
-Even though our new builtin uses a non-standard (at least non-C++) calling convention, it’s possible to write test cases for it. The following code can be added to `test/cctest/compiler/test-run-stubs.cc` to test the builtin on all platforms:
+Even though our new builtin uses a non-standard (at least non-C++) calling convention, it’s possible to write test cases for it. The following code can be added to `test/unittests/codegen/code-stub-assembler-run-unittest.cc` to test the builtin on all platforms:
 
 ```cpp
-TEST(MathIsHeapNumber42) {
-  HandleAndZoneScope scope;
-  Isolate* isolate = scope.main_isolate();
-  Heap* heap = isolate->heap();
-  Zone* zone = scope.main_zone();
-
-  StubTester tester(isolate, zone, Builtins::kMathIs42);
-  Handle<Object> result1 = tester.Call(Handle<Smi>(Smi::FromInt(0), isolate));
-  CHECK(result1->BooleanValue());
+TEST_F(CodeStubAssemblerRunTest, HeapNumberIs42) {
+  Isolate* isolate = i_isolate();
+  const int kNumParams = 1;
+  CodeAssemblerTester asm_tester(isolate, JSParameterCount(kNumParams));
+  CodeStubAssembler m(asm_tester.state());
+  {
+    auto context = m.GetJSContextParameter();
+    auto number = m.Parameter<HeapNumber>(1);
+    m.Return(m.CallBuiltin(Builtin::kHeapNumberIs42, context, number));
+  }
+  FunctionTester ft(isolate, asm_tester.GenerateCode(), kNumParams);
+  ft.CheckTrue(isolate->factory()->NewHeapNumber(42.0));
+  ft.CheckFalse(isolate->factory()->NewHeapNumber(0.0));
 }
 ```

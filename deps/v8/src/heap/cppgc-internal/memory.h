@@ -56,7 +56,10 @@ void SetMemoryAccessible(void* address, size_t size);
 void SetMemoryInaccessible(void* address, size_t size);
 void CheckMemoryIsInaccessible(const void* address, size_t size);
 
-constexpr bool CheckMemoryIsInaccessibleIsNoop() {
+// Free memory can only be purged if `CheckMemoryIsInaccessible()` is a no-op,
+// because reading free-list memory during sweeping would otherwise fault
+// purged pages back in or fail verification checks.
+constexpr bool CanPurgeMemory() {
 #if defined(V8_USE_MEMORY_SANITIZER)
 
   return true;
@@ -77,7 +80,7 @@ constexpr bool CheckMemoryIsInaccessibleIsNoop() {
 // Nothing to be done for release builds.
 V8_INLINE void SetMemoryAccessible(void* address, size_t size) {}
 V8_INLINE void CheckMemoryIsInaccessible(const void* address, size_t size) {}
-constexpr bool CheckMemoryIsInaccessibleIsNoop() { return true; }
+constexpr bool CanPurgeMemory() { return true; }
 
 V8_INLINE void SetMemoryInaccessible(void* address, size_t size) {
   memset(address, 0, size);

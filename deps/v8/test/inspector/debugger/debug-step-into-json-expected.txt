@@ -1,0 +1,7 @@
+Tests stepping into JSON.stringify toJSON callback.
+debugger;                        // Break 0.
+var result = JSON.stringify(o);  // Break 1.
+  return "x"                     // Break 2.
+  ;                              // Break 3.
+let finished = true;             // Break 4.
+result: "x"

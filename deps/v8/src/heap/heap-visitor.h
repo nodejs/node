@@ -63,7 +63,6 @@ class MaybeObjectSize final {
   V(DataHandler)                                                               \
   V(DescriptorArray)                                                           \
   V(DoubleStringCache)                                                         \
-  V(EmbedderDataArray)                                                         \
   V(EphemeronHashTable)                                                        \
   V(ExternalString)                                                            \
   V(FeedbackCell)                                                              \
@@ -169,7 +168,6 @@ class MaybeObjectSize final {
   V(CodeWrapper)                                          \
   V(DataHandler)                                          \
   V(DescriptorArray)                                      \
-  V(EmbedderDataArray)                                    \
   V(ExternalString)                                       \
   V(FeedbackCell)                                         \
   V(FeedbackMetadata)                                     \

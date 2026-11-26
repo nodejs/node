@@ -67,7 +67,7 @@ LIBC_INLINE constexpr FloatFloat atan_eval(const FloatFloat &x) {
   // c0 ~ - x_hi^2 / 3
   float c0 = -0x1.555556p-2f * x_hi_sq;
   // c1 ~ x_lo * (1 - x_hi^2)
-  float c1 = fputil::multiply_add(x_hi_sq, -x.lo, x.lo);
+  float c1 = fputil::sub_multiply(x.lo, x_hi_sq, x.lo);
   // p.lo ~ - x_hi^3 / 3 + x_lo * (1 - x_hi*2)
   p.lo = fputil::multiply_add(x.hi, c0, c1);
   return p;

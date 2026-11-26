@@ -13,6 +13,7 @@
 #include "hdr/stdint_proxy.h"
 #include "hdr/types/fenv_t.h"
 #include "src/__support/CPP/bit.h"
+#include "src/__support/CPP/type_traits.h"
 #include "src/__support/macros/attributes.h" // LIBC_INLINE
 #include "src/__support/macros/config.h"
 #include "src/__support/macros/optimization.h"
@@ -113,9 +114,13 @@ LIBC_INLINE static int disable_except(int excepts) {
   return internal::get_macro_from_exception_status(old_excepts);
 }
 
-LIBC_INLINE static int get_round() {
-  uint16_t rounding_mode = sse::get_round();
-  return internal::get_macro_from_rounding_control(rounding_mode);
+LIBC_INLINE LIBC_CONSTEXPR_DEFAULT static int get_round() {
+  if (cpp::is_constant_evaluated()) {
+    return FE_TONEAREST;
+  } else {
+    uint16_t rounding_mode = sse::get_round();
+    return internal::get_macro_from_rounding_control(rounding_mode);
+  }
 }
 
 LIBC_INLINE static int set_round(int rounding_mode) {

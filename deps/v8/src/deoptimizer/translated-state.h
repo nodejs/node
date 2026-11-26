@@ -9,6 +9,7 @@
 #include <stack>
 #include <vector>
 
+#include "absl/container/flat_hash_map.h"
 #include "include/v8config.h"
 #include "src/base/small-vector.h"
 #include "src/common/simd128.h"
@@ -28,6 +29,7 @@ namespace v8 {
 namespace internal {
 
 class DeoptimizationLiteral;
+class PendingObjectVerifyScope;
 class RegisterValues;
 class TranslatedState;
 
@@ -92,12 +94,15 @@ class TranslatedValue {
     kDouble,
     kHoleyDouble,
     kSimd128,
-    kCapturedObject,    // Object captured by the escape analysis.
-                        // The number of nested objects can be obtained
-                        // with the DeferredObjectLength() method
-                        // (the values of the nested objects follow
-                        // this value in the depth-first order.)
-    kDuplicatedObject,  // Duplicated object of a deferred object.
+    kCapturedObject,        // Object captured by the escape analysis.
+                            // The number of nested objects can be obtained
+                            // with the DeferredObjectLength() method
+                            // (the values of the nested objects follow
+                            // this value in the depth-first order.)
+    kUniqueCapturedObject,  // Captured object with a single owner that cannot
+                            // be a kDuplicatedObject target or stored in
+                            // MaterializedObjectStore.
+    kDuplicatedObject,      // Duplicated object of a deferred object.
     kCapturedStringConcat
   };
 
@@ -112,6 +117,9 @@ class TranslatedValue {
   TranslatedValue(TranslatedState* container, Kind kind)
       : kind_(kind), container_(container) {}
   Kind kind() const { return kind_; }
+  bool IsCapturedObject() const {
+    return kind() == kCapturedObject || kind() == kUniqueCapturedObject;
+  }
   MaterializationState materialization_state() const {
     return materialization_state_;
   }
@@ -146,6 +154,10 @@ class TranslatedValue {
   void set_initialized_storage(Handle<HeapObject> storage);
   void mark_finished() { materialization_state_ = kFinished; }
   void mark_allocated() { materialization_state_ = kAllocated; }
+  void mark_unique_captured_object() {
+    DCHECK_EQ(kind(), kCapturedObject);
+    kind_ = kUniqueCapturedObject;
+  }
 
   Handle<HeapObject> storage() {
     DCHECK_NE(materialization_state(), kUninitialized);
@@ -166,7 +178,7 @@ class TranslatedValue {
 
   struct MaterializedObjectInfo {
     int id_;
-    int length_;  // Applies only to kCapturedObject kinds.
+    int length_;  // Applies only to IsCapturedObject() kinds.
   };
 
   union {
@@ -184,7 +196,7 @@ class TranslatedValue {
     Float32 float_value_;
     // kind is kDouble or kHoleyDouble
     Float64 double_value_;
-    // kind is kDuplicatedObject or kCapturedObject.
+    // kind is kDuplicatedObject or IsCapturedObject().
     MaterializedObjectInfo materialization_info_;
     // kind is kSimd128.
     Simd128 simd128_value_;
@@ -538,6 +550,7 @@ class TranslatedState {
   // extra work is needed to not violate assumptions made by left-trimming.  For
   // details, see the code around ReplaceElementsArrayWithCopy.
   enum Purpose { kDeoptimization, kFrameInspection };
+  enum LengthFieldType { kLengthIsSmi, kLengthIsUint32 };
 
   TranslatedFrame CreateNextTranslatedFrame(
       DeoptTranslationIterator* iterator,
@@ -564,34 +577,34 @@ class TranslatedState {
                                           int* value_index,
                                           TranslatedValue* slot);
 
-  void EnsureObjectAllocatedAt(TranslatedValue* slot);
+  void EnsureObjectAllocatedAt(
+      TranslatedValue* slot, PendingObjectVerifyScope* pending_verify_objects);
 
   void SkipSlots(int slots_to_skip, TranslatedFrame* frame, int* value_index);
 
-  Handle<ByteArray> AllocateStorageFor(TranslatedValue* slot);
-  void EnsureJSObjectAllocated(TranslatedValue* slot, DirectHandle<Map> map);
-  void EnsurePropertiesAllocatedAndMarked(TranslatedValue* properties_slot,
-                                          DirectHandle<Map> map);
+  void EnsureJSObjectAllocated(
+      TranslatedValue* slot, DirectHandle<Map> map,
+      PendingObjectVerifyScope* pending_verify_objects);
   void EnsureChildrenAllocated(int count, TranslatedFrame* frame,
                                int* value_index, std::stack<int>* worklist);
-  void EnsureCapturedObjectAllocatedAt(int object_index,
-                                       std::stack<int>* worklist);
+  void EnsureCapturedObjectAllocatedAt(
+      int object_index, std::stack<int>* worklist,
+      PendingObjectVerifyScope* pending_verify_objects);
   Handle<HeapObject> InitializeObjectAt(TranslatedValue* slot);
   void InitializeCapturedObjectAt(int object_index, std::stack<int>* worklist,
                                   const DisallowGarbageCollection& no_gc);
   void InitializeJSObjectAt(TranslatedFrame* frame, int* value_index,
                             TranslatedValue* slot, DirectHandle<Map> map,
                             const DisallowGarbageCollection& no_gc);
-  void InitializeFirstHeaderField(TranslatedFrame* frame, int* value_index,
-                                  TranslatedValue* slot, bool is_fixed_array,
-                                  const DisallowGarbageCollection& no_gc);
+  void InitializePropertyArrayAt(TranslatedFrame* frame, int* value_index,
+                                 TranslatedValue* slot, DirectHandle<Map> map,
+                                 const DisallowGarbageCollection& no_gc);
+  void SkipLengthField(TranslatedFrame* frame, int* value_index,
+                       TranslatedValue* slot, LengthFieldType length_type);
   void InitializeObjectWithTaggedFieldsAt(
       TranslatedFrame* frame, int* value_index, TranslatedValue* slot,
       DirectHandle<Map> map, const DisallowGarbageCollection& no_gc,
       int consumed_slots);
-  void PrepareObjectForLayoutChange(Handle<HeapObject> object_storage,
-                                    int children_count,
-                                    const DisallowGarbageCollection& no_gc);
 
   Handle<HeapObject> ResolveStringConcat(TranslatedValue* slot);
 
@@ -625,6 +638,7 @@ class TranslatedState {
     int value_index_;
   };
   std::vector<ObjectPosition> object_positions_;
+  absl::flat_hash_map<int, Handle<Map>> property_array_maps_;
   Handle<FeedbackVector> feedback_vector_handle_;
   Tagged<FeedbackVector> feedback_vector_;
   FeedbackSlot feedback_slot_;

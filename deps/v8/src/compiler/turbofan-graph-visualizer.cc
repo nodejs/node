@@ -7,7 +7,6 @@
 #include <array>
 #include <memory>
 #include <optional>
-#include <regex>
 #include <sstream>
 #include <string>
 
@@ -77,15 +76,15 @@ void JsonPrintBytecodeSource(std::ostream& os, int source_id,
                              Tagged<FeedbackVector> feedback_vector) {
   os << "\"" << source_id << "\" : {";
   os << "\"sourceId\": " << source_id;
-  os << ", \"functionName\": \"" << function_name.get() << "\"";
+  os << ", \"functionName\": \"" << base::JSONEscaped(function_name.get())
+     << "\"";
   os << ", \"bytecodeSource\": ";
   bytecode_array->PrintJson(os);
   os << ", \"feedbackVector\": \"";
   if (!feedback_vector.is_null()) {
     std::stringstream stream;
     Print(feedback_vector, stream);
-    std::regex newlines_re("\n+");
-    os << std::regex_replace(stream.str(), newlines_re, "\\n");
+    os << base::JSONEscaped(stream.str());
   }
   os << "\"}";
 }
@@ -99,7 +98,8 @@ void JsonPrintFunctionSource(std::ostream& os, int source_id,
 
   os << "{ ";
   os << "\"sourceId\": " << source_id;
-  os << ", \"functionName\": \"" << function_name.get() << "\" ";
+  os << ", \"functionName\": \"" << base::JSONEscaped(function_name.get())
+     << "\" ";
 
   int start = 0;
   int end = 0;
@@ -1234,9 +1234,7 @@ std::ostream& operator<<(std::ostream& os, const InstructionOperandAsJSON& o) {
       os << "\"tooltip\": \"";
       std::stringstream tooltip;
       tooltip << code->GetConstant(vreg);
-      for (const auto& c : tooltip.str()) {
-        os << AsEscapedUC16ForJSON(c);
-      }
+      os << base::JSONEscaped(tooltip.str());
       os << "\"";
       break;
     }
@@ -1259,9 +1257,7 @@ std::ostream& operator<<(std::ostream& os, const InstructionOperandAsJSON& o) {
           os << "\"tooltip\": \"";
           std::stringstream tooltip;
           tooltip << code->GetImmediate(imm);
-          for (const auto& c : tooltip.str()) {
-            os << AsEscapedUC16ForJSON(c);
-          }
+          os << base::JSONEscaped(tooltip.str());
           os << "\"";
           break;
         }

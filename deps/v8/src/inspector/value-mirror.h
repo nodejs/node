@@ -15,6 +15,7 @@
 #include "src/inspector/string-16.h"
 #include "src/inspector/v8-debugger.h"
 #include "src/inspector/v8-deep-serializer.h"
+#include "src/inspector/v8-serialization-duplicate-tracker.h"
 
 namespace v8_inspector {
 
@@ -71,8 +72,8 @@ class ValueMirror {
   virtual Response buildDeepSerializedValue(
       v8::Local<v8::Context> context, int maxDepth,
       v8::Local<v8::Object> additionalParameters,
-      V8SerializationDuplicateTracker& duplicateTracker,
-      std::unique_ptr<protocol::DictionaryValue>* result) const = 0;
+      std::unique_ptr<protocol::Runtime::DeepSerializedValue>* result)
+      const = 0;
 
   class PropertyAccumulator {
    public:
@@ -94,8 +95,19 @@ class ValueMirror {
 
 static constexpr uint32_t kMaxArrayLength = 10'000'000;
 
+#if defined(V8_USE_ADDRESS_SANITIZER) && V8_OS_DARWIN
+// The default stack size on macOS is small, and ASan uses more stack space.
+static constexpr int kMaxProtocolDepth = 900;
+#else
+static constexpr int kMaxProtocolDepth = 1000;
+#endif
+
 protocol::Response toProtocolValue(v8::Local<v8::Context> context,
                                    v8::Local<v8::Value> value, int maxDepth,
+                                   std::unique_ptr<protocol::Value>* result);
+protocol::Response toProtocolValue(v8::Local<v8::Context> context,
+                                   v8::Local<v8::Value> value, int maxDepth,
+                                   ProtocolValueBudget* budget,
                                    std::unique_ptr<protocol::Value>* result);
 protocol::Response arrayToProtocolValue(
     v8::Local<v8::Context> context, v8::Local<v8::Array> array, int maxDepth,

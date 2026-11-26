@@ -542,6 +542,35 @@ void MacroAssembler::RotateInsertSelectBits(Register dst, Register src,
     risbg(dst, src, startBit, endBit, shiftAmt);
 }
 
+void MacroAssembler::RotateLeft(Register dst, Register src, Register shiftReg,
+                                const Operand& shiftAmt) {
+  rllg(dst, src, shiftReg, shiftAmt);
+}
+
+void MacroAssembler::RotateLeft(Register dst, Register src,
+                                const Operand& shiftAmt) {
+  RotateLeft(dst, src, r0, shiftAmt);
+}
+
+void MacroAssembler::RotateRight(Register dst, Register src, Register shiftReg,
+                                 const Operand& shiftAmt) {
+  if (shiftReg == r0) {
+    RotateLeft(dst, src, r0, Operand(64 - shiftAmt.immediate()));
+    return;
+  }
+
+  // Rotate right by (reg + imm) = rotate left by (-reg - imm).
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  lcgr(scratch, shiftReg);
+  RotateLeft(dst, src, scratch, Operand(-shiftAmt.immediate()));
+}
+
+void MacroAssembler::RotateRight(Register dst, Register src,
+                                 const Operand& shiftAmt) {
+  RotateRight(dst, src, r0, shiftAmt);
+}
+
 void MacroAssembler::BranchRelativeOnIdxHighP(Register dst, Register inc,
                                               Label* L) {
   brxhg(dst, inc, L);
@@ -2088,8 +2117,7 @@ void MacroAssembler::AssertUnreachable(AbortReason reason) {
 void MacroAssembler::AssertZeroExtended(Register int32_register) {
   if (!v8_flags.slow_debug_code) return;
   ASM_CODE_COMMENT(this);
-  mov(r0, Operand(kMaxUInt32));
-  CmpS64(int32_register, r0);
+  CmpU64(int32_register, Operand(kMaxUInt32));
   Check(le, AbortReason::k32BitValueInRegisterIsNotZeroExtended);
 }
 
@@ -2506,6 +2534,16 @@ void MacroAssembler::CheckPageFlag(
   if (cc == eq) {
     beq(condition_met);
   }
+}
+
+void MacroAssembler::JumpIfMarking(Label* is_marking) {
+  DCHECK(root_array_available());
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  LoadU8(scratch,
+         MemOperand(kRootRegister, IsolateData::is_marking_flag_offset()));
+  CmpU64(scratch, Operand(0));
+  bne(is_marking);
 }
 
 Register GetRegisterThatIsNotOneOf(Register reg1, Register reg2, Register reg3,
@@ -4062,10 +4100,11 @@ void MacroAssembler::LoadF64(DoubleRegister dst, const MemOperand& mem) {
 // Load Single Precision (32-bit) Floating Point number from memory
 void MacroAssembler::LoadF32(DoubleRegister dst, const MemOperand& mem) {
   if (is_uint12(mem.offset())) {
-    le_z(dst, mem);
+    lde(dst, mem);
   } else {
     DCHECK(is_int20(mem.offset()));
     ley(dst, mem);
+    lder(dst, dst);
   }
 }
 
@@ -4564,16 +4603,12 @@ void MacroAssembler::SwapFloat32(DoubleRegister src, MemOperand dst,
 
 void MacroAssembler::SwapFloat32(MemOperand src, MemOperand dst,
                                  DoubleRegister scratch) {
-  // push d0, to be used as scratch
-  lay(sp, MemOperand(sp, -kDoubleSize));
-  StoreF64(d0, MemOperand(sp));
+  DCHECK(!AreAliased(scratch, kDoubleRegZero));
   LoadF32(scratch, src);
-  LoadF32(d0, dst);
+  LoadF32(kDoubleRegZero, dst);
   StoreF32(scratch, dst);
-  StoreF32(d0, src);
-  // restore d0
-  LoadF64(d0, MemOperand(sp));
-  lay(sp, MemOperand(sp, kDoubleSize));
+  StoreF32(kDoubleRegZero, src);
+  lzdr(kDoubleRegZero);
 }
 
 void MacroAssembler::SwapDouble(DoubleRegister src, DoubleRegister dst,
@@ -4595,16 +4630,12 @@ void MacroAssembler::SwapDouble(DoubleRegister src, MemOperand dst,
 
 void MacroAssembler::SwapDouble(MemOperand src, MemOperand dst,
                                 DoubleRegister scratch) {
-  // push d0, to be used as scratch
-  lay(sp, MemOperand(sp, -kDoubleSize));
-  StoreF64(d0, MemOperand(sp));
+  DCHECK(!AreAliased(scratch, kDoubleRegZero));
   LoadF64(scratch, src);
-  LoadF64(d0, dst);
+  LoadF64(kDoubleRegZero, dst);
   StoreF64(scratch, dst);
-  StoreF64(d0, src);
-  // restore d0
-  LoadF64(d0, MemOperand(sp));
-  lay(sp, MemOperand(sp, kDoubleSize));
+  StoreF64(kDoubleRegZero, src);
+  lzdr(kDoubleRegZero);
 }
 
 void MacroAssembler::SwapSimd128(Simd128Register src, Simd128Register dst,
@@ -4625,16 +4656,13 @@ void MacroAssembler::SwapSimd128(Simd128Register src, MemOperand dst,
 
 void MacroAssembler::SwapSimd128(MemOperand src, MemOperand dst,
                                  Simd128Register scratch) {
-  // push d0, to be used as scratch
-  lay(sp, MemOperand(sp, -kSimd128Size));
-  StoreV128(d0, MemOperand(sp), ip);
+  DCHECK(!AreAliased(scratch, kDoubleRegZero));
   LoadV128(scratch, src, ip);
-  LoadV128(d0, dst, ip);
+  LoadV128(kDoubleRegZero, dst, ip);
   StoreV128(scratch, dst, ip);
-  StoreV128(d0, src, ip);
-  // restore d0
-  LoadV128(d0, MemOperand(sp), ip);
-  lay(sp, MemOperand(sp, kSimd128Size));
+  StoreV128(kDoubleRegZero, src, ip);
+  vx(kDoubleRegZero, kDoubleRegZero, kDoubleRegZero, Condition(0), Condition(0),
+     Condition(0));
 }
 
 void MacroAssembler::ComputeCodeStartAddress(Register dst) {
@@ -4717,6 +4745,56 @@ void MacroAssembler::LoadEntrypointFromJSDispatchTable(Register destination,
   LoadU64(destination, MemOperand(scratch, JSDispatchEntry::kEntrypointOffset));
 }
 
+void MacroAssembler::LoadExternalPointerField(Register destination,
+                                              MemOperand field_operand,
+                                              ExternalPointerTagRange tag_range,
+                                              Register isolate_root) {
+  DCHECK(!AreAliased(destination, isolate_root));
+  ASM_CODE_COMMENT(this);
+#ifdef V8_COMPRESS_POINTERS
+  DCHECK(!tag_range.IsEmpty());
+  DCHECK(!IsSharedExternalPointerType(tag_range));
+  {
+    UseScratchRegisterScope temps(this);
+    Register external_table = temps.Acquire();
+    if (isolate_root == no_reg) {
+      DCHECK(root_array_available_);
+      isolate_root = kRootRegister;
+    }
+    LoadU64(external_table,
+            MemOperand(isolate_root,
+                       IsolateData::external_pointer_table_offset() +
+                           Internals::kExternalEntityTableBasePointerOffset));
+    LoadU32(destination, field_operand);
+    ShiftRightU64(destination, destination,
+                  Operand(kExternalPointerIndexShift));
+    ShiftLeftU64(destination, destination,
+                 Operand(kExternalPointerTableEntrySizeLog2));
+    LoadU64(destination, MemOperand(external_table, destination));
+  }
+
+  // We don't expect to see empty fields here. If this is ever needed, consider
+  // using an dedicated empty value entry for those tags instead (i.e. an entry
+  // with the right tag and nullptr payload).
+  // Although interceptor callbacks can be empty in general, once we decide
+  // to generate a code loading a callback value it's guaranteed that the
+  // external pointer handle is not empty.
+  DCHECK(!ExternalPointerCanBeEmpty(tag_range) ||
+         kAnyInterceptorInfoExternalPointerTagRange.Contains(tag_range));
+
+  if (tag_range.Size() == 1) {
+    // The common and simple case: we expect exactly one tag.
+    static_assert(!V8_ENABLE_SANDBOX_BOOL);
+    AndP(destination, destination, Operand(kExternalPointerPayloadMask));
+  } else {
+    // Not currently supported. Implement once needed.
+    DCHECK_NE(tag_range, kAnyExternalPointerTagRange);
+    UNREACHABLE();
+  }
+#else
+  LoadU64(destination, field_operand);
+#endif  // V8_COMPRESS_POINTERS
+}
 
 void MacroAssembler::LoadCodeInstructionStart(Register destination,
                                               Register code_object,

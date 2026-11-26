@@ -765,9 +765,9 @@ std::string UnitFromSkeleton(const icu::UnicodeString& skeleton) {
   str = skeleton.toUTF8String<std::string>(str);
   static constexpr std::string_view kSearch = "unit/";
   size_t begin = str.find(kSearch);
-  if (begin == str.npos) {
+  if (begin == std::string::npos) {
     // Special case for "percent".
-    if (str.find("percent") != str.npos) {
+    if (str.find("percent") != std::string::npos) {
       return "percent";
     }
     return "";
@@ -779,7 +779,7 @@ std::string UnitFromSkeleton(const icu::UnicodeString& skeleton) {
   // "unit/milliliter-per-acre .### rounding-mode-half-up"
   //       b
   begin += kSearch.size();
-  if (begin == str.npos) {
+  if (begin == std::string::npos) {
     return "";
   }
   // Find the end of the subtype.
@@ -790,7 +790,7 @@ std::string UnitFromSkeleton(const icu::UnicodeString& skeleton) {
   // Ex:
   // "unit/milliliter-per-acre .### rounding-mode-half-up"
   //       b                  e
-  if (end == str.npos) {
+  if (end == std::string::npos) {
     end = str.size();
   }
   return str.substr(begin, end - begin);
@@ -1104,7 +1104,7 @@ MaybeDirectHandle<JSNumberFormat> JSNumberFormat::New(
   // requestedLocales, opt,  %NumberFormat%.[[RelevantExtensionKeys]],
   // localeData).
   Intl::ResolvedLocale r;
-  if (!Intl::ResolveLocale(isolate, JSNumberFormat::GetAvailableLocales(),
+  if (!Intl::ResolveLocale(isolate, JSNumberFormat::GetAvailableLocales,
                            requested_locales, matcher, {"nu"})
            .To(&r)) {
     THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError));
@@ -1748,12 +1748,12 @@ Maybe<IntlMathematicalValue> IntlMathematicalValue::From(Isolate* isolate,
       // Otherwise return the BigInt
       MaybeHandle<BigInt> maybe_bigint = StringToBigInt(isolate, string);
       // If the parsing of BigInt fail, return nan
-      if (maybe_bigint.is_null()) {
-        isolate->clear_exception();
+      if (!maybe_bigint.ToHandle(&result.value_)) {
+        if (isolate->has_exception()) {
+          return Nothing<IntlMathematicalValue>();
+        }
         result.value_ = factory->nan_value();
-        return Just(result);
       }
-      result.value_ = maybe_bigint.ToHandleChecked();
       return Just(result);
     }
   }

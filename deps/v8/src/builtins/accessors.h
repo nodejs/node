@@ -58,7 +58,8 @@ class JavaScriptFrame;
   V(ArrayLengthSetter)          \
   V(FunctionPrototypeSetter)    \
   V(ModuleNamespaceEntrySetter) \
-  V(ReconfigureToDataProperty)
+  V(ReconfigureToDataProperty)  \
+  V(ValueUnavailableSetter)
 
 #define ACCESSOR_CALLBACK_LIST_GENERATOR(V, _) \
   V(_, ErrorStackGetter, kHasSideEffect)       \
@@ -133,21 +134,9 @@ class Accessors : public AllStatic {
       DirectHandle<Object> value);
 
   // Create an AccessorInfo. The setter is optional (can be nullptr).
-  //
-  // Note that the type of setter is AccessorNameBooleanSetterCallback instead
-  // of v8::AccessorNameSetterCallback.  The difference is that the former can
-  // set a (boolean) return value. The setter should roughly follow the same
-  // conventions as many of the internal methods in objects.cc:
-  // - The return value is unset iff there was an exception.
-  // - If the ShouldThrow argument is true, the return value must not be false.
-  using AccessorNameBooleanSetterCallback =
-      void (*)(Local<v8::Name> property, Local<v8::Value> value,
-               const PropertyCallbackInfo<v8::Boolean>& info);
-
   V8_EXPORT_PRIVATE static DirectHandle<AccessorInfo> MakeAccessor(
       Isolate* isolate, DirectHandle<Name> name_for_cpu_profiler,
-      AccessorNameGetterCallback getter,
-      AccessorNameBooleanSetterCallback setter);
+      AccessorNameGetterCallback getter, AccessorNameSetterCallback setter);
 
  private:
 #define ACCESSOR_INFO_DECLARATION(_, accessor_name, AccessorName, ...) \

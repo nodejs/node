@@ -12,7 +12,7 @@ builder.addImport("m", "imp", kSig_v_v); // index 0
 
 let sig = builder.addType(kSig_v_v);
 
-// main is the first declared function (index 1)
+// main is the first defined function (index 1)
 builder.addFunction("main", makeSig([kWasmI32], []))
     .addBody([
         kExprLocalGet, 0,

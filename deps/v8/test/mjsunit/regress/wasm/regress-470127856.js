@@ -33,11 +33,11 @@ let proto_seg = builder.addPassiveElementSegment(
 {
   let bad_ctor_data = [
     1,  // number of prototypes to configure
+    0x7f,  // no parent
     1,  // constructor
     1, 97,  // "a"
     0,  // no statics
     0,  // no methods
-    0x7f,  // no parent
   ];
   let bad_ctor_data_seg = builder.addPassiveDataSegment(bad_ctor_data);
 
@@ -58,11 +58,11 @@ let proto_seg = builder.addPassiveElementSegment(
 {
   let bad_method_data = [
     1,  // number of prototypes to configure
+    0x7f,  // no parent
     0,  // no constructor (nor statics)
     1,  // one method
     0,  // kind=method
     1, 97,  // "a"
-    0x7f,  // no parent
   ];
   let bad_method_data_seg = builder.addPassiveDataSegment(bad_method_data);
 
@@ -83,13 +83,13 @@ let proto_seg = builder.addPassiveElementSegment(
 {
   let bad_static_data = [
     1,  // number of prototypes to configure
+    0x7f,  // no parent
     1,  // constructor
     1, 97,  // "a"
     1,  // one static func
     0,  // kind=method
     1, 98,  // "b"
     0,  // no methods
-    0x7f,  // no parent
   ];
   let bad_static_data_seg = builder.addPassiveDataSegment(bad_static_data);
 

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_CCTEST_ASSEMBLER_HELPER_ARM_H_
-#define V8_CCTEST_ASSEMBLER_HELPER_ARM_H_
+#ifndef V8_UNITTESTS_ASSEMBLER_ASSEMBLER_HELPER_ARM_H_
+#define V8_UNITTESTS_ASSEMBLER_ASSEMBLER_HELPER_ARM_H_
 
 #include <functional>
 
@@ -34,4 +34,4 @@ GeneratedCode<Signature> AssembleCode(
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_CCTEST_ASSEMBLER_HELPER_ARM_H_
+#endif  // V8_UNITTESTS_ASSEMBLER_ASSEMBLER_HELPER_ARM_H_

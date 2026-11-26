@@ -8,12 +8,6 @@ This document discusses the stability of V8’s public API, and how developers c
 
 If V8 in a Chromium canary turns out to be crashy, it gets rolled back to the V8 version of the previous canary. It is therefore important to keep V8’s API compatible from one canary version to the next.
 
-We continuously run a [bot](https://ci.chromium.org/p/v8/builders/luci.v8.ci/Linux%20V8%20API%20Stability) that signals API stability violations. It compiles Chromium’s HEAD with V8’s [current canary version](https://chromium.googlesource.com/v8/v8/+/refs/heads/canary).
-
-Failures of this bot are currently only FYI and no action is required. The blame list can be used to easily identify dependent CLs in case of a rollback.
-
-If you break this bot, be reminded to increase the window between a V8 change and a dependent Chromium change next time.
-
 ## How to change V8’s public API
 
 V8 is used by many different embedders: Chrome, Node.js, gjstest, etc. When changing V8’s public API (basically the files under the `include/` directory) we need to ensure that the embedders can smoothly update to the new V8 version. In particular, we cannot assume that an embedder updates to the new V8 version and adjusts their code to the new API in one atomic change.

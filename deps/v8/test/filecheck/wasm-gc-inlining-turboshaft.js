@@ -186,6 +186,16 @@
 // CHECK: Considering Wasm function [1] getField of module {{0x[0-9a-f]+}} for inlining
 // CHECK-NEXT: - inlining Wasm function
 
+// CHECK-LABEL: TestInliningRefTest
+// CHECK-NOT: - not inlining
+// CHECK: Considering Wasm function [{{[0-9]+}}] base_noneNull of module {{0x[0-9a-f]+}} for inlining
+// CHECK-NEXT: - inlining Wasm function
+
+// CHECK-LABEL: TestInliningRefTestFuncAndExtern
+// CHECK-NOT: - not inlining
+// CHECK: Considering Wasm function [{{[0-9]+}}] noExternNull of module {{0x[0-9a-f]+}} for inlining
+// CHECK-NEXT: - inlining Wasm function
+
 d8.file.execute("test/mjsunit/mjsunit.js");
 
 // Do not optimize the assertThrows helper, since otherwise JS-into-JS inlining

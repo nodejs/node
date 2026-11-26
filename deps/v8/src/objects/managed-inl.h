@@ -10,6 +10,7 @@
 
 #include "include/cppgc/allocation.h"
 #include "include/cppgc/heap.h"
+#include "include/v8-cppgc.h"
 #include "include/v8-isolate.h"
 #include "include/v8-sandbox.h"
 #include "src/execution/isolate.h"

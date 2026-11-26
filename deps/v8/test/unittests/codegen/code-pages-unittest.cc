@@ -138,7 +138,7 @@ TEST_F(CodePagesTest, CodePagesCorrectContents) {
 }
 
 TEST_F(CodePagesTest, OptimizedCodeWithCodeRange) {
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
   if (!i_isolate()->RequiresCodeRange()) return;
 
   HandleScope scope(i_isolate());
@@ -167,7 +167,7 @@ TEST_F(CodePagesTest, OptimizedCodeWithCodePages) {
   // We don't want incremental marking to start which could cause the code to
   // not be collected on the CollectGarbage() call.
   ManualGCScope manual_gc_scope(i_isolate());
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
 
   const void* created_page = nullptr;
   int num_foos_created = 0;
@@ -428,8 +428,7 @@ TEST_F(CodePagesTest, LargeCodeObjectWithSignalHandler) {
   SignalSender signal_sender(isolate());
   signal_sender.Start();
   // Take an initial sample.
-  std::vector<MemoryRange> initial_pages =
-      SamplingThread::DoSynchronousSample(isolate());
+  SamplingThread::DoSynchronousSample(isolate());
   SamplingThread sampling_thread(&signal_sender);
 
   sampling_thread.StartSynchronously();

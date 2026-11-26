@@ -45,7 +45,6 @@ fast_c_api.reset_counts();
 assertSlowCall('Hello\u{10000}');
 assertSlowCall('नमस्ते');
 assertSlowCall(['नमस्ते', 'World'].join(''));
-assertOptimized(copy_string);
 assertEquals(0, fast_c_api.fast_call_count());
 assertEquals(3, fast_c_api.slow_call_count());
 
@@ -59,7 +58,6 @@ function getCons() {
 
 fast_c_api.reset_counts();
 assertSlowCall(getCons());
-assertOptimized(copy_string);
 assertEquals(0, fast_c_api.fast_call_count());
 assertEquals(1, fast_c_api.slow_call_count());
 
@@ -69,7 +67,6 @@ function getSliced() {
   return getCons().slice(1);
 }
 assertSlowCall(getSliced());
-assertOptimized(copy_string);
 assertEquals(0, fast_c_api.fast_call_count());
 assertEquals(1, fast_c_api.slow_call_count());
 

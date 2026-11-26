@@ -14,6 +14,10 @@ component-specific subfolders like `compiler/`, `turboshaft/`, `maglev/`, etc.).
 - **Mandatory Reproducer Rule**: Unless explicitly specified otherwise by the
   user, **every single bug fix in V8 MUST be uploaded with a working reproducer
   (regression test)**. Uploading just the fix alone is NEVER acceptable.
+- **Verify Every Test Case Fails Without the Fix**: Always check that every
+  regression test (and every individual test case within it) a) actually
+  exercises the specific code path/fix being tested and b) fails without the fix
+  and passes with the fix.
 - **Semantic Quality**: V8 regression tests must be **semantic
   (root-cause-driven)** rather than just **syntactic (fuzzer-driven)**. A
   high-quality test case is a clear, human-readable, and robust demonstration of
@@ -150,9 +154,17 @@ Avoid default fuzzer variable and function names (`__f_0`, `__v_10`, `v17`,
   profiling feedback.
 - Use V8 intrinsic compiler controls to force deterministic optimization:
   - `%PrepareFunctionForOptimization(foo);`
-  - `%OptimizeFunctionOnNextCall(foo);` or `%OptimizeMaglevOnNextCall(foo);`
+  - `%OptimizeFunctionOnNextCall(foo);`
 - Make sure `--allow-natives-syntax` is included in the Flags header when using
   percent (`%`) intrinsics.
+- **`%OptimizeFunctionOnNextCall` and Maglev Variants**: Test runner variants
+  run tests both with and without `--optimize-on-next-call-optimizes-to-maglev`
+  (e.g., `default` vs. `stress_maglev` / `maglev_no_turbofan`). For generic
+  regression tests using `%OptimizeFunctionOnNextCall`, even when testing a
+  Maglev regression, omit `--optimize-on-next-call-optimizes-to-maglev` from
+  `// Flags:` in the test file and verify that the test fails without the fix
+  under `--variants=stress_maglev` (or by passing
+  `--optimize-on-next-call-optimizes-to-maglev` on the command line).
 
 ### 5. Rely on Test Runner Variants for Execution Coverage
 

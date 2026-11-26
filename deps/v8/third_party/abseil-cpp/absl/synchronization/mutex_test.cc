@@ -36,6 +36,7 @@
 #include "absl/random/random.h"
 #include "absl/synchronization/internal/create_thread_identity.h"
 #include "absl/synchronization/internal/thread_pool.h"
+#include "absl/synchronization/notification.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
 
@@ -1119,11 +1120,15 @@ struct AcquireFromConditionStruct {
   absl::Mutex mu1;   // used to attempt to mess up state of mu0
   absl::CondVar cv;  // so the condition function can be invoked from
                      // CondVar::Wait().
+  absl::Notification started;
 };
 
 static bool ConditionWithAcquire(AcquireFromConditionStruct *x) {
   x->value++;  // count times this function is called
 
+  if (x->value == 1) {
+    x->started.Notify();
+  }
   if (x->value == 2 || x->value == 3) {
     // On the second and third invocation of this function, sleep for 100ms,
     // but with the side-effect of altering the state of a Mutex other than
@@ -1144,6 +1149,7 @@ static void WaitForCond2(AcquireFromConditionStruct *x) {
   // wait for cond0 to become true
   x->mu0.LockWhen(absl::Condition(&ConditionWithAcquire, x));
   x->done = true;
+  x->cv.Signal();
   x->mu0.unlock();
 }
 
@@ -1158,10 +1164,10 @@ TEST(Mutex, AcquireFromCondition) {
       std::bind(&WaitForCond2, &x));  // run WaitForCond2() in a thread T
   // T will hang because the first invocation of ConditionWithAcquire() will
   // return false.
-  absl::SleepFor(absl::Milliseconds(500));  // allow T time to hang
+  x.started.WaitForNotification();  // allow T time to hang
 
   x.mu0.lock();
-  x.cv.WaitWithTimeout(&x.mu0, absl::Milliseconds(500));  // wake T
+  x.cv.Wait(&x.mu0);  // wake T
   // T will be woken because the Wait() will call ConditionWithAcquire()
   // for the second time, and it will return true.
 

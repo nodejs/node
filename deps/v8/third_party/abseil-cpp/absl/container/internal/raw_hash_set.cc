@@ -314,7 +314,7 @@ void CommonFields::AnnotateForBugDetectionOnMoveImpl(
   that.set_capacity(this == &that ? HashtableCapacity::CreateSelfMovedFrom()
                                   : HashtableCapacity::CreateMovedFrom());
   if (!maybe_invalid_capacity().IsValid() ||
-      capacity() == policy.soo_capacity()) {
+      capacity() == policy.alloc_policy->soo_capacity()) {
     return;
   }
   increment_generation();
@@ -425,25 +425,60 @@ void CommonFields::set_infoz(HashtablezInfoHandle infoz) {
   std::memcpy(dst, &infoz, sizeof(HashtablezInfoHandle));
 }
 
+// Leading parameters match `operator new(size_t)` and
+// `operator delete(void*, size_t)` so callers set up those argument registers
+// once before branching on `is_custom_alloc`.
+//
+// The prototypes below only exist to silence -Wmissing-prototypes.
+// We define these functions with external linkage so compiler does not split
+// `policy` into scalar arguments at every caller.
+void* CustomAllocate(size_t alloc_size, const AllocPolicy& __restrict policy,
+                     CommonFields& common);
+void CustomDeallocate(void* backing_array, size_t alloc_size,
+                      const AllocPolicy& __restrict policy,
+                      CommonFields& common);
+
+ABSL_ATTRIBUTE_COLD ABSL_ATTRIBUTE_NOINLINE void* CustomAllocate(
+    size_t alloc_size, const AllocPolicy& __restrict policy,
+    CommonFields& common) {
+  ABSL_SWISSTABLE_ASSERT(policy.is_custom_alloc);
+  const auto& custom = static_cast<const CustomAllocPolicy&>(policy);
+  return custom.alloc(custom.get_char_alloc(common), alloc_size);
+}
+
+ABSL_ATTRIBUTE_COLD ABSL_ATTRIBUTE_NOINLINE void CustomDeallocate(
+    void* backing_array, size_t alloc_size,
+    const AllocPolicy& __restrict policy, CommonFields& common) {
+  ABSL_SWISSTABLE_ASSERT(policy.is_custom_alloc);
+  const auto& custom = static_cast<const CustomAllocPolicy&>(policy);
+  custom.dealloc(custom.get_char_alloc(common), backing_array, alloc_size);
+}
+
 namespace {
-void DeallocBackingArrayImpl(void* alloc, size_t capacity, ctrl_t* ctrl,
-                             size_t slot_size, size_t slot_align,
-                             bool has_infoz, size_t blocked_element_count,
-                             DeallocBackingArrayFn dealloc) {
-  RawHashSetLayout layout(capacity, slot_size, slot_align, has_infoz,
-                          blocked_element_count);
+
+void DeallocBackingArrayImpl(CommonFields& c,
+                             const AllocPolicy& __restrict policy,
+                             size_t capacity, ctrl_t* ctrl, size_t slot_size,
+                             bool has_infoz, size_t blocked_element_count) {
+  RawHashSetLayout layout(capacity, slot_size, policy.slot_align_mask,
+                          has_infoz, blocked_element_count);
   void* backing_array = ctrl - layout.control_offset();
+  const size_t alloc_size = layout.alloc_size();
   // Unpoison before returning the memory to the allocator.
-  SanitizerUnpoisonMemoryRegion(backing_array, layout.alloc_size());
-  dealloc(alloc, backing_array, layout.alloc_size());
+  SanitizerUnpoisonMemoryRegion(backing_array, alloc_size);
+  if (ABSL_PREDICT_TRUE(!policy.is_custom_alloc)) {
+    DeallocateBackingArray<kStandardBackingArrayAlignment,
+                           std::allocator<char>>(&c, backing_array, alloc_size);
+  } else {
+    CustomDeallocate(backing_array, alloc_size, policy, c);
+  }
 }
 
 void DeallocBackingArrayImpl(CommonFields& c,
-                             const PolicyFunctions& __restrict policy,
-                             void* alloc) {
-  DeallocBackingArrayImpl(alloc, c.capacity(), c.control(), policy.slot_size,
-                          policy.slot_align, c.has_infoz(),
-                          c.blocked_element_count(), policy.dealloc);
+                             const AllocPolicy& __restrict policy) {
+  DeallocBackingArrayImpl(c, policy, c.capacity(), c.control(),
+                          policy.slot_size, c.has_infoz(),
+                          c.blocked_element_count());
 }
 
 }  // namespace
@@ -452,12 +487,17 @@ void UnregisterAndDeallocBackingArray(CommonFields& c,
                                       const DtorPolicy& __restrict policy,
                                       DeallocBackingArrayFn dealloc,
                                       void* alloc) {
-  size_t cap = c.capacity();  // capacity is already in register, so storing it
-                              // in a local variable before Unregister().
   c.infoz().Unregister();
-  DeallocBackingArrayImpl(alloc, cap, c.control(), policy.slot_size,
-                          policy.slot_align, c.has_infoz(),
-                          c.blocked_element_count(), dealloc);
+  // Read `c.capacity()` after `Unregister()` so `inline_data_` does not need
+  // to be spilled across the cold `UnsampleSlow` call (it is reloaded afterward
+  // for `has_infoz()` and `blocked_element_count()` anyway).
+  RawHashSetLayout layout(c.capacity(), policy.slot_size,
+                          policy.slot_align_mask, c.has_infoz(),
+                          c.blocked_element_count());
+  void* backing_array = c.control() - layout.control_offset();
+  // Unpoison before returning the memory to the allocator.
+  SanitizerUnpoisonMemoryRegion(backing_array, layout.alloc_size());
+  dealloc(alloc, backing_array, layout.alloc_size());
 }
 
 namespace {
@@ -803,19 +843,30 @@ ABSL_ATTRIBUTE_ALWAYS_INLINE inline void InitializeThreeElementsControlBytes(
   // new_ctrl after 2nd store  =      EHNSEHNEEEE
 }
 
-// ClearBackingArrayNoReuse clears the backing array and sets the common
-// fields to the default values for empty non-allocated tables.
-// REQUIRES: c.capacity > policy.soo_capacity.
+size_t AllocatedCapacityForInfoz(const CommonFields& c) {
+  return c.capacity() - c.blocked_element_count();
+}
+
+ABSL_ATTRIBUTE_COLD ABSL_ATTRIBUTE_NOINLINE void ReportClearToInfoz(
+    CommonFields& c) {
+  c.infoz().RecordStorageChanged(0, AllocatedCapacityForInfoz(c));
+}
+
+// Clears the backing array and sets the common fields to the default values for
+// empty non-allocated tables. REQUIRES: c.capacity > policy.soo_capacity.
 void ClearBackingArrayNoReuse(CommonFields& c,
-                              const PolicyFunctions& __restrict policy,
-                              void* alloc) {
+                              const AllocPolicy& __restrict policy) {
   ABSL_SWISSTABLE_ASSERT(c.capacity() > policy.soo_capacity());
   // We need to record infoz before calling dealloc, which will unregister
-  // infoz.
-  c.infoz().RecordClearedReservation();
-  c.infoz().RecordStorageChanged(0, policy.soo_capacity());
-  c.infoz().Unregister();
-  DeallocBackingArrayImpl(c, policy, alloc);
+  // infoz. Check `IsSampled()` once so `c.infoz()` is not re-evaluated before
+  // each cold Hashtablez call.
+  if (HashtablezInfoHandle infoz = c.infoz();
+      ABSL_PREDICT_FALSE(infoz.IsSampled())) {
+    infoz.RecordClearedReservation();
+    infoz.RecordStorageChanged(0, policy.soo_capacity());
+    infoz.Unregister();
+  }
+  DeallocBackingArrayImpl(c, policy);
   c = policy.soo_enabled ? CommonFields{soo_tag_t{}}
                          : CommonFields{non_soo_tag_t{}};
 }
@@ -853,7 +904,7 @@ void DestructNonSoo(CommonFields& c, const DtorPolicy& __restrict policy,
   ABSL_SWISSTABLE_ASSERT(c.capacity() > 0);
   if (policy.destroy_slot != nullptr) {
     if (c.is_small()) {
-      if (!c.empty()) {
+      if (!c.empty_when_small()) {
         static_assert(kMaxSmallCapacity == 1);
         policy.destroy_slot(&c, c.single_non_soo_slot());
       }
@@ -898,8 +949,7 @@ void EraseMetaOnlyLarge(CommonFields& c, size_t index, size_t slot_size) {
 }
 
 void ClearBackingArray(CommonFields& c,
-                       const PolicyFunctions& __restrict policy, void* alloc,
-                       bool reuse) {
+                       const AllocPolicy& __restrict policy, bool reuse) {
   ABSL_SWISSTABLE_ASSERT(c.capacity() > kMaxSmallCapacity);
   if (reuse) {
     const size_t blocked_element_count = c.blocked_element_count();
@@ -911,9 +961,11 @@ void ClearBackingArray(CommonFields& c,
     ResetCtrl(cap, ctrl, slot_array, policy.slot_size, blocked_element_count);
     ResetGrowthLeft(cap, blocked_element_count, c);
     ABSL_SWISSTABLE_ASSERT(c.blocked_element_count() == blocked_element_count);
-    c.infoz().RecordStorageChanged(0, c.capacity());
+    if (c.has_infoz()) {
+      ReportClearToInfoz(c);
+    }
   } else {
-    ClearBackingArrayNoReuse(c, policy, alloc);
+    ClearBackingArrayNoReuse(c, policy);
   }
 }
 
@@ -935,8 +987,8 @@ void DestroySlots(CommonFields& c, size_t slot_size,
 }
 
 template <bool kSooEnabled>
-void Clear(CommonFields& c, const PolicyFunctions& __restrict policy,
-           DestroySlotFn destroy_slot, void* alloc) {
+void Clear(CommonFields& c, const AllocPolicy& __restrict policy,
+           DestroySlotFn destroy_slot) {
   if (SwisstableGenerationsEnabled() &&
       c.maybe_invalid_capacity().IsMovedFrom()) {
     c.set_capacity(policy.soo_capacity());
@@ -947,11 +999,18 @@ void Clear(CommonFields& c, const PolicyFunctions& __restrict policy,
     ABSL_ASSUME(cap > 0);
   }
   if (c.is_small()) {
-    if (!c.empty()) {
+    // In the small case, we keep the backing array allocation because the
+    // memory overhead is small compared to the potential benefits of reuse.
+    if (!c.empty_when_small()) {
       if (destroy_slot != nullptr) {
         destroy_slot(&c, SingleSlotAddress<kSooEnabled>(c));
       }
       DecrementSmallSize<kSooEnabled>(c);
+      if constexpr (!kSooEnabled) {
+        c.increment_generation();
+        SanitizerPoisonMemoryRegion(
+            SingleSlotAddress</*kSooEnabled=*/false>(c), policy.slot_size);
+      }
       c.infoz().RecordStorageChanged(0, cap);
     }
   } else {
@@ -960,12 +1019,7 @@ void Clear(CommonFields& c, const PolicyFunctions& __restrict policy,
     }
     // Iterating over this container is O(bucket_count()). When bucket_count()
     // is much greater than size(), iteration becomes prohibitively expensive.
-    // For clear() it is more important to reuse the allocated array when the
-    // container is small because allocation takes comparatively long time
-    // compared to destruction of the elements of the container. So we pick the
-    // largest bucket_count() threshold for which iteration is still fast and
-    // past that we simply deallocate the array.
-    ClearBackingArray(c, policy, alloc, /*reuse=*/cap < 128);
+    ClearBackingArrayNoReuse(c, policy);
   }
   c.set_reserved_growth(0);
   c.set_reservation_size(0);
@@ -1021,34 +1075,58 @@ void AssertHashEqConsistentImpl(CommonFields& common, const void* hash_fn,
 
 namespace {
 
-// Iterates over full slots in old table, finds new positions for them and
-// transfers the slots.
+// Finds the first non-full slot in the probe sequence of `h1` in the large
+// table with control bytes `new_ctrl`, marks it as full with `h2` and transfers
+// `src_slot` into it. `new_ctrl` is passed explicitly rather than read from `c`
+// so that the function can be used while `c` still stores SOO data in place of
+// the control pointer.
+// This function is shared by the cold paths that move elements to new
+// positions (growth of probed elements, rehash and reserve).
+// Returns the probe length.
+ABSL_ATTRIBUTE_NOINLINE size_t TransferSlotToNewPosition(
+    CommonFields& c, const PolicyFunctions& __restrict policy, ctrl_t* new_ctrl,
+    void* src_slot, size_t h1, h2_t h2) {
+  const size_t new_capacity = c.capacity();
+  ABSL_SWISSTABLE_ASSERT(!IsSmallCapacity(new_capacity));
+  const FindInfo target =
+      find_first_non_full_from_h1(new_capacity, new_ctrl, h1);
+  ABSL_SWISSTABLE_ASSERT(IsEmptyOrDeleted(new_ctrl[target.offset]));
+  SetCtrlNoSanitizeImpl(new_capacity, new_ctrl, target.offset,
+                        static_cast<ctrl_t>(h2));
+  const size_t slot_size = policy.slot_size;
+  void* dst_slot =
+      SlotAddress(new_ctrl + NumControlBytesForLargeTable(new_capacity),
+                  target.offset, slot_size);
+  SanitizerUnpoisonMemoryRegion(dst_slot, slot_size);
+  policy.transfer_n(&c, dst_slot, src_slot, 1);
+  return target.probe_length;
+}
+
+// Iterates over full slots in the old table, finds new positions for them and
+// transfers the slots to the new backing array (`new_ctrl`, `new_slots`).
+// `common` must already have the new capacity and the new seed. `new_ctrl` and
+// `new_slots` are passed explicitly rather than read from `common` so that the
+// old slot may still be stored inline in `common` (full SOO table).
 // This function is used for reserving or rehashing non-empty tables.
 // This use case is rare so the function is type erased.
 // Returns the total probe length.
 size_t FindNewPositionsAndTransferSlots(
     CommonFields& common, const PolicyFunctions& __restrict policy,
-    ctrl_t* old_ctrl, void* old_slots, size_t old_capacity) {
-  void* new_slots = common.is_small() ? common.single_non_soo_slot()
-                                      : common.slot_array(common.capacity());
+    const ctrl_t* old_ctrl, void* old_slots, size_t old_capacity,
+    ctrl_t* new_ctrl, void* new_slots) {
   const void* hash_fn = policy.hash_fn(common);
   const size_t slot_size = policy.slot_size;
   const size_t seed = common.seed().seed();
+  const size_t new_capacity = common.capacity();
 
-  const auto insert_slot = [&](void* slot) {
-    size_t hash = policy.hash_slot(hash_fn, slot, seed);
-    FindInfo target;
-    if (common.is_small()) {
-      target = FindInfo{0, 0};
-    } else {
-      const size_t cap = common.capacity();
-      ctrl_t* ctrl = common.control();
-      target = find_first_non_full(cap, ctrl, hash);
-      SetCtrl(common, cap, ctrl, target.offset, H2(hash), slot_size);
+  const auto insert_slot = [&](void* slot) -> size_t {
+    if (IsSmallCapacity(new_capacity)) {
+      policy.transfer_n(&common, new_slots, slot, 1);
+      return 0;
     }
-    policy.transfer_n(&common, SlotAddress(new_slots, target.offset, slot_size),
-                      slot, 1);
-    return target.probe_length;
+    const size_t hash = policy.hash_slot(hash_fn, slot, seed);
+    return TransferSlotToNewPosition(common, policy, new_ctrl, slot, H1(hash),
+                                     H2(hash));
   };
   if (IsSmallCapacity(old_capacity)) {
     if (common.size() == 1) insert_slot(old_slots);
@@ -1067,7 +1145,8 @@ size_t FindNewPositionsAndTransferSlots(
 ABSL_ATTRIBUTE_COLD ABSL_ATTRIBUTE_NOINLINE void ReportGrowthToInfozImpl(
     CommonFields& common, HashtablezInfoHandle infoz, size_t hash,
     size_t total_probe_length, size_t distance_from_desired) {
-  infoz.RecordStorageChanged(common.size() - 1, common.capacity());
+  infoz.RecordStorageChanged(common.size() - 1,
+                             AllocatedCapacityForInfoz(common));
   infoz.RecordRehash(total_probe_length);
   infoz.RecordInsertMiss(hash, distance_from_desired);
   common.set_has_infoz();
@@ -1086,11 +1165,9 @@ ReportSingleGroupTableGrowthToInfoz(CommonFields& common, ctrl_t* old_ctrl,
 // Specialization that computes hash and generates new seed.
 ABSL_ATTRIBUTE_COLD ABSL_ATTRIBUTE_NOINLINE void
 ReportSingleElementTableGrowthToInfozAndForceSample(
-    CommonFields& common, const PolicyFunctions& __restrict policy,
-    void* hasher, HashForKeyFn get_hash) {
-  HashtablezInfoHandle infoz =
-      ForcedTrySample(policy.slot_size, policy.key_size, policy.value_size,
-                      policy.soo_capacity());
+    CommonFields& common, const AllocPolicy& __restrict policy,
+    EncodedHashKey hasher, HashForKeyFn get_hash) {
+  HashtablezInfoHandle infoz = ForcedTrySample(policy);
   common.generate_new_seed(/*has_infoz=*/true);
   ReportGrowthToInfozImpl(common, infoz, get_hash(hasher, common.seed().seed()),
                           /*total_probe_length=*/0,
@@ -1110,7 +1187,8 @@ ABSL_ATTRIBUTE_COLD ABSL_ATTRIBUTE_NOINLINE void ReportInsertMissToInfoz(
 // `common` is first and `get_hash` is third to match argument order in callers.
 ABSL_ATTRIBUTE_COLD ABSL_ATTRIBUTE_NOINLINE void
 ReportInsertMissToInfozAndComputeHash(CommonFields& common, size_t probe_length,
-                                      void* hasher, HashForKeyFn get_hash) {
+                                      EncodedHashKey hasher,
+                                      HashForKeyFn get_hash) {
   common.infoz().RecordInsertMiss(get_hash(hasher, common.seed().seed()),
                                   probe_length);
 }
@@ -1122,8 +1200,7 @@ ReportInsertMissToInfozAndComputeHash(CommonFields& common, size_t probe_length,
 // (Returning a value passed in by the caller doesn't work: the compiler infers
 // that and keeps the caller's copy alive across the call instead.)
 ABSL_ATTRIBUTE_COLD ABSL_ATTRIBUTE_NOINLINE void*
-ReportInsertMissToInfozAndGetSlot(CommonFields& common,
-                                  const PolicyFunctions& __restrict policy,
+ReportInsertMissToInfozAndGetSlot(CommonFields& common, size_t slot_size,
                                   size_t hash, size_t target) {
   const size_t cap = common.capacity();
   auto seq = probe(ProbeCapacity{cap}, hash);
@@ -1131,7 +1208,7 @@ ReportInsertMissToInfozAndGetSlot(CommonFields& common,
     seq.next();
   }
   common.infoz().RecordInsertMiss(hash, seq.index());
-  return SlotAddress(common.slot_array(cap), target, policy.slot_size);
+  return SlotAddress(common.slot_array(cap), target, slot_size);
 }
 
 ABSL_ATTRIBUTE_COLD ABSL_ATTRIBUTE_NOINLINE void ReportGrowthToInfoz(
@@ -1144,7 +1221,7 @@ ABSL_ATTRIBUTE_COLD ABSL_ATTRIBUTE_NOINLINE void ReportGrowthToInfoz(
 ABSL_ATTRIBUTE_COLD ABSL_ATTRIBUTE_NOINLINE void ReportResizeToInfoz(
     CommonFields& common, HashtablezInfoHandle infoz,
     size_t total_probe_length) {
-  infoz.RecordStorageChanged(common.size(), common.capacity());
+  infoz.RecordStorageChanged(common.size(), AllocatedCapacityForInfoz(common));
   infoz.RecordRehash(total_probe_length);
   common.set_has_infoz();
   common.set_infoz(infoz);
@@ -1152,15 +1229,14 @@ ABSL_ATTRIBUTE_COLD ABSL_ATTRIBUTE_NOINLINE void ReportResizeToInfoz(
 
 ABSL_ATTRIBUTE_COLD ABSL_ATTRIBUTE_NOINLINE void
 ReportResizeToInfozAndForceSample(CommonFields& common,
-                                  const PolicyFunctions& __restrict policy,
-                                  size_t total_probe_length) {
-  HashtablezInfoHandle infoz =
-      ForcedTrySample(policy.slot_size, policy.key_size, policy.value_size,
-                      policy.soo_capacity());
-  infoz.RecordStorageChanged(common.size(), common.capacity());
-  infoz.RecordRehash(total_probe_length);
-  common.set_has_infoz();
-  common.set_infoz(infoz);
+                                  const AllocPolicy& __restrict policy) {
+  ReportResizeToInfoz(common, ForcedTrySample(policy),
+                      /*total_probe_length=*/0);
+}
+
+ABSL_ATTRIBUTE_COLD ABSL_ATTRIBUTE_NOINLINE void ReportReserveToInfoz(
+    CommonFields& common, size_t new_size) {
+  common.infoz().RecordReservation(new_size);
 }
 
 struct BackingArrayPtrs {
@@ -1168,20 +1244,17 @@ struct BackingArrayPtrs {
   void* slots;
 };
 
-BackingArrayPtrs AllocBackingArray(CommonFields& common,
-                                   const PolicyFunctions& __restrict policy,
-                                   const RawHashSetLayout& layout,
-                                   void* alloc) {
+BackingArrayPtrs AllocBackingArray(
+    CommonFields& common, const AllocPolicy& __restrict policy,
+    const RawHashSetLayout& layout) {
   // Perform a direct call in the common case to allow for profile-guided
   // heap optimization (PGHO) to understand which allocation function is used.
-  constexpr size_t kDefaultAlignment = BackingArrayAlignment(alignof(size_t));
   char* mem = static_cast<char*>(
-      ABSL_PREDICT_TRUE(
-          policy.alloc ==
-          (&AllocateBackingArray<kDefaultAlignment, std::allocator<char>>))
-          ? AllocateBackingArray<kDefaultAlignment, std::allocator<char>>(
-                alloc, layout.alloc_size())
-          : policy.alloc(alloc, layout.alloc_size()));
+      ABSL_PREDICT_TRUE(!policy.is_custom_alloc)
+          ? AllocateBackingArray<kStandardBackingArrayAlignment,
+                                 std::allocator<char>>(&common,
+                                                       layout.alloc_size())
+          : CustomAllocate(layout.alloc_size(), policy, common));
   const GenerationType old_generation = common.generation();
   common.set_generation_ptr(
       reinterpret_cast<GenerationType*>(mem + layout.generation_offset()));
@@ -1191,36 +1264,36 @@ BackingArrayPtrs AllocBackingArray(CommonFields& common,
           mem + layout.slot_offset()};
 }
 
-BackingArrayPtrs AllocBackingArray(CommonFields& common,
-                                   const PolicyFunctions& __restrict policy,
-                                   size_t new_capacity, bool has_infoz,
-                                   void* alloc, size_t blocked_element_count) {
+BackingArrayPtrs AllocBackingArray(
+    CommonFields& common, const AllocPolicy& __restrict policy,
+    size_t new_capacity, size_t slot_size, bool has_infoz,
+    size_t blocked_element_count) {
   return AllocBackingArray(
       common, policy,
-      RawHashSetLayout(new_capacity, policy.slot_size, policy.slot_align,
-                       has_infoz, blocked_element_count),
-      alloc);
+      RawHashSetLayout(new_capacity, slot_size, policy.slot_align_mask,
+                       has_infoz, blocked_element_count));
 }
 
-void ResizeEmptyNonAllocatedTableImpl(CommonFields& common,
-                                      const PolicyFunctions& __restrict policy,
-                                      size_t new_capacity,
-                                      size_t blocked_element_count,
-                                      bool force_infoz) {
+void ResizeEmptyNonAllocatedTableImpl(
+    CommonFields& common, const AllocPolicy& __restrict policy,
+    size_t new_capacity, size_t blocked_element_count, bool force_infoz) {
   ABSL_SWISSTABLE_ASSERT(IsValidCapacity(new_capacity));
   ABSL_SWISSTABLE_ASSERT(new_capacity > policy.soo_capacity());
   ABSL_SWISSTABLE_ASSERT(!force_infoz || policy.soo_enabled);
   ABSL_SWISSTABLE_ASSERT(common.capacity() == policy.soo_capacity());
   ABSL_SWISSTABLE_ASSERT(common.empty());
   const size_t slot_size = policy.slot_size;
-  const bool has_infoz =
-      policy.is_hashtablez_enabled && (force_infoz || ShouldSampleNextTable());
-  void* alloc = policy.get_char_alloc(common);
-
+  const size_t slot_align_mask = policy.slot_align_mask;
   common.set_capacity(new_capacity);
   common.init_blocked_element_count(blocked_element_count);
-  const auto [new_ctrl, new_slots] = AllocBackingArray(
-      common, policy, new_capacity, has_infoz, alloc, blocked_element_count);
+  const bool has_infoz = policy.is_hashtablez_enabled &&
+                         (force_infoz || ShouldSampleNextTable());
+
+  const auto [new_ctrl, new_slots] =
+      AllocBackingArray(common, policy,
+                        RawHashSetLayout(new_capacity, slot_size,
+                                         slot_align_mask, has_infoz,
+                                         blocked_element_count));
   common.set_control(new_ctrl);
   common.generate_new_seed(has_infoz);
 
@@ -1229,93 +1302,108 @@ void ResizeEmptyNonAllocatedTableImpl(CommonFields& common,
   ResetGrowthLeft(new_capacity, blocked_element_count, common);
 
   if (ABSL_PREDICT_FALSE(has_infoz)) {
-    ReportResizeToInfozAndForceSample(common, policy, 0);
+    ReportResizeToInfozAndForceSample(common, policy);
   }
 }
 
-// If the table was SOO, initializes new control bytes and transfers slot.
-// After transferring the slot, sets control and slots in CommonFields.
-// It is rare to resize an SOO table with one element to a large size.
-// Requires: `c` contains SOO data.
-void InsertOldSooSlotAndInitializeControlBytes(
-    CommonFields& c, const PolicyFunctions& __restrict policy, ctrl_t* new_ctrl,
-    void* new_slots, bool has_infoz) {
-  ABSL_SWISSTABLE_ASSERT(c.size() == policy.soo_capacity());
-  ABSL_SWISSTABLE_ASSERT(policy.soo_enabled);
-  const size_t new_capacity = c.capacity();
-
-  c.generate_new_seed(has_infoz);
-
-  const size_t soo_slot_hash =
-      policy.hash_slot(policy.hash_fn(c), c.soo_data(), c.seed().seed());
-  size_t offset = probe(ProbeCapacity{new_capacity}, soo_slot_hash).offset();
-  offset = offset == new_capacity ? 0 : offset;
-  SanitizerPoisonMemoryRegion(new_slots, policy.slot_size * new_capacity);
-  void* target_slot = SlotAddress(new_slots, offset, policy.slot_size);
-  SanitizerUnpoisonMemoryRegion(target_slot, policy.slot_size);
-  policy.transfer_n(&c, target_slot, c.soo_data(), 1);
-  c.set_control(new_ctrl);
-  ResetCtrl(new_capacity, new_ctrl, new_slots, policy.slot_size,
-            /*blocked_element_count=*/0);
-  SetCtrl(c, new_capacity, new_ctrl, offset, H2(soo_slot_hash),
-          policy.slot_size);
-}
-
-enum class ResizeFullSooTableSamplingMode {
-  kNoSampling,
-  // Force sampling. If the table was still not sampled, do not resize.
-  kForceSampleNoResizeIfUnsampled,
-};
-
 void AssertSoo([[maybe_unused]] CommonFields& common,
-               [[maybe_unused]] const PolicyFunctions& __restrict policy) {
+               [[maybe_unused]] const AllocPolicy& __restrict
+                   policy) {
   ABSL_SWISSTABLE_ASSERT(policy.soo_enabled);
   ABSL_SWISSTABLE_ASSERT(common.capacity() == policy.soo_capacity());
 }
 void AssertFullSoo([[maybe_unused]] CommonFields& common,
-                   [[maybe_unused]] const PolicyFunctions& __restrict policy) {
+                   [[maybe_unused]] const AllocPolicy& __restrict
+                       policy) {
   AssertSoo(common, policy);
   ABSL_SWISSTABLE_ASSERT(common.size() == policy.soo_capacity());
 }
 
-void ResizeFullSooTable(CommonFields& common,
-                        const PolicyFunctions& __restrict policy,
-                        size_t new_capacity,
-                        ResizeFullSooTableSamplingMode sampling_mode) {
-  AssertFullSoo(common, policy);
-  const size_t slot_size = policy.slot_size;
-  void* alloc = policy.get_char_alloc(common);
-  constexpr size_t kTableSize = 1;
+// Kept as a separate function (rather than inlined into its single caller
+// `ResizeTableWithSeedChangeImpl`) so that `was_soo` and `common.capacity()`
+// are only evaluated for the assertions: `ResizeTableWithSeedChangeImpl` reads
+// them later, after a possible early return, and computing them up front would
+// keep the values live (in registers or spilled) across that path.
+void AssertResizeTableWithSeedChangePreconditions(
+    [[maybe_unused]] CommonFields& common,
+    [[maybe_unused]] const AllocPolicy& __restrict policy,
+    [[maybe_unused]] size_t new_capacity,
+    [[maybe_unused]] bool force_sample_soo) {
+  ABSL_SWISSTABLE_ASSERT(IsValidCapacity(new_capacity));
+  ABSL_SWISSTABLE_ASSERT(new_capacity > policy.soo_capacity());
+  [[maybe_unused]] const bool was_soo =
+      common.capacity() == policy.soo_capacity();
+  ABSL_SWISSTABLE_ASSERT(!was_soo || common.size() == policy.soo_capacity());
+  ABSL_SWISSTABLE_ASSERT(!force_sample_soo || was_soo);
+}
 
+// Resizes an allocated table or a full SOO table to `new_capacity`, changes the
+// table seed and transfers all elements to the new backing array.
+// Allocated tables keep their infoz. If `force_sample_soo`, the table must be a
+// full SOO table and it is forced to be sampled. If the table was still not
+// sampled, it is not resized.
+// It is rare to resize a table that is not empty or to resize an SOO table to
+// a large size, so this function is shared by all such cases and is kept out of
+// line.
+// Requires:
+//   1. `new_capacity > policy.soo_capacity()`.
+//   2. `common.capacity() > policy.soo_capacity()` OR `!common.empty()`.
+ABSL_ATTRIBUTE_NOINLINE void ResizeTableWithSeedChangeImpl(
+    CommonFields& common, const PolicyFunctions& __restrict policy,
+    size_t new_capacity, bool force_sample_soo) {
+  const AllocPolicy& alloc_policy = *policy.alloc_policy;
+  AssertResizeTableWithSeedChangePreconditions(common, alloc_policy,
+                                               new_capacity, force_sample_soo);
+  // Note: `has_infoz` determines the layout of the backing array and may be
+  // set even if `infoz` is not sampled (see
+  // `ReportResizeToInfozAndForceSample`).
   HashtablezInfoHandle infoz;
-  bool has_infoz = false;
-  if (sampling_mode ==
-      ResizeFullSooTableSamplingMode::kForceSampleNoResizeIfUnsampled) {
-    if (policy.is_hashtablez_enabled) {
-      infoz = ForcedTrySample(slot_size, policy.key_size, policy.value_size,
-                              policy.soo_capacity());
-    }
-
-    // If the table was not sampled, do not resize.
+  bool has_infoz;
+  if (force_sample_soo) {
+    infoz = ForcedTrySample(alloc_policy);
+    // If the table was not sampled (including when hashtablez is disabled for
+    // this table), do not resize.
     if (!infoz.IsSampled()) return;
     has_infoz = true;
+  } else {
+    has_infoz = common.has_infoz();
+    infoz = common.infoz();
   }
+  const size_t old_capacity = common.capacity();
+  const bool was_soo = old_capacity == alloc_policy.soo_capacity();
+  // `old_ctrl` is not used for SOO tables.
+  ctrl_t* const old_ctrl = was_soo ? nullptr : common.control();
+  void* const old_slots = was_soo ? common.soo_data()
+                                  : (IsSmallCapacity(old_capacity)
+                                         ? common.single_non_soo_slot()
+                                         : common.slot_array(old_capacity));
+  const size_t old_blocked_element_count = common.blocked_element_count();
+  const size_t slot_size = policy.slot_size;
 
   common.set_capacity(new_capacity);
-
-  // We do not set control and slots in CommonFields yet to avoid overriding
-  // SOO data.
+  common.set_blocked_element_count_to_zero();
   const auto [new_ctrl, new_slots] =
-      AllocBackingArray(common, policy, new_capacity, has_infoz, alloc,
-                        /*blocked_element_count=*/0);
-
-  InsertOldSooSlotAndInitializeControlBytes(common, policy, new_ctrl, new_slots,
-                                            has_infoz);
-  ResetGrowthLeft(new_capacity, kTableSize, common);
-  if (has_infoz) {
-    common.set_has_infoz();
-    common.set_infoz(infoz);
-    infoz.RecordStorageChanged(kTableSize, new_capacity);
+      AllocBackingArray(common, alloc_policy, new_capacity, slot_size,
+                        has_infoz, /*blocked_element_count=*/0);
+  common.generate_new_seed(has_infoz);
+  ResetCtrl(new_capacity, new_ctrl, new_slots, slot_size,
+            /*blocked_element_count=*/0);
+  const size_t total_probe_length = FindNewPositionsAndTransferSlots(
+      common, policy, old_ctrl, old_slots, old_capacity, new_ctrl, new_slots);
+  // Control is set in `common` only after the transfer to avoid overriding
+  // the SOO data.
+  common.set_control(new_ctrl);
+  // `old_ctrl` is `nullptr` iff `was_soo`. Checking `old_ctrl != nullptr`
+  // instead of `!was_soo` avoids keeping `was_soo` (or `soo_capacity`) live
+  // across the calls above, since `old_ctrl` is already kept live for
+  // `DeallocBackingArrayImpl`.
+  if (old_ctrl != nullptr) {
+    DeallocBackingArrayImpl(common, alloc_policy, old_capacity, old_ctrl,
+                            slot_size, has_infoz, old_blocked_element_count);
+  }
+  ResetGrowthLeft(new_capacity, common.size(), common);
+  if (ABSL_PREDICT_FALSE(has_infoz)) {
+    ReportResizeToInfoz(common, infoz, total_probe_length);
   }
 }
 
@@ -1476,30 +1564,15 @@ ABSL_ATTRIBUTE_NOINLINE size_t DecodeAndInsertImpl(
     CommonFields& c, const PolicyFunctions& __restrict policy,
     const ProbedItem* start, const ProbedItem* end, void* old_slots) {
   ABSL_SWISSTABLE_ASSERT(!c.is_small());
-  const size_t new_capacity = c.capacity();
-
-  void* new_slots = c.slot_array(new_capacity);
   ctrl_t* new_ctrl = c.control();
-  size_t total_probe_length = 0;
-
   const size_t slot_size = policy.slot_size;
-  auto transfer_n = policy.transfer_n;
-
+  size_t total_probe_length = 0;
   for (; start < end; ++start) {
-    const FindInfo target = find_first_non_full_from_h1(
-        new_capacity, new_ctrl, static_cast<size_t>(start->h1));
-    total_probe_length += target.probe_length;
     const size_t old_index = static_cast<size_t>(start->source_offset);
-    const size_t new_i = target.offset;
-    ABSL_SWISSTABLE_ASSERT(old_index < new_capacity / 2);
-    ABSL_SWISSTABLE_ASSERT(new_i < new_capacity);
-    ABSL_SWISSTABLE_ASSERT(IsEmpty(new_ctrl[new_i]));
-    void* src_slot = SlotAddress(old_slots, old_index, slot_size);
-    void* dst_slot = SlotAddress(new_slots, new_i, slot_size);
-    SanitizerUnpoisonMemoryRegion(dst_slot, slot_size);
-    transfer_n(&c, dst_slot, src_slot, 1);
-    SetCtrl(c, new_capacity, new_ctrl, new_i, static_cast<h2_t>(start->h2),
-            slot_size);
+    ABSL_SWISSTABLE_ASSERT(old_index < c.capacity() / 2);
+    total_probe_length += TransferSlotToNewPosition(
+        c, policy, new_ctrl, SlotAddress(old_slots, old_index, slot_size),
+        static_cast<size_t>(start->h1), static_cast<h2_t>(start->h2));
   }
   return total_probe_length;
 }
@@ -1517,11 +1590,9 @@ ABSL_ATTRIBUTE_NOINLINE size_t ProcessProbedMarkedElements(
     void* old_slots, size_t start) {
   const size_t old_capacity = PreviousCapacity(c.capacity());
   const size_t slot_size = policy.slot_size;
-  void* new_slots = c.slot_array(c.capacity());
   size_t total_probe_length = 0;
   const void* hash_fn = policy.hash_fn(c);
   auto hash_slot = policy.hash_slot;
-  auto transfer_n = policy.transfer_n;
   const size_t seed = c.seed().seed();
   for (size_t old_index = start; old_index < old_capacity; ++old_index) {
     if (old_ctrl[old_index] != ctrl_t::kMarkedForSlowTransfer) {
@@ -1529,14 +1600,8 @@ ABSL_ATTRIBUTE_NOINLINE size_t ProcessProbedMarkedElements(
     }
     void* src_slot = SlotAddress(old_slots, old_index, slot_size);
     const size_t hash = hash_slot(hash_fn, src_slot, seed);
-    const size_t new_capacity = c.capacity();
-    ctrl_t* new_ctrl = c.control();
-    const FindInfo target = find_first_non_full(new_capacity, new_ctrl, hash);
-    total_probe_length += target.probe_length;
-    const size_t new_i = target.offset;
-    void* dst_slot = SlotAddress(new_slots, new_i, slot_size);
-    SetCtrl(c, new_capacity, new_ctrl, new_i, H2(hash), slot_size);
-    transfer_n(&c, dst_slot, src_slot, 1);
+    total_probe_length += TransferSlotToNewPosition(
+        c, policy, c.control(), src_slot, H1(hash), H2(hash));
   }
   return total_probe_length;
 }
@@ -1576,8 +1641,73 @@ template <typename ProbedItemType,
 class ProbedItemEncoder {
  public:
   using ProbedItem = ProbedItemType;
-  explicit ProbedItemEncoder(ctrl_t* control) : control_(control) {}
+  ProbedItemEncoder(CommonFields& common,
+                    const PolicyFunctions& __restrict policy, ctrl_t* control,
+                    void* old_slots, size_t new_capacity)
+      : common_(common),
+        policy_(policy),
+        control_(control),
+        old_slots_(old_slots),
+        new_capacity_(new_capacity),
+        new_ctrl_(common.control()),
+        new_slots_(common.slot_array(new_capacity)) {}
 
+  // Transfers item to the first probe group if possible, otherwise encodes it
+  // into the best available location.
+  void EncodeProbedElement(size_t hash, size_t source_offset) {
+    size_t h1 = H1(hash);
+    const size_t new_capacity = new_capacity_;
+    const size_t old_capacity = PreviousCapacity(new_capacity);
+    ABSL_SWISSTABLE_ASSERT(((source_offset - h1) & old_capacity) >=
+                           Group::kWidth);
+    // Try to insert element into the first probe group.
+    // new_ctrl is not yet fully initialized so we can't use regular search via
+    // find_first_non_full.
+    //
+    // We can search in the first probe group only if it is located in already
+    // initialized part of the table.
+    if (ABSL_PREDICT_TRUE((h1 & old_capacity) < source_offset)) {
+      ctrl_t* new_ctrl = new_ctrl_;
+      size_t offset = h1 & new_capacity;
+      Group new_g(new_ctrl + offset);
+      if (auto mask = new_g.MaskNonFull(); ABSL_PREDICT_TRUE(mask)) {
+        size_t new_index = offset + mask.LowestBitSet();
+        ABSL_SWISSTABLE_ASSERT((new_index & old_capacity) <= source_offset);
+        ABSL_SWISSTABLE_ASSERT(IsEmpty(new_ctrl[new_index]));
+        new_ctrl[new_index] = static_cast<ctrl_t>(H2(hash));
+        const size_t slot_size = policy_.slot_size;
+        void* new_slot = SlotAddress(new_slots_, new_index, slot_size);
+        void* old_slot = SlotAddress(old_slots_, source_offset, slot_size);
+        SanitizerUnpoisonMemoryRegion(new_slot, slot_size);
+        policy_.transfer_n(&common_, new_slot, old_slot, 1);
+        SanitizerPoisonMemoryRegion(old_slot, slot_size);
+        return;
+      }
+    }
+    EncodeItem(ProbedItem(H2(hash), source_offset, h1));
+  }
+
+  // Decodes information about probed elements from all available sources.
+  // Finds new position for each element and transfers it to the new slots.
+  // Returns the total probe length.
+  size_t DecodeAndInsertToTable() const {
+    if (pos_ == buffer_) {
+      return 0;
+    }
+    if constexpr (kGuaranteedFitToBuffer) {
+      return DecodeAndInsertImpl(common_, policy_, buffer_, pos_, old_slots_);
+    }
+    size_t total_probe_length = DecodeAndInsertImpl(
+        common_, policy_, buffer_,
+        local_buffer_full_ ? buffer_ + kBufferSize : pos_, old_slots_);
+    if (!local_buffer_full_) {
+      return total_probe_length;
+    }
+    total_probe_length += DecodeAndInsertToTableOverflow();
+    return total_probe_length;
+  }
+
+ private:
   // Encode item into the best available location.
   void EncodeItem(ProbedItem item) {
     if (ABSL_PREDICT_FALSE(!kGuaranteedFitToBuffer && pos_ >= end_)) {
@@ -1588,30 +1718,6 @@ class ProbedItemEncoder {
     ++pos_;
   }
 
-  // Decodes information about probed elements from all available sources.
-  // Finds new position for each element and transfers it to the new slots.
-  // Returns the total probe length.
-  size_t DecodeAndInsertToTable(CommonFields& common,
-                                const PolicyFunctions& __restrict policy,
-                                void* old_slots) const {
-    if (pos_ == buffer_) {
-      return 0;
-    }
-    if constexpr (kGuaranteedFitToBuffer) {
-      return DecodeAndInsertImpl(common, policy, buffer_, pos_, old_slots);
-    }
-    size_t total_probe_length = DecodeAndInsertImpl(
-        common, policy, buffer_,
-        local_buffer_full_ ? buffer_ + kBufferSize : pos_, old_slots);
-    if (!local_buffer_full_) {
-      return total_probe_length;
-    }
-    total_probe_length +=
-        DecodeAndInsertToTableOverflow(common, policy, old_slots);
-    return total_probe_length;
-  }
-
- private:
   static ProbedItem* AlignToNextItem(void* ptr) {
     return reinterpret_cast<ProbedItem*>(AlignUpTo(
         reinterpret_cast<uintptr_t>(ptr), alignof(ProbedItem)));
@@ -1672,33 +1778,37 @@ class ProbedItemEncoder {
   // marked elements.
   // Finds new position for each element and transfers it to the new slots.
   // Returns the total probe length.
-  ABSL_ATTRIBUTE_NOINLINE size_t DecodeAndInsertToTableOverflow(
-      CommonFields& common, const PolicyFunctions& __restrict policy,
-      void* old_slots) const {
+  ABSL_ATTRIBUTE_NOINLINE size_t DecodeAndInsertToTableOverflow() const {
     ABSL_SWISSTABLE_ASSERT(local_buffer_full_ &&
                            "must not be called when local buffer is not full");
     size_t total_probe_length = DecodeAndInsertImpl(
-        common, policy, OverflowBufferStart(), pos_, old_slots);
+        common_, policy_, OverflowBufferStart(), pos_, old_slots_);
     if (ABSL_PREDICT_TRUE(marked_elements_starting_position_ ==
                           kNoMarkedElementsSentinel)) {
       return total_probe_length;
     }
     total_probe_length +=
-        ProcessProbedMarkedElements(common, policy, control_, old_slots,
+        ProcessProbedMarkedElements(common_, policy_, control_, old_slots_,
                                     marked_elements_starting_position_);
     return total_probe_length;
   }
 
   static constexpr size_t kBufferSize =
       kProbedElementsBufferSize / sizeof(ProbedItem);
-  ProbedItem buffer_[kBufferSize];
+  CommonFields& common_;
+  const PolicyFunctions& policy_;
+  ctrl_t* const control_;
+  void* const old_slots_;
+  const size_t new_capacity_;
+  ctrl_t* const new_ctrl_;
+  void* const new_slots_;
   // If local_buffer_full_ is false, then pos_/end_ are in the local buffer,
   // otherwise, they're in the overflow buffer.
   ProbedItem* pos_ = buffer_;
   const void* end_ = buffer_ + kBufferSize;
-  ctrl_t* const control_;
   size_t marked_elements_starting_position_ = kNoMarkedElementsSentinel;
   bool local_buffer_full_ = false;
+  ProbedItem buffer_[kBufferSize];
 };
 
 // Grows to next capacity with specified encoder type.
@@ -1710,18 +1820,17 @@ size_t GrowToNextCapacity(CommonFields& common,
                           const PolicyFunctions& __restrict policy,
                           ctrl_t* old_ctrl, void* old_slots,
                           size_t new_capacity) {
-  using ProbedItem = typename Encoder::ProbedItem;
   ABSL_SWISSTABLE_ASSERT(common.capacity() == new_capacity);
-  ABSL_SWISSTABLE_ASSERT(new_capacity <= ProbedItem::kMaxNewCapacity);
-  Encoder encoder(old_ctrl);
+  ABSL_SWISSTABLE_ASSERT(new_capacity <= Encoder::ProbedItem::kMaxNewCapacity);
+  Encoder encoder(common, policy, old_ctrl, old_slots, new_capacity);
   policy.transfer_unprobed_elements_to_next_capacity(
       common, old_ctrl, &encoder, old_slots, PreviousCapacity(new_capacity),
       [](void* probed_storage, size_t hash, size_t source_offset) {
         auto encoder_ptr = static_cast<Encoder*>(probed_storage);
-        encoder_ptr->EncodeItem(ProbedItem(H2(hash), source_offset, H1(hash)));
+        encoder_ptr->EncodeProbedElement(hash, source_offset);
       });
   InitializeMirroredControlBytes(common.control(), new_capacity);
-  return encoder.DecodeAndInsertToTable(common, policy, old_slots);
+  return encoder.DecodeAndInsertToTable();
 }
 
 // Grows to next capacity for relatively small tables so that even if all
@@ -1797,38 +1906,25 @@ size_t GrowToNextCapacityDispatch(CommonFields& common,
 }
 
 void IncrementSmallSizeNonSoo(CommonFields& common,
-                              const PolicyFunctions& __restrict policy) {
+                              const AllocPolicy& __restrict policy) {
   ABSL_SWISSTABLE_ASSERT(common.is_small());
   common.increment_size();
   SanitizerUnpoisonMemoryRegion(
       SingleSlotAddress</*kSooEnabled=*/false>(common), policy.slot_size);
 }
 
-void IncrementSmallSize(CommonFields& common,
-                        const PolicyFunctions& __restrict policy) {
-  ABSL_SWISSTABLE_ASSERT(common.is_small());
-  if (policy.soo_enabled) {
-    common.set_full_soo();
-  } else {
-    IncrementSmallSizeNonSoo(common, policy);
-  }
-}
-
 void* Grow1To3AndPrepareInsert(CommonFields& common,
                                const PolicyFunctions& __restrict policy,
-                               void* hasher, HashForKeyFn get_hash, void* alloc,
+                               EncodedHashKey hasher, HashForKeyFn get_hash,
                                bool has_infoz, void* new_slots) {
   // TODO(b/413062340): Refactor to reuse more code with
   // GrowSooTableToNextCapacityAndPrepareInsert.
   ABSL_SWISSTABLE_ASSERT(common.capacity() == 1);
   ABSL_SWISSTABLE_ASSERT(!common.empty());
-  ABSL_SWISSTABLE_ASSERT(!policy.soo_enabled);
   // 1-element tables can't have any blocked elements.
   ABSL_SWISSTABLE_ASSERT(common.blocked_element_count() == 0);
   constexpr size_t kOldCapacity = 1;
   constexpr size_t kNewCapacity = NextCapacity(kOldCapacity);
-  ctrl_t* new_ctrl =
-      static_cast<ctrl_t*>(new_slots) - NumControlBytes(kNewCapacity);
 
   if (ABSL_PREDICT_TRUE(!has_infoz)) {
     // When we're sampled, we already have a seed.
@@ -1836,12 +1932,12 @@ void* Grow1To3AndPrepareInsert(CommonFields& common,
   }
   const size_t new_hash = get_hash(hasher, common.seed().seed());
   h2_t new_h2 = H2(new_hash);
-  // `hash_fn` is in separate statement, so the hash_slot function pointer is
-  // not loaded before the hash_fn call.
-  const void* hash_fn = policy.hash_fn(common);
-  size_t orig_hash = policy.hash_slot(
-      hash_fn, common.single_non_soo_slot(), common.seed().seed());
+  size_t orig_hash = policy.hash_slot(policy.hash_fn(common),
+                                      common.single_non_soo_slot(),
+                                      common.seed().seed());
   size_t offset = Resize1To3NewOffset(new_hash);
+  ctrl_t* new_ctrl =
+      static_cast<ctrl_t*>(new_slots) - NumControlBytes(kNewCapacity);
   InitializeThreeElementsControlBytes(H2(orig_hash), new_h2, offset, new_ctrl);
 
   // Read `old_slots` and `slot_size` after the hash calls to avoid keeping
@@ -1873,9 +1969,8 @@ void* Grow1To3AndPrepareInsert(CommonFields& common,
   }
   // Deallocate after `ReportSingleGroupTableGrowthToInfoz`, because it reads
   // infoz from old_ctrl.
-  DeallocBackingArrayImpl(alloc, kOldCapacity, old_ctrl, slot_size,
-                          policy.slot_align, has_infoz,
-                          /*blocked_element_count=*/0, policy.dealloc);
+  DeallocBackingArrayImpl(common, *policy.alloc_policy, kOldCapacity, old_ctrl,
+                          slot_size, has_infoz, /*blocked_element_count=*/0);
   return new_element_target_slot;
 }
 
@@ -1886,19 +1981,18 @@ void* GrowToNextCapacityAndPrepareInsert(
     size_t new_hash, size_t old_capacity) {
   ABSL_SWISSTABLE_ASSERT(common.capacity() == old_capacity);
   ABSL_SWISSTABLE_ASSERT(common.GetGrowthLeftTotalSlow(old_capacity) == 0);
-  ABSL_SWISSTABLE_ASSERT(old_capacity > policy.soo_capacity());
+  ABSL_SWISSTABLE_ASSERT(old_capacity > policy.alloc_policy->soo_capacity());
   ABSL_SWISSTABLE_ASSERT(!IsSmallCapacity(old_capacity));
   ABSL_ASSUME(old_capacity > kMaxSmallCapacity);
 
-  // Call `get_char_alloc` first so no local variables need to be spilled
-  // across the indirect call, which may alias `common`.
-  void* alloc = policy.get_char_alloc(common);
   const size_t new_capacity = NextCapacity(old_capacity);
   ABSL_ASSUME(new_capacity > kMaxSmallCapacity);
 
-  const auto [new_ctrl, new_slots] =
-      AllocBackingArray(common, policy, new_capacity, common.has_infoz(), alloc,
-                        /*blocked_element_count=*/0);
+  const size_t slot_size = policy.slot_size;
+  const AllocPolicy& alloc_policy = *policy.alloc_policy;
+  const auto [new_ctrl, new_slots] = AllocBackingArray(
+      common, alloc_policy, new_capacity, slot_size, common.has_infoz(),
+      /*blocked_element_count=*/0);
   // Read old `common` fields after `AllocBackingArray` to avoid spilling them
   // across the call.
   ctrl_t* old_ctrl = common.control();
@@ -1913,7 +2007,6 @@ void* GrowToNextCapacityAndPrepareInsert(
   common.set_control(new_ctrl);
   PrepareInsertCommon(common);
   ResetGrowthLeft(new_capacity, old_size + 1, common);
-  const size_t slot_size = policy.slot_size;
   SanitizerPoisonMemoryRegion(new_slots, new_capacity * slot_size);
 
   h2_t new_h2 = H2(new_hash);
@@ -1946,7 +2039,7 @@ void* GrowToNextCapacityAndPrepareInsert(
     SetCtrl(common, new_capacity, new_ctrl, find_info.offset, new_h2,
             slot_size);
   }
-  ABSL_SWISSTABLE_ASSERT(old_capacity > policy.soo_capacity());
+  ABSL_SWISSTABLE_ASSERT(old_capacity > policy.alloc_policy->soo_capacity());
 
   // Reload `has_infoz` to avoid spilling across the indirect call.
   const bool has_infoz = common.has_infoz();
@@ -1956,26 +2049,16 @@ void* GrowToNextCapacityAndPrepareInsert(
   }
   // Deallocate after `ReportGrowthToInfoz`, because it reads infoz from
   // old_ctrl.
-  DeallocBackingArrayImpl(alloc, old_capacity, old_ctrl, slot_size,
-                          policy.slot_align, has_infoz,
-                          old_blocked_element_count, policy.dealloc);
+  DeallocBackingArrayImpl(common, alloc_policy, old_capacity, old_ctrl,
+                          slot_size, has_infoz, old_blocked_element_count);
   return SlotAddress(new_slots, find_info.offset, slot_size);
 }
 
 }  // namespace
 
-RawHashSetLayout RawHashSetLayout::CreateForSmallNonSooGrowth(size_t size,
-                                                              size_t slot_size,
-                                                              size_t slot_align,
-                                                              bool has_infoz) {
+RawHashSetLayout RawHashSetLayout::CreateForSmallNonSooGrowth(
+    size_t size, size_t slot_size, size_t slot_align_mask, bool has_infoz) {
   ABSL_SWISSTABLE_ASSERT(size <= 1);
-  static_assert(NumControlBytes(1) == 0);
-  const size_t num_control_bytes = size * NumControlBytes(3);
-  static_assert(NextCapacity(0) == 1);
-  static_assert(NextCapacity(1) == 3);
-  const size_t new_capacity = NextCapacity(size);
-  const size_t slots_size = new_capacity * slot_size;
-
   // Since `GrowthInfoSizeForCapacity` is 0 for capacities 1 and 3, compute
   // `metadata_size` directly without `MetadataBeforeControlSize` to avoid its
   // `ABSL_PREDICT_FALSE(has_infoz)` branch and allow a branchless shift.
@@ -1984,12 +2067,19 @@ RawHashSetLayout RawHashSetLayout::CreateForSmallNonSooGrowth(size_t size,
   const size_t metadata_size =
       (has_infoz ? sizeof(HashtablezInfoHandle) + sizeof(uint64_t) : 0) +
       NumGenerationBytes();
+
+  static_assert(NumControlBytes(1) == 0);
+  const size_t num_control_bytes = size * NumControlBytes(3);
+  static_assert(NextCapacity(0) == 1);
+  static_assert(NextCapacity(1) == 3);
+  const size_t new_capacity = NextCapacity(size);
+  const size_t slots_size = new_capacity * slot_size;
   ABSL_SWISSTABLE_ASSERT(metadata_size ==
                          MetadataBeforeControlSize(has_infoz, new_capacity));
 
   RawHashSetLayout layout(uninitialized_tag_t{});
   layout.slot_offset_ =
-      AlignUpTo(metadata_size + num_control_bytes, slot_align);
+      AlignUpToMask(metadata_size + num_control_bytes, slot_align_mask);
   layout.control_offset_ = layout.slot_offset_ - num_control_bytes;
   layout.generation_offset_ = layout.control_offset_ - NumGenerationBytes();
   layout.alloc_size_ = layout.slot_offset_ + slots_size;
@@ -1998,12 +2088,13 @@ RawHashSetLayout RawHashSetLayout::CreateForSmallNonSooGrowth(size_t size,
 
 void* PrepareInsertSmallNonSoo(CommonFields& common,
                                const PolicyFunctions& __restrict policy,
-                               void* hasher, HashForKeyFn get_hash) {
+                               EncodedHashKey hasher, HashForKeyFn get_hash) {
   ABSL_SWISSTABLE_ASSERT(common.is_small());
-  ABSL_SWISSTABLE_ASSERT(!policy.soo_enabled);
-  const bool is_empty = common.empty();
+  ABSL_SWISSTABLE_ASSERT(!policy.alloc_policy->soo_enabled);
+  const bool is_empty = common.empty_when_small();
   if (common.capacity() == 1 && is_empty) {
-    IncrementSmallSizeNonSoo(common, policy);
+    common.maybe_increment_generation_on_insert();
+    IncrementSmallSizeNonSoo(common, *policy.alloc_policy);
     // Compute before `RecordInsertMissCold` to avoid reloading `control_`.
     void* res = common.single_non_soo_slot();
     // Call NOINLINE function to move infoz instructions out of line.
@@ -2014,17 +2105,18 @@ void* PrepareInsertSmallNonSoo(CommonFields& common,
     return res;
   }
 
-  const size_t size = common.size();
+  const size_t size = is_empty ? 0 : 1;
+  const size_t slot_size = policy.slot_size;
+  const AllocPolicy& alloc_policy = *policy.alloc_policy;
+  const size_t slot_align_mask = alloc_policy.slot_align_mask;
   const bool has_infoz =
-      is_empty ? (policy.is_hashtablez_enabled && ShouldSampleNextTable())
-               : common.has_infoz();
-  void* alloc = policy.get_char_alloc(common);
+      is_empty
+          ? (alloc_policy.is_hashtablez_enabled && ShouldSampleNextTable())
+          : common.has_infoz();
   void* new_slots =
-      AllocBackingArray(
-          common, policy,
-          RawHashSetLayout::CreateForSmallNonSooGrowth(
-              size, policy.slot_size, policy.slot_align, has_infoz),
-          alloc)
+      AllocBackingArray(common, alloc_policy,
+                        RawHashSetLayout::CreateForSmallNonSooGrowth(
+                            size, slot_size, slot_align_mask, has_infoz))
           .slots;
   if (is_empty) {
     // Growing from 0 to 1 capacity.
@@ -2038,12 +2130,12 @@ void* PrepareInsertSmallNonSoo(CommonFields& common,
 
     if (ABSL_PREDICT_FALSE(has_infoz)) {
       ReportSingleElementTableGrowthToInfozAndForceSample(
-          common, policy, hasher, get_hash);
+          common, alloc_policy, hasher, get_hash);
     }
     return new_slots;
   }
-  return Grow1To3AndPrepareInsert(common, policy, hasher, get_hash, alloc,
-                                  has_infoz, new_slots);
+  return Grow1To3AndPrepareInsert(common, policy, hasher, get_hash, has_infoz,
+                                  new_slots);
 }
 
 namespace {
@@ -2157,8 +2249,8 @@ void* PrepareInsertLargeSlow(CommonFields& common,
 //   2. `c.empty()`.
 ABSL_ATTRIBUTE_NOINLINE void*
 GrowEmptySooTableToNextCapacityForceSamplingAndPrepareInsert(
-    CommonFields& common, const PolicyFunctions& __restrict policy,
-    void* hasher, HashForKeyFn get_hash) {
+    CommonFields& common, const AllocPolicy& __restrict policy,
+    EncodedHashKey hasher, HashForKeyFn get_hash) {
   const size_t kNewCapacity = NextCapacity(SooCapacity());
   ResizeEmptyNonAllocatedTableImpl(common, policy, kNewCapacity,
                                    /*blocked_element_count=*/0,
@@ -2166,11 +2258,12 @@ GrowEmptySooTableToNextCapacityForceSamplingAndPrepareInsert(
   PrepareInsertCommon(common);
   common.OverwriteEmptyAsFull();
   const size_t new_hash = get_hash(hasher, common.seed().seed());
+  const size_t slot_size = policy.slot_size;
   // Compute before `SetCtrl*` to avoid reloading `control_`.
-  void* res = SlotAddress(common.slot_array(kNewCapacity), SooSlotIndex(),
-                          policy.slot_size);
+  void* res =
+      SlotAddress(common.slot_array(kNewCapacity), SooSlotIndex(), slot_size);
   SetCtrlInSingleGroupTable(common, kNewCapacity, common.control(),
-                            SooSlotIndex(), H2(new_hash), policy.slot_size);
+                            SooSlotIndex(), H2(new_hash), slot_size);
   if (common.has_infoz()) {
     ReportInsertMissToInfoz(common, /*probe_length=*/0, new_hash);
   }
@@ -2201,16 +2294,18 @@ size_t BlockedElementCountForReservedTable(size_t capacity,
 void ReserveEmptyNonAllocatedTableToFitNewSize(
     CommonFields& common, const PolicyFunctions& __restrict policy,
     size_t new_size) {
-  ValidateMaxSize(new_size, policy.key_size, policy.slot_size);
+  ValidateMaxSize(new_size, policy.alloc_policy->key_size, policy.slot_size);
   ABSL_ASSUME(new_size > 0);
   const size_t new_capacity = SizeToCapacity(new_size);
   ResizeEmptyNonAllocatedTableImpl(
-      common, policy, new_capacity,
+      common, *policy.alloc_policy, new_capacity,
       BlockedElementCountForReservedTable(new_capacity, new_size),
       /*force_infoz=*/false);
   // This is after resize, to ensure that we have completed the allocation
   // and have potentially sampled the hashtable.
-  common.infoz().RecordReservation(new_size);
+  if (common.has_infoz()) {
+    ReportReserveToInfoz(common, new_size);
+  }
 }
 
 // Type erased version of raw_hash_set::reserve for tables that have an
@@ -2222,115 +2317,72 @@ void ReserveEmptyNonAllocatedTableToFitNewSize(
 ABSL_ATTRIBUTE_NOINLINE void ReserveAllocatedTable(
     CommonFields& common, const PolicyFunctions& __restrict policy,
     size_t new_size) {
-  const size_t cap = common.capacity();
-  ValidateMaxSize(new_size, policy.key_size, policy.slot_size);
+  ABSL_SWISSTABLE_ASSERT(
+      common.capacity() > policy.alloc_policy->soo_capacity() ||
+      !common.empty());
+  ValidateMaxSize(new_size, policy.alloc_policy->key_size, policy.slot_size);
   ABSL_ASSUME(new_size > 0);
   const size_t new_capacity = SizeToCapacity(new_size);
-  if (cap == policy.soo_capacity()) {
-    ABSL_SWISSTABLE_ASSERT(!common.empty());
-    ResizeFullSooTable(common, policy, new_capacity,
-                       ResizeFullSooTableSamplingMode::kNoSampling);
-  } else {
-    ABSL_SWISSTABLE_ASSERT(cap > policy.soo_capacity());
-    // TODO(b/382423690): consider using GrowToNextCapacity, when applicable.
-    ResizeAllocatedTableWithSeedChange(common, policy, new_capacity);
+  // TODO(b/382423690): consider using GrowToNextCapacity, when applicable.
+  ResizeTableWithSeedChangeImpl(common, policy, new_capacity,
+                                /*force_sample_soo=*/false);
+  if (common.has_infoz()) {
+    ReportReserveToInfoz(common, new_size);
   }
-  common.infoz().RecordReservation(new_size);
 }
 
-// As `ResizeFullSooTableToNextCapacity`, except that we also force the SOO
-// table to be sampled. SOO tables need to switch from SOO to heap in order to
-// store the infoz. No-op if sampling is disabled or not possible.
+// Grows a full SOO table to the next capacity and forces it to be sampled. SOO
+// tables need to switch from SOO to heap in order to store the infoz. No-op if
+// sampling is disabled or not possible.
 void GrowFullSooTableToNextCapacityForceSampling(
     CommonFields& common, const PolicyFunctions& __restrict policy) {
-  AssertFullSoo(common, policy);
-  ResizeFullSooTable(
-      common, policy, NextCapacity(SooCapacity()),
-      ResizeFullSooTableSamplingMode::kForceSampleNoResizeIfUnsampled);
+  AssertFullSoo(common, *policy.alloc_policy);
+  ResizeTableWithSeedChangeImpl(common, policy, NextCapacity(SooCapacity()),
+                                /*force_sample_soo=*/true);
 }
 
 }  // namespace
 
-void* GetRefForEmptyClass(CommonFields& common) {
-  // Empty base optimization typically make the empty base class address to be
-  // the same as the first address of the derived class object.
-  // But we generally assume that for empty classes we can return any valid
-  // pointer.
-  return &common;
-}
-
 void ResizeAllocatedTableWithSeedChange(
     CommonFields& common, const PolicyFunctions& __restrict policy,
     size_t new_capacity) {
-  ABSL_SWISSTABLE_ASSERT(IsValidCapacity(new_capacity));
-  ABSL_SWISSTABLE_ASSERT(new_capacity > policy.soo_capacity());
-
-  const size_t old_capacity = common.capacity();
-  ctrl_t* const old_ctrl = common.control();
-  void* const old_slots = IsSmallCapacity(old_capacity)
-                              ? common.single_non_soo_slot()
-                              : common.slot_array(old_capacity);
-  const size_t old_blocked_element_count = common.blocked_element_count();
-
-  const size_t slot_size = policy.slot_size;
-  const size_t slot_align = policy.slot_align;
-  HashtablezInfoHandle infoz = common.infoz();
-  const bool has_infoz = common.has_infoz();
-  void* alloc = policy.get_char_alloc(common);
-
-  common.set_capacity(new_capacity);
-  common.set_blocked_element_count_to_zero();
-  const auto [new_ctrl, new_slots] =
-      AllocBackingArray(common, policy, new_capacity, has_infoz, alloc,
-                        /*blocked_element_count=*/0);
-  common.set_control(new_ctrl);
-  common.generate_new_seed(has_infoz);
-
-  size_t total_probe_length = 0;
-  ResetCtrl(new_capacity, new_ctrl, new_slots, slot_size,
-            /*blocked_element_count=*/0);
-  ABSL_SWISSTABLE_ASSERT(old_capacity > 0);
-  total_probe_length = FindNewPositionsAndTransferSlots(
-      common, policy, old_ctrl, old_slots, old_capacity);
-  DeallocBackingArrayImpl(alloc, old_capacity, old_ctrl, slot_size, slot_align,
-                          has_infoz, old_blocked_element_count, policy.dealloc);
-  ResetGrowthLeft(new_capacity, common.size(), common);
-
-  if (ABSL_PREDICT_FALSE(has_infoz)) {
-    ReportResizeToInfoz(common, infoz, total_probe_length);
-  }
+  ABSL_SWISSTABLE_ASSERT(common.capacity() >
+                         policy.alloc_policy->soo_capacity());
+  ResizeTableWithSeedChangeImpl(common, policy, new_capacity,
+                                /*force_sample_soo=*/false);
 }
 
 // Resizes a full SOO table to the NextCapacity(SooCapacity()).
 template <size_t SooSlotMemcpySize, bool TransferUsesMemcpy>
 void* GrowSooTableToNextCapacityAndPrepareInsert(
     CommonFields& common, const PolicyFunctions& __restrict policy,
-    void* hasher, HashForKeyFn get_hash, bool force_sampling) {
-  AssertSoo(common, policy);
+    EncodedHashKey hasher, HashForKeyFn get_hash, bool force_sampling) {
+  AssertSoo(common, *policy.alloc_policy);
   if (ABSL_PREDICT_FALSE(force_sampling)) {
     // The table is empty, it is only used for forced sampling of SOO tables.
     return GrowEmptySooTableToNextCapacityForceSamplingAndPrepareInsert(
-        common, policy, hasher, get_hash);
+        common, *policy.alloc_policy, hasher, get_hash);
   }
-  ABSL_SWISSTABLE_ASSERT(common.size() == policy.soo_capacity());
+  ABSL_SWISSTABLE_ASSERT(common.size() ==
+                         policy.alloc_policy->soo_capacity());
   static constexpr size_t kNewCapacity = NextCapacity(SooCapacity());
   // Generate the seed and compute hashes before `AllocBackingArray` so
   // `hasher`, `get_hash`, and `new_ctrl`/`new_slots` do not need to be spilled
   // across calls.
   common.generate_new_seed(/*has_infoz=*/false);
   const size_t new_hash = get_hash(hasher, common.seed().seed());
-  const void* hash_fn = policy.hash_fn(common);
-  const h2_t soo_slot_h2 =
-      H2(policy.hash_slot(hash_fn, common.soo_data(), common.seed().seed()));
+  const h2_t soo_slot_h2 = H2(policy.hash_slot(
+      policy.hash_fn(common), common.soo_data(), common.seed().seed()));
 
-  void* alloc = policy.get_char_alloc(common);
   // Since the table is not empty, it will not be sampled.
   // The decision to sample was already made during the first insertion.
   //
   // We do not set control and slots in CommonFields yet to avoid overriding
   // SOO data.
+  const AllocPolicy& alloc_policy = *policy.alloc_policy;
+  const size_t slot_size = policy.slot_size;
   const auto [new_ctrl, new_slots] = AllocBackingArray(
-      common, policy, kNewCapacity, /*has_infoz=*/false, alloc,
+      common, alloc_policy, kNewCapacity, slot_size, /*has_infoz=*/false,
       /*blocked_element_count=*/0);
   // Group `common` updates together after `AllocBackingArray` so `inline_data_`
   // is modified in a single load-store sequence.
@@ -2343,7 +2395,6 @@ void* GrowSooTableToNextCapacityAndPrepareInsert(
   InitializeThreeElementsControlBytes(soo_slot_h2, H2(new_hash), offset,
                                       new_ctrl);
 
-  const size_t slot_size = policy.slot_size;
   SanitizerPoisonMemoryRegion(new_slots, slot_size * kNewCapacity);
   void* target_slot = SlotAddress(new_slots, SooSlotIndex(), slot_size);
   void* new_slot = SlotAddress(new_slots, offset, slot_size);
@@ -2378,19 +2429,22 @@ void Rehash(CommonFields& common, const PolicyFunctions& __restrict policy,
             size_t n) {
   const size_t cap = common.capacity();
 
+  // `alloc_policy` is read at each use (rather than once at the top) so that
+  // `policy` stays in its argument register for the calls that need it.
   auto clear_backing_array = [&]() {
-    ClearBackingArrayNoReuse(common, policy, policy.get_char_alloc(common));
+    ClearBackingArrayNoReuse(common, *policy.alloc_policy);
   };
 
   const size_t slot_size = policy.slot_size;
+  const size_t soo_capacity = policy.alloc_policy->soo_capacity();
 
   if (n == 0) {
-    if (cap <= policy.soo_capacity()) return;
+    if (cap <= soo_capacity) return;
     if (common.empty()) {
       clear_backing_array();
       return;
     }
-    if (common.size() <= policy.soo_capacity()) {
+    if (common.size() <= soo_capacity) {
       // When the table is already sampled, we keep it sampled.
       if (common.has_infoz()) {
         static constexpr size_t kInitialSampledCapacity =
@@ -2405,7 +2459,8 @@ void Rehash(CommonFields& common, const PolicyFunctions& __restrict policy,
       }
       // Reducing from large capacity to SOO.
       ABSL_SWISSTABLE_ASSERT(slot_size <= sizeof(HeapOrSoo));
-      ABSL_SWISSTABLE_ASSERT(policy.slot_align <= alignof(HeapOrSoo));
+      ABSL_SWISSTABLE_ASSERT(policy.alloc_policy->slot_align_mask <
+                             alignof(HeapOrSoo));
       ABSL_SWISSTABLE_ASSERT(!IsSmallCapacity(cap));
       HeapOrSoo tmp_slot;
       size_t begin_offset = FindFirstFullSlot(0, cap, common.control());
@@ -2423,24 +2478,25 @@ void Rehash(CommonFields& common, const PolicyFunctions& __restrict policy,
   // power-of-2-minus-1, so bitor is good enough.
   const size_t new_capacity =
       NormalizeCapacity(n | SizeToCapacity(common.size()));
-  ValidateMaxCapacity(new_capacity, policy.key_size, policy.slot_size);
+  ValidateMaxCapacity(new_capacity, policy.alloc_policy->key_size,
+                      slot_size);
   // n == 0 unconditionally rehashes as per the standard.
   if (n == 0 || new_capacity > cap) {
-    if (cap == policy.soo_capacity()) {
-      if (common.empty()) {
-        ResizeEmptyNonAllocatedTableImpl(common, policy, new_capacity,
-                                         /*blocked_element_count=*/0,
-                                         /*force_infoz=*/false);
-      } else {
-        ResizeFullSooTable(common, policy, new_capacity,
-                           ResizeFullSooTableSamplingMode::kNoSampling);
-      }
+    if (cap == soo_capacity && common.empty()) {
+      ResizeEmptyNonAllocatedTableImpl(common, *policy.alloc_policy,
+                                       new_capacity,
+                                       /*blocked_element_count=*/0,
+                                       /*force_infoz=*/false);
     } else {
-      ResizeAllocatedTableWithSeedChange(common, policy, new_capacity);
+      ResizeTableWithSeedChangeImpl(common, policy, new_capacity,
+                                    /*force_sample_soo=*/false);
     }
-    // This is after resize, to ensure that we have completed the allocation
-    // and have potentially sampled the hashtable.
-    common.infoz().RecordReservation(n);
+  }
+  // This is after resize, to ensure that we have completed the allocation and
+  // have potentially sampled the hashtable. Also record when `new_capacity <=
+  // cap` so sampled SOO tables report leaving SOO capacity.
+  if (common.has_infoz()) {
+    ReportReserveToInfoz(common, n);
   }
 }
 
@@ -2450,15 +2506,17 @@ void Copy(CommonFields& common, const PolicyFunctions& __restrict policy,
   other.AssertNotDebugCapacity();
   const size_t size = other.size();
   if (size == 0) return;
-  const size_t soo_capacity = policy.soo_capacity();
+  const AllocPolicy& alloc_policy = *policy.alloc_policy;
+  const size_t soo_capacity = alloc_policy.soo_capacity();
   const size_t slot_size = policy.slot_size;
-  const bool soo_enabled = policy.soo_enabled;
+  const bool soo_enabled = alloc_policy.soo_enabled;
   if (size == 1) {
-    if (!soo_enabled) {
+    if (soo_enabled) {
+      common.set_full_soo();
+    } else {
       ReserveEmptyNonAllocatedTableToFitNewSize(common, policy, 1);
-      common.infoz().RecordStorageChanged(1, 1);
+      IncrementSmallSizeNonSoo(common, alloc_policy);
     }
-    IncrementSmallSize(common, policy);
     const size_t other_capacity = other.capacity();
     const void* other_slot =
         other_capacity <= soo_capacity ? other.soo_data()
@@ -2472,9 +2530,12 @@ void Copy(CommonFields& common, const PolicyFunctions& __restrict policy,
                         : SingleSlotAddress</*kSooEnabled=*/false>(common),
             other_slot);
 
-    if (soo_enabled && policy.is_hashtablez_enabled &&
-        ShouldSampleNextTable()) {
-      GrowFullSooTableToNextCapacityForceSampling(common, policy);
+    if (soo_enabled) {
+      if (alloc_policy.is_hashtablez_enabled && ShouldSampleNextTable()) {
+        GrowFullSooTableToNextCapacityForceSampling(common, policy);
+      }
+    } else {
+      common.infoz().RecordStorageChanged(1, 1);
     }
     return;
   }
@@ -2512,22 +2573,29 @@ void Copy(CommonFields& common, const PolicyFunctions& __restrict policy,
 void ReserveTableToFitNewSize(CommonFields& common,
                               const PolicyFunctions& __restrict policy,
                               size_t new_size) {
-  new_size =
-      std::min(new_size, MaxValidSize(policy.key_size, policy.slot_size));
+  const AllocPolicy& alloc_policy = *policy.alloc_policy;
+  new_size = std::min(new_size,
+                      MaxValidSize(alloc_policy.key_size, policy.slot_size));
   common.reset_reserved_growth(new_size);
   common.set_reservation_size(new_size);
-  ABSL_SWISSTABLE_ASSERT(new_size > policy.soo_capacity());
+  ABSL_SWISSTABLE_ASSERT(new_size > policy.alloc_policy->soo_capacity());
   const size_t cap = common.capacity();
-  if (ABSL_PREDICT_TRUE(common.empty() && cap <= policy.soo_capacity())) {
+  if (ABSL_PREDICT_TRUE(common.empty() &&
+                        cap <= alloc_policy.soo_capacity())) {
     return ReserveEmptyNonAllocatedTableToFitNewSize(common, policy, new_size);
   }
 
-  ABSL_SWISSTABLE_ASSERT(!common.empty() || cap > policy.soo_capacity());
+  ABSL_SWISSTABLE_ASSERT(!common.empty() ||
+                         cap > policy.alloc_policy->soo_capacity());
   ABSL_SWISSTABLE_ASSERT(cap > 0);
   const size_t max_size_before_growth =
-      IsSmallCapacity(cap) ? cap
-                           : common.size() + common.GetGrowthLeftTotalSlow(cap);
+      IsSmallCapacity(cap)
+          ? cap
+          : common.size() + common.GetGrowthLeftTotalSlow(cap);
   if (new_size <= max_size_before_growth) {
+    if (common.has_infoz()) {
+      ReportReserveToInfoz(common, new_size);
+    }
     return;
   }
   ReserveAllocatedTable(common, policy, new_size);
@@ -2553,14 +2621,15 @@ void* PrepareInsertLargeImpl(CommonFields& common,
   ABSL_ASSUME(cap > kMaxSmallCapacity);
   target_group_offset += mask_empty.LowestBitSet();
   target_group_offset &= cap;
+  const size_t slot_size = policy.slot_size;
   // Compute before `SetCtrl` to avoid reloading `control_`.
-  void* res = SlotAddress(common.slot_array(cap), target_group_offset,
-                          policy.slot_size);
+  void* res =
+      SlotAddress(common.slot_array(cap), target_group_offset, slot_size);
   SetCtrl(common, cap, common.control(), target_group_offset, H2(hash),
-          policy.slot_size);
+          slot_size);
   // Call NOINLINE function to move infoz instructions out of line.
   if (common.has_infoz()) {
-    return ReportInsertMissToInfozAndGetSlot(common, policy, hash,
+    return ReportInsertMissToInfozAndGetSlot(common, slot_size, hash,
                                              target_group_offset);
   }
   return res;
@@ -2580,7 +2649,7 @@ void* PrepareInsertLarge(CommonFields& common,
 void* PrepareInsertLargeGenerationsEnabled(
     CommonFields& common, const PolicyFunctions& __restrict policy, size_t hash,
     Group::NonIterableBitMaskType mask_empty, size_t target_group_offset,
-    absl::FunctionRef<size_t(size_t)> recompute_hash) {
+    EncodedHashKey hasher, HashForKeyFn recompute_hash) {
   // NOLINTNEXTLINE(misc-static-assert)
   ABSL_SWISSTABLE_ASSERT(SwisstableGenerationsEnabled());
   const size_t cap = common.capacity();
@@ -2590,7 +2659,7 @@ void* PrepareInsertLargeGenerationsEnabled(
   if (growth_left > 0 && common.should_rehash_for_bug_detection_on_insert()) {
     // Move to a different heap allocation in order to detect bugs.
     ResizeAllocatedTableWithSeedChange(common, policy, cap);
-    hash = recompute_hash(common.seed().seed());
+    hash = recompute_hash(hasher, common.seed().seed());
     FindInfo target_group;
     std::tie(target_group, mask_empty) =
         find_first_non_full_group(common, hash);
@@ -2628,17 +2697,19 @@ constexpr bool VerifyOptimalMemcpySizeForSooSlotTransferRange(size_t left,
 // We need to instantiate ALL possible template combinations because we define
 // the function in the cc file.
 template void* GrowSooTableToNextCapacityAndPrepareInsert<0, false>(
-    CommonFields&, const PolicyFunctions&, void*, HashForKeyFn, bool);
+    CommonFields&, const PolicyFunctions&, EncodedHashKey, HashForKeyFn, bool);
 template void* GrowSooTableToNextCapacityAndPrepareInsert<
     OptimalMemcpySizeForSooSlotTransfer(1), true>(CommonFields&,
-                                                  const PolicyFunctions&, void*,
-                                                  HashForKeyFn, bool);
+                                                  const PolicyFunctions&,
+                                                  EncodedHashKey, HashForKeyFn,
+                                                  bool);
 
 static_assert(VerifyOptimalMemcpySizeForSooSlotTransferRange(2, 3));
 template void* GrowSooTableToNextCapacityAndPrepareInsert<
     OptimalMemcpySizeForSooSlotTransfer(3), true>(CommonFields&,
-                                                  const PolicyFunctions&, void*,
-                                                  HashForKeyFn, bool);
+                                                  const PolicyFunctions&,
+                                                  EncodedHashKey, HashForKeyFn,
+                                                  bool);
 
 #if UINTPTR_MAX == UINT32_MAX
 static_assert(MaxSooSlotSize() == 4);
@@ -2647,27 +2718,21 @@ static_assert(VerifyOptimalMemcpySizeForSooSlotTransferRange(2, 4));
 static_assert(VerifyOptimalMemcpySizeForSooSlotTransferRange(4, 8));
 template void* GrowSooTableToNextCapacityAndPrepareInsert<
     OptimalMemcpySizeForSooSlotTransfer(8), true>(CommonFields&,
-                                                  const PolicyFunctions&, void*,
-                                                  HashForKeyFn, bool);
+                                                  const PolicyFunctions&,
+                                                  EncodedHashKey, HashForKeyFn,
+                                                  bool);
 static_assert(MaxSooSlotSize() == 8);
 #endif
 
-template void* AllocateBackingArray<kStandardBackingArrayAlignment,
-                                    std::allocator<char>>(void* alloc,
-                                                          size_t n);
 template void DeallocateBackingArray<kStandardBackingArrayAlignment,
                                      std::allocator<char>>(void* alloc,
                                                            void* backing_array,
                                                            size_t n);
 
-template void Clear</*kSooEnabled=*/true>(CommonFields& c,
-                                          const PolicyFunctions& policy,
-                                          DestroySlotFn destroy_slot,
-                                          void* alloc);
-template void Clear</*kSooEnabled=*/false>(CommonFields& c,
-                                           const PolicyFunctions& policy,
-                                           DestroySlotFn destroy_slot,
-                                           void* alloc);
+template void Clear</*kSooEnabled=*/true>(
+    CommonFields& c, const AllocPolicy& policy, DestroySlotFn destroy_slot);
+template void Clear</*kSooEnabled=*/false>(
+    CommonFields& c, const AllocPolicy& policy, DestroySlotFn destroy_slot);
 
 template void Destruct</*kSooEnabled=*/true>(CommonFields& c,
                                              const DtorPolicy& policy,
@@ -2691,7 +2756,6 @@ template void Destruct</*kSooEnabled=*/false>(CommonFields& c,
 // Extern template instantiation for inline functions.
 template size_t TryFindNewIndexWithoutProbing(size_t hash, size_t old_index,
                                               size_t old_capacity,
-                                              ctrl_t* new_ctrl,
                                               size_t new_capacity);
 template void AssertIsFull(const ctrl_t* const& ctrl, const void* slot,
                            GenerationType generation,

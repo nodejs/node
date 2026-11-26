@@ -377,11 +377,13 @@ class PropertyDetails {
     return value_ != other.value_;
   }
 
+#ifndef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
   int pointer() const { return DescriptorPointer::decode(value_); }
 
   V8_WARN_UNUSED_RESULT PropertyDetails set_pointer(int i) const {
     return PropertyDetails(value_, i);
   }
+#endif  // !V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
 
   V8_WARN_UNUSED_RESULT PropertyDetails
   set_cell_type(PropertyCellType type) const {
@@ -489,11 +491,17 @@ class PropertyDetails {
   // Bit fields for fast objects.
   using LocationField = AttributesField::Next<PropertyLocation, 1>;
   using RepresentationField = LocationField::Next<uint32_t, 3>;
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+  // Add an extra bit to account for the storage header included in the offset.
+  using OffsetInWordsField =
+      RepresentationField::Next<uint16_t, kDescriptorIndexBitCount + 1>;
+#else
   using DescriptorPointer =
       RepresentationField::Next<uint32_t, kDescriptorIndexBitCount>;
   // Add an extra bit to account for the storage header included in the offset.
   using OffsetInWordsField =
       DescriptorPointer::Next<uint16_t, kDescriptorIndexBitCount + 1>;
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
   using InObjectField = OffsetInWordsField::Next<bool, 1>;
 
   // All bits for both fast and slow objects must fit in a smi.
@@ -525,7 +533,9 @@ class PropertyDetails {
     kPrintAttributes = 1 << 0,
     kPrintOffsetInWords = 1 << 1,
     kPrintRepresentation = 1 << 2,
+#ifndef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
     kPrintPointer = 1 << 3,
+#endif  // !V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
 
     kForProperties = kPrintOffsetInWords | kPrintAttributes,
     kForTransitions = kPrintAttributes,
@@ -568,9 +578,11 @@ class PropertyDetails {
   }
 
  private:
+#ifndef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
   PropertyDetails(int value, int pointer) {
     value_ = DescriptorPointer::update(value, pointer);
   }
+#endif  // !V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
   PropertyDetails(int value, Representation representation) {
     value_ = RepresentationField::update(value,
                                          EncodeRepresentation(representation));

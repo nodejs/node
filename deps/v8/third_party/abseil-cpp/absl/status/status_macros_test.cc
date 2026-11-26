@@ -400,6 +400,71 @@ TEST(AssignOrReturn, ChainSourceLocationWith3ArgStatusMacro) {
   CheckSourceLocation(result.status(), {func3_line, func4_line});
 }
 
+TEST(AssignOrReturn, DestroysValueOnlyOnOkAtScopeExit) {
+  int live = 0;
+  struct Counted {
+    int* live;
+    explicit Counted(int* l) : live(l) { ++*live; }
+    Counted(const Counted& o) : live(o.live) { ++*live; }
+    Counted(Counted&& o) : live(o.live) { ++*live; }
+    Counted& operator=(const Counted&) = delete;
+    Counted& operator=(Counted&&) = delete;
+    ~Counted() { --*live; }
+  };
+
+  const std::string kLong(64, 'x');
+  auto ok_fn = [&]() -> absl::Status {
+    ABSL_ASSIGN_OR_RETURN(Counted c [[maybe_unused]],
+                          absl::StatusOr<Counted>(Counted(&live)));
+    // Both `c` and the moved-from value in the macro's hidden `StatusOr` stay
+    // alive until scope exit (so views like `view` below remain valid).
+    EXPECT_EQ(live, 2);
+    ABSL_ASSIGN_OR_RETURN(absl::string_view view,
+                          absl::StatusOr<std::string>(kLong));
+    EXPECT_EQ(view, kLong);
+    ABSL_ASSIGN_OR_RETURN(std::string const_str,
+                          absl::StatusOr<const std::string>(kLong));
+    EXPECT_EQ(const_str, kLong);
+    return absl::OkStatus();
+  };
+  EXPECT_EQ(ok_fn(), absl::OkStatus());
+  EXPECT_EQ(live, 0);
+
+  auto err_fn = [&]() -> absl::Status {
+    ABSL_ASSIGN_OR_RETURN(Counted c [[maybe_unused]],
+                          absl::StatusOr<Counted>(ReturnError("EXPECTED")));
+    return absl::OkStatus();
+  };
+  EXPECT_THAT(err_fn().message(), Eq("EXPECTED"));
+  EXPECT_EQ(live, 0);
+}
+
+TEST(AssignOrReturn, WorksWithStatusOrSubclass) {
+  struct DerivedStatusOr : absl::StatusOr<std::string> {
+    using absl::StatusOr<std::string>::StatusOr;
+  };
+  const std::string kLong(64, 'y');
+  auto fn = [&]() -> absl::Status {
+    ABSL_ASSIGN_OR_RETURN(std::string s, DerivedStatusOr(kLong));
+    EXPECT_EQ(s, kLong);
+    ABSL_ASSIGN_OR_RETURN(s, DerivedStatusOr(ReturnError("EXPECTED")));
+    return absl::OkStatus();
+  };
+  EXPECT_THAT(fn().message(), Eq("EXPECTED"));
+}
+
+TEST(AssignOrReturn, WorksWithArrayReference) {
+  int arr[2] = {10, 20};
+  auto fn = [&]() -> absl::Status {
+    ABSL_ASSIGN_OR_RETURN(auto& ref, absl::StatusOr<int(&)[2]>(arr));
+    static_assert(std::is_same_v<decltype(ref), int(&)[2]>);
+    EXPECT_EQ(ref[0], 10);
+    EXPECT_EQ(ref[1], 20);
+    return absl::OkStatus();
+  };
+  EXPECT_EQ(fn(), absl::OkStatus());
+}
+
 TEST(ReturnIfError, Works) {
   auto func = []() -> absl::Status {
     ABSL_RETURN_IF_ERROR(ReturnOk());

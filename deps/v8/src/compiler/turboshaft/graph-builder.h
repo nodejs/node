@@ -7,6 +7,7 @@
 
 #include <optional>
 
+#include "src/base/macros.h"
 #include "src/codegen/bailout-reason.h"
 #include "src/compiler/node-origin-table.h"
 #include "src/compiler/turboshaft/graph.h"
@@ -18,8 +19,10 @@ class TFPipelineData;
 }
 namespace v8::internal::compiler::turboshaft {
 class PipelineData;
-std::optional<BailoutReason> BuildGraph(PipelineData* data, Schedule* schedule,
-                                        Zone* phase_zone, Linkage* linkage);
+V8_EXPORT_PRIVATE std::optional<BailoutReason> BuildGraph(PipelineData* data,
+                                                          Schedule* schedule,
+                                                          Zone* phase_zone,
+                                                          Linkage* linkage);
 }
 
 #endif  // V8_COMPILER_TURBOSHAFT_GRAPH_BUILDER_H_

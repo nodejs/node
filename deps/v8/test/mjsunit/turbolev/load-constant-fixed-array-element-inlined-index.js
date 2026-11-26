@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --turbolev --turbofan --maglev-object-tracking
+// Flags: --allow-natives-syntax --turbolev --turbofan
 // Flags: --max-turbolev-eager-inlined-bytecode-size=0
 
 function get_const() {

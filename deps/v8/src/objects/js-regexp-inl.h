@@ -310,15 +310,13 @@ void IrRegExpData::set_backtrack_limit(int value) {
   backtrack_limit_.store(this, Smi::FromInt(value));
 }
 
-uint32_t IrRegExpData::bit_field() const { return bit_field_.load().value(); }
-void IrRegExpData::set_bit_field(uint32_t value) {
-  bit_field_.store(this, Smi::FromInt(value));
-}
+IrRegExpData::Bits IrRegExpData::bit_field() const { return bit_field_.load(); }
+void IrRegExpData::set_bit_field(Bits value) { bit_field_.store(value); }
 
-BOOL_ACCESSORS(IrRegExpData, bit_field, can_be_zero_length,
-               Bits::CanBeZeroLengthBit::kShift)
-BOOL_ACCESSORS(IrRegExpData, bit_field, is_linear_executable,
-               Bits::IsLinearExecutableBit::kShift)
+BIT_FIELD_ACCESSORS(IrRegExpData, bit_field, can_be_zero_length,
+                    IrRegExpData::Bits::CanBeZeroLengthBit)
+BIT_FIELD_ACCESSORS(IrRegExpData, bit_field, is_linear_executable,
+                    IrRegExpData::Bits::IsLinearExecutableBit)
 
 }  // namespace internal
 }  // namespace v8

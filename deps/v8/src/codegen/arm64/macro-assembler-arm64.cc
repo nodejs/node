@@ -54,6 +54,19 @@ constexpr bool kSaveFullFPRegistersOnStack = true;
 constexpr bool kSaveFullFPRegistersOnStack = false;
 #endif  // V8_ENABLE_WEBASSEMBLY
 
+#if CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
+// A tagged value points into the read-only reservation iff none of these bits
+// of its compressed half is set, the check MemoryChunk::InReadOnlySpace()
+// makes: the reservation is a power of two at the base of the cage. The mask
+// is a logical immediate, so the test is a single tst, whereas the reservation
+// size, one past the largest add/sub immediate, would have to be materialized
+// for a cmp.
+constexpr uint32_t kReadOnlyReservationMask =
+    static_cast<uint32_t>(kContiguousReadOnlySpaceMask);
+static_assert(kReadOnlyReservationMask ==
+              ~static_cast<uint32_t>(kContiguousReadOnlyReservationSize - 1));
+#endif  // CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
+
 }  // namespace
 
 void MacroAssembler::PushCPURegList(CPURegList registers) {
@@ -1594,8 +1607,8 @@ void MacroAssembler::AssertNotSmi(Register object, AbortReason reason) {
 void MacroAssembler::AssertZeroExtended(Register int32_register) {
   if (!v8_flags.slow_debug_code) return;
   ASM_CODE_COMMENT(this);
-  Tst(int32_register.X(), kMaxUInt32);
-  Check(ls, AbortReason::k32BitValueInRegisterIsNotZeroExtended);
+  Tst(int32_register.X(), ~uint64_t{kMaxUInt32});
+  Check(kZero, AbortReason::k32BitValueInRegisterIsNotZeroExtended);
 }
 
 void MacroAssembler::AssertMap(Register object) {
@@ -1943,11 +1956,13 @@ void MacroAssembler::Move(Register dst, Register src) {
 
 void MacroAssembler::MovePair(Register dst0, Register src0, Register dst1,
                               Register src1) {
-  DCHECK_NE(dst0, dst1);
-  if (dst0 != src1) {
+  DCHECK(!AreAliased(dst0, dst1));
+  DCHECK(AreSameSizeAndType(dst0, src0, dst1, src1));
+  DCHECK(dst0.Is64Bits());
+  if (!dst0.Aliases(src1)) {
     Mov(dst0, src0);
     Mov(dst1, src1);
-  } else if (dst1 != src0) {
+  } else if (!dst1.Aliases(src0)) {
     // Swap the order of the moves to resolve the overlap.
     Mov(dst1, src1);
     Mov(dst0, src0);
@@ -2718,6 +2733,8 @@ void MacroAssembler::StackOverflowCheck(Register num_args,
   B(le, stack_overflow);
 }
 
+// Must preserve x20: InvokeFunctionCode loads the code entry point into it
+// before calling this.
 void MacroAssembler::InvokePrologue(Register formal_parameter_count,
                                     Register actual_argument_count,
                                     InvokeType type) {
@@ -2908,19 +2925,28 @@ void MacroAssembler::InvokeFunctionCode(
     LoadRoot(x3, RootIndex::kUndefinedValue);
   }
 
-  Register scratch = x20;
-  if (argument_adaption_mode == ArgumentAdaptionMode::kAdapt) {
-    Register expected_parameter_count = x2;
-    LoadParameterCountFromJSDispatchTable(expected_parameter_count,
-                                          dispatch_handle, scratch);
-    InvokePrologue(expected_parameter_count, actual_parameter_count, type);
-  }
-
   // We call indirectly through the code field in the function to
   // allow recompilation to take effect without changing any of the
   // call sites.
-  LoadEntrypointFromJSDispatchTable(kJavaScriptCallCodeStartRegister,
-                                    dispatch_handle, scratch);
+  if (argument_adaption_mode == ArgumentAdaptionMode::kAdapt) {
+    // InvokePrologue clobbers x2 but preserves x20.
+    Register expected_parameter_count = x2;
+    Register entrypoint = x20;
+    LoadEntrypointAndParameterCountFromJSDispatchTable(
+        entrypoint, expected_parameter_count, dispatch_handle, x5);
+    InvokePrologue(expected_parameter_count, actual_parameter_count, type);
+    if (v8_flags.debug_code) {
+      Register reloaded_entrypoint = expected_parameter_count;
+      LoadEntrypointFromJSDispatchTable(reloaded_entrypoint, dispatch_handle,
+                                        x5);
+      Cmp(entrypoint, reloaded_entrypoint);
+      Check(eq, AbortReason::kWrongFunctionCodeStart);
+    }
+    Mov(kJavaScriptCallCodeStartRegister, entrypoint);
+  } else {
+    LoadEntrypointFromJSDispatchTable(kJavaScriptCallCodeStartRegister,
+                                      dispatch_handle, x20);
+  }
   Label done;
   switch (type) {
     case InvokeType::kCall:
@@ -3478,12 +3504,26 @@ void MacroAssembler::LoadElementsKindFromMap(Register result, Register map) {
   DecodeField<Map::Bits2::ElementsKindBits>(result);
 }
 
-void MacroAssembler::CompareTaggedRoot(const Register& obj, RootIndex index) {
+void MacroAssembler::CompareTaggedRoot(const Register& obj, RootIndex index,
+                                       ComparisonMode mode) {
   ASM_CODE_COMMENT(this);
+  DCHECK_NE(mode, ComparisonMode::kFullPointer);
   AssertSmiOrHeapObjectInMainCompressionCage(obj);
   UseScratchRegisterScope temps(this);
   if (V8_STATIC_ROOTS_BOOL && RootsTable::IsReadOnly(index)) {
-    CmpTagged(obj, Immediate(ReadOnlyRootPtr(index)));
+    Tagged_t ptr = ReadOnlyRootPtr(index);
+    // When only equality matters, a pointer that would need a movz/movk pair
+    // (wider than 16 bits and not an add/sub immediate) can be compared in two
+    // encodable 12-bit halves instead. This covers the holes after the_hole,
+    // which sit at 0x?fffd because each one ends just below a 64 KiB boundary.
+    if (mode == ComparisonMode::kEqualityOnly && is_uint24(ptr) &&
+        !is_uint16(ptr) && !IsImmAddSub(ptr)) {
+      Register temp = temps.AcquireW();
+      Sub(temp, obj.W(), ptr & ~0xfff);
+      Cmp(temp, ptr & 0xfff);
+      return;
+    }
+    CmpTagged(obj, Immediate(ptr));
     return;
   }
   // Some smi roots contain system pointer size values like stack limits.
@@ -3509,18 +3549,18 @@ void MacroAssembler::CompareRoot(const Register& obj, RootIndex index,
     Cmp(obj, temp);
     return;
   }
-  CompareTaggedRoot(obj, index);
+  CompareTaggedRoot(obj, index, mode);
 }
 
 void MacroAssembler::JumpIfRoot(const Register& obj, RootIndex index,
                                 Label* if_equal) {
-  CompareRoot(obj, index);
+  CompareRoot(obj, index, ComparisonMode::kEqualityOnly);
   B(eq, if_equal);
 }
 
 void MacroAssembler::JumpIfNotRoot(const Register& obj, RootIndex index,
                                    Label* if_not_equal) {
-  CompareRoot(obj, index);
+  CompareRoot(obj, index, ComparisonMode::kEqualityOnly);
   B(ne, if_not_equal);
 }
 
@@ -3836,7 +3876,7 @@ void MacroAssembler::PreCheckSkippedWriteBarrier(Register object,
   }
 
 #if CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
-  JumpIfUnsignedLessThan(value, kContiguousReadOnlyReservationSize, ok);
+  TestAndBranchIfAllClear(value.W(), kReadOnlyReservationMask, ok);
 #else   // !CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
   // Write barier can also be removed if value is in read-only space.
   CheckPageFlag(value, scratch, MemoryChunk::kIsInReadOnlyHeapMask, ne, ok);
@@ -3885,7 +3925,7 @@ void MacroAssembler::MaybeJumpIfReadOnlyOrSmallSmi(Register value,
   constexpr int kLastStaticRootPage =
       RoundUp<kRegularPageSize>(StaticReadOnlyRoot::kLastAllocatedRoot);
   static_assert(kLastStaticRootPage <= kContiguousReadOnlyReservationSize);
-  JumpIfUnsignedLessThan(value, kContiguousReadOnlyReservationSize, dest);
+  TestAndBranchIfAllClear(value.W(), kReadOnlyReservationMask, dest);
 #endif  // V8_STATIC_ROOTS_BOOL && CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
 }
 
@@ -3963,7 +4003,7 @@ void MacroAssembler::LoadExternalPointerField(Register destination,
                                               Register isolate_root) {
   DCHECK(!AreAliased(destination, isolate_root));
   ASM_CODE_COMMENT(this);
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
   DCHECK(!tag_range.IsEmpty());
   DCHECK(!IsSharedExternalPointerType(tag_range));
   UseScratchRegisterScope temps(this);
@@ -4008,7 +4048,7 @@ void MacroAssembler::LoadExternalPointerField(Register destination,
   }
 #else
   Ldr(destination, field_operand);
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
 }
 
 void MacroAssembler::LoadTrustedPointerField(Register destination,
@@ -4178,6 +4218,7 @@ void MacroAssembler::PushDispatchHandle(Register dispatch_handle,
 #ifdef V8_ENABLE_SANDBOX
   DCHECK(!AreAliased(dispatch_handle, other, scratch1, scratch2));
   AssertZeroExtended(dispatch_handle);
+  Bic(dispatch_handle, dispatch_handle, (1 << kJSDispatchHandleShift) - 1);
   LoadParameterCountFromJSDispatchTable(scratch1, dispatch_handle, scratch2);
   Bfi(dispatch_handle, scratch1, 32, 32);
 #endif
@@ -4338,19 +4379,21 @@ void MacroAssembler::CallVerifySkippedTrustedWriteBarrierStub(Register object,
 void MacroAssembler::MoveObjectAndSlot(Register dst_object, Register dst_slot,
                                        Register object, Operand offset) {
   ASM_CODE_COMMENT(this);
-  DCHECK_NE(dst_object, dst_slot);
+  DCHECK(!AreAliased(dst_object, dst_slot));
+  DCHECK(AreSameSizeAndType(dst_object, dst_slot, object));
+  DCHECK(object.Is64Bits());
   // If `offset` is a register, it cannot overlap with `object`.
   DCHECK_IMPLIES(!offset.IsImmediate(), !offset.reg().Aliases(object));
 
   // If the slot register does not overlap with the object register, we can
   // overwrite it.
-  if (dst_slot != object) {
+  if (!dst_slot.Aliases(object)) {
     Add(dst_slot, object, offset);
     Mov(dst_object, object);
     return;
   }
 
-  DCHECK_EQ(dst_slot, object);
+  DCHECK(dst_slot.Aliases(object));
 
   // If the destination object register does not overlap with the offset
   // register, we can overwrite it.

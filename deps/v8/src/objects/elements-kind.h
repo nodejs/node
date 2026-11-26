@@ -118,10 +118,6 @@ enum ElementsKind : uint8_t {
   PACKED_FROZEN_ELEMENTS,
   HOLEY_FROZEN_ELEMENTS,
 
-  // SharedArray elements kind. A FAST_SEALED_ELEMENTS variation useful to
-  // code specific paths for SharedArrays.
-  SHARED_ARRAY_ELEMENTS,
-
   // The "slow" kind.
   DICTIONARY_ELEMENTS,
 
@@ -158,7 +154,7 @@ enum ElementsKind : uint8_t {
   LAST_RAB_GSAB_FIXED_TYPED_ARRAY_ELEMENTS_KIND = RAB_GSAB_FLOAT16_ELEMENTS,
   TERMINAL_FAST_ELEMENTS_KIND = HOLEY_ELEMENTS,
   FIRST_ANY_NONEXTENSIBLE_ELEMENTS_KIND = PACKED_NONEXTENSIBLE_ELEMENTS,
-  LAST_ANY_NONEXTENSIBLE_ELEMENTS_KIND = SHARED_ARRAY_ELEMENTS,
+  LAST_ANY_NONEXTENSIBLE_ELEMENTS_KIND = HOLEY_FROZEN_ELEMENTS,
   FIRST_VALID_ATOMICS_TYPED_ARRAY_ELEMENTS_KIND = UINT8_ELEMENTS,
   LAST_VALID_ATOMICS_TYPED_ARRAY_ELEMENTS_KIND = BIGINT64_ELEMENTS,
 
@@ -245,7 +241,6 @@ inline constexpr int ElementsKindToShiftSize(ElementsKind elements_kind) {
     case SLOW_SLOPPY_ARGUMENTS_ELEMENTS:
     case FAST_STRING_WRAPPER_ELEMENTS:
     case SLOW_STRING_WRAPPER_ELEMENTS:
-    case SHARED_ARRAY_ELEMENTS:
       return kTaggedSizeLog2;
     case WASM_ARRAY_ELEMENTS:
     case NO_ELEMENTS:
@@ -338,10 +333,6 @@ constexpr inline bool IsWasmArrayElementsKind(ElementsKind kind) {
   return kind == WASM_ARRAY_ELEMENTS;
 }
 
-constexpr inline bool IsSharedArrayElementsKind(ElementsKind kind) {
-  return kind == SHARED_ARRAY_ELEMENTS;
-}
-
 constexpr inline bool IsTerminalElementsKind(ElementsKind kind) {
   return kind == TERMINAL_FAST_ELEMENTS_KIND ||
          IsTypedArrayOrRabGsabTypedArrayElementsKind(kind) ||
@@ -381,8 +372,7 @@ constexpr inline bool IsNonextensibleElementsKind(ElementsKind kind) {
 }
 
 constexpr inline bool IsSealedElementsKind(ElementsKind kind) {
-  return IsSharedArrayElementsKind(kind) ||
-         base::IsInRange(kind, PACKED_SEALED_ELEMENTS, HOLEY_SEALED_ELEMENTS);
+  return base::IsInRange(kind, PACKED_SEALED_ELEMENTS, HOLEY_SEALED_ELEMENTS);
 }
 
 constexpr inline bool IsFrozenElementsKind(ElementsKind kind) {

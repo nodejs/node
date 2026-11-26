@@ -17,7 +17,6 @@
 #include "src/heap/marking-state-inl.h"
 #include "src/heap/marking-worklist-inl.h"
 #include "src/heap/marking.h"
-#include "src/heap/pretenuring-handler-inl.h"
 #include "src/heap/spaces.h"
 #include "src/objects/casting.h"
 #include "src/objects/compressed-slots.h"
@@ -81,19 +80,6 @@ void MarkingVisitorBase<ConcreteVisitor>::ProcessStrongHeapObject(
       MarkingHelper::ShouldMarkObject(heap_, heap_object);
   if (!target_worklist) {
     return;
-  }
-  // TODO(chromium:1495151): Remove after diagnosing.
-  if (V8_UNLIKELY(!MemoryChunk::FromHeapObject(heap_object)->IsMarking() &&
-                  IsFreeSpaceOrFiller(heap_object))) {
-    heap_->isolate()->PushParamsAndDie(
-        "marking non-marking free space or filler",
-        reinterpret_cast<void*>(host->map().ptr()),
-        reinterpret_cast<void*>(host->address()),
-        reinterpret_cast<void*>(slot.address()),
-        reinterpret_cast<void*>(
-            BasePage::FromHeapObject(heap_->isolate(), heap_object)
-                ->owner()
-                ->identity()));
   }
   MarkObject(host, heap_object, target_worklist.value());
   concrete_visitor()->RecordSlot(host, slot, heap_object);
@@ -237,13 +223,17 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitExternalPointer(
     Tagged<HeapObject> host, ExternalPointerSlot slot) {
 #ifdef V8_COMPRESS_POINTERS
   DCHECK(!slot.tag_range().IsEmpty());
-  if (!slot.HasExternalPointerHandle()) {
-    return;
-  }
   const ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
   ExternalPointerTable* table;
   ExternalPointerTable::Space* space;
   if (IsSharedExternalPointerType(slot.tag_range())) {
+    // Client isolates do not sweep `shared_external_pointer_space()`. Live
+    // client `ExternalString` entries are marked during the shared GC atomic
+    // pause via `external_string_table_` while client heaps are stopped.
+    if (!heap_->isolate()->owns_shareable_data()) {
+      DCHECK(!HeapLayout::InWritableSharedSpace(host));
+      return;
+    }
     table = shared_external_pointer_table_;
     space = shared_external_pointer_space_;
   } else {

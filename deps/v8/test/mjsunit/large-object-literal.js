@@ -27,7 +27,7 @@
 
 // Test that we can create object literals of various sizes.
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --fast-null-proto-literals
 
 function testLiteral(size) {
 
@@ -78,16 +78,16 @@ for (var i = 0; i < sizes.length; i++) {
 }
 
 
-// Large Object dictionary mode literal.
+// Null prototype literal with properties stays in fast mode.
 
 
-function TestSlowLiteralOptimized() {
+function TestNullProtoLiteralOptimized() {
   function f() {
     return {__proto__: null, bar: 'barValue'};
   };
   %PrepareFunctionForOptimization(f);
   let obj = f();
-  assertFalse(%HasFastProperties(obj));
+  assertTrue(%HasFastProperties(obj));
   assertEquals(Object.getPrototypeOf(obj), null);
   assertEquals(["bar"], Object.keys(obj));
   assertEquals("barValue", obj.bar);
@@ -96,12 +96,12 @@ function TestSlowLiteralOptimized() {
 
   %OptimizeFunctionOnNextCall(f);
   obj = f();
-  assertFalse(%HasFastProperties(obj));
+  assertTrue(%HasFastProperties(obj));
   assertEquals(Object.getPrototypeOf(obj), null);
   assertEquals(["bar"], Object.keys(obj));
   assertEquals("barValue", obj.bar);
   obj.bar = "barValue2";
   assertEquals("barValue2", obj.bar);
 };
-TestSlowLiteralOptimized();
-TestSlowLiteralOptimized();
+TestNullProtoLiteralOptimized();
+TestNullProtoLiteralOptimized();

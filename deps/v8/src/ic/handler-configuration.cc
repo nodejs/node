@@ -690,9 +690,6 @@ void PrintSmiStoreHandler(int raw_handler, std::ostream& os) {
     case StoreHandler::Kind::kProxy:
       os << "kProxy";
       break;
-    case StoreHandler::Kind::kSharedStructField:
-      os << "kSharedStructField";
-      break;
     case StoreHandler::Kind::kKindsNumber:
       UNREACHABLE();
   }

@@ -39,6 +39,7 @@ class HeapInternalsBase {
                                              AllocationType allocation);
   AllocationResult AllocateMapForTest(Isolate* isolate);
   void SetForceOOM(Heap* heap, bool value);
+  void SetForceGCOnNextAllocation(Heap* heap, bool value);
   void SetDelaySweeperTasksForTesting(Heap* heap, bool value);
   int MemoryReducerStateId(Heap* heap);
   std::vector<Handle<FixedArray>> CreatePadding(
@@ -173,6 +174,9 @@ class WithHeapInternals : public TMixin, HeapInternalsBase {
   void SetForceOOM(bool value) {
     HeapInternalsBase::SetForceOOM(heap(), value);
   }
+  void SetForceGCOnNextAllocation(bool value) {
+    HeapInternalsBase::SetForceGCOnNextAllocation(heap(), value);
+  }
   void SetDelaySweeperTasksForTesting(bool value) {
     HeapInternalsBase::SetDelaySweeperTasksForTesting(heap(), value);
   }
@@ -188,8 +192,8 @@ class WithHeapInternals : public TMixin, HeapInternalsBase {
 
   void SealCurrentObjects() {
     // If you see this check failing, disable the flag at the start of your
-    // test: v8_flags.stress_concurrent_allocation = false; Background thread
-    // allocating concurrently interferes with this function.
+    // test: v8_flags.stress_concurrent_allocation.Set(false); Background
+    // thread allocating concurrently interferes with this function.
     CHECK(!v8_flags.stress_concurrent_allocation);
     InvokeMajorGC();
     InvokeMajorGC();
@@ -294,11 +298,11 @@ class V8_NODISCARD ManualEvacuationCandidatesSelectionScope final {
  public:
   explicit ManualEvacuationCandidatesSelectionScope(ManualGCScope&) {
     DCHECK(!v8_flags.manual_evacuation_candidates_selection);
-    v8_flags.manual_evacuation_candidates_selection = true;
+    v8_flags.manual_evacuation_candidates_selection.Set(true);
   }
   ~ManualEvacuationCandidatesSelectionScope() {
     DCHECK(v8_flags.manual_evacuation_candidates_selection);
-    v8_flags.manual_evacuation_candidates_selection = false;
+    v8_flags.manual_evacuation_candidates_selection.Set(false);
   }
 };
 

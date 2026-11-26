@@ -67,7 +67,7 @@ class linked_hash_set {
 
  private:
   template <class K>
-  using key_arg = typename KeyArgImpl::template type<K, key_type>;
+  using key_arg = typename KeyArgImpl::template Select<K, key_type>;
 
   using ListType = std::list<key_type, Alloc>;
 

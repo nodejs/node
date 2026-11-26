@@ -132,6 +132,8 @@ class V8InspectorSessionImpl : public V8InspectorSession,
   }
   uint64_t isolateId() const;
 
+  void restore(StringView savedState);
+
   void setWeakThis(std::weak_ptr<V8InspectorSessionImpl> weakThis) {
     m_weakThis = std::move(weakThis);
   }

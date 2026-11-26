@@ -6,10 +6,12 @@
 #define V8_EXPERIMENTAL_REDLINE_EXEC_TARGET_OPTIONS_H_
 
 #include <cstdint>
+#include <functional>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include "experimental/redline/exec/coverage.h"
 #include "experimental/redline/exec/reprl.h"
 
 namespace redline {
@@ -21,6 +23,7 @@ class Flags;
 // scripts share these flags:
 //
 //   --d8=PATH                 the instrumented d8 (or $REDLINE_D8)
+//   --target-kind=KIND        auto (default), redline or fuzzilli
 //   --d8-args="--a --b"       replaces the default d8 flags
 //   --d8-extra-args="--c"     appended to the (default or given) d8 flags
 //   --d8-env=K=V,K2=V2        extra environment variables for d8
@@ -29,11 +32,23 @@ class Flags;
 //   --capture-output          capture d8 stdout/stderr (default true)
 struct TargetOptions {
   std::string executable;
+  TargetKind kind = TargetKind::kAuto;
   std::vector<std::string> args;
   std::vector<std::pair<std::string, std::string>> extra_env;
   uint64_t timeout_us = static_cast<uint64_t>(1000) * 1000;
   int max_execs_before_respawn = 1000;
   bool capture_output = true;
+  // Edges to watch with hit count buckets, and whether to watch the
+  // optimized code region (coverage counters only, see exec/coverage.h).
+  std::vector<uint32_t> watch_edges;
+  bool watch_optimized = true;
+  // If set, each new target process gets these flags before `args`
+  // (ReprlChild::Options::random_args). A fuzzing session sets it when the
+  // configuration has randomize_d8_flags.
+  std::function<std::vector<std::string>()> random_args;
+  // Gets the result of each start of a target process with random flags
+  // (ReprlChild::Options::spawn_result).
+  std::function<void(const std::vector<std::string>&, bool)> spawn_result;
 
   // The flags Fuzzilli's V8 profile passes to d8 (without the randomized
   // part), so that coverage numbers are comparable.

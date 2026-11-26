@@ -706,6 +706,28 @@ TEST(Base64, DISABLED_HugeData) {
   EXPECT_EQ(huge, unescaped);
 }
 
+#if !defined(NDEBUG) && GTEST_HAS_DEATH_TEST
+TEST(Base64DeathTest, InPlaceUnescape) {
+  {
+    std::string s;
+    EXPECT_DEATH(absl::Base64Unescape(s, &s), "");
+    EXPECT_DEATH(absl::WebSafeBase64Unescape(s, &s), "");
+  }
+
+  {
+    std::string s = "YWJj";
+    EXPECT_DEATH(absl::Base64Unescape(s, &s), "");
+    EXPECT_DEATH(absl::WebSafeBase64Unescape(s, &s), "");
+  }
+
+  {
+    std::string s(64, 'A');
+    EXPECT_DEATH(absl::Base64Unescape(s, &s), "");
+    EXPECT_DEATH(absl::WebSafeBase64Unescape(s, &s), "");
+  }
+}
+#endif  // !defined(NDEBUG) && GTEST_HAS_DEATH_TEST
+
 TEST(Escaping, HexStringToBytesBackToHex) {
   std::string bytes, hex;
 

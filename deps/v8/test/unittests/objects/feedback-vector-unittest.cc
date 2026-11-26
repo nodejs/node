@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/api/api-inl.h"
+#include "src/codegen/compiler.h"
 #include "src/execution/execution.h"
 #include "src/heap/factory.h"
 #include "src/objects/feedback-cell-inl.h"
@@ -62,17 +63,17 @@ TEST_F(FeedbackVectorTest, VectorStructure) {
     FeedbackVectorHelper helper(vector);
     CHECK_EQ(8, helper.slot_count());
 
-    int index = vector->GetIndex(helper.slot(0));
+    int index = FeedbackVector::GetIndex(helper.slot(0));
 
-    CHECK_EQ(helper.slot(0), vector->ToSlot(index));
+    CHECK_EQ(helper.slot(0), FeedbackVector::ToSlot(index));
 
-    index = vector->GetIndex(helper.slot(3));
-    CHECK_EQ(helper.slot(3), vector->ToSlot(index));
+    index = FeedbackVector::GetIndex(helper.slot(3));
+    CHECK_EQ(helper.slot(3), FeedbackVector::ToSlot(index));
 
-    index = vector->GetIndex(helper.slot(7));
+    index = FeedbackVector::GetIndex(helper.slot(7));
     CHECK_EQ(3 + 4 * FeedbackMetadata::GetSlotSize(FeedbackSlotKind::kCall),
              index);
-    CHECK_EQ(helper.slot(7), vector->ToSlot(index));
+    CHECK_EQ(helper.slot(7), FeedbackVector::ToSlot(index));
 
     CHECK_EQ(3 + 5 * FeedbackMetadata::GetSlotSize(FeedbackSlotKind::kCall),
              vector->length().value());
@@ -145,7 +146,7 @@ TEST_F(FeedbackVectorTest, VectorICMetadata) {
 
 TEST_F(FeedbackVectorTest, VectorCallICStates) {
   if (!i::v8_flags.use_ic) return;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
 
   v8::HandleScope scope(v8_isolate());
   Isolate* isolate = i_isolate();
@@ -173,7 +174,7 @@ TEST_F(FeedbackVectorTest, VectorCallICStates) {
 // Test the Call IC states transfer with Function.prototype.apply
 TEST_F(FeedbackVectorTest, VectorCallICStateApply) {
   if (!i::v8_flags.use_ic) return;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
 
   v8::HandleScope scope(v8_isolate());
   Isolate* isolate = i_isolate();
@@ -212,7 +213,7 @@ TEST_F(FeedbackVectorTest, VectorCallICStateApply) {
 
 TEST_F(FeedbackVectorTest, VectorCallFeedback) {
   if (!i::v8_flags.use_ic) return;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
 
   v8::HandleScope scope(v8_isolate());
   Isolate* isolate = i_isolate();
@@ -241,8 +242,8 @@ TEST_F(FeedbackVectorTest, VectorCallFeedback) {
 
 TEST_F(FeedbackVectorTest, VectorPolymorphicCallFeedback) {
   if (!i::v8_flags.use_ic) return;
-  v8_flags.allow_natives_syntax = true;
-  v8_flags.lazy_feedback_allocation = false;
+  v8_flags.allow_natives_syntax.Set(true);
+  v8_flags.lazy_feedback_allocation.Set(false);
 
   v8::HandleScope scope(v8_isolate());
   Isolate* isolate = i_isolate();
@@ -271,7 +272,7 @@ TEST_F(FeedbackVectorTest, VectorPolymorphicCallFeedback) {
 
 TEST_F(FeedbackVectorTest, VectorCallFeedbackForArray) {
   if (!i::v8_flags.use_ic) return;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
 
   v8::HandleScope scope(v8_isolate());
   Isolate* isolate = i_isolate();
@@ -299,7 +300,7 @@ TEST_F(FeedbackVectorTest, VectorCallFeedbackForArray) {
 
 TEST_F(FeedbackVectorTest, VectorCallCounts) {
   if (!i::v8_flags.use_ic) return;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
 
   v8::HandleScope scope(v8_isolate());
   Isolate* isolate = i_isolate();
@@ -329,7 +330,7 @@ TEST_F(FeedbackVectorTest, VectorCallCounts) {
 
 TEST_F(FeedbackVectorTest, VectorConstructCounts) {
   if (!i::v8_flags.use_ic) return;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
 
   v8::HandleScope scope(v8_isolate());
   Isolate* isolate = i_isolate();
@@ -361,7 +362,7 @@ TEST_F(FeedbackVectorTest, VectorConstructCounts) {
 
 TEST_F(FeedbackVectorTest, VectorSpeculationMode) {
   if (!i::v8_flags.use_ic) return;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
 
   v8::HandleScope scope(v8_isolate());
   Isolate* isolate = i_isolate();
@@ -396,7 +397,7 @@ TEST_F(FeedbackVectorTest, VectorCallSpeculationModeAndFeedbackContent) {
   if (!i::v8_flags.use_ic) return;
   if (!i::v8_flags.turbofan) return;
   if (i::v8_flags.jitless) return;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
 
   v8::HandleScope scope(v8_isolate());
   Isolate* isolate = i_isolate();
@@ -428,7 +429,7 @@ TEST_F(FeedbackVectorTest, VectorCallSpeculationModeAndFeedbackContent) {
 
 TEST_F(FeedbackVectorTest, VectorLoadICStates) {
   if (!i::v8_flags.use_ic) return;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
 
   v8::HandleScope scope(v8_isolate());
   Isolate* isolate = i_isolate();
@@ -480,7 +481,7 @@ TEST_F(FeedbackVectorTest, VectorLoadICStates) {
 
 TEST_F(FeedbackVectorTest, VectorLoadGlobalICSlotSharing) {
   if (!i::v8_flags.use_ic) return;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
 
   v8::HandleScope scope(v8_isolate());
   Isolate* isolate = i_isolate();
@@ -523,7 +524,7 @@ TEST_F(FeedbackVectorTest, VectorLoadGlobalICSlotSharing) {
 
 TEST_F(FeedbackVectorTest, VectorLoadICOnSmi) {
   if (!i::v8_flags.use_ic) return;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
 
   v8::HandleScope scope(v8_isolate());
   Isolate* isolate = i_isolate();
@@ -579,7 +580,7 @@ TEST_F(FeedbackVectorTest, VectorLoadICOnSmi) {
 
 TEST_F(FeedbackVectorTest, ReferenceContextAllocatesNoSlots) {
   if (!i::v8_flags.use_ic) return;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
 
   v8::HandleScope scope(v8_isolate());
   Isolate* isolate = i_isolate();
@@ -722,7 +723,7 @@ TEST_F(FeedbackVectorTest, ReferenceContextAllocatesNoSlots) {
 
 TEST_F(FeedbackVectorTest, VectorStoreICBasic) {
   if (!i::v8_flags.use_ic) return;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
 
   v8::HandleScope scope(v8_isolate());
 
@@ -747,7 +748,7 @@ TEST_F(FeedbackVectorTest, VectorStoreICBasic) {
 
 TEST_F(FeedbackVectorTest, DefineNamedOwnInLiteralIC) {
   if (!i::v8_flags.use_ic) return;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
 
   v8::HandleScope scope(v8_isolate());
 
@@ -818,6 +819,93 @@ TEST_F(FeedbackVectorTest, MaxLengthAndSizeFor) {
   ASSERT_DEATH_IF_SUPPORTED(
       { FeedbackVector::SizeFor(FeedbackVector::kMaxLength + 1); }, ".*");
   ASSERT_DEATH_IF_SUPPORTED({ FeedbackVector::SizeFor(1 << 30); }, ".*");
+}
+
+TEST_F(FeedbackVectorTest, OneToManyTransitionWithDisabledOptimization) {
+  v8_flags.allow_natives_syntax.Set(true);
+  v8::HandleScope scope(v8_isolate());
+  Isolate* isolate = i_isolate();
+
+  // 1. Non-lazily-compilable class fields initializer (default JS features).
+  TryRunJS(
+      "function makeFieldClass(v) {"
+      "  class C {"
+      "    x = v;"
+      "  }"
+      "  return C;"
+      "}"
+      "var FC1 = makeFieldClass(10);"
+      "new FC1();");
+
+  DirectHandle<JSFunction> fc1 = GetFunction("FC1");
+  DirectHandle<JSFunction> init1 = Cast<JSFunction>(
+      JSReceiver::GetProperty(isolate, fc1,
+                              isolate->factory()->class_fields_symbol())
+          .ToHandleChecked());
+  EXPECT_FALSE(init1->shared()->allows_lazy_compilation());
+  EXPECT_EQ(init1->raw_feedback_cell()->map(),
+            ReadOnlyRoots(isolate).one_closure_cell_map());
+
+  {
+    IsCompiledScope is_compiled_scope(
+        init1->shared()->is_compiled_scope(isolate));
+    JSFunction::EnsureFeedbackVector(isolate, init1, &is_compiled_scope);
+    Compiler::CompileOptimized(isolate, init1, ConcurrencyMode::kSynchronous,
+                               CodeKind::TURBOFAN_JS);
+  }
+  const bool init_was_specialized =
+      init1->code(isolate)->is_context_specialized();
+  init1->shared()->DisableOptimization(isolate, BailoutReason::kNeverOptimize);
+
+  TryRunJS("var FC2 = makeFieldClass(20); new FC2();");
+  DirectHandle<JSFunction> fc2 = GetFunction("FC2");
+  DirectHandle<JSFunction> init2 = Cast<JSFunction>(
+      JSReceiver::GetProperty(isolate, fc2,
+                              isolate->factory()->class_fields_symbol())
+          .ToHandleChecked());
+  EXPECT_TRUE(init2->shared()->all_optimization_disabled());
+  EXPECT_EQ(init1->raw_feedback_cell(), init2->raw_feedback_cell());
+  EXPECT_EQ(init2->raw_feedback_cell()->map(),
+            ReadOnlyRoots(isolate).many_closures_cell_map());
+  EXPECT_FALSE(init2->code(isolate)->is_context_specialized());
+  if (init_was_specialized) {
+    EXPECT_FALSE(init2->IsOptimizationRequested(isolate));
+  }
+
+  // 2. Non-lazily-compilable decorator auto-accessor (disabled vs enabled).
+  v8_flags.js_decorators.Set(true);
+  TryRunJS(
+      "function makeAccessorClass() {"
+      "  class D {"
+      "    accessor y = 2;"
+      "  }"
+      "  return D;"
+      "}"
+      "var D1 = makeAccessorClass();"
+      "var d1 = new D1();"
+      "var getter1 = Object.getOwnPropertyDescriptor(D1.prototype, 'y').get;"
+      "%PrepareFunctionForOptimization(getter1);"
+      "d1.y;"
+      "%OptimizeFunctionOnNextCall(getter1);"
+      "d1.y;");
+
+  DirectHandle<JSFunction> getter1 = GetFunction("getter1");
+  EXPECT_FALSE(getter1->shared()->allows_lazy_compilation());
+  const bool getter_was_specialized =
+      getter1->code(isolate)->is_context_specialized();
+
+  TryRunJS(
+      "var D2 = makeAccessorClass();"
+      "var getter2 = Object.getOwnPropertyDescriptor(D2.prototype, 'y').get;");
+
+  DirectHandle<JSFunction> getter2 = GetFunction("getter2");
+  EXPECT_FALSE(getter2->shared()->all_optimization_disabled());
+  EXPECT_EQ(getter2->raw_feedback_cell()->map(),
+            ReadOnlyRoots(isolate).many_closures_cell_map());
+  EXPECT_FALSE(getter2->code(isolate)->is_context_specialized());
+  if (getter_was_specialized) {
+    EXPECT_TRUE(getter2->IsOptimizationRequested(isolate));
+  }
 }
 
 }  // namespace internal

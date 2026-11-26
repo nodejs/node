@@ -296,11 +296,15 @@ void IncrementalStringBuilder::Extend() {
   current_index_ = 0;
 }
 
-MaybeDirectHandle<String> IncrementalStringBuilder::Finish() {
+MaybeDirectHandle<String> IncrementalStringBuilder::Finish(
+    ShouldThrow should_throw) {
   ShrinkCurrentPart();
   Accumulate(current_part());
   if (overflowed_) {
-    THROW_NEW_ERROR(isolate_, NewInvalidStringLengthError());
+    if (should_throw == kThrowOnError) {
+      THROW_NEW_ERROR(isolate_, NewInvalidStringLengthError());
+    }
+    return {};
   }
   if (isolate()->serializer_enabled()) {
     return factory()->InternalizeString(
@@ -362,8 +366,40 @@ void IncrementalStringBuilder::AppendStringCapped(DirectHandle<String> string,
   if (string->length() <= max_length) {
     return AppendString(string);
   }
-  string = isolate_->factory()->NewProperSubString(string, 0, max_length);
-  AppendString(string);
+  if (max_length > 0 && !string->IsOneByteRepresentation() &&
+      encoding_ == String::ONE_BYTE_ENCODING) {
+    ChangeEncoding();
+  }
+  // Copy the prefix directly into {current_part_} rather than calling
+  // NewProperSubString, which would flatten the entire (potentially huge)
+  // string and keep it alive via a SlicedString.
+  uint32_t offset = 0;
+  uint32_t remaining = max_length;
+  while (remaining > 0) {
+    uint32_t chunk = std::min(
+        remaining, static_cast<uint32_t>(part_length_ - current_index_));
+    {
+      DisallowGarbageCollection no_gc;
+      SharedStringAccessGuardIfNeeded access_guard(isolate_);
+      if (encoding_ == String::ONE_BYTE_ENCODING) {
+        String::WriteToFlat(
+            *string,
+            Cast<SeqOneByteString>(*current_part_)->GetChars(no_gc) +
+                current_index_,
+            offset, chunk, access_guard);
+      } else {
+        String::WriteToFlat(
+            *string,
+            Cast<SeqTwoByteString>(*current_part_)->GetChars(no_gc) +
+                current_index_,
+            offset, chunk, access_guard);
+      }
+    }
+    current_index_ += chunk;
+    offset += chunk;
+    remaining -= chunk;
+    if (current_index_ == part_length_) Extend();
+  }
   AppendCStringLiteral("<...>");
 }
 

@@ -17,13 +17,11 @@ _SCRIPT_ONLY_ANNOTATION_RE = re.compile(
     r"^\[(?P<function>[^\]]+?) @ (?P<script>.+)\]$")
 # Pointers in `(this=0xADDR, [0]=0xADDR <Type>, ...)`.
 _ADDR_RE = re.compile(r"0x[0-9a-fA-F]+")
-# Known-object names in briefs, e.g. `<Oddball: TrueValue>` or
-# `<Oddball: maybe NoElementsProtector, maybe TrueValue>`. The names depend on
-# the build config (static roots) and the available heap hints, so mask them
-# but keep the type. Quoted string contents and Smi values do not match and
-# stay exact.
-_KNOWN_OBJECT_RE = re.compile(
-    r"<(\w+): (?:maybe )?[A-Z]\w*(?:, maybe [A-Z]\w*)*>")
+# Known-object names in briefs, e.g. `<Oddball: TrueValue>`. The names depend
+# on the build config (static roots), so mask them but keep the type. A `maybe`
+# guess is left unmasked, so it still fails the comparison. Quoted string
+# contents and Smi values do not match and stay exact.
+_KNOWN_OBJECT_RE = re.compile(r"<(\w+): [A-Z]\w*>")
 
 _DEFAULT_EXPECTED_ANNOTATIONS = (
     "[test_func_3 @ <base>/throw.js:15:21] (this=<addr>, [0]=<Smi: 44>, "
@@ -48,9 +46,9 @@ def _normalize_annotation(annotation, trailer):
   annotation = annotation.strip()
   trailer = (trailer or "").strip()
   # gdb appends a native argument list after the decorated function name,
-  # e.g. "(this=...) ()". Drop it so only the v8 trailer remains.
-  if trailer.endswith("()"):
-    trailer = trailer[:-2].strip()
+  # e.g. "(this=...) ()" or "(this=...) () at <builtin>:1". Drop it so only
+  # the v8 trailer remains.
+  trailer = re.sub(r"\s*\(\)(?: at \S+:\d+)?$", "", trailer)
   # Mask the pointers so the trailer compares stably across runs.
   trailer = _ADDR_RE.sub("<addr>", trailer)
   trailer = _KNOWN_OBJECT_RE.sub(r"<\1>", trailer)

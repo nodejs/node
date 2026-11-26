@@ -350,12 +350,6 @@ Tagged<Object> StackGuard::HandleInterrupts(InterruptLevel level) {
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-  if (TestAndClear(&interrupt_flags, DEOPT_MARKED_ALLOCATION_SITES)) {
-    TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
-                "V8.GCDeoptMarkedAllocationSites");
-    isolate_->heap()->DeoptMarkedAllocationSites();
-  }
-
   if (TestAndClear(&interrupt_flags, INSTALL_CODE)) {
     TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                 "V8.InstallOptimizedFunctions");

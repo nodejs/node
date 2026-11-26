@@ -29,6 +29,14 @@
   'proposals/threads/memory/wait-notify-unshared': [FAIL],
   'limits': [FAIL, HEAVY],
 
+  # TODO(tlively): Update upstream test to put parentidx first in protoconfig.
+  'proposals/custom-descriptors/custom-descriptors/configure-all': [FAIL],
+
+  # TODO(403372470): --wasm-staging enables --wasm-custom-descriptors, under
+  # which Wasm objects behave like sealed empty JS objects instead of throwing.
+  'gc/exported-object.tentative': [FAIL],
+  'wpt/gc/exported-object.tentative': [FAIL],
+
   # TODO(402340845): This requires the type reflection proposal to be staged or enabled by default.
   'wpt/function/call.tentative': [FAIL],
   'wpt/function/table.tentative': [FAIL],

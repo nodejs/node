@@ -1,0 +1,7 @@
+Test that the parameter initialization block scope set up for sloppy eval is visible to the debugger.
+Break 0 scopes: eval,block,closure,script,global
+Break 0 y: 7
+Break 1 scopes: block,local,script,global
+Break 1 y: 7
+test() result: 12
+Total breaks: 2

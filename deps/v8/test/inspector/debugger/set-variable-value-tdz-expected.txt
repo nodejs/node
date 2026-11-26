@@ -1,0 +1,51 @@
+Tests that Debugger.setVariableValue refuses TDZ writes
+
+Running test: testContextAllocatedTdz
+setVariableValue on context TDZ result:
+{
+    error : {
+        code : -32603
+        message : Internal error
+    }
+    id : <messageId>
+}
+evaluateOnCallFrame in TDZ threw exception: true
+Final return value after normal initialization: 42
+
+Running test: testStackAllocatedTdz
+setVariableValue on stack TDZ result:
+{
+    error : {
+        code : -32603
+        message : Internal error
+    }
+    id : <messageId>
+}
+Final return value after normal initialization: 84
+
+Running test: testScriptScopeTdz
+Script scope index: 0
+setVariableValue on script TDZ result:
+{
+    error : {
+        code : -32603
+        message : Internal error
+    }
+    id : <messageId>
+}
+scriptVar value after normal initialization: 123
+
+Running test: testModuleScopeTdz
+Module scope index: 0
+setVariableValue on module TDZ result:
+{
+    error : {
+        code : -32603
+        message : Internal error
+    }
+    id : <messageId>
+}
+
+Running test: testGeneratorTdzRepro
+Generator register TDZ test result: {"setRes":false,"readBeforeInitThrew":true}
+Generator context TDZ test result: {"setRes":false,"readBeforeInitThrew":true}

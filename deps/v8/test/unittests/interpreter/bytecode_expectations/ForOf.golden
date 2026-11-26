@@ -162,7 +162,7 @@ bytecodes: [
                 B(Ldar), R(8),
                 B(ReThrow),
                 B(Ldar), R(8),
-                B(Return),
+  /*   82 S> */ B(Return),
                 B(LdaUndefined),
   /*   85 S> */ B(Return),
 ]
@@ -350,7 +350,7 @@ bytecodes: [
                 B(Ldar), R(6),
                 B(ReThrow),
                 B(Ldar), R(6),
-                B(Return),
+  /*  102 S> */ B(Return),
                 B(LdaUndefined),
   /*  105 S> */ B(Return),
 ]

@@ -11,6 +11,7 @@
 #include "src/debug/debug-scope-info.h"
 #include "src/debug/debug.h"
 #include "src/execution/frames-inl.h"
+#include "src/objects/contexts-inl.h"
 #include "src/objects/js-generator-inl.h"
 #include "src/objects/source-text-module.h"
 #include "src/objects/string-set.h"
@@ -24,6 +25,12 @@ ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector)
       frame_inspector_(frame_inspector),
       function_(frame_inspector_->GetFunction()),
       script_(frame_inspector_->GetScript()) {
+#if V8_ENABLE_WEBASSEMBLY
+  if (frame_inspector->IsWasm()) {
+    return;
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
+
   if (!IsContext(*frame_inspector->GetContext())) {
     // Optimized frame, context or function cannot be materialized. Give up.
     return;
@@ -178,9 +185,11 @@ void ScopeIterator::UnwindToClosureContext() {
   }
 }
 
-void ScopeIterator::UnwrapEvaluationContext() {
-  if (!context_->IsDebugEvaluateContext()) return;
-  Tagged<Context> current = *context_;
+// static
+Tagged<Context> ScopeIterator::UnwrapEvaluationContext(
+    Tagged<Context> context) {
+  if (!context->IsDebugEvaluateContext()) return context;
+  Tagged<Context> current = context;
   do {
     Tagged<Object> wrapped = current->GetNoCell(Context::WRAPPED_CONTEXT_INDEX);
     if (IsContext(wrapped)) {
@@ -190,7 +199,11 @@ void ScopeIterator::UnwrapEvaluationContext() {
       current = current->previous();
     }
   } while (current->IsDebugEvaluateContext());
-  context_ = handle(current, isolate_);
+  return current;
+}
+
+void ScopeIterator::UnwrapEvaluationContext() {
+  context_ = handle(UnwrapEvaluationContext(*context_), isolate_);
 }
 
 DirectHandle<JSObject> ScopeIterator::MaterializeScopeDetails() {
@@ -304,25 +317,59 @@ bool ScopeIterator::InPausedFunctionScopes() const {
   return false;
 }
 
+bool ScopeIterator::ContextBelongsToCurrentScript() const {
+  if (!HasScope()) return true;
+
+  const bool closure_created_in_own_context =
+      current_scope().is_script_scope() || current_scope().is_module_scope();
+
+  // 1. While we are still inside the scopes of the paused function,
+  // *context_ == UnwrapEvaluationContext(function_->context()) indicates that
+  // none of the paused function's own contexts have been pushed yet (e.g.
+  // pausing in a function before context allocation). Top-level script and
+  // module functions are the exception because they execute directly within
+  // their own ScriptContext / ModuleContext.
+  if (InPausedFunctionScopes()) {
+    if (!closure_created_in_own_context &&
+        *context_ == UnwrapEvaluationContext(function_->context())) {
+      return false;
+    }
+    return true;
+  }
+
+  // 2. If the current script is a direct eval script, walk the caller's
+  // ScopeInfo chain. If context_ matches the eval call site's ScopeInfo or any
+  // enclosing caller scope, the runtime context chain has already unwound into
+  // the caller script, so context_ does not belong to script_.
+  if (script_->has_eval_from_scope_info()) {
+    Tagged<ScopeInfo> eval_caller =
+        Cast<ScopeInfo>(script_->eval_from_scope_info());
+    while (true) {
+      if (context_->scope_info() == eval_caller) return false;
+      if (!eval_caller->HasOuterScopeInfo()) break;
+      eval_caller = eval_caller->OuterScopeInfo();
+    }
+  }
+
+  // 3. For any other inner scope not in the paused function, reaching a
+  // NativeContext, ScriptContext, or ModuleContext means all runtime contexts
+  // allocated by the current script have been unwound, unless current_scope()
+  // is itself the top-level script or module scope.
+  if (!closure_created_in_own_context &&
+      (IsNativeContext(*context_) || context_->IsScriptContext() ||
+       context_->IsModuleContext())) {
+    return false;
+  }
+
+  return true;
+}
+
 bool ScopeIterator::HasContext() const {
   if (HasScope() && NeedsContext()) {
     // In rare cases we pause in a scope that doesn't have its context pushed
     // yet. E.g. when pausing in for-of loop headers (see
     // https://crbug.com/399002824).
-    //
-    // While we are still in the scopes of the paused function, the function's
-    // creation context means that none of the function's own contexts have
-    // been pushed. Check this first: the creation context can belong to a
-    // different script (the caller of a direct eval), so comparing scope IDs,
-    // which are only unique within a script, would be meaningless.
-    // Top-level script and module functions are the exception: they are
-    // created with the script/module context as their context.
-    const bool closure_created_in_own_context =
-        current_scope().is_script_scope() || current_scope().is_module_scope();
-    if (!closure_created_in_own_context && InPausedFunctionScopes() &&
-        *context_ == function_->context()) {
-      return false;
-    }
+    if (!ContextBelongsToCurrentScript()) return false;
 
     // Otherwise, context_ belongs to the same script as current_scope() and
     // we can detect a not-yet-pushed context by comparing the scope ID of the
@@ -352,7 +399,7 @@ bool ScopeIterator::NeedsContext() const {
                     (current_scope().is_function_scope() ||
                      current_scope().is_eval_scope()) &&
                     !function_.is_null(),
-                function_->context() != *context_);
+                UnwrapEvaluationContext(function_->context()) != *context_);
 
   return needs_context;
 }
@@ -366,44 +413,48 @@ void ScopeIterator::AdvanceOneContext() {
 void ScopeIterator::AdvanceScope() {
   DCHECK(HasScope());
 
-  do {
+  if (NeedsAndHasContext()) {
+    // current_scope() needs a context so moving one scope up requires us to
+    // also move up one context.
+    AdvanceOneContext();
+  }
+
+  const DebugScriptScope origin = current_scope();
+  for (std::optional<DebugScriptScope> parent = origin.parent();
+       parent.has_value(); parent = parent->parent()) {
+    current_scope_index_ = parent->scope_index();
+    if (IsDebuggerVisibleParent(origin, *parent)) {
+      return;
+    }
     if (NeedsAndHasContext()) {
-      // current_scope() needs a context so moving one scope up requires us to
-      // also move up one context.
       AdvanceOneContext();
     }
+  }
 
-    if (std::optional<DebugScriptScope> parent = current_scope().parent()) {
-      current_scope_index_ = parent->scope_index();
-      continue;
-    }
-
-    if (std::optional<DebugScriptScope> outer =
-            FindEvalOuterScope(isolate_, script_)) {
-      // The root scope of the paused script is either the closure scope itself
-      // or one of its ancestors, so we have left the paused function by now.
-      // Reset `function_` right away: `closure_scope_index_` indexes into the
-      // paused script's scope tree, so comparing it with `current_scope_index_`
-      // in the caller's script tree is meaningless (e.g. both are 0 when
-      // pausing in the top-level code of a direct eval called from another
-      // eval's top-level code).
-      // Do not skip `outer` if `outer->is_hidden()` is true: like
-      // `TryParseAndRetrieveScopes()`, `FindEvalOuterScope()` lands on the
-      // innermost scope at the eval call site (such as the outer block scope
-      // of a `for (let ...)` loop when eval is called in the initializer).
-      function_ = Handle<JSFunction>();
-      script_ =
-          handle(Cast<Script>(script_->eval_from_shared()->script()), isolate_);
-      debug_scope_info_ = handle(*outer->info(), isolate_);
-      current_scope_index_ = outer->scope_index();
-    } else {
-      // We left the root of the outermost scope tree we can reach (e.g. the
-      // root of an indirect eval, a `new Function` or a wrapped function).
-      // Continue with the runtime context chain.
-      current_scope_index_ = -1;
-    }
-    break;
-  } while (current_scope().is_hidden());
+  if (std::optional<DebugScriptScope> outer =
+          FindEvalOuterScope(isolate_, script_)) {
+    // The root scope of the paused script is either the closure scope itself
+    // or one of its ancestors, so we have left the paused function by now.
+    // Reset `function_` right away: `closure_scope_index_` indexes into the
+    // paused script's scope tree, so comparing it with `current_scope_index_`
+    // in the caller's script tree is meaningless (e.g. both are 0 when
+    // pausing in the top-level code of a direct eval called from another
+    // eval's top-level code).
+    // Do not skip `outer` if `outer->is_hidden()` is true: like
+    // `TryParseAndRetrieveScopes()`, `FindEvalOuterScope()` lands on the
+    // innermost scope at the eval call site (such as the outer block scope
+    // of a `for (let ...)` loop when eval is called in the initializer).
+    function_ = Handle<JSFunction>();
+    script_ =
+        handle(Cast<Script>(script_->eval_from_shared()->script()), isolate_);
+    debug_scope_info_ = handle(*outer->info(), isolate_);
+    current_scope_index_ = outer->scope_index();
+  } else {
+    // We left the root of the outermost scope tree we can reach (e.g. the
+    // root of an indirect eval, a `new Function` or a wrapped function).
+    // Continue with the runtime context chain.
+    current_scope_index_ = -1;
+  }
 }
 
 void ScopeIterator::AdvanceContext() { AdvanceOneContext(); }
@@ -529,6 +580,7 @@ Handle<JSObject> ScopeIterator::ScopeObject(Mode mode) {
 #ifdef V8_ENABLE_TDZ_HOLE
     DCHECK(!IsTheHole(*value));
 #endif
+    DCHECK(!IsStaleRegister(*value));
     if (IsOptimizedOut(*value)) {
       JSObject::SetAccessor(
           scope, name, isolate_->factory()->value_unavailable_accessor(), NONE)
@@ -549,8 +601,8 @@ Handle<JSObject> ScopeIterator::ScopeObject(Mode mode) {
     } else {
       // Overwrite properties. Sometimes names in the same scope can collide,
       // e.g. with extension objects introduced via local eval.
-      Object::SetPropertyOrElement(isolate_, scope, name, value,
-                                   Just(ShouldThrow::kDontThrow))
+      JSReceiver::CreateDataProperty(isolate_, scope, name, value,
+                                     Just(ShouldThrow::kDontThrow))
           .Check();
     }
     return false;
@@ -714,6 +766,30 @@ int ScopeIterator::GetSourcePosition() const {
   }
 }
 
+bool ScopeIterator::IsLocalInTdz(const DebugVariableInfo& var,
+                                 Tagged<Object> value) const {
+  if (IsTheHole(value) || IsTdzHole(value)) return true;
+  // When hole initialization is elided (var.is_hole_initialization_elided),
+  // the stack register holds `undefined` before the declaration runs instead
+  // of an actual TdzHole. In that case we intentionally use the lightweight
+  // static GetSourcePosition() <= var.initializer_position heuristic rather
+  // than scanning BytecodeArray and SourcePositionTable in the debugger. In
+  // multi-binding destructuring declarations (`let [a, b = (debugger, 2)] =
+  // [undefined]`), ParserBase::ParseVariableDeclarations assigns the end
+  // position of the entire declaration as initializer_position for all
+  // bindings in the pattern, so earlier bindings initialized to `undefined`
+  // conservatively appear unavailable (<value unavailable>) on read-side
+  // scope inspection while paused mid-declaration until the declaration
+  // finishes. We consider this edge case working as intended.
+  if (var.is_hole_initialization_elided && IsUndefined(value) &&
+      var.initializer_position != kNoSourcePosition &&
+      GetSourcePosition() != kNoSourcePosition &&
+      GetSourcePosition() <= var.initializer_position) {
+    return true;
+  }
+  return false;
+}
+
 void ScopeIterator::VisitScriptScope(const Visitor& visitor) const {
   DirectHandle<ScriptContextTable> script_contexts(
       context_->native_context()->script_context_table(), isolate_);
@@ -781,27 +857,37 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
     // around "this", since the current way is rather hacky when the
     // receiver is context-allocated.
     auto [this_alloc, this_index] = current_scope().receiver_info();
-    Handle<Object> receiver =
-        this_alloc == VariableAllocationInfo::CONTEXT
-            ? handle(context_->GetNoCell(this_index), isolate_)
-        : frame_inspector_ == nullptr ? handle(generator_->receiver(), isolate_)
-                                      : frame_inspector_->GetReceiver();
+    Handle<Object> receiver;
+    if (this_alloc == VariableAllocationInfo::CONTEXT) {
+      if (HasContext()) {
+        CHECK_LT(static_cast<unsigned>(this_index),
+                 static_cast<unsigned>(context_->length()));
+        receiver = indirect_handle(Context::Get(context_, this_index, isolate_),
+                                   isolate_);
+      } else {
+        receiver = isolate_->factory()->optimized_out();
+      }
+    } else {
+      receiver = frame_inspector_ == nullptr
+                     ? handle(generator_->receiver(), isolate_)
+                     : frame_inspector_->GetReceiver();
+    }
     if (visitor(isolate_->factory()->this_string(), receiver, scope_type)) {
       return true;
     }
   }
 
   if (current_scope().has_function_variable()) {
-    DirectHandle<String> name(current_scope().function_variable_name(),
-                              isolate_);
-    Handle<Object> function_value;
-    if (InInnerScope()) {
-      function_value = frame_inspector_ == nullptr
-                           ? function_
-                           : frame_inspector_->GetFunction();
-    } else {
-      auto [fn_alloc, fn_index] = current_scope().function_variable_info();
-      if (fn_alloc == VariableAllocationInfo::CONTEXT && HasContext()) {
+    auto [fn_alloc, fn_index] = current_scope().function_variable_info();
+    if (mode != Mode::STACK || fn_alloc != VariableAllocationInfo::CONTEXT) {
+      DirectHandle<String> name(current_scope().function_variable_name(),
+                                isolate_);
+      Handle<Object> function_value;
+      if (InInnerScope()) {
+        function_value = frame_inspector_ == nullptr
+                             ? function_
+                             : frame_inspector_->GetFunction();
+      } else if (fn_alloc == VariableAllocationInfo::CONTEXT && HasContext()) {
         CHECK_LT(static_cast<unsigned>(fn_index),
                  static_cast<unsigned>(context_->length()));
         function_value = indirect_handle(
@@ -809,8 +895,8 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
       } else {
         function_value = isolate_->factory()->optimized_out();
       }
+      if (visitor(name, function_value, scope_type)) return true;
     }
-    if (visitor(name, function_value, scope_type)) return true;
   }
 
   DebugScriptScope scope = current_scope();
@@ -882,6 +968,11 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
           CHECK_LT(static_cast<uint32_t>(index),
                    parameters_and_registers->ulength().value());
           value = handle(parameters_and_registers->get(index), isolate_);
+          if (IsStaleRegister(*value)) {
+            value = isolate_->factory()->optimized_out();
+          } else if (IsLocalInTdz(var, *value)) {
+            value = isolate_->factory()->tdz_hole_value();
+          }
         } else {
           JavaScriptFrame* frame = GetFrame();
           if (frame->is_unoptimized()) {
@@ -889,15 +980,16 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
             CHECK_LT(index, frame->ComputeExpressionsCount());
           }
           value = frame_inspector_->GetExpression(index);
+          if (IsStaleRegister(*value)) {
+            value = isolate_->factory()->optimized_out();
+          }
           if (IsOptimizedOut(*value)) {
             // We'll rematerialize this later.
             if (args_alloc == VariableAllocationInfo::STACK &&
                 args_index == var.index) {
               continue;
             }
-          } else if (IsLexicalVariableMode(var.mode) && IsUndefined(*value) &&
-                     GetSourcePosition() != kNoSourcePosition &&
-                     GetSourcePosition() <= var.initializer_position) {
+          } else if (IsLocalInTdz(var, *value)) {
             // Variables that are `undefined` could also mean an elided hole
             // write. We explicitly check the static scope information if we
             // are currently stopped before the variable is actually initialized
@@ -976,8 +1068,19 @@ void ScopeIterator::VisitLocalScope(const Visitor& visitor, Mode mode,
       // FunctionGetArguments does.
       if (frame_inspector_ != nullptr && !closure_scope().is_arrow_scope()) {
         auto [args_alloc, args_index] = closure_scope().arguments_info();
-        bool arguments_optimized_out =
-            args_alloc == VariableAllocationInfo::NONE;
+        bool arguments_optimized_out = false;
+        if (args_alloc == VariableAllocationInfo::NONE) {
+          for (int i = 0; i < closure_scope().variable_count(); ++i) {
+            DebugVariableInfo var = closure_scope().variable(i);
+            if (var.name == *isolate_->factory()->arguments_string()) {
+              if (var.mode == VariableMode::kVar &&
+                  var.location == VariableLocation::UNALLOCATED) {
+                arguments_optimized_out = true;
+              }
+              break;
+            }
+          }
+        }
         JavaScriptFrame* frame = GetFrame();
         if (!arguments_optimized_out &&
             args_alloc == VariableAllocationInfo::STACK) {
@@ -985,8 +1088,10 @@ void ScopeIterator::VisitLocalScope(const Visitor& visitor, Mode mode,
             CHECK_GE(args_index, 0);
             CHECK_LT(args_index, frame->ComputeExpressionsCount());
           }
-          arguments_optimized_out =
-              IsOptimizedOut(*frame_inspector_->GetExpression(args_index));
+          Tagged<Object> arguments_value =
+              *frame_inspector_->GetExpression(args_index);
+          arguments_optimized_out = IsOptimizedOut(arguments_value) ||
+                                    IsStaleRegister(arguments_value);
         }
 
         if (arguments_optimized_out) {
@@ -1052,6 +1157,7 @@ bool ScopeIterator::SetLocalVariableValue(DirectHandle<String> variable_name,
 
         case VariableLocation::PARAMETER: {
           if (!InInnerScope() || var.is_receiver) return false;
+          DCHECK_EQ(var.mode, VariableMode::kVar);
           if (frame_inspector_ == nullptr) {
             // Set the variable in the suspended generator.
             DCHECK(!generator_.is_null());
@@ -1083,6 +1189,41 @@ bool ScopeIterator::SetLocalVariableValue(DirectHandle<String> variable_name,
             CHECK_GE(index, 0);
             CHECK_LT(static_cast<uint32_t>(index),
                      parameters_and_registers->ulength().value());
+            Tagged<Object> current_val = parameters_and_registers->get(index);
+            // Intentional: SetLocalVariableValue intentionally checks only
+            // actual hole values (IsTheHole / IsTdzHole) and does not call
+            // IsLocalInTdz:
+            // 1. Context, script, and module lexical slots never elide TdzHole
+            //    initialization, and writing over TdzHole via Context::Set
+            //    would wrap a kNotAssigned (NoCell) slot in a ContextCell
+            //    (leaking a raw ContextCell to JS).
+            // 2. Stack and suspended-generator VariableLocation::LOCAL
+            //    registers only emit TdzHole when a path before or across the
+            //    initializer can read the register
+            //    (Variable::binding_needs_init()); otherwise TdzHole
+            //    initialization is elided and the register holds `undefined`
+            //    until the initializer runs.
+            // 3. Calling IsLocalInTdz here falsely rejected valid debugger
+            //    writes to already-initialized `undefined` locals (such as in
+            //    switch scopes where initializer_position is kMaxInt, or
+            //    earlier bindings in multi-binding destructuring declarations
+            //    where initializer_position is the end of the declaration).
+            // 4. Working as intended (WAI): While overwriting `undefined` with
+            //    another value in an elided-TDZ register via
+            //    SetLocalVariableValue is theoretically observable (e.g. to a
+            //    subsequent debugger read via VisitLocals /
+            //    DebugEvaluate::Local before the initializer runs, since
+            //    IsLocalInTdz only checks IsUndefined(value)), it cannot
+            //    violate VM, compiler, deoptimization, or ContextCell
+            //    invariants and is overwritten when the initializer executes.
+            //    We intentionally do not care about this edge case and consider
+            //    it working as intended.
+            if (IsOptimizedOut(current_val) || IsStaleRegister(current_val)) {
+              return false;
+            }
+            if (IsTheHole(current_val) || IsTdzHole(current_val)) {
+              return false;
+            }
             parameters_and_registers->set(index, *new_value);
           } else {
             // Set the variable on the stack.
@@ -1091,11 +1232,21 @@ bool ScopeIterator::SetLocalVariableValue(DirectHandle<String> variable_name,
 
             CHECK_GE(index, 0);
             CHECK_LT(index, frame->ComputeExpressionsCount());
+            DirectHandle<Object> current_val =
+                frame_inspector_->GetExpression(index);
+            if (IsOptimizedOut(*current_val) || IsStaleRegister(*current_val)) {
+              return false;
+            }
+            // Intentional: As explained above, check only actual hole values
+            // for stack registers.
+            if (IsTheHole(*current_val) || IsTdzHole(*current_val)) {
+              return false;
+            }
             frame->SetExpression(index, *new_value);
           }
           return true;
 
-        case VariableLocation::CONTEXT:
+        case VariableLocation::CONTEXT: {
           if (!HasContext()) return false;
           // We know of at least one open bug where the context and scope chain
           // don't match (https://crbug.com/753338).
@@ -1106,6 +1257,9 @@ bool ScopeIterator::SetLocalVariableValue(DirectHandle<String> variable_name,
                   *variable_name, &lookup_result) != index) {
             return false;
           }
+          CHECK_LT(static_cast<unsigned>(index),
+                   static_cast<unsigned>(context_->length()));
+          if (context_->IsElementTdzHole(index)) return false;
           Context::Set(context_, index, new_value, isolate_);
           if (lookup_result.maybe_assigned_flag == kNotAssigned) {
             // Mutating a kNotAssigned context slot via the debugger invalidates
@@ -1113,12 +1267,16 @@ bool ScopeIterator::SetLocalVariableValue(DirectHandle<String> variable_name,
             isolate_->MarkContextSlotNotAssignedIsUnreliable();
           }
           return true;
+        }
 
-        case VariableLocation::MODULE:
+        case VariableLocation::MODULE: {
           if (!HasContext() || !var.is_export()) return false;
           DirectHandle<SourceTextModule> module(context_->module(), isolate_);
+          Tagged<Object> current_val = module->GetCell(var.index)->value();
+          if (IsTheHole(current_val) || IsTdzHole(current_val)) return false;
           SourceTextModule::StoreVariable(module, var.index, new_value);
           return true;
+        }
       }
       UNREACHABLE();
     }
@@ -1148,6 +1306,9 @@ bool ScopeIterator::SetContextVariableValue(DirectHandle<String> variable_name,
   int slot_index =
       context_->scope_info()->ContextSlotIndex(*variable_name, &lookup_result);
   if (slot_index < 0) return false;
+  CHECK_LT(static_cast<unsigned>(slot_index),
+           static_cast<unsigned>(context_->length()));
+  if (context_->IsElementTdzHole(slot_index)) return false;
   Context::Set(context_, slot_index, new_value, isolate_);
   if (lookup_result.maybe_assigned_flag == kNotAssigned) {
     // Mutating a kNotAssigned context slot via the debugger invalidates
@@ -1174,6 +1335,8 @@ bool ScopeIterator::SetModuleVariableValue(DirectHandle<String> variable_name,
   }
 
   DirectHandle<SourceTextModule> module(context_->module(), isolate_);
+  Tagged<Object> current_val = module->GetCell(cell_index)->value();
+  if (IsTheHole(current_val) || IsTdzHole(current_val)) return false;
   SourceTextModule::StoreVariable(module, cell_index, new_value);
   return true;
 }
@@ -1186,6 +1349,11 @@ bool ScopeIterator::SetScriptVariableValue(DirectHandle<String> variable_name,
   if (script_contexts->Lookup(variable_name, &lookup_result)) {
     DirectHandle<Context> script_context(
         script_contexts->get(lookup_result.context_index), isolate_);
+    CHECK_LT(static_cast<unsigned>(lookup_result.slot_index),
+             static_cast<unsigned>(script_context->length()));
+    if (script_context->IsElementTdzHole(lookup_result.slot_index)) {
+      return false;
+    }
     Context::Set(script_context, lookup_result.slot_index, new_value, isolate_);
     if (lookup_result.maybe_assigned_flag == kNotAssigned) {
       // Mutating a kNotAssigned context slot via the debugger invalidates

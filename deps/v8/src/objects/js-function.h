@@ -48,7 +48,8 @@ V8_OBJECT class JSBoundFunction
     : public JSFunctionOrBoundFunctionOrWrappedFunction {
  public:
   static MaybeHandle<String> GetName(Isolate* isolate,
-                                     DirectHandle<JSBoundFunction> function);
+                                     DirectHandle<JSBoundFunction> function,
+                                     ShouldThrow should_throw = kThrowOnError);
   static Maybe<uint32_t> GetLength(Isolate* isolate,
                                    DirectHandle<JSBoundFunction> function);
 
@@ -88,7 +89,8 @@ V8_OBJECT class JSWrappedFunction
     : public JSFunctionOrBoundFunctionOrWrappedFunction {
  public:
   static MaybeHandle<String> GetName(Isolate* isolate,
-                                     DirectHandle<JSWrappedFunction> function);
+                                     DirectHandle<JSWrappedFunction> function,
+                                     ShouldThrow should_throw = kThrowOnError);
   static Maybe<uint32_t> GetLength(Isolate* isolate,
                                    DirectHandle<JSWrappedFunction> function);
   // https://tc39.es/proposal-shadowrealm/#sec-wrappedfunctioncreate
@@ -490,8 +492,9 @@ V8_OBJECT class JSFunction : public JSFunctionOrBoundFunctionOrWrappedFunction {
 
   // The function's string representation implemented according to
   // ES6 section 19.2.3.5 Function.prototype.toString ( ).
-  static DirectHandle<String> ToString(Isolate* isolate,
-                                       DirectHandle<JSFunction> function);
+  static MaybeDirectHandle<String> ToString(
+      Isolate* isolate, DirectHandle<JSFunction> function,
+      ShouldThrow should_throw = kThrowOnError);
 
   class BodyDescriptor;
 
@@ -516,14 +519,6 @@ V8_OBJECT class JSFunction : public JSFunctionOrBoundFunctionOrWrappedFunction {
 
   inline void UpdateCodeImpl(Isolate* isolate, Tagged<Code> code,
                              WriteBarrierMode mode, bool keep_tiering_request);
-
-  // Updates the Code in this function's dispatch table entry.
-  inline void UpdateDispatchEntry(
-      Isolate* isolate, Tagged<Code> new_code,
-      WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
-  inline void UpdateDispatchEntryKeepTieringRequest(
-      Isolate* isolate, Tagged<Code> new_code,
-      WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
 
   // Returns the set of code kinds of compilation artifacts (bytecode,
   // generated code) attached to this JSFunction.

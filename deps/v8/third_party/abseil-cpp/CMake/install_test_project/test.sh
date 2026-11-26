@@ -19,13 +19,18 @@
 # Fail on any error. Treat unset variables an error. Print commands as executed.
 set -euox pipefail
 
+# TODO(b/573304451): Remove once Kokoro is turned down (set in cmake.yml).
+export CMAKE_BUILD_PARALLEL_LEVEL="${CMAKE_BUILD_PARALLEL_LEVEL:-$(nproc)}"
+export CTEST_PARALLEL_LEVEL="${CTEST_PARALLEL_LEVEL:-$(nproc)}"
+
 absl_dir="${PWD}"
-absl_build_dir=/buildfs
+absl_build_dir="${absl_dir}/buildfs/absl-build"
 mkdir -p "${absl_build_dir}"
-googletest_builddir=/googletest_builddir
+googletest_builddir="${absl_dir}/buildfs/googletest"
+googletest_install_dir="${absl_build_dir}/googletest-install"
 googletest_archive="googletest-${ABSL_GOOGLETEST_VERSION}.tar.gz"
 project_dir="${absl_dir}/CMake/install_test_project"
-project_build_dir=/buildfs/project-build
+project_build_dir="${absl_dir}/buildfs/project-build"
 
 build_shared_libs="OFF"
 if [ "${LINK_TYPE:-}" = "DYNAMIC" ]; then
@@ -33,7 +38,7 @@ if [ "${LINK_TYPE:-}" = "DYNAMIC" ]; then
 fi
 
 # Build and install GoogleTest
-mkdir "${googletest_builddir}"
+mkdir -p "${googletest_builddir}"
 pushd "${googletest_builddir}"
 curl -L "${ABSL_GOOGLETEST_DOWNLOAD_URL}" --output "${googletest_archive}"
 tar -xz -f "${googletest_archive}"
@@ -42,8 +47,7 @@ mkdir build
 pushd build
 cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS="${build_shared_libs}" ..
 cmake --build .
-cmake --install .
-ldconfig
+cmake --install . --prefix "${googletest_install_dir}"
 popd
 popd
 popd
@@ -56,6 +60,7 @@ pushd "${absl_build_dir}"
 cmake "${absl_dir}" \
   -DABSL_USE_EXTERNAL_GOOGLETEST=ON \
   -DABSL_FIND_GOOGLETEST=ON  \
+  -DCMAKE_PREFIX_PATH="${googletest_install_dir}" \
   -DCMAKE_BUILD_TYPE=Release \
   -DABSL_BUILD_TESTING=ON \
   -DBUILD_SHARED_LIBS="${build_shared_libs}" \
@@ -70,8 +75,8 @@ popd
 # Test the project against the installed Abseil
 mkdir -p "${project_build_dir}"
 pushd "${project_build_dir}"
-cmake "${project_dir}"
-cmake --build . --target simple
+env -u CMAKE_C_COMPILER_LAUNCHER -u CMAKE_CXX_COMPILER_LAUNCHER cmake "${project_dir}"
+env -u CMAKE_C_COMPILER_LAUNCHER -u CMAKE_CXX_COMPILER_LAUNCHER cmake --build . --target simple
 
 output="$(${project_build_dir}/simple "printme" 2>&1)"
 if [[ "${output}" != *"Arg 1: printme"* ]]; then

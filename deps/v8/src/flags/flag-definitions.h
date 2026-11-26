@@ -38,11 +38,22 @@
 #define DISALLOW_UNSAFE_FLAG(flag) DISALLOW_UNSAFE_FLAG_IF(true, flag)
 
 // With FLAG_MODE_DECLARE we declare the fields in the {FlagValues} struct.
-// Read-only flags are static constants instead of fields.
+// Read-only flags are empty non-static structs with [[no_unique_address]] so
+// they occupy no storage and can still be read uniformly via v8_flags.<name>
+// without triggering readability-static-accessed-through-instance.
 #if defined(FLAG_MODE_DECLARE)
 #define FLAG_FULL(ftype, ctype, nam, def, cmt) FlagValue<ctype> nam{def};
-#define FLAG_READONLY(ftype, ctype, nam, def, cmt) \
-  static constexpr FlagValue<ctype> nam{def};
+#define FLAG_READONLY(ftype, ctype, nam, def, cmt)                \
+  struct FlagValue_##nam {                                        \
+    using underlying_type = ctype;                                \
+    using is_readonly_flag = void;                                \
+    /* Implicitly convert to a {ctype}. Not marked {constexpr} so \
+     * we do not get compiler warnings about dead code. */        \
+    operator ctype() const { return def; }                        \
+    constexpr ctype value() const { return def; }                 \
+    FlagValue_##nam& operator=(const FlagValue_##nam&) = delete;  \
+  };                                                              \
+  V8_NO_UNIQUE_ADDRESS FlagValue_##nam nam{};
 
 // We need to define all of our default values so that the Flag structure can
 // access them by pointer.  These are just used internally inside of one .cc,
@@ -107,16 +118,16 @@
 
 // Enforces that `flag` is at least `min_value` (sets `flag = min_value` if
 // `flag < min_value`).
-#define DEFINE_MIN_VALUE_IMPLICATION(flag, min_value)                        \
-  changed |= TriggerImplication(v8_flags.flag < min_value,                   \
-                                #flag "<" #min_value, &v8_flags.flag, #flag, \
+#define DEFINE_MIN_VALUE_IMPLICATION(flag, min_value)                          \
+  changed |= TriggerImplication(v8_flags.flag < min_value,                     \
+                                #flag " < " #min_value, &v8_flags.flag, #flag, \
                                 min_value, kStrongImplication);
 
 // Enforces that `flag` is at most `max_value` (sets `flag = max_value` if
 // `flag > max_value`).
-#define DEFINE_MAX_VALUE_IMPLICATION(flag, max_value)                        \
-  changed |= TriggerImplication(v8_flags.flag > max_value,                   \
-                                #max_value "<" #flag, &v8_flags.flag, #flag, \
+#define DEFINE_MAX_VALUE_IMPLICATION(flag, max_value)                          \
+  changed |= TriggerImplication(v8_flags.flag > max_value,                     \
+                                #flag " > " #max_value, &v8_flags.flag, #flag, \
                                 max_value, kStrongImplication);
 
 // Enforces that `thenflag` is set to `false` if `whenflag` holds, printing a
@@ -395,9 +406,6 @@ DEFINE_BOOL(builtin_subclassing, true,
 DEFINE_BOOL(enable_sharedarraybuffer_per_context, false,
             "enable the SharedArrayBuffer constructor per context")
 
-DEFINE_BOOL(js_nonextensible_applies_to_private, false,
-            "non-extensibility includes private fields")
-
 DEFINE_EXPERIMENTAL_FEATURE(
     for_of_optimization,
     "Experimental flag for improving ForOf loops on ArrayIterator")
@@ -411,7 +419,7 @@ DEFINE_BOOL(icu_timezone_data, true, "get information about timezones from ICU")
 DEFINE_STRING(icu_datetime_compat_lang, "*",
               "limits ICU date time compat changes to the given language")
 DEFINE_BOOL(
-    intl_date_time_pattern_generator_cache_eviction, false,
+    intl_date_time_pattern_generator_cache_eviction, true,
     "enable 9-entry cache eviction in DateTimePatternGeneratorCache")
 DEFINE_BOOL(use_icu4x_normalizer, false, "use ICU4X normalizer")
 #ifdef V8_ENABLE_ECMA402_ICU4X
@@ -569,6 +577,18 @@ DEFINE_UINT(
     "Scavenger in chaos mode")
 DEFINE_MAX_VALUE_IMPLICATION(scavenger_chaos_mode_threshold, 100u)
 
+DEFINE_UINT(scavenger_high_survival_threshold, 70,
+            "Percentage of the young generation capacity that has to survive a "
+            "scavenge for the young generation survival rate to be considered "
+            "high")
+DEFINE_MAX_VALUE_IMPLICATION(scavenger_high_survival_threshold, 100u)
+DEFINE_BOOL(scavenger_high_survival_promotion, true,
+            "Scavenger promotes all surviving young objects to old space if "
+            "the previous scavenge had a high survival rate")
+DEFINE_BOOL(scavenger_fast_growth, false,
+            "Grow the young generation right away and by twice the growth "
+            "factor if a scavenge had a high survival rate")
+
 #ifdef V8_ENABLE_LOCAL_OFF_STACK_CHECK
 #define V8_ENABLE_LOCAL_OFF_STACK_CHECK_BOOL true
 #else
@@ -652,18 +672,12 @@ DEFINE_BOOL(maglev_inline_api_calls, false,
             "Inline CallApiCallback builtin into generated code")
 DEFINE_BOOL(maglev_cons_string_elision, true,
             "Native support for cons strings and their elision in maglev.")
-DEFINE_BOOL(maglev_pretenure_store_values, true,
-            "Recursively pretenure values which are stored into pretenured "
-            "allocation sites.")
 DEFINE_BOOL(maglev_poly_calls, true, "Support (inlining) polymorphic calls")
 DEFINE_BOOL(maglev_truncation, true, "Enable Maglev truncation pass")
 DEFINE_DEVELOPER_FLAG(trace_maglev_truncation, "trace maglev truncation pass")
 
-DEFINE_EXPERIMENTAL_FEATURE(maglev_licm, "loop invariant code motion")
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_speculative_hoist_phi_untagging)
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_inline_api_calls)
-DEFINE_WEAK_IMPLICATION(maglev_future, maglev_escape_analysis)
-DEFINE_WEAK_IMPLICATION(maglev_future, maglev_licm)
 
 DEFINE_BOOL(turbolev_truncated_int32_phis, true,
             "Enable truncated to int32 representation in the phi selector")
@@ -861,6 +875,9 @@ DEFINE_BOOL(
 DEFINE_BOOL_READONLY(dict_property_const_tracking,
                      V8_DICT_PROPERTY_CONST_TRACKING_BOOL,
                      "Use const tracking on dictionary properties")
+DEFINE_BOOL_READONLY(dict_prototypes, V8_DICT_PROTOTYPES_BOOL,
+                     "Keep prototypes in dictionary mode and track prototype "
+                     "validity cell dependencies on dictionary properties")
 
 DEFINE_BOOL(script_context_cells, true,
             "Use context cells in script contexts, ie, const tracking let and "
@@ -1056,13 +1073,12 @@ DEFINE_BOOL(unmap_holes, true, "unmap the page containing the holes.")
 
 DEFINE_BOOL_READONLY(allocation_site_tracking, V8_ALLOCATION_SITE_TRACKING_BOOL,
                      "Enable allocation site tracking")
-DEFINE_NEG_NEG_IMPLICATION(allocation_site_tracking,
-                           allocation_site_pretenuring)
 
 // Flags for experimental implementation features.
-DEFINE_BOOL(allocation_site_pretenuring, true,
-            "pretenure with allocation sites")
 DEFINE_BOOL(page_promotion, true, "promote pages based on utilization")
+DEFINE_BOOL(
+    page_promotion_on_evacuation_failure, true,
+    "promote new space pages in-place when evacuation fails in full GCs")
 DEFINE_INT(page_promotion_threshold, 70,
            "min percentage of live bytes on a page to enable fast evacuation "
            "in full GCs")
@@ -1076,10 +1092,6 @@ DEFINE_UINT(minor_ms_max_page_age, 4,
             "max age for a page after which it is force promoted to old space")
 
 DEFINE_DEVELOPER_FLAG(trace_page_promotions, "trace page promotion decisions")
-DEFINE_DEVELOPER_FLAG(trace_pretenuring,
-                      "trace pretenuring decisions of HAllocate instructions")
-DEFINE_DEVELOPER_FLAG(trace_pretenuring_statistics,
-                      "trace allocation site pretenuring statistics")
 DEFINE_DEVELOPER_FLAG(trace_resize_large_object,
                       "trace resizing of large objects")
 DEFINE_BOOL(track_field_types, true, "track field types")
@@ -1107,8 +1119,6 @@ DEFINE_BOOL_READONLY(minor_ms_shortcut_strings, false,
                      "short cut strings during marking")
 #endif
 
-DEFINE_EXPERIMENTAL_FEATURE(feedback_normalization,
-                            "feed back normalization to constructors")
 // TODO(jkummerow): This currently adds too much load on the stub cache.
 DEFINE_BOOL_READONLY(internalize_on_the_fly, true,
                      "internalize string keys for generic keyed ICs on the fly")
@@ -1317,17 +1327,8 @@ DEFINE_WEAK_IMPLICATION(trace_baseline, trace_baseline_batch_compilation)
 // Internalize into a shared string table in the shared isolate
 DEFINE_BOOL(shared_strings, false, "allow sharing of strings")
 DEFINE_IMPLICATION(shared_strings, shared_heap)
-DEFINE_BOOL_READONLY(
-    harmony_struct, false,
-    "DEPRECATED. harmony structs, shared structs, and shared arrays")
 DEFINE_BOOL_READONLY(shared_string_table, false,
                      "DEPRECATED. internalize strings into shared table")
-DEFINE_BOOL_READONLY(always_use_string_forwarding_table, false,
-                     "use string forwarding table instead of thin strings for "
-                     "all strings (experimental)")
-
-DEFINE_BOOL(transition_strings_during_gc_with_stack, false,
-            "Transition strings during a full GC with stack")
 
 DEFINE_SIZE_T(initial_shared_heap_size, 0,
               "initial size of the shared heap (in Mbytes); "
@@ -1414,10 +1415,6 @@ DEFINE_BOOL_READONLY(opt, false,
                      "use the Turbofan optimizing compiler for JavaScript code "
                      "(Wasm uses separate flags)")
 #endif  // V8_ENABLE_TURBOFAN
-
-DEFINE_BOOL(
-    turbo_always_optimize_spills, true,
-    "optimize placement of all spill instructions, not just loop-top phis")
 
 DEFINE_BOOL(turbo_wasm_address_reassociation, true,
             "refactor address components for immediate indexing")
@@ -1609,12 +1606,6 @@ DEFINE_BOOL(maglev_escape_analysis, true,
             "avoid inlined allocation of objects that cannot escape")
 DEFINE_DEVELOPER_FLAG(trace_maglev_escape_analysis,
                       "trace maglev escape analysis")
-DEFINE_EXPERIMENTAL_FEATURE(maglev_object_tracking,
-                            "track object changes to avoid escaping them")
-DEFINE_DEVELOPER_FLAG(trace_maglev_object_tracking,
-                      "trace load/stores from maglev virtual objects")
-DEFINE_WEAK_IMPLICATION(trace_maglev_graph_building,
-                        trace_maglev_object_tracking)
 DEFINE_WEAK_IMPLICATION(trace_maglev_graph_building, maglev_print_bytecode)
 
 // TODO(dmercadier): fix and re-enable string builder.
@@ -1755,10 +1746,8 @@ DEFINE_IMPLICATION(wasm_in_js_inlining_body, wasm_in_js_inlining_wrapper)
 DEFINE_BOOL(wasm_in_js_inlining_wrapper, true,
             "inline JS-to-Wasm wrappers via Turboshaft/Turbolev.")
 
-DEFINE_EXPERIMENTAL_FEATURE(
-    wasm_in_js_inlining_opt,
-    "enable optimizations for Wasm-in-JS inlining in Turboshaft")
-DEFINE_IMPLICATION(turbolev_future, wasm_in_js_inlining_opt)
+DEFINE_BOOL(wasm_in_js_inlining_opt, true,
+            "enable optimizations for Wasm-in-JS inlining in Turboshaft")
 
 DEFINE_BOOL(turboshaft_load_elimination, true,
             "enable Turboshaft's low-level load elimination for JS")
@@ -1770,6 +1759,9 @@ DEFINE_EXPERIMENTAL_FEATURE(turboshaft_random_rescheduling,
                             "enable Turboshaft's random rescheduling phase")
 DEFINE_BOOL(turboshaft_string_concat_escape_analysis, true,
             "enable Turboshaft's escape analysis for string concatenation")
+DEFINE_UINT(turboshaft_max_inline_string_equal_length, 16,
+            "maximum length of a one-byte constant string to inline in "
+            "Turboshaft StringEqual")
 
 DEFINE_BOOL(turboshaft_trusted_load_elimination, true,
             "enable Turboshaft's low level load elimination for trusted loads "
@@ -2081,6 +2073,8 @@ DEFINE_UINT(wasm_max_committed_code_mb, kMaxCommittedWasmCodeMB,
             "maximum committed code space for wasm (in MB)")
 DEFINE_UINT(wasm_max_code_space_size_mb, kDefaultMaxWasmCodeSpaceSizeMb,
             "maximum size of a single wasm code space")
+DEFINE_MAX_VALUE_IMPLICATION(wasm_max_code_space_size_mb,
+                             kDefaultMaxWasmCodeSpaceSizeMb)
 DEFINE_BOOL(wasm_tier_up, V8_ENABLE_TURBOFAN_BOOL,
             "enable tier up to the optimizing compiler (requires --liftoff to "
             "have an effect)")
@@ -2156,11 +2150,11 @@ DEFINE_DEVELOPER_FLAG(
 // together with {liftoff} and {no_wasm_tier_up} to force some functions to be
 // compiled with TurboFan or for debug.
 DEFINE_INT(wasm_tier_mask_for_testing, 0,
-           "bitmask of declared(!) function indices to compile with TurboFan "
-           "instead of Liftoff")
+           "bitmask of defined (non-imported) function indices to compile with "
+           "TurboFan instead of Liftoff")
 DEFINE_INT(wasm_debug_mask_for_testing, 0,
-           "bitmask of declared(!) function indices to compile for debugging, "
-           "only applies if the tier is Liftoff")
+           "bitmask of defined (non-imported) function indices to compile for "
+           "debugging, only applies if the tier is Liftoff")
 DEFINE_UNSAFE_FLAG(wasm_pgo_to_file,
                    "experimental: dump Wasm PGO information to a local file")
 DEFINE_NEG_IMPLICATION(wasm_pgo_to_file, single_threaded)
@@ -2384,8 +2378,11 @@ DEFINE_IMPLICATION(wasm_jitless_if_available_for_testing, wasm_jitless)
 DEFINE_BOOL_READONLY(drumbrake_exnref, false,
                      "enable new exception-handling support in the Wasm "
                      "interpreter")
-DEFINE_BOOL(drumbrake_compact_bytecode, false,
-            "Compress the Wasm interpreter bytecode")
+
+// Disabled: pinned read-only so the compact bytecode encoding can never be
+// enabled, even via --drumbrake-compact-bytecode on the command line.
+DEFINE_BOOL_READONLY(drumbrake_compact_bytecode, false,
+                     "Compress the Wasm interpreter bytecode")
 DEFINE_DEVELOPER_FLAG(trace_drumbrake_compact_bytecode,
                       "Traces the Wasm interpreter compact bytecode")
 DEFINE_BOOL(drumbrake_fuzzer_timeout, false,
@@ -2779,7 +2776,7 @@ DEFINE_INT(external_memory_max_reasonable_size, 32,
            "Max external memory value (in GB) checked for a reasonable size, 0 "
            "to disable the check.")
 DEFINE_BOOL(
-    sqrt_allocation_limits, false,
+    sqrt_allocation_limits, true,
     "Old generation and global heap limit growth scale based on the sqrt of "
     "estimated GC cost.")
 DEFINE_INT(
@@ -2942,8 +2939,6 @@ DEFINE_FLOAT(memory_balancer_c_value, 3e-10,
              "The smaller the more memory it uses.")
 DEFINE_NEG_IMPLICATION(memory_balancer, memory_reducer)
 DEFINE_DEVELOPER_FLAG(trace_memory_balancer, "print memory balancer behavior.")
-DEFINE_BOOL(late_heap_limit_check, true,
-            "skips heap limit check for early GCs on allocation failure.")
 
 // assembler-ia32.cc / assembler-arm.cc / assembler-arm64.cc / assembler-x64.cc
 #ifdef V8_ENABLE_DEBUG_CODE
@@ -2967,9 +2962,10 @@ DEFINE_BOOL_READONLY(trap_on_abort, true, "")
 DEFINE_BOOL_READONLY(slow_debug_code, false, "")
 #endif
 #ifdef V8_CODE_COMMENTS
-DEFINE_BOOL(code_comments, false,
-            "emit comments in code disassembly; for more readable source "
-            "positions you should add --no-concurrent_recompilation")
+DEFINE_DEVELOPER_FLAG(
+    code_comments,
+    "emit comments in code disassembly; for more readable source "
+    "positions you should add --no-concurrent_recompilation")
 #else
 DEFINE_BOOL_READONLY(code_comments, false, "")
 #endif
@@ -3009,6 +3005,9 @@ DEFINE_IMPLICATION(enable_apx_f_ccmp, enable_apx_f)
 #ifdef V8_ENABLE_AVX10_1
 DEFINE_BOOL(enable_avx10_1, false,
             "enable use of AVX10.1 instructions if available")
+DEFINE_BOOL(enable_avx10_2, false,
+            "enable use of AVX10.2 instructions if available")
+DEFINE_IMPLICATION(enable_avx10_2, enable_avx10_1)
 #endif
 DEFINE_STRING(arm_arch, ARM_ARCH_DEFAULT,
               "generate instructions for the selected ARM architecture if "
@@ -3248,7 +3247,7 @@ DEFINE_NEG_IMPLICATION(hole_fuzzing, hard_abort)
 DEFINE_NEG_IMPLICATION(sandbox_fuzzing, hard_abort)
 
 // fuzzilli
-#if defined(V8_FUZZILLI)
+#if defined(V8_FUZZILLI) || defined(V8_REDLINE)
 DEFINE_BOOL(fuzzilli_enable_optimized_code_coverage, false,
             "enable optimized code coverage for fuzzilli")
 #else
@@ -3342,6 +3341,12 @@ DEFINE_WEAK_IMPLICATION(future, clone_object_sidestep_transitions)
 DEFINE_INT(fast_properties_soft_limit, 12,
            "limits the number of properties that can be added to an object "
            "using keyed store before transitioning to dictionary mode")
+
+// runtime-literals.cc
+DEFINE_BOOL(fast_null_proto_literals, false,
+            "create object literals with __proto__: null and boilerplate "
+            "properties in fast mode instead of dictionary mode")
+DEFINE_WEAK_IMPLICATION(future, fast_null_proto_literals)
 
 DEFINE_BOOL(native_code_counters, DEBUG_BOOL,
             "generate extra code for manipulating stats counters")
@@ -3514,6 +3519,10 @@ DEFINE_BOOL(regexp_masked_dispatch, true,
             "value")
 DEFINE_BOOL(regexp_quick_check, true,
             "generate quickcheck code when optimizing")
+DEFINE_BOOL(regexp_static_frequencies, false,
+            "tune Boyer-Moore lookahead with a static character frequency "
+            "table instead of sampling the first subject string, so that "
+            "compiled code does not depend on the subject")
 DEFINE_BOOL(regexp_interpret_all, false, "interpret all regexp code")
 #ifdef V8_TARGET_BIG_ENDIAN
 #define REGEXP_PEEPHOLE_OPTIMIZATION_BOOL false
@@ -3771,6 +3780,17 @@ DEFINE_BOOL(sandbox_trap_fuzzing, false,
 DEFINE_NEG_IMPLICATION(sandbox_fuzzing, sandbox_testing)
 DEFINE_NEG_IMPLICATION(sandbox_testing, sandbox_fuzzing)
 
+#ifdef V8_ENABLE_MEMORY_CORRUPTION_API
+DEFINE_BOOL(code_cache_fuzzing, false,
+            "Expose %GetCodeCache and %ConsumeCodeCache, which consume a code "
+            "cache with a replaced untrusted section.")
+DEFINE_NEG_IMPLICATION(code_cache_fuzzing, verify_snapshot_checksum)
+#else
+DEFINE_BOOL_READONLY(code_cache_fuzzing, false,
+                     "Expose %GetCodeCache and %ConsumeCodeCache, which "
+                     "consume a code cache with a replaced untrusted section.")
+#endif  // V8_ENABLE_MEMORY_CORRUPTION_API
+
 DEFINE_BOOL(verify_bytecode_light, false,
             "Perform lightweight bytecode verification to ensure basic safety "
             "properties of generated bytecode, mostly around control-flow.")
@@ -3810,19 +3830,12 @@ DEFINE_BOOL(freeze_flags_after_init, true,
             "Disallow changes to flag values after initializing V8")
 #endif  // defined(V8_OS_AIX) && defined(COMPONENT_BUILD)
 
-#if V8_ENABLE_CET_SHADOW_STACK
-#define V8_CET_SHADOW_STACK_BOOL true
-#else
-#define V8_CET_SHADOW_STACK_BOOL false
-#endif
-
-#if V8_TARGET_ARCH_X64
-DEFINE_BOOL(cet_compatible, V8_CET_SHADOW_STACK_BOOL,
-            "Generate Intel CET compatible code")
+#ifdef V8_ENABLE_CET_SHADOW_STACK
+DEFINE_BOOL(cet_compatible, true, "Generate Intel CET compatible code")
 #else
 DEFINE_BOOL_READONLY(cet_compatible, false,
-                     "Intel CET is only supported on x64.")
-#endif  // V8_TARGET_ARCH_X64
+                     "Generate Intel CET compatible code")
+#endif  // V8_ENABLE_CET_SHADOW_STACK
 
 // mksnapshot.cc
 DEFINE_STRING(embedded_src, nullptr,
@@ -4396,9 +4409,12 @@ DISALLOW_UNSAFE_FLAG(perf_prof)
 DISALLOW_UNSAFE_FLAG(perf_prof_annotate_wasm)
 DISALLOW_UNSAFE_FLAG(vtune_prof_annotate_wasm)
 // Known-broken features/configuration.
-DISALLOW_UNSAFE_FLAG(feedback_normalization)
 DISALLOW_UNSAFE_FLAG(array_destructure_bytecode)
 DISALLOW_UNSAFE_FLAG(turboshaft_random_rescheduling)
+// https://crbug.com/371061101
+DISALLOW_UNSAFE_FLAG(parallel_compile_tasks_for_eager_toplevel)
+DISALLOW_UNSAFE_FLAG(parallel_compile_tasks_for_lazy)
+DISALLOW_UNSAFE_FLAG(lazy_compile_dispatcher)
 // Disabled-by-default misc. "unsafe" flags that should not be enabled.
 DISALLOW_UNSAFE_FLAG(abort_on_bad_builtin_profile_data)
 DISALLOW_UNSAFE_FLAG(abort_on_uncaught_exception)
@@ -4416,8 +4432,10 @@ DISALLOW_UNSAFE_FLAG(max_wasm_functions)
 // Features we don't currently want to fuzz.
 DISALLOW_UNSAFE_FLAG(cppgc_young_generation)
 // The memory corruption API is only allowed in sandbox testing/fuzzing mode.
+// LINT.IfChange(MemoryCorruptionApiImplications)
 DISALLOW_UNSAFE_FLAG_IF(!sandbox_testing && !sandbox_fuzzing,
                         expose_memory_corruption_api)
+// LINT.ThenChange(/src/d8/d8.cc:MemoryCorruptionApiImplications)
 
 // Flags which trigger a breakpoint on purpose.
 DISALLOW_UNSAFE_FLAG(maglev_break_on_entry)

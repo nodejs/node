@@ -1,0 +1,12 @@
+header: ar.h
+standards:
+  - bsd
+macros:
+  - macro_name: ARMAG
+    macro_value: '"!<arch>\n"'
+  - macro_name: SARMAG
+    macro_value: 8
+  - macro_name: ARFMAG
+    macro_value: '"`\n"'
+types:
+  - type_name: struct_ar_hdr

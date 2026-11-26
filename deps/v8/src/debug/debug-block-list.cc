@@ -19,14 +19,20 @@ namespace internal {
 
 namespace {
 
+// Collects stack-allocated parameters and locals from `scope` into `blocklist`.
+// Hidden scopes are not skipped here: synthetic variables are filtered out, and
+// redeclared names across parent/child scopes are idempotent in the StringSet,
+// achieving the same shadowing alignment as IsDebuggerVisibleParent without
+// needing pairwise scope comparison.
 Handle<StringSet> AddScopeStackLocalsToBlockList(Isolate* isolate,
                                                  Handle<StringSet> blocklist,
                                                  DebugScriptScope scope) {
-  if (scope.is_hidden() || scope.is_script_scope()) {
+  if (scope.is_script_scope()) {
     return blocklist;
   }
   for (int i = 0; i < scope.variable_count(); ++i) {
     DebugVariableInfo var = scope.variable(i);
+    if (var.is_synthetic && !var.is_receiver) continue;
     if (var.location == VariableLocation::PARAMETER ||
         var.location == VariableLocation::LOCAL) {
       DirectHandle<String> name(var.name, isolate);

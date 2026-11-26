@@ -32,6 +32,8 @@ V8_OBJECT class TrustedObject : public HeapObject {
   V8_IT_ABSTRACT;
 
  public:
+  inline explicit TrustedObject(Tagged<ReadOnly<Map>> map);
+
   DECL_VERIFIER(TrustedObject)
 
   // Protected pointers.
@@ -104,6 +106,8 @@ V8_OBJECT class ExposedTrustedObject : public TrustedObject {
   V8_IT_ABSTRACT;
 
  public:
+  inline explicit ExposedTrustedObject(Tagged<ReadOnly<Map>> map);
+
   // Initializes this object by allocating its pointer table entry. This
   // initializer function immediately makes the trusted object accessible from
   // within the sandbox ("publishes" it). If that is undesirable (e.g. because

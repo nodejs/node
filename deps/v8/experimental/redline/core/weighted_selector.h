@@ -64,22 +64,12 @@ class WeightedSelector final : public Selector<T> {
 
   size_t Pick(const Candidates& candidates, Random& rng,
               const Filter& eligible) override {
-    std::vector<double> weights(candidates.size(), 0.0);
-    double total = 0;
-    for (size_t i = 0; i < candidates.size(); i++) {
-      if (weights_[i] <= 0) {
-        continue;
-      }
-      if (!eligible(*candidates[i])) {
-        continue;
-      }
-      weights[i] = weights_[i];
-      total += weights_[i];
-    }
-    if (total <= 0) {
-      return kNoChoice;
-    }
-    return rng.Weighted(weights);
+    return PickImpl(candidates, rng, eligible, nullptr);
+  }
+
+  size_t PickMasked(const Candidates& candidates, Random& rng,
+                    const Filter& eligible, const WeightMask& mask) override {
+    return PickImpl(candidates, rng, eligible, &mask);
   }
 
   double WeightOf(const T& candidate) const override {
@@ -112,6 +102,29 @@ class WeightedSelector final : public Selector<T> {
   }
 
  private:
+  // Pick() without a mask (mask == nullptr) and with a mask.
+  size_t PickImpl(const Candidates& candidates, Random& rng,
+                  const Filter& eligible, const WeightMask* mask) const {
+    std::vector<double> weights(candidates.size(), 0.0);
+    double total = 0;
+    for (size_t i = 0; i < candidates.size(); i++) {
+      const double weight =
+          mask == nullptr ? weights_[i] : mask->Apply(i, weights_[i]);
+      if (weight <= 0) {
+        continue;
+      }
+      if (!eligible(*candidates[i])) {
+        continue;
+      }
+      weights[i] = weight;
+      total += weight;
+    }
+    if (total <= 0) {
+      return kNoChoice;
+    }
+    return rng.Weighted(weights);
+  }
+
   std::string kind_;
   std::vector<std::pair<std::string, double>> overrides_;
   Candidates candidates_;

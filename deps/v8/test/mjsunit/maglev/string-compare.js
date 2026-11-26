@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --maglev
-// Flags: --no-always-use-string-forwarding-table
 // Flags: --no-optimize-maglev-optimizes-to-turbofan
 
 let internalized1234 = %ConstructInternalizedString("1234123412341234");

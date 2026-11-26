@@ -2,6 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("../../experimental/fuzztests/sources.gni")
 import("../../gni/cluster_build.gni")
 import("../../gni/v8.gni")
 
@@ -278,7 +279,16 @@ v8_cluster_source_set("v8_unittests_sources") {
     "../common/version-utils.h",
     "api/access-check-unittest.cc",
     "api/accessor-unittest.cc",
+    "api/accessors-unittest.cc",
+    "api/api-array-buffer-unittest.cc",
     "api/api-icu-unittest.cc",
+    "api/api-incumbent-unittest.cc",
+    "api/api-interceptors-unittest.cc",
+    "api/api-stack-traces-unittest.cc",
+    "api/api-test-utils.cc",
+    "api/api-test-utils.h",
+    "api/api-typed-array-unittest.cc",
+    "api/api-unittest.cc",
     "api/context-unittest.cc",
     "api/deserialize-unittest.cc",
     "api/dictionary-template-unittest.cc",
@@ -289,6 +299,7 @@ v8_cluster_source_set("v8_unittests_sources") {
     "api/remote-object-unittest.cc",
     "api/resource-constraints-unittest.cc",
     "api/smi-tagging-unittest.cc",
+    "api/usecounters-unittest.cc",
     "api/v8-array-buffer-unittest.cc",
     "api/v8-array-unittest.cc",
     "api/v8-maybe-unittest.cc",
@@ -297,6 +308,8 @@ v8_cluster_source_set("v8_unittests_sources") {
     "api/v8-script-unittest.cc",
     "api/v8-string-unittest.cc",
     "api/v8-value-unittest.cc",
+    "assembler/disasm-regex-helper-unittest.cc",
+    "assembler/disasm-regex-helper.h",
     "base/address-region-unittest.cc",
     "base/asan-unittest.cc",
     "base/atomic-utils-unittest.cc",
@@ -342,10 +355,13 @@ v8_cluster_source_set("v8_unittests_sources") {
     "codegen/aligned-slot-allocator-unittest.cc",
     "codegen/code-layout-unittest.cc",
     "codegen/code-pages-unittest.cc",
+    "codegen/constantpool-unittest.cc",
     "codegen/factory-unittest.cc",
+    "codegen/icache-unittest.cc",
     "codegen/register-configuration-unittest.cc",
     "codegen/safepoint-table-unittest.cc",
     "codegen/source-position-table-unittest.cc",
+    "common/ptr-compr-cage-unittest.cc",
     "common/thread-isolation-unittest.cc",
     "compiler-dispatcher/compiler-dispatcher-unittest.cc",
     "compiler-dispatcher/optimizing-compile-dispatcher-unittest.cc",
@@ -353,16 +369,20 @@ v8_cluster_source_set("v8_unittests_sources") {
     "date/date-cache-unittest.cc",
     "date/date-unittest.cc",
     "debug/debug-block-list-unittest.cc",
+    "debug/debug-helper-unittest.cc",
     "debug/debug-property-iterator-unittest.cc",
     "debug/debug-scope-info-unittest.cc",
+    "debug/debug-unittest.cc",
     "deoptimizer/deoptimization-unittest.cc",
     "diagnostics/eh-frame-iterator-unittest.cc",
     "diagnostics/eh-frame-writer-unittest.cc",
     "diagnostics/gdb-jit-unittest.cc",
     "dumpling/dumpling-unittest.cc",
+    "execution/lockers-unittest.cc",
     "execution/microtask-queue-unittest.cc",
     "execution/thread-termination-unittest.cc",
     "execution/threads-unittest.cc",
+    "execution/unwinder-code-pages-unittest.cc",
     "flags/flag-definitions-unittest.cc",
     "fuzztest.cc",
     "fuzztest.h",
@@ -420,6 +440,7 @@ v8_cluster_source_set("v8_unittests_sources") {
     "heap/slot-set-unittest.cc",
     "heap/spaces-unittest.cc",
     "heap/strong-root-allocator-unittest.cc",
+    "heap/verifiers-unittest.cc",
     "heap/weak-references-unittest.cc",
     "heap/write-barrier-unittest.cc",
     "interpreter/bytecode-array-builder-unittest.cc",
@@ -458,22 +479,25 @@ v8_cluster_source_set("v8_unittests_sources") {
     "libsampler/signals-and-mutexes-unittest.cc",
     "logging/counters-unittest.cc",
     "logging/log-unittest.cc",
+    "logging/trace-extension.cc",
+    "logging/trace-extension.h",
     "maglev/hamt-unittest.cc",
     "maglev/maglev-assembler-unittest.cc",
     "maglev/maglev-graph-builder-unittest.cc",
     "maglev/maglev-graph-processor-unittest.cc",
+    "maglev/maglev-kna-map-unittest.cc",
     "maglev/maglev-test.cc",
     "maglev/maglev-test.h",
     "maglev/node-type-unittest.cc",
     "numbers/bigint-unittest.cc",
     "numbers/conversions-unittest.cc",
     "numbers/diy-fp-unittest.cc",
-    "numbers/strtod-unittest.cc",
     "objects/array-list-unittest.cc",
     "objects/casting-unittest.cc",
     "objects/concurrent-descriptor-array-unittest.cc",
     "objects/concurrent-feedback-vector-unittest.cc",
     "objects/concurrent-js-array-unittest.cc",
+    "objects/concurrent-module-namespace-unittest.cc",
     "objects/concurrent-prototype-unittest.cc",
     "objects/concurrent-script-context-table-unittest.cc",
     "objects/concurrent-string-unittest.cc",
@@ -481,25 +505,38 @@ v8_cluster_source_set("v8_unittests_sources") {
     "objects/dictionary-unittest.cc",
     "objects/elements-kind-unittest.cc",
     "objects/feedback-vector-unittest.cc",
+    "objects/field-type-tracking-unittest.cc",
     "objects/global-object-unittest.cc",
     "objects/hashcode-unittest.cc",
+    "objects/inobject-slack-tracking-unittest.cc",
     "objects/intl-unittest.cc",
+    "objects/js-weak-refs-unittest.cc",
     "objects/managed-unittest.cc",
     "objects/module-request-unittest.cc",
     "objects/modules-unittest.cc",
     "objects/object-unittest.cc",
+    "objects/orderedhashtable-unittest.cc",
     "objects/property-details-unittest.cc",
     "objects/representation-unittest.cc",
     "objects/roots-unittest.cc",
+    "objects/smi-lexicographic-compare-unittest.cc",
     "objects/string-table-unittest.cc",
     "objects/swiss-hash-table-helpers-unittest.cc",
+    "objects/swiss-name-dictionary-infra.cc",
+    "objects/swiss-name-dictionary-infra.h",
+    "objects/swiss-name-dictionary-shared-tests.h",
+    "objects/swiss-name-dictionary-unittest.cc",
     "objects/symbols-unittest.cc",
+    "objects/transitions-unittest.cc",
+    "objects/typedarrays-unittest.cc",
+    "objects/unscopables-hidden-prototype-unittest.cc",
     "objects/value-serializer-unittest.cc",
     "objects/weakarraylist-unittest.cc",
     "objects/weakmaps-unittest.cc",
     "objects/weaksets-unittest.cc",
     "parser/ast-value-unittest.cc",
     "parser/decls-unittest.cc",
+    "parser/func-name-inference-unittest.cc",
     "parser/parse-decision-unittest.cc",
     "parser/parsing-unittest.cc",
     "parser/preparser-unittest.cc",
@@ -509,10 +546,17 @@ v8_cluster_source_set("v8_unittests_sources") {
     "parser/unicode-helpers.cc",
     "parser/unicode-helpers.h",
     "profiler/circular-queue-unittest.cc",
+    "profiler/cpu-profiler-unittest.cc",
+    "profiler/heap-profiler-unittest.cc",
     "profiler/heap-snapshot-scopes-unittest.cc",
     "profiler/heap-snapshot-utils.cc",
     "profiler/heap-snapshot-utils.h",
+    "profiler/jsonstream-helper.h",
     "profiler/output-stream-writer-unittest.cc",
+    "profiler/profile-generator-unittest.cc",
+    "profiler/profiler-extension.cc",
+    "profiler/profiler-extension.h",
+    "profiler/sampler-api-unittest.cc",
     "profiler/strings-storage-unittest.cc",
     "regexp/regexp-unittest.cc",
     "regress/regress-536271629-unittest.cc",
@@ -524,6 +568,7 @@ v8_cluster_source_set("v8_unittests_sources") {
     "runtime/runtime-debug-unittest.cc",
     "sandbox/bytecode-verifier-unittest.cc",
     "sandbox/code-cache-unittest.cc",
+    "sandbox/context-snapshot-unittest.cc",
     "sandbox/generated-code-validator-unittest.cc",
     "sandbox/libcxx-hardening-unittest.cc",
     "sandbox/pointer-table-unittest.cc",
@@ -534,6 +579,8 @@ v8_cluster_source_set("v8_unittests_sources") {
     "sandbox/segmented-table-unittest.cc",
     "sandbox/trap-fuzzer-unittest.cc",
     "strings/char-predicates-unittest.cc",
+    "strings/shared-strings-unittest.cc",
+    "strings/strings-unittest.cc",
     "strings/unicode-unittest.cc",
     "tasks/background-compile-task-unittest.cc",
     "tasks/cancelable-tasks-unittest.cc",
@@ -547,12 +594,14 @@ v8_cluster_source_set("v8_unittests_sources") {
     "torque/ls-server-data-unittest.cc",
     "torque/torque-unittest.cc",
     "torque/torque-utils-unittest.cc",
+    "tracing/trace-event-unittest.cc",
     "tracing/traced-value-unittest.cc",
     "utils/allocation-unittest.cc",
     "utils/bit-vector-unittest.cc",
     "utils/detachable-vector-unittest.cc",
     "utils/identity-map-unittest.cc",
     "utils/locked-queue-unittest.cc",
+    "utils/sha-256-unittest.cc",
     "utils/sparse-bit-vector-unittest.cc",
     "utils/utils-unittest.cc",
     "utils/version-unittest.cc",
@@ -563,19 +612,35 @@ v8_cluster_source_set("v8_unittests_sources") {
   ]
 
   exclude_from_cluster = [
+    "api/access-check-unittest.cc",  # Defines v8_str.
+    "api/accessors-unittest.cc",
+    "api/api-unittest.cc",
     "api/dictionary-template-unittest.cc",
     "api/interceptor-unittest.cc",
     "base/virtual-address-space-unittest.cc",
     "base/hashing-unittest.cc",
+    "compiler/code-generator-unittest.cc",
+    "compiler/run-load-store-unittest.cc",
     "compiler/run-variables-unittest.cc",
     "compiler/linkage-unittest.cc",
+    "debug/debug-unittest.cc",
+    "execution/lockers-unittest.cc",  # Clashes with
+                                      # thread-termination-unittest.cc.
+    "execution/unwinder-code-pages-unittest.cc",  # Clashes with
+                                                  # thread-termination-unittest.cc.
     "heap/cppgc-js/cpp-heap-stack-start-marker-unittest.cc",
     "heap/cppgc-js/embedder-roots-handler-unittest.cc",
     "heap/cppgc-js/unified-heap-snapshot-unittest.cc",
     "heap/cppgc-js/unified-heap-unittest.cc",
+    "heap/memory-reducer-unittest.cc",  # MockTaskRunner.
+    "heap/shared-heap-unittest.cc",
     "objects/concurrent-descriptor-array-unittest.cc",
     "objects/concurrent-transition-array-unittest.cc",
+    "objects/descriptor-array-unittest.cc",
+    "wasm/deopt-fuzztest.cc",  # ref, refNull.
     "wasm/float32-cross-compiler-determinism-fuzztest.cc",
+    "wasm/gc-unittest.cc",  # ref, refNull.
+    "wasm/liftoff-inspection-unittest.cc",  # Register() hides class Register.
     "wasm/module-decoder-unittest.cc",
     "wasm/run-wasm-unittest.cc",
     "wasm/streaming-compilation-unittest.cc",
@@ -586,8 +651,11 @@ v8_cluster_source_set("v8_unittests_sources") {
 
   if (v8_enable_turbofan) {
     sources += [
+      "codegen/accessor-assembler-unittest.cc",
+      "codegen/code-stub-assembler-run-unittest.cc",
       "codegen/code-stub-assembler-unittest.cc",
       "codegen/code-stub-assembler-unittest.h",
+      "compiler/atomic-load-store-codegen-unittest.cc",
       "compiler/backend/instruction-selector-unittest.cc",
       "compiler/backend/instruction-selector-unittest.h",
       "compiler/backend/instruction-sequence-unittest.cc",
@@ -595,9 +663,14 @@ v8_cluster_source_set("v8_unittests_sources") {
       "compiler/backend/instruction-unittest.cc",
       "compiler/backend/turboshaft-instruction-selector-unittest.cc",
       "compiler/backend/turboshaft-instruction-selector-unittest.h",
+      "compiler/basic-block-profiler-unittest.cc",
+      "compiler/branch-combine-unittest.cc",
       "compiler/branch-elimination-unittest.cc",
       "compiler/bytecode-analysis-unittest.cc",
+      "compiler/calls-with-arraylike-or-spread-unittest.cc",
       "compiler/checkpoint-elimination-unittest.cc",
+      "compiler/code-assembler-unittest.cc",
+      "compiler/code-generator-unittest.cc",
       "compiler/codegen-tester.cc",
       "compiler/codegen-tester.h",
       "compiler/codegen-unittest.cc",
@@ -605,6 +678,7 @@ v8_cluster_source_set("v8_unittests_sources") {
       "compiler/common-operator-unittest.cc",
       "compiler/compiler-test-utils.h",
       "compiler/compiler-unittest.cc",
+      "compiler/concurrent-shared-function-info-unittest.cc",
       "compiler/constant-folding-reducer-unittest.cc",
       "compiler/control-equivalence-unittest.cc",
       "compiler/dead-code-elimination-unittest.cc",
@@ -612,23 +686,33 @@ v8_cluster_source_set("v8_unittests_sources") {
       "compiler/frame-unittest.cc",
       "compiler/function-tester.cc",
       "compiler/function-tester.h",
+      "compiler/gap-resolver-unittest.cc",
+      "compiler/graph-and-builders.h",
       "compiler/graph-reducer-unittest.cc",
       "compiler/graph-reducer-unittest.h",
       "compiler/graph-trimmer-unittest.cc",
       "compiler/graph-unittest.cc",
       "compiler/graph-unittest.h",
+      "compiler/graph-visualizer-unittest.cc",
+      "compiler/instruction-scheduler-unittest.cc",
       "compiler/js-call-reducer-unittest.cc",
+      "compiler/js-constant-cache-unittest.cc",
+      "compiler/js-context-specialization-unittest.cc",
       "compiler/js-create-lowering-unittest.cc",
+      "compiler/js-heap-broker-base.h",
       "compiler/js-intrinsic-lowering-unittest.cc",
       "compiler/js-native-context-specialization-unittest.cc",
       "compiler/js-operator-unittest.cc",
       "compiler/js-typed-lowering-unittest.cc",
+      "compiler/jump-threading-unittest.cc",
       "compiler/linkage-tail-call-unittest.cc",
       "compiler/linkage-unittest.cc",
       "compiler/load-elimination-unittest.cc",
+      "compiler/loop-analysis-unittest.cc",
       "compiler/loop-peeling-unittest.cc",
       "compiler/machine-operator-reducer-unittest.cc",
       "compiler/machine-operator-unittest.cc",
+      "compiler/module-ref-unittest.cc",
       "compiler/node-cache-unittest.cc",
       "compiler/node-matchers-unittest.cc",
       "compiler/node-properties-unittest.cc",
@@ -636,18 +720,23 @@ v8_cluster_source_set("v8_unittests_sources") {
       "compiler/node-test-utils.h",
       "compiler/node-unittest.cc",
       "compiler/opcodes-unittest.cc",
+      "compiler/operator-unittest.cc",
       "compiler/persistent-unittest.cc",
       "compiler/redundancy-elimination-unittest.cc",
       "compiler/regalloc/live-range-unittest.cc",
       "compiler/regalloc/move-optimizer-unittest.cc",
       "compiler/regalloc/register-allocator-unittest.cc",
+      "compiler/representation-change-unittest.cc",
       "compiler/run-bytecode-graph-builder-unittest.cc",
+      "compiler/run-calls-to-external-references-unittest.cc",
       "compiler/run-deopt-unittest.cc",
       "compiler/run-jsbranches-unittest.cc",
       "compiler/run-jscalls-unittest.cc",
       "compiler/run-jsexceptions-unittest.cc",
       "compiler/run-jsobjects-unittest.cc",
       "compiler/run-jsops-unittest.cc",
+      "compiler/run-load-store-unittest.cc",
+      "compiler/run-machops-unittest.cc",
       "compiler/run-stackcheck-unittest.cc",
       "compiler/run-tail-calls-unittest.cc",
       "compiler/run-unwinding-info-unittest.cc",
@@ -655,20 +744,29 @@ v8_cluster_source_set("v8_unittests_sources") {
       "compiler/schedule-unittest.cc",
       "compiler/scheduler-rpo-unittest.cc",
       "compiler/scheduler-unittest.cc",
+      "compiler/select-combine-unittest.cc",
       "compiler/simd-shuffle-unittest.cc",
       "compiler/simplified-lowering-unittest.cc",
       "compiler/simplified-operator-reducer-unittest.cc",
       "compiler/simplified-operator-unittest.cc",
       "compiler/sloppy-equality-unittest.cc",
       "compiler/state-values-utils-unittest.cc",
+      "compiler/turboshaft-branch-combine-unittest.cc",
+      "compiler/turboshaft-codegen-tester.cc",
+      "compiler/turboshaft-codegen-tester.h",
+      "compiler/turboshaft-compare-combine-unittest.cc",
+      "compiler/turboshaft-select-combine-unittest.cc",
       "compiler/turboshaft/call-runtime-unittest.cc",
       "compiler/turboshaft/control-flow-unittest.cc",
       "compiler/turboshaft/duplication-optimization-reducer-unittest.cc",
+      "compiler/turboshaft/graph-builder-unittest.cc",
       "compiler/turboshaft/instruction-selection-normalization-reducer-unittest.cc",
       "compiler/turboshaft/late-load-elimination-reducer-unittest.cc",
       "compiler/turboshaft/load-store-address-hoisting-unittest.cc",
       "compiler/turboshaft/loop-unrolling-analyzer-unittest.cc",
+      "compiler/turboshaft/machine-lowering-reducer-unittest.cc",
       "compiler/turboshaft/machine-optimization-reducer-unittest.cc",
+      "compiler/turboshaft/memory-optimization-reducer-unittest.cc",
       "compiler/turboshaft/opmask-unittest.cc",
       "compiler/turboshaft/reducer-test.cc",
       "compiler/turboshaft/reducer-test.h",
@@ -681,9 +779,15 @@ v8_cluster_source_set("v8_unittests_sources") {
       "compiler/typer-unittest.cc",
       "compiler/types-unittest.cc",
       "compiler/value-numbering-reducer-unittest.cc",
+      "compiler/verify-type-unittest.cc",
       "compiler/zone-stats-unittest.cc",
       "interpreter/interpreter-assembler-unittest.cc",
       "interpreter/interpreter-assembler-unittest.h",
+      "objects/descriptor-array-unittest.cc",
+      "objects/swiss-name-dictionary-csa-unittest.cc",
+      "setup-isolate-for-tests.h",
+      "snapshot/serialize-unittest.cc",
+      "torque/torque-codegen-unittest.cc",
     ]
   }
 
@@ -696,6 +800,11 @@ v8_cluster_source_set("v8_unittests_sources") {
       "../../test/common/wasm/wasm-macro-gen.h",
       "api/api-wasm-unittest.cc",
       "compiler/int64-lowering-unittest.cc",
+      "compiler/multiple-return-unittest.cc",
+
+      # run-native-calls-unittest uses wasm's LinkageAllocator.
+      "compiler/run-native-calls-unittest.cc",
+      "compiler/turboshaft-simd-shift-unittest.cc",
       "compiler/turboshaft/wasm-simd-unittest.cc",
       "objects/wasm-backing-store-unittest.cc",
       "wasm/backing-store-unittest.cc",
@@ -708,6 +817,7 @@ v8_cluster_source_set("v8_unittests_sources") {
       "wasm/fuzzer-steps-unittest.cc",
       "wasm/gc-unittest.cc",
       "wasm/grow-memory-unittest.cc",
+      "wasm/js-to-wasm-unittest.cc",
       "wasm/jump-table-assembler-unittest.cc",
       "wasm/leb-helper-unittest.cc",
       "wasm/liftoff-for-fuzzing-unittest.cc",
@@ -735,6 +845,7 @@ v8_cluster_source_set("v8_unittests_sources") {
       "wasm/run-wasm-unittest.cc",
       "wasm/run-wasm-wrappers-unittest.cc",
       "wasm/signature-hashing-unittest.cc",
+      "wasm/stacks-unittest.cc",
       "wasm/streaming-compilation-unittest.cc",
       "wasm/streaming-decoder-unittest.cc",
       "wasm/string-builder-unittest.cc",
@@ -814,12 +925,19 @@ v8_cluster_source_set("v8_unittests_sources") {
     sources += [
       "assembler/assembler-arm64-unittest.cc",
       "assembler/disasm-arm64-unittest.cc",
+      "assembler/fuzz-arm64-unittest.cc",
+      "assembler/javascript-arm64-unittest.cc",
+      "assembler/js-arm64-variables-unittest.cc",
       "assembler/macro-assembler-arm64-unittest.cc",
+      "assembler/sync-primitives-arm64-unittest.cc",
       "assembler/test-utils-arm64.cc",
       "assembler/test-utils-arm64.h",
       "execution/pointer-auth-arm64-unittest.cc",
       "execution/simulator-arm64-unittest.cc",
     ]
+    if (is_win) {
+      sources += [ "execution/stack-unwinding-win64-unittest.cc" ]
+    }
     if (v8_enable_turbofan) {
       sources += [
         "compiler/arm64/turboshaft-instruction-scheduler-arm64-unittest.cc",
@@ -831,6 +949,7 @@ v8_cluster_source_set("v8_unittests_sources") {
       "assembler/assembler-ia32-unittest.cc",
       "assembler/disasm-ia32-unittest.cc",
       "assembler/macro-assembler-ia32-unittest.cc",
+      "logging/log-stack-tracer-unittest.cc",
     ]
     if (v8_enable_turbofan) {
       sources +=
@@ -880,8 +999,12 @@ v8_cluster_source_set("v8_unittests_sources") {
       "assembler/assembler-x64-unittest.cc",
       "assembler/disasm-x64-unittest.cc",
       "assembler/macro-assembler-x64-unittest.cc",
+      "logging/log-stack-tracer-unittest.cc",
       "regress/regress-536954139-unittest.cc",
     ]
+    if (is_win) {
+      sources += [ "execution/stack-unwinding-win64-unittest.cc" ]
+    }
     if (v8_enable_turbofan) {
       sources +=
           [ "compiler/x64/turboshaft-instruction-selector-x64-unittest.cc" ]
@@ -920,6 +1043,7 @@ v8_cluster_source_set("v8_unittests_sources") {
     if (v8_enable_turbofan) {
       sources += [
         "compiler/loong64/turboshaft-instruction-selector-loong64-unittest.cc",
+        "compiler/run-machops-select-loong64-unittest.cc",
       ]
     }
   }
@@ -966,6 +1090,7 @@ v8_cluster_source_set("v8_unittests_sources") {
     "../..:v8_shared_internal_headers",
     "../..:v8_version",
     "../../third_party/inspector_protocol:crdtp_test",
+    "../../tools/debug_helper:v8_debug_helper",
     "//build/win:default_exe_manifest",
     "//testing/gmock",
     "//testing/gtest",
@@ -982,6 +1107,7 @@ v8_cluster_source_set("v8_unittests_sources") {
       "regexp/regexp-fuzzer.cc",
       "regexp/regexp-grammar.h",
     ]
+    sources += v8_experimental_fuzztest_sources
 
     deps += [
       "//third_party/abseil-cpp:absl_full",
@@ -996,7 +1122,10 @@ v8_cluster_source_set("v8_unittests_sources") {
         "wasm/type-canonicalization-fuzztest.cc",
       ]
       if (v8_wasm_random_fuzzers) {
-        sources += [ "wasm/module-generation-fuzztest.cc" ]
+        sources += [
+          "wasm/deopt-fuzztest.cc",
+          "wasm/module-generation-fuzztest.cc",
+        ]
       }
     }
 
@@ -1020,15 +1149,36 @@ v8_cluster_source_set("v8_unittests_sources") {
       # TODO(skyostil): Migrate to protozero.
       "//third_party/perfetto/protos/perfetto/trace:lite",
     ]
+
+    # Perfetto doesn't use TraceObject.
+    sources -= [ "tracing/trace-event-unittest.cc" ]
+  }
+
+  cflags = []
+  if (v8_current_cpu == "ppc64" || v8_current_cpu == "arm" ||
+      v8_current_cpu == "arm64" || v8_current_cpu == "s390x" ||
+      v8_current_cpu == "mips64" || v8_current_cpu == "mips64el" ||
+      v8_current_cpu == "riscv64" || v8_current_cpu == "loong64" ||
+      v8_current_cpu == "riscv32") {
+    # Disable fmadd/fmsub so that expected results match generated code in
+    # RunFloat64MulAndFloat64Add1 and friends.
+    if (!is_win) {
+      cflags += [ "-ffp-contract=off" ]
+    }
   }
 
   if (is_win) {
     # This warning is benignly triggered by the U16 and U32 macros in
     # bytecode-utils.h.
     # C4309: 'static_cast': truncation of constant value
-    cflags = [ "/wd4309" ]
+    cflags += [ "/wd4309" ]
 
     sources += [ "avoid-windows-h-includes.cc" ]
+
+    if (symbol_level == 2) {
+      sources += [ "diagnostics/v8windbg-unittest.cc" ]
+      deps += [ "../../tools/v8windbg:v8windbg_test" ]
+    }
   }
 
   if (is_win) {

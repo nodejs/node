@@ -747,23 +747,6 @@ class Relocatable {
   Relocatable* prev_;
 };
 
-// BooleanBit is a helper class for setting and getting a bit in an integer.
-class BooleanBit : public AllStatic {
- public:
-  static inline bool get(int value, int bit_position) {
-    return (value & (1 << bit_position)) != 0;
-  }
-
-  static inline int set(int value, int bit_position, bool v) {
-    if (v) {
-      value |= (1 << bit_position);
-    } else {
-      value &= ~(1 << bit_position);
-    }
-    return value;
-  }
-};
-
 // This is an RAII helper class to emit a store-store memory barrier when
 // publishing objects allocated in the shared heap.
 //

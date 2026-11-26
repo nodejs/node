@@ -61,12 +61,11 @@ o.c = 2.2;
 assertUnoptimized(add_field);
 // Sync with background thread to conclude optimization that bailed out.
 %FinalizeOptimization();
-if (!%IsDictPropertyConstTrackingEnabled()) {
+if (!%IsDictPrototypesEnabled()) {
   // TODO(v8:11457) Currently, we cannot inline property stores if there is a
   // dictionary mode prototype on the prototype chain. Therefore, if
-  // v8_dict_property_const_tracking is enabled, the optimized code only
-  // contains a call to the IC handler and doesn't get invalidated when the
-  // transition map changes.
+  // v8_dict_prototypes is enabled, the optimized code only contains a call to
+  // the IC handler and doesn't get invalidated when the transition map changes.
   assertUnoptimized(add_field);
 }
 // Clear type info for stress runs.

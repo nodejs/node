@@ -42,7 +42,6 @@ class BasicTracedReference;
 template <class F>
 class TracedReference;
 
-class ArrayBufferView;
 class Boolean;
 class Context;
 class EscapableHandleScope;
@@ -56,7 +55,6 @@ class Primitive;
 class Private;
 template <class F>
 class PropertyCallbackInfo;
-class RegExp;
 template <class F>
 class ReturnValue;
 class String;
@@ -65,7 +63,6 @@ class Traced;
 class TypecheckWitness;
 class Utils;
 class Value;
-class WasmMemoryObject;
 
 namespace debug {
 class ConsoleCallArguments;
@@ -469,14 +466,11 @@ class V8_TRIVIAL_ABI Local : public LocalBase<T>,
   friend class FunctionCallbackInfo;
   template <class F>
   friend class PropertyCallbackInfo;
-  friend class ArrayBufferView;
   friend class String;
   friend class Object;
   friend class Context;
   friend class Isolate;
   friend class Private;
-  friend class RegExp;
-  friend class WasmMemoryObject;
   template <class F>
   friend class internal::CustomArguments;
   friend Local<Primitive> Undefined(Isolate* isolate);

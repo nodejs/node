@@ -1,0 +1,4 @@
+This test tests that full code compiled without debug break slots is recompiled with debug break slots when debugging is started.
+step_count: 4
+step_count: 4
+step_count: 0

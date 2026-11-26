@@ -136,7 +136,13 @@ window.onload = function () {
     if (!url) return;
 
     try {
-      const response = await fetch(url);
+      const parsedUrl = new URL(url, window.location.href);
+      const isLocalhost = ["localhost", "127.0.0.1", "[::1]"].includes(parsedUrl.hostname);
+      if ((parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") ||
+          (parsedUrl.origin !== window.location.origin && !isLocalhost)) {
+        throw new Error(`Refusing to load trace from untrusted URL: ${parsedUrl.origin}`);
+      }
+      const response = await fetch(parsedUrl.toString());
       if (!response.ok) {
         throw new Error(`${response.status} ${response.statusText}`);
       }

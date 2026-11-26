@@ -1,9 +1,14 @@
-//===-- Definition of function macros from math.h -------------------------===//
+//===----------------------------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
+//===----------------------------------------------------------------------===//
+///
+/// \file
+/// Definitions of function-like macros from math.h.
+///
 //===----------------------------------------------------------------------===//
 
 #ifndef LLVM_LIBC_MACROS_MATH_FUNCTION_MACROS_H
@@ -57,5 +62,11 @@
   __builtin_fpclassify(FP_NAN, FP_INFINITE, FP_NORMAL, FP_SUBNORMAL, FP_ZERO, x)
 #define isnormal(x) __builtin_isnormal(x)
 #define issubnormal(x) (fpclassify(x) == FP_SUBNORMAL)
+#define isgreater(x, y) __builtin_isgreater(x, y)
+#define isgreaterequal(x, y) __builtin_isgreaterequal(x, y)
+#define isless(x, y) __builtin_isless(x, y)
+#define islessequal(x, y) __builtin_islessequal(x, y)
+#define islessgreater(x, y) __builtin_islessgreater(x, y)
+#define isunordered(x, y) __builtin_isunordered(x, y)
 
 #endif // LLVM_LIBC_MACROS_MATH_FUNCTION_MACROS_H

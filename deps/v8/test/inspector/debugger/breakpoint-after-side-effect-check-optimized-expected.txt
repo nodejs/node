@@ -1,0 +1,18 @@
+Tests that breakpoints fire in optimized code after side-effect check.
+Evaluating foo with throwOnSideEffect: true
+Side-effect check evaluated successfully: 1
+Optimizing foo
+foo is optimized: true
+Optimizing bar
+bar is optimized: true
+Setting breakpoint in bar
+Calling bar(4)
+Paused in: bar:11
+Setting breakpoint in foo
+Calling foo(4)
+Paused in: foo:5
+Testing inlined caller
+inliner is optimized: true
+Setting breakpoint in foo while inlined
+Calling inliner(4)
+Paused in: foo:5

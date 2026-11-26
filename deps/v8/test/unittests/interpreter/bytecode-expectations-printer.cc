@@ -451,9 +451,9 @@ void BytecodeExpectationsPrinter::PrintExpectation(
     v8::V8::SetFlagsFromString(options_.extra_flags.c_str());
   }
 
-  i::v8_flags.compilation_cache = false;
-  i::v8_flags.lazy = false;
-  i::v8_flags.flush_bytecode = false;
+  i::v8_flags.compilation_cache.Set(false);
+  i::v8_flags.lazy.Set(false);
+  i::v8_flags.flush_bytecode.Set(false);
   i::Handle<i::BytecodeArray> bytecode_array;
   if (options_.module) {
     CHECK(options_.top_level && !options_.wrap);

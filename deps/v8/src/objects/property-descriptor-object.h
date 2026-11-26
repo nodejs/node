@@ -6,6 +6,7 @@
 #define V8_OBJECTS_PROPERTY_DESCRIPTOR_OBJECT_H_
 
 #include "src/base/bit-field.h"
+#include "src/objects/bit-field-group.h"
 #include "src/objects/struct.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -16,47 +17,60 @@ namespace internal {
 
 V8_OBJECT class PropertyDescriptorObject : public Struct {
  public:
-  using IsEnumerableBit = base::BitField<bool, 0, 1, uint32_t>;
-  using HasEnumerableBit = IsEnumerableBit::Next<bool, 1>;
-  using IsConfigurableBit = HasEnumerableBit::Next<bool, 1>;
-  using HasConfigurableBit = IsConfigurableBit::Next<bool, 1>;
-  using IsWritableBit = HasConfigurableBit::Next<bool, 1>;
-  using HasWritableBit = IsWritableBit::Next<bool, 1>;
-  using HasValueBit = HasWritableBit::Next<bool, 1>;
-  using HasGetBit = HasValueBit::Next<bool, 1>;
-  using HasSetBit = HasGetBit::Next<bool, 1>;
+  struct Flags : BitFieldGroup<Flags, uint32_t> {
+    using BitFieldGroup::BitFieldGroup;
+
+    using IsEnumerableBit = First<bool, 1>;
+    using HasEnumerableBit = IsEnumerableBit::Next<bool, 1>;
+    using IsConfigurableBit = HasEnumerableBit::Next<bool, 1>;
+    using HasConfigurableBit = IsConfigurableBit::Next<bool, 1>;
+    using IsWritableBit = HasConfigurableBit::Next<bool, 1>;
+    using HasWritableBit = IsWritableBit::Next<bool, 1>;
+    using HasValueBit = HasWritableBit::Next<bool, 1>;
+    using HasGetBit = HasValueBit::Next<bool, 1>;
+    using HasSetBit = HasGetBit::Next<bool, 1>;
+
+    BIT_FIELD_GROUP_ACCESSORS(is_enumerable, IsEnumerableBit)
+    BIT_FIELD_GROUP_ACCESSORS(has_enumerable, HasEnumerableBit)
+    BIT_FIELD_GROUP_ACCESSORS(is_configurable, IsConfigurableBit)
+    BIT_FIELD_GROUP_ACCESSORS(has_configurable, HasConfigurableBit)
+    BIT_FIELD_GROUP_ACCESSORS(is_writable, IsWritableBit)
+    BIT_FIELD_GROUP_ACCESSORS(has_writable, HasWritableBit)
+    BIT_FIELD_GROUP_ACCESSORS(has_value, HasValueBit)
+    BIT_FIELD_GROUP_ACCESSORS(has_get, HasGetBit)
+    BIT_FIELD_GROUP_ACCESSORS(has_set, HasSetBit)
+  };
+
   enum Flag : uint32_t {
     kNone = 0,
-    kIsEnumerable = IsEnumerableBit::kMask,
-    kHasEnumerable = HasEnumerableBit::kMask,
-    kIsConfigurable = IsConfigurableBit::kMask,
-    kHasConfigurable = HasConfigurableBit::kMask,
-    kIsWritable = IsWritableBit::kMask,
-    kHasWritable = HasWritableBit::kMask,
-    kHasValue = HasValueBit::kMask,
-    kHasGet = HasGetBit::kMask,
-    kHasSet = HasSetBit::kMask,
+    kIsEnumerable = Flags::IsEnumerableBit::kMask,
+    kHasEnumerable = Flags::HasEnumerableBit::kMask,
+    kIsConfigurable = Flags::IsConfigurableBit::kMask,
+    kHasConfigurable = Flags::HasConfigurableBit::kMask,
+    kIsWritable = Flags::IsWritableBit::kMask,
+    kHasWritable = Flags::HasWritableBit::kMask,
+    kHasValue = Flags::HasValueBit::kMask,
+    kHasGet = Flags::HasGetBit::kMask,
+    kHasSet = Flags::HasSetBit::kMask,
   };
-  using Flags = base::Flags<Flag>;
-  static constexpr int kFlagCount = 9;
 
   static const int kRegularAccessorPropertyBits =
-      HasEnumerableBit::kMask | HasConfigurableBit::kMask | HasGetBit::kMask |
-      HasSetBit::kMask;
+      Flags::HasEnumerableBit::kMask | Flags::HasConfigurableBit::kMask |
+      Flags::HasGetBit::kMask | Flags::HasSetBit::kMask;
 
   static const int kRegularDataPropertyBits =
-      HasEnumerableBit::kMask | HasConfigurableBit::kMask |
-      HasWritableBit::kMask | HasValueBit::kMask;
+      Flags::HasEnumerableBit::kMask | Flags::HasConfigurableBit::kMask |
+      Flags::HasWritableBit::kMask | Flags::HasValueBit::kMask;
 
-  static const int kHasMask = HasEnumerableBit::kMask |
-                              HasConfigurableBit::kMask |
-                              HasWritableBit::kMask | HasValueBit::kMask |
-                              HasGetBit::kMask | HasSetBit::kMask;
+  static const int kHasMask =
+      Flags::HasEnumerableBit::kMask | Flags::HasConfigurableBit::kMask |
+      Flags::HasWritableBit::kMask | Flags::HasValueBit::kMask |
+      Flags::HasGetBit::kMask | Flags::HasSetBit::kMask;
 
   inline explicit PropertyDescriptorObject(const AllocationWitness& witness);
 
-  inline int flags() const;
-  inline void set_flags(int value);
+  inline Flags flags() const;
+  inline void set_flags(Flags value);
 
   inline Tagged<UnionOf<JSAny, TheHole>> value() const;
   inline void set_value(Tagged<UnionOf<JSAny, TheHole>> value,
@@ -84,7 +98,7 @@ V8_OBJECT class PropertyDescriptorObject : public Struct {
   friend class ObjectBuiltinsAssembler;
   friend class MacroAssembler;
 
-  TaggedMember<Smi> flags_ V8_TQ_TYPE(SmiTagged<PropertyDescriptorObjectFlags>);
+  SmiBitFieldMember<Flags> flags_;
   TaggedMember<UnionOf<JSAny, TheHole>> value_;
   TaggedMember<UnionOf<FunctionTemplateInfo, JSAny, TheHole>> get_;
   TaggedMember<UnionOf<FunctionTemplateInfo, JSAny, TheHole>> set_;

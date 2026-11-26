@@ -159,7 +159,7 @@ class V8_EXPORT ArrayBufferBase : public Object {
 
   /**
    * Returns true if this ArrayBuffer may be detached. Always false for
-   * SharedArrayBuffer.
+   * immutable ArrayBuffers and SharedArrayBuffers.
    */
   bool IsDetachable() const;
 
@@ -472,11 +472,6 @@ class V8_EXPORT ArrayBuffer : public ArrayBufferBase {
 class V8_EXPORT ArrayBufferView : public Object {
  public:
   /**
-   * Returns underlying ArrayBuffer.
-   */
-  V8_DEPRECATE_SOON("Use GetBuffer instead")
-  Local<ArrayBuffer> Buffer();
-  /**
    * Returns underlying ArrayBuffer or SharedArrayBuffer.
    */
   Local<ArrayBufferBase> GetBuffer();
@@ -491,7 +486,7 @@ class V8_EXPORT ArrayBufferView : public Object {
 
   /**
    * Copy the contents of the ArrayBufferView's buffer to an embedder defined
-   * memory without additional overhead that calling ArrayBufferView::Buffer
+   * memory without additional overhead that calling ArrayBufferView::GetBuffer
    * might incur.
    *
    * Will write at most min(|byte_length|, ByteLength) bytes starting at

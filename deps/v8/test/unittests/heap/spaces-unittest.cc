@@ -277,13 +277,13 @@ template <typename TMixin>
 class WithSmallHeapFlagsMixin : public TMixin {
  public:
   WithSmallHeapFlagsMixin() {
-    v8_flags.max_heap_size = 20;
+    v8_flags.max_heap_size.Set(20);
     // These tests use their own old/large object space, which confuses the
     // incremental marker.
-    v8_flags.incremental_marking = false;
+    v8_flags.incremental_marking.Set(false);
     // These tests don't expect GCs caused by concurrent allocations in the
     // background thread.
-    v8_flags.stress_concurrent_allocation = false;
+    v8_flags.stress_concurrent_allocation.Set(false);
   }
 
  private:
@@ -428,13 +428,6 @@ TEST_F(SpacesTest, WriteBarriers) {
     MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
     MutablePage* metadata = MutablePage::FromHeapObject(i_isolate(), object);
 
-    // Marking states.
-    EXPECT_FALSE(chunk->IsMarking());
-    metadata->SetFlagNonExecutable(MemoryChunk::INCREMENTAL_MARKING);
-    EXPECT_TRUE(chunk->IsMarking());
-    metadata->ClearFlagNonExecutable(MemoryChunk::INCREMENTAL_MARKING);
-    EXPECT_FALSE(chunk->IsMarking());
-
     // In young generation for TO space.
     EXPECT_FALSE(chunk->InYoungGeneration());
     metadata->SetFlagNonExecutable(MemoryChunk::TO_PAGE);
@@ -481,12 +474,12 @@ TEST_F(SpacesTest, CodeRangeAddressReuse) {
   EXPECT_EQ(code_range6, code_range3);
 }
 
-// Tests that FreeListMany::SelectFreeListCategoryType returns what it should.
-TEST_F(SpacesTest, FreeListManySelectFreeListCategoryType) {
-  FreeListMany free_list;
+// Tests that FreeList::SelectFreeListCategoryType returns what it should.
+TEST_F(SpacesTest, FreeListSelectFreeListCategoryType) {
+  FreeList free_list;
 
   // Testing that all sizes below 256 bytes get assigned the correct category
-  for (size_t size = 0; size <= FreeListMany::kPreciseCategoryMaxSize; size++) {
+  for (size_t size = 0; size <= FreeList::kPreciseCategoryMaxSize; size++) {
     FreeListCategoryType cat = free_list.SelectFreeListCategoryType(size);
     if (cat == 0) {
       // If cat == 0, then we make sure that |size| doesn't fit in the 2nd
@@ -502,25 +495,25 @@ TEST_F(SpacesTest, FreeListManySelectFreeListCategoryType) {
   // Testing every size above 256 would take long time, so test only some
   // "interesting cases": picking some number in the middle of the categories,
   // as well as at the categories' bounds.
-  for (int cat = kFirstCategory + 1; cat <= free_list.last_category_; cat++) {
+  for (int cat = kFirstCategory + 1; cat <= FreeList::kLastCategory; cat++) {
     std::vector<size_t> sizes;
     // Adding size less than this category's minimum
-    sizes.push_back(free_list.categories_min[cat] - 8);
+    sizes.push_back(FreeList::categories_min[cat] - 8);
     // Adding size equal to this category's minimum
-    sizes.push_back(free_list.categories_min[cat]);
+    sizes.push_back(FreeList::categories_min[cat]);
     // Adding size greater than this category's minimum
-    sizes.push_back(free_list.categories_min[cat] + 8);
+    sizes.push_back(FreeList::categories_min[cat] + 8);
     // Adding size between this category's minimum and the next category
-    if (cat != free_list.last_category_) {
+    if (cat != FreeList::kLastCategory) {
       sizes.push_back(
-          (free_list.categories_min[cat] + free_list.categories_min[cat + 1]) /
+          (FreeList::categories_min[cat] + FreeList::categories_min[cat + 1]) /
           2);
     }
 
     for (size_t size : sizes) {
       FreeListCategoryType selected =
           free_list.SelectFreeListCategoryType(size);
-      if (selected == free_list.last_category_) {
+      if (selected == FreeList::kLastCategory) {
         // If selected == last_category, then we make sure that |size| indeeds
         // fits in the last category.
         EXPECT_LE(free_list.categories_min[selected], size);
@@ -534,49 +527,47 @@ TEST_F(SpacesTest, FreeListManySelectFreeListCategoryType) {
 }
 
 // Tests that
-// FreeListManyCachedFastPath::SelectFastAllocationFreeListCategoryType returns
+// FreeList::SelectFastAllocationFreeListCategoryType returns
 // what it should.
-TEST_F(SpacesTest,
-       FreeListManyCachedFastPathSelectFastAllocationFreeListCategoryType) {
-  FreeListManyCachedFastPath free_list;
+TEST_F(SpacesTest, FreeListSelectFastAllocationFreeListCategoryType) {
+  FreeList free_list;
 
-  for (int cat = kFirstCategory; cat <= free_list.last_category_; cat++) {
+  for (int cat = kFirstCategory; cat <= FreeList::kLastCategory; cat++) {
     std::vector<size_t> sizes;
     // Adding size less than this category's minimum
-    sizes.push_back(free_list.categories_min[cat] - 8);
+    sizes.push_back(FreeList::categories_min[cat] - 8);
     // Adding size equal to this category's minimum
-    sizes.push_back(free_list.categories_min[cat]);
+    sizes.push_back(FreeList::categories_min[cat]);
     // Adding size greater than this category's minimum
-    sizes.push_back(free_list.categories_min[cat] + 8);
+    sizes.push_back(FreeList::categories_min[cat] + 8);
     // Adding size between this category's minimum and the next category
-    if (cat != free_list.last_category_) {
+    if (cat != FreeList::kLastCategory) {
       sizes.push_back(
-          (free_list.categories_min[cat] + free_list.categories_min[cat + 1]) /
+          (FreeList::categories_min[cat] + FreeList::categories_min[cat + 1]) /
           2);
     }
 
     for (size_t size : sizes) {
       FreeListCategoryType selected =
           free_list.SelectFastAllocationFreeListCategoryType(size);
-      if (size <= FreeListManyCachedFastPath::kTinyObjectMaxSize) {
+      if (size <= FreeList::kTinyObjectMaxSize) {
         // For tiny objects, the first category of the fast path should be
         // chosen.
-        EXPECT_TRUE(selected ==
-                    FreeListManyCachedFastPath::kFastPathFirstCategory);
-      } else if (size >= free_list.categories_min[free_list.last_category_] -
-                             FreeListManyCachedFastPath::kFastPathOffset) {
+        EXPECT_TRUE(selected == FreeList::kFastPathFirstCategory);
+      } else if (size >= FreeList::categories_min[FreeList::kLastCategory] -
+                             FreeList::kFastPathOffset) {
         // For objects close to the minimum of the last category, the last
         // category is chosen.
-        EXPECT_EQ(selected, free_list.last_category_);
+        EXPECT_EQ(selected, FreeList::kLastCategory);
       } else {
         // For other objects, the chosen category must satisfy that its minimum
         // is at least |size|+1.85k.
         EXPECT_GE(free_list.categories_min[selected],
-                  size + FreeListManyCachedFastPath::kFastPathOffset);
+                  size + FreeList::kFastPathOffset);
         // And the smaller categoriy's minimum is less than |size|+1.85k
         // (otherwise it would have been chosen instead).
         EXPECT_LT(free_list.categories_min[selected - 1],
-                  size + FreeListManyCachedFastPath::kFastPathOffset);
+                  size + FreeList::kFastPathOffset);
       }
     }
   }
@@ -992,7 +983,7 @@ TEST_F(SpacesTest, SizeOfInitialHeap) {
 
 TEST_F(SpacesTest, Regress777177) {
   SaveFlags save_flags;
-  v8_flags.stress_concurrent_allocation = false;  // For SimulateFullSpace.
+  v8_flags.stress_concurrent_allocation.Set(false);  // For SimulateFullSpace.
   v8::Context::Scope context_scope(v8::Context::New(v8_isolate()));
   Heap* heap = i_isolate()->heap();
   OldSpace* old_space = heap->old_space();
@@ -1533,14 +1524,14 @@ class PoolTest : public                                     //
     CHECK_EQ(old_page_allocator_,
              SetPlatformPageAllocatorForTesting(tracking_page_allocator_));
     old_sweeping_flag_ = i::v8_flags.concurrent_sweeping;
-    i::v8_flags.concurrent_sweeping = false;
+    i::v8_flags.concurrent_sweeping.Set(false);
     IsolateGroup::ReleaseDefault();
     IsolateGroup::InitializeOncePerProcess();
   }
 
   static void DoMixinTearDown() {
     IsolateGroup::ReleaseDefault();
-    i::v8_flags.concurrent_sweeping = old_sweeping_flag_;
+    i::v8_flags.concurrent_sweeping.Set(old_sweeping_flag_);
     CHECK(tracking_page_allocator_->IsEmpty());
 
     // Restore the original v8::PageAllocator and delete the tracking one.

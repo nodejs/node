@@ -127,7 +127,7 @@ LIBC_INLINE float16 tanf16(float16 x) {
   using fputil::multiply_add;
   return fputil::cast<float16>(
       multiply_add(sin_y, cos_k, multiply_add(cosm1_y, sin_k, sin_k)) /
-      multiply_add(sin_y, -sin_k, multiply_add(cosm1_y, cos_k, cos_k)));
+      fputil::sub_multiply(multiply_add(cosm1_y, cos_k, cos_k), sin_y, sin_k));
 }
 
 } // namespace math

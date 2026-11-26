@@ -107,7 +107,6 @@ bool VADoRawLog(char** buf, int* size, const char* format, va_list ap) {
   *buf += n;
   return result;
 }
-#endif  // ABSL_LOW_LEVEL_WRITE_SUPPORTED
 
 constexpr int kLogBufSize = 3000;
 
@@ -136,6 +135,16 @@ bool DefaultLogFilterAndPrefix(absl::LogSeverity, const char* file, int line,
   DoRawLog(buf, buf_size, "[%s : %d] RAW: ", file, line);
   return true;
 }
+#else   // !ABSL_LOW_LEVEL_WRITE_SUPPORTED
+// Nothing is formatted or written; the buffer only holds the NUL terminator
+// the abort hook expects.
+constexpr int kLogBufSize = 1;
+
+bool DefaultLogFilterAndPrefix(absl::LogSeverity, const char*, int, char**,
+                               int*) {
+  return true;
+}
+#endif  // ABSL_LOW_LEVEL_WRITE_SUPPORTED
 
 ABSL_INTERNAL_ATOMIC_HOOK_ATTRIBUTES
 absl::base_internal::AtomicHook<LogFilterAndPrefixHook>
@@ -151,6 +160,7 @@ void RawLogVA(absl::LogSeverity severity, const char* file, int line,
   char buffer[kLogBufSize];
   char* buf = buffer;
   int size = sizeof(buffer);
+  buffer[0] = '\0';
 #ifdef ABSL_LOW_LEVEL_WRITE_SUPPORTED
   bool enabled = true;
 #else
@@ -164,7 +174,9 @@ void RawLogVA(absl::LogSeverity severity, const char* file, int line,
   }
 #endif
 
-  enabled = log_filter_and_prefix_hook(severity, file, line, &buf, &size);
+  if (enabled) {
+    enabled = log_filter_and_prefix_hook(severity, file, line, &buf, &size);
+  }
   const char* const prefix_end = buf;
 
 #ifdef ABSL_LOW_LEVEL_WRITE_SUPPORTED
@@ -180,7 +192,6 @@ void RawLogVA(absl::LogSeverity severity, const char* file, int line,
 #else
   static_cast<void>(format);
   static_cast<void>(ap);
-  static_cast<void>(enabled);
 #endif
 
   // Abort the process after logging a FATAL message, even if the output itself

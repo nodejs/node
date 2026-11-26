@@ -16,6 +16,7 @@
 #include "src/base/bit-field.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
+#include "src/objects/bit-field-group.h"
 #include "src/objects/managed.h"
 #include "src/objects/objects.h"
 #include "unicode/uversion.h"
@@ -69,9 +70,6 @@ V8_OBJECT class JSRelativeTimeFormat : public JSObject {
       Tagged<Managed<icu::RelativeDateTimeFormatter>> value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline int flags() const;
-  inline void set_flags(int value);
-
   // Numeric: identifying whether numerical descriptions are always used, or
   // used only when no more specific version is available (e.g., "1 day ago" vs
   // "yesterday").
@@ -85,12 +83,19 @@ V8_OBJECT class JSRelativeTimeFormat : public JSObject {
   inline void set_numeric(Numeric numeric);
   inline Numeric numeric() const;
 
-  // Bit positions in |flags|.
-  using NumericBit =
-      base::BitField<JSRelativeTimeFormat::Numeric, 0, 1, uint32_t>;
+  struct Flags : BitFieldGroup<Flags, uint32_t> {
+    using BitFieldGroup::BitFieldGroup;
 
-  static_assert(NumericBit::is_valid(Numeric::AUTO));
-  static_assert(NumericBit::is_valid(Numeric::ALWAYS));
+    using NumericBit = First<JSRelativeTimeFormat::Numeric, 1>;
+
+    BIT_FIELD_GROUP_ACCESSORS(numeric, NumericBit)
+  };
+
+  inline Flags flags() const;
+  inline void set_flags(Flags value);
+
+  static_assert(Flags::NumericBit::is_valid(Numeric::AUTO));
+  static_assert(Flags::NumericBit::is_valid(Numeric::ALWAYS));
 
   DECL_PRINTER(JSRelativeTimeFormat)
   DECL_VERIFIER(JSRelativeTimeFormat)
@@ -101,7 +106,7 @@ V8_OBJECT class JSRelativeTimeFormat : public JSObject {
   TaggedMember<String> locale_;
   TaggedMember<String> numberingSystem_;
   TaggedMember<Foreign> icu_formatter_;
-  TaggedMember<Smi> flags_ V8_TQ_TYPE(SmiTagged<JSRelativeTimeFormatFlags>);
+  SmiBitFieldMember<Flags> flags_;
 } V8_OBJECT_END;
 
 inline constexpr int JSRelativeTimeFormat::kHeaderSize =

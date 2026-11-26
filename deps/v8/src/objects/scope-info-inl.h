@@ -112,7 +112,6 @@ int ScopeInfo::ContextLocalInfosOffset() const {
   const bool has_hashtable = local_count >= kScopeInfoMaxInlinedLocalNamesSize;
   return ContextLocalNamesHashtableOffset() + (has_hashtable ? kTaggedSize : 0);
 }
-// LINT.ThenChange(/src/codegen/code-stub-assembler.cc:ScopeInfoContextLocalOffsets)
 
 int ScopeInfo::SavedClassVariableInfoOffset() const {
   return ContextLocalInfosOffset() + context_local_count() * kTaggedSize;
@@ -123,6 +122,7 @@ int ScopeInfo::FunctionVariableInfoOffset() const {
   return SavedClassVariableInfoOffset() +
          (has_saved_class_variable ? kTaggedSize : 0);
 }
+// LINT.ThenChange(/src/codegen/code-stub-assembler.cc:ScopeInfoContextLocalOffsets)
 
 int ScopeInfo::InferredFunctionNameOffset() const {
   const bool has_function_variable =

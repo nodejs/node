@@ -557,10 +557,10 @@ class StringBuiltinsReducer : public Next {
         if constexpr (!V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
           V<Smi> flags =
               GetNameDictionaryFlags(V<NameDictionary>::Cast(properties));
-          GOTO_IF(__ IsSetSmi(
-                      flags,
-                      NameDictionary::MayHaveInterestingPropertiesBit::kMask),
-                  lookup);
+          GOTO_IF(
+              __ IsSetSmi(flags, NameDictionary::Flags::
+                                     MayHaveInterestingPropertiesBit::kMask),
+              lookup);
         }
       }
       var_holder = __ LoadField(var_holder_map.Get(),

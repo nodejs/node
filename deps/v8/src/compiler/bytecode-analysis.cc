@@ -33,6 +33,9 @@ BytecodeLoopAssignments::BytecodeLoopAssignments(int parameter_count,
 
 void BytecodeLoopAssignments::Add(interpreter::Register r) {
   if (r.is_parameter()) {
+    // Special registers also have negative indices but are never bytecode
+    // outputs; make sure they never index out of bounds.
+    CHECK_GE(r.ToParameterIndex(), 0);
     bit_vector_->Add(r.ToParameterIndex());
   } else {
     bit_vector_->Add(parameter_count_ + r.index());
@@ -545,6 +548,13 @@ void BytecodeAnalysis::BytecodeAnalysisImpl::Analyze() {
     Bytecode bytecode = iterator_.current_bytecode();
     int current_offset = iterator_.current_offset();
 
+    if (bytecode == Bytecode::kPushContext) {
+      res_.has_push_context_ = true;
+    }
+    if (res_.function_assignments_) {
+      UpdateAssignments(bytecode, &*res_.function_assignments_, iterator_);
+    }
+
     if (bytecode == Bytecode::kJumpLoop) {
       // Every byte up to and including the last byte within the backwards jump
       // instruction is considered part of the loop, set loop end accordingly.
@@ -1051,11 +1061,45 @@ bool BytecodeAnalysis::BytecodeAnalysisImpl::LivenessIsValid() {
   }
 
   // Ensure that the accumulator is not live when jumping out of a loop, or on
-  // the back-edge of a loop.
+  // the back-edge of a loop, and that registers never transition from dead to
+  // live across an exception edge.
+  HandlerTable table(*bytecode_array_);
   for (iterator.GoToStart(); iterator.IsValid() && invalid_offset == -1;
        ++iterator) {
     Bytecode bytecode = iterator.current_bytecode();
     int current_offset = iterator.current_offset();
+
+    if (!interpreter::Bytecodes::IsWithoutExternalSideEffects(bytecode) &&
+        bytecode != Bytecode::kSuspendGenerator &&
+        bytecode != Bytecode::kResumeGenerator) {
+      int handler_index = table.LookupHandlerIndexForRange(current_offset);
+      if (handler_index != HandlerTable::kNoHandlerFound) {
+        uint32_t index = static_cast<uint32_t>(handler_index);
+        const BytecodeLivenessState* in_liveness =
+            liveness_map().GetInLiveness(current_offset);
+        const BytecodeLivenessState* handler_liveness =
+            liveness_map().GetInLiveness(table.GetRangeHandler(index));
+        int context_reg = table.GetRangeData(index);
+        bool valid_handler_liveness = in_liveness->RegisterIsLive(context_reg);
+        for (int reg : *handler_liveness) {
+          if (!in_liveness->RegisterIsLive(reg)) {
+            valid_handler_liveness = false;
+            break;
+          }
+        }
+        if (!valid_handler_liveness) {
+          invalid_liveness.CopyFrom(*in_liveness);
+          bool acc_live = invalid_liveness.AccumulatorIsLive();
+          invalid_liveness.Union(*handler_liveness);
+          invalid_liveness.MarkRegisterLive(context_reg);
+          if (!acc_live) invalid_liveness.MarkAccumulatorDead();
+          invalid_offset = current_offset;
+          which_invalid = 0;
+          break;
+        }
+      }
+    }
+
     int loop_header = res_.GetLoopOffsetFor(current_offset);
 
     // We only care if we're inside a loop.
@@ -1163,12 +1207,17 @@ bool BytecodeAnalysis::BytecodeAnalysisImpl::LivenessIsValid() {
 
 BytecodeAnalysis::BytecodeAnalysis(Handle<BytecodeArray> bytecode_array,
                                    Zone* zone, BytecodeOffset osr_bailout_id,
-                                   bool analyze_liveness)
+                                   bool analyze_liveness,
+                                   bool analyze_function_assignments)
     : osr_bailout_id_(osr_bailout_id),
       analyze_liveness_(analyze_liveness),
       resume_jump_targets_(zone),
       end_to_header_(zone),
       osr_entry_point_(-1) {
+  if (analyze_function_assignments) {
+    function_assignments_.emplace(bytecode_array->parameter_count(),
+                                  bytecode_array->register_count(), zone);
+  }
   BytecodeAnalysisImpl analysis(*this, bytecode_array, zone);
   analysis.Analyze();
   DCHECK_IMPLIES(analyze_liveness_, liveness_map_.has_value());

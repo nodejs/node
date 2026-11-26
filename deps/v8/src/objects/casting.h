@@ -24,12 +24,8 @@
  *         To      |  Untrusted        Trusted
  * From            |
  * --------------------------------------------------
- * Object          |  CheckedCast      <Impossible>*
+ * Object          |  CheckedCast      OutsideSandboxCast
  * TrustedObject   |  -                SbxCast
- *
- * * Note: A checked cast from a generic untrusted Object to a TrustedObject is
- *   impossible at runtime because untrusted pointers can point to arbitrary,
- *   unaligned memory, making a sound runtime type check impossible.
  *
  *
  * 2. Debug-Only Validation Checks (DCHECK-only or no-op)
@@ -73,6 +69,13 @@
  * TPT (Trusted Pointer Table) tag is shared among multiple types (1:N mapping).
  * It performs an always-on SBXCHECK to prevent type-confusion attacks.
  *
+ * OutsideSandboxCast<T>
+ * ---------------------
+ * Use this when casting a full-pointer value (e.g. from a handle or serializer,
+ * not a compressed in-sandbox field) from an untrusted static type (e.g. Object
+ * or HeapObject) to a TrustedObject subtype. It checks via SBXCHECK that the
+ * object lives outside of the sandbox and has dynamic type T.
+ *
  * CheckedCast<T>
  * --------------
  * Performs an always-on CHECK at release time. Use this when casting untrusted
@@ -107,6 +110,7 @@
 #include "src/base/logging.h"
 #include "src/objects/tagged.h"
 #include "src/sandbox/check.h"
+#include "src/sandbox/sandbox.h"
 
 namespace v8::internal {
 
@@ -275,6 +279,7 @@ concept HasCppPointerTryCastImplementation =
 template <typename To, typename From, template <typename> class Holder>
   requires HasTryCastImplementation<Holder, To, From>
 inline bool TryCast(Holder<From> value, Holder<To>* out) {
+  // See SbxCast for why only TrustedObject, Smi, and Oddball are allowed.
   static_assert(!is_subtype_v<To, TrustedObject> ||
                     is_subtype_v<From, Union<Smi, Oddball, TrustedObject>>,
                 "Type of untrusted objects cannot be checked reliably");
@@ -406,15 +411,51 @@ template <typename To, typename From, template <typename> class Holder>
   requires HasCastImplementation<Holder, To, From>
 inline Holder<To> SbxCast(
     Holder<From> value, SourceLocation loc = SourceLocation::CurrentIfDebug()) {
-  // Under the attacker model of the sandbox we cannot trust the type of
-  // in-sandbox objects for sandbox checks as these objects can be arbitrarily
-  // tampered with.
+  // Under the sandbox attacker model, in-sandbox object Maps can be tampered
+  // with, so `Is<To>` is only sound when `From` cannot be a writable
+  // in-sandbox HeapObject. Besides TrustedObject, allow Smi (tag-checked) and
+  // Oddball (in immutable ReadOnlySpace) so unions with sentinel values (e.g.
+  // `Union<Smi, TrustedObject>` from ReadMaybeEmptyTrustedPointerField) can
+  // be passed directly.
   static_assert(is_subtype_v<To, TrustedObject>);
-  static_assert(is_subtype_v<From, Union<Smi, Oddball, TrustedObject>>,
-                "Type of untrusted objects cannot be checked reliably");
+  static_assert(
+      is_subtype_v<From, Union<Smi, Oddball, TrustedObject>>,
+      "Type of untrusted objects cannot be checked reliably; use "
+      "OutsideSandboxCast if the object is expected to live outside of the "
+      "sandbox");
   DCHECK_WITH_MSG_AND_LOC(NullOrIs<To>(value),
                           V8_PRETTY_FUNCTION_VALUE_OR("Cast type check"), loc);
   SBXCHECK(NullOrIs<To>(value));
+  return UncheckedCast<To>(value);
+}
+
+// `OutsideSandboxCast<T>(value)` casts `value` from an untrusted static type to
+// a tagged object of trusted type `T`, with a sandbox-only check that `value`
+// lives outside of the sandbox followed by a dynamic type check ensuring that
+// `value` is of type `T`. Null-valued holders are allowed.
+template <typename To, typename From, template <typename> class Holder>
+  requires HasCastImplementation<Holder, To, From>
+inline Holder<To> OutsideSandboxCast(
+    Holder<From> value, SourceLocation loc = SourceLocation::CurrentIfDebug()) {
+  static_assert(is_subtype_v<To, TrustedObject>);
+  static_assert(
+      !is_subtype_v<From, Union<Smi, Oddball, TrustedObject>>,
+      "Source type can already be checked safely with SbxCast; use SbxCast "
+      "instead");
+  if constexpr (std::is_same_v<Holder<From>, Tagged<From>>) {
+    // Verify that `value` lives outside the sandbox before trusting its Map.
+    SBXCHECK(OutsideSandbox(value.ptr()));
+    DCHECK_WITH_MSG_AND_LOC(
+        Is<To>(value), V8_PRETTY_FUNCTION_VALUE_OR("Cast type check"), loc);
+    SBXCHECK(Is<To>(value));
+  } else if constexpr (requires { *value; }) {
+    // Dereference the handle before SBXCHECK's DisallowSandboxAccess scope: if
+    // `value` points to an in-sandbox object, `operator*`'s slow-DCHECK
+    // validation reads its in-sandbox MemoryChunk header.
+    if (!value.is_null()) OutsideSandboxCast<To>(*value, loc);
+  } else {
+    if (!value.is_null()) OutsideSandboxCast<To>(*value.ToHandleChecked(), loc);
+  }
   return UncheckedCast<To>(value);
 }
 
@@ -483,7 +524,8 @@ inline Holder<To> Cast(Holder<From> value,
       "Down-casting to trusted objects is verboten. Pick one of:\n"
       "* TryCast if the use is guarded by a test\n"
       "      if (Trusted t; TryCast(obj, &t)) { t->foo(); }\n"
-      "* (Checked|Sbx)Cast if the object is expected to be of a certain type\n"
+      "* (Sbx|OutsideSandbox)Cast if the object is expected to be of a certain "
+      "type\n"
       "      Tagged<Trusted> t = SbxCast<Trusted>(obj);\n"
       "* TrustedCast if correct by construction (or other deprecated usage)\n"
       "      Tagged<Trusted> t = "
@@ -515,6 +557,12 @@ template <typename To, typename From>
   requires std::is_base_of_v<HeapObject, From>
 inline Tagged<To> SbxCast(const From* value) {
   return SbxCast<To>(Tagged(value));
+}
+template <typename To, typename From>
+  requires std::is_base_of_v<HeapObject, From>
+inline Tagged<To> OutsideSandboxCast(
+    const From* value, SourceLocation loc = SourceLocation::CurrentIfDebug()) {
+  return OutsideSandboxCast<To>(Tagged(value), loc);
 }
 template <typename To, typename From>
   requires std::is_base_of_v<HeapObject, From>

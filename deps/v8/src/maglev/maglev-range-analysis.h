@@ -5,6 +5,9 @@
 #ifndef V8_MAGLEV_MAGLEV_RANGE_ANALYSIS_H_
 #define V8_MAGLEV_MAGLEV_RANGE_ANALYSIS_H_
 
+#include <algorithm>
+#include <optional>
+
 #include "src/base/logging.h"
 #include "src/common/operation.h"
 #include "src/maglev/hamt.h"
@@ -15,7 +18,7 @@
 #include "src/maglev/maglev-interpreter-frame-state.h"
 #include "src/maglev/maglev-ir.h"
 #include "src/maglev/maglev-node-type.h"
-#include "src/utils/bit-vector.h"
+#include "src/zone/zone-containers.h"
 
 #define TRACE_RANGE(...)                                      \
   do {                                                        \
@@ -45,34 +48,41 @@ class LessEqualConstraint {
   friend base::ThreadedListTraits<LessEqualConstraint>;
 };
 
+// Stores flow insensitive ranges in global_ and per block branch narrowings
+// in blocks_, which is reset on every fixpoint pass.
 class NodeRanges {
  public:
   using RangeMap = HAMT<ValueNode*, Range>;
 
   explicit NodeRanges(Graph* graph)
       : graph_(graph),
-        ranges_initialized_(graph->max_block_id(), graph->zone()),
-        ranges_(graph->zone()->NewVector<RangeMap>(graph->max_block_id())),
-        less_equals_(graph->zone()->NewVector<LessEqualConstraint::List>(
-            graph->max_block_id())) {}
+        global_(graph->zone()),
+        blocks_(graph->zone()->NewVector<BlockState>(graph->max_block_id())) {}
 
-  Range Get(BasicBlock* block, ValueNode* node) {
+  Range Get(BasicBlock* block, ValueNode* node) const {
     if (!IsBlockTracked(block)) return node->GetStaticRange();
-    DCHECK(ranges_initialized_.Contains(block->id()));
-    RangeMap& map = ranges_[block->id()];
-    const Range* range = map.find(node);
-    if (!range) {
-      return node->GetStaticRange();
+    DCHECK(IsInitialized(block));
+    if (IsConstantNode(node->opcode())) return node->GetStaticRange();
+
+    if (const Range* narrowed = blocks_[block->id()].overrides.find(node)) {
+      return *narrowed;
     }
-    return *range;
+
+    const auto it = global_.find(node);
+    if (it == global_.end()) return node->GetStaticRange();
+    return it->second;
+  }
+
+  RangeMap overrides(BasicBlock* block) const {
+    if (!IsBlockTracked(block)) return RangeMap();
+    return blocks_[block->id()].overrides;
   }
 
   void InitializeRangeIfMissing(BasicBlock* block, ValueNode* node,
                                 Range range) {
-    DCHECK(ranges_initialized_.Contains(block->id()));
-    RangeMap& map = ranges_[block->id()];
-    if (!map.find(node)) {
-      map = map.insert(zone(), node, range);
+    DCHECK(IsInitialized(block));
+    if (global_.try_emplace(node, range).second) {
+      DCHECK(is_first_pass_);
       TRACE_RANGE("Initializing in Block b" << block->id() << ": "
                                             << PrintNodeBrief(node) << ": "
                                             << range);
@@ -80,65 +90,99 @@ class NodeRanges {
   }
 
   void UnionUpdate(BasicBlock* block, ValueNode* node, Range range) {
-    DCHECK(ranges_initialized_.Contains(block->id()));
-    RangeMap& map = ranges_[block->id()];
-    const Range* current_range = map.find(node);
-    if (!current_range) {
-      map = map.insert(zone(), node, range);
+    DCHECK(IsInitialized(block));
+    DCHECK(!IsConstantNode(node->opcode()));
+    DCHECK_NULL(blocks_[block->id()].overrides.find(node));
+
+    auto [it, inserted] = global_.try_emplace(node, range);
+    if (inserted) {
+      // Every pass visits the same values, so only the first pass inserts.
+      DCHECK(is_first_pass_);
       TRACE_RANGE("Adding to Block b" << block->id() << ": "
                                       << PrintNodeBrief(node) << ": " << range);
-    } else {
-      Range new_range = Range::Union(*current_range, range);
-      map = map.insert(zone(), node, new_range);
-      TRACE_RANGE("Union update in Block b"
-                  << block->id() << ": " << PrintNodeBrief(node)
-                  << ", from: " << *current_range << " to: " << new_range);
+      return;
     }
+
+    const auto new_range = Range::Union(it->second, range);
+    if (new_range == it->second) return;
+
+    TRACE_RANGE("Union update in Block b"
+                << block->id() << ": " << PrintNodeBrief(node)
+                << ", from: " << it->second << " to: " << new_range);
+
+    it->second = new_range;
   }
 
   inline void ProcessGraph();
 
-  void PrintRangesForBlock(int id) {
+  void PrintRangesForBlock(int id) const {
+    const BlockState& state = blocks_[id];
     std::cout << "Block b" << id << ":";
-    if (!ranges_initialized_.Contains(id)) {
+    if (state.status == BlockState::Status::kUninitialized) {
       std::cout << " ranges not initialized.\n";
     }
     std::cout << "\n";
-    RangeMap map = ranges_[id];
-    for (auto [node, range] : map) {
-      std::cout << "  " << PrintNodeBrief(node) << ": " << range << std::endl;
+    for (auto [node, range] : state.overrides) {
+      std::cout << "  " << PrintNodeBrief(node) << ": " << range
+                << " (narrowed)" << std::endl;
     }
   }
 
-  void Print() {
-    std::cout << "Node ranges:\n";
+  void Print() const {
+    std::cout << "Node ranges (flow insensitive):\n";
+    for (auto [node, range] : global_) {
+      std::cout << "  " << PrintNodeBrief(node) << ": " << range << std::endl;
+    }
+    std::cout << "Narrowings per block:\n";
     for (BasicBlock* block : graph_->blocks()) {
       PrintRangesForBlock(block->id());
     }
   }
 
-  void EnsureMapExistsFor(BasicBlock* block) {
-    if (!ranges_initialized_.Contains(block->id())) {
-      ranges_initialized_.Add(block->id());
-    }
+  bool IsInitialized(BasicBlock* block) const {
+    return blocks_[block->id()].status != BlockState::Status::kUninitialized;
+  }
+
+  bool IsProcessed(BasicBlock* block) const {
+    return blocks_[block->id()].status == BlockState::Status::kProcessed;
+  }
+
+  void MarkBlockProcessed(BasicBlock* block) {
+    blocks_[block->id()].status = BlockState::Status::kProcessed;
   }
 
   void Join(BasicBlock* block, BasicBlock* pred) {
-    RangeMap& map = ranges_[block->id()];
-    RangeMap pred_map = ranges_[pred->id()];
-    if (!ranges_initialized_.Contains(block->id())) {
-      map = pred_map;
-      ranges_initialized_.Add(block->id());
-      if (V8_UNLIKELY(v8_flags.trace_maglev_range_analysis)) {
-        TRACE_RANGE("Initializing Block b" << block->id() << " from Block b"
-                                           << pred->id());
-        PrintRangesForBlock(block->id());
-      }
-      return;
+    DCHECK(IsInitialized(pred));
+
+    const RangeMap& pred_map = blocks_[pred->id()].overrides;
+
+    BlockState& state = blocks_[block->id()];
+    switch (state.status) {
+      case BlockState::Status::kUninitialized:
+        state.overrides = pred_map;
+        state.status = BlockState::Status::kInitialized;
+        if (V8_UNLIKELY(v8_flags.trace_maglev_range_analysis)) {
+          TRACE_RANGE("Initializing Block b" << block->id() << " from Block b"
+                                             << pred->id());
+          PrintRangesForBlock(block->id());
+        }
+        return;
+
+      case BlockState::Status::kInitialized:
+        // A key missing on either side reads the wider global range, so the
+        // intersection drops it.
+        state.overrides = state.overrides.intersect(
+            zone(), pred_map,
+            [](Range r1, Range r2) { return Range::Union(r1, r2); });
+        break;
+
+      case BlockState::Status::kProcessed:
+        // Overrides are rebuilt every pass and every Join target, including
+        // exception handlers, comes after all its predecessors in block
+        // order, so a processed block never receives a Join.
+        UNREACHABLE();
     }
-    map = map.merge_into(zone(), pred_map, [&](Range r1, const Range r2) {
-      return Range::Union(r1, r2);
-    });
+
     if (V8_UNLIKELY(v8_flags.trace_maglev_range_analysis)) {
       TRACE_RANGE("Merging Block b" << pred->id() << " into Block b"
                                     << block->id());
@@ -151,43 +195,73 @@ class NodeRanges {
       // Don't narrow update constants.
       return;
     }
-    RangeMap& map = ranges_[block->id()];
-    DCHECK(ranges_initialized_.Contains(block->id()));
-    const Range* current_range = map.find(node);
-    if (!current_range) {
-      TRACE_RANGE("Narrow update in Block b" << block->id() << ": "
-                                             << PrintNodeBrief(node) << ": "
-                                             << narrowed_range);
-      map = map.insert(zone(), node, narrowed_range);
-    } else {
-      if (!narrowed_range.is_empty()) {
-        TRACE_RANGE("Narrow update in Block b"
-                    << block->id() << ": " << PrintNodeBrief(node) << ", from: "
-                    << *current_range << ", to: " << narrowed_range);
-        map = map.insert(zone(), node, narrowed_range);
-      } else {
-        TRACE_RANGE("Failed narrowing update in Block b"
-                    << block->id() << PrintNodeBrief(node) << ", from: "
-                    << *current_range << ", to: " << narrowed_range);
-      }
+    DCHECK(IsInitialized(block));
+    if (narrowed_range.is_empty()) {
+      // An empty narrowing means the guarded edge is unreachable. Keep the
+      // wider range, since consumers would treat an empty one as below every
+      // bound.
+      TRACE_RANGE("Failed narrowing update in Block b"
+                  << block->id() << ": " << PrintNodeBrief(node)
+                  << ", to: " << narrowed_range);
+      return;
     }
+
+    if (narrowed_range == Get(block, node)) return;
+
+    RangeMap& map = blocks_[block->id()].overrides;
+    TRACE_RANGE("Narrow update in Block b" << block->id() << ": "
+                                           << PrintNodeBrief(node) << ": "
+                                           << narrowed_range);
+    map = map.insert(zone(), node, narrowed_range);
   }
 
   void AddLessEqualConstraint(BasicBlock* block, ValueNode* lhs,
                               ValueNode* rhs) {
-    less_equals_[block->id()].Add(zone()->New<LessEqualConstraint>(lhs, rhs));
+    blocks_[block->id()].less_equals.Add(
+        zone()->New<LessEqualConstraint>(lhs, rhs));
   }
 
   bool IsLessEqualConstraint(BasicBlock* block, ValueNode* lhs,
                              ValueNode* rhs) {
     if (!IsBlockTracked(block)) return false;
-    for (LessEqualConstraint* constraint : less_equals_[block->id()]) {
+    for (LessEqualConstraint* constraint : blocks_[block->id()].less_equals) {
       if (constraint->is(lhs, rhs)) return true;
     }
     return false;
   }
 
  private:
+  Graph* graph_;
+
+  struct BlockState {
+    // A block is kInitialized once it inherits overrides from a predecessor and
+    // kProcessed once it has been visited in the current pass.
+    enum class Status : uint8_t { kUninitialized, kInitialized, kProcessed };
+
+    // This is a very naive way to avoid CheckInt32Condition after a
+    // BranchIfInt32Compare(LessThan).
+    LessEqualConstraint::List less_equals;
+    RangeMap overrides;
+    Status status = Status::kUninitialized;
+
+    void Reset() {
+      less_equals.Clear();
+      overrides = RangeMap();
+      status = Status::kUninitialized;
+    }
+  };
+
+  // Holds one flow insensitive range per value and persists across passes.
+  ZoneAbslFlatHashMap<ValueNode*, Range> global_;
+
+  // Holds per block state indexed by block id, including branch narrowings in
+  // overrides.
+  base::Vector<BlockState> blocks_;
+
+#ifdef DEBUG
+  bool is_first_pass_ = true;
+#endif
+
   // The graph optimizer that consumes these ranges can splice in new basic
   // blocks (e.g. when expanding a node into a subgraph). Since range analysis
   // does not run again over those blocks, they fall outside the analyzed id
@@ -195,19 +269,8 @@ class NodeRanges {
   // conservatively by returning the widest possible (static) range for their
   // nodes.
   bool IsBlockTracked(BasicBlock* block) const {
-    return block->id() <
-           static_cast<BasicBlock::Id>(ranges_initialized_.length());
+    return block->id() < static_cast<BasicBlock::Id>(blocks_.size());
   }
-
-  Graph* graph_;
-  // A bitmask indicating whether a RangeMap has already been initialized
-  // for a given block ID.
-  BitVector ranges_initialized_;
-  base::Vector<RangeMap> ranges_;
-
-  // This is a very naive way to avoid CheckInt32Condition after a
-  // BranchIfInt32Compare(LessThan).
-  base::Vector<LessEqualConstraint::List> less_equals_;
 
   Zone* zone() const { return graph_->zone(); }
 };
@@ -221,34 +284,36 @@ class RangeProcessor {
 
   BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
     current_block_ = block;
-    ranges_.EnsureMapExistsFor(block);
-    if (block->has_state() && block->state()->is_resumable_loop() &&
-        block->predecessor_count() == 1) {
-      // Resumable loop headers might not have a live forward predecessor: that
-      // part of the code might be dead even though the loop is still reachable
-      // via a resume point. Make sure we initialize phis in such case. If the
-      // loop has a live predecessor, ProcessPhis is called when processing that
-      // live predecessor, and this code is a no-op.
-      InitializeLoopPhisIfMissing(block);
+    ranges_.MarkBlockProcessed(block);
+    if (block->has_phi()) {
+      ProcessPhis(block);
+      if (block->is_loop()) {
+        // Resumable loop headers might not have a live forward predecessor:
+        // that part of the code might be dead even though the loop is still
+        // reachable via a resume point. Make sure we initialize phis in such
+        // case. If the loop has a live predecessor, ProcessPhis is called
+        // above, and this code is a no-op.
+        InitializeLoopPhisIfMissing(block);
+      }
     }
     return BlockProcessResult::kContinue;
   }
   BlockProcessResult PostProcessBasicBlock(BasicBlock* block) {
     if (JumpLoop* control = block->control_node()->TryCast<JumpLoop>()) {
       if (!ProcessLoopPhisBackedge(control->target(), block)) {
-        // We didn't reach a fixpoint for this loop, try this loop header
-        // again.
+        // We didn't reach a fixpoint for this loop so run another pass.
         is_done_ = false;
       }
     } else if (UnconditionalControlNode* unconditional =
                    block->control_node()->TryCast<UnconditionalControlNode>()) {
       BasicBlock* succ = unconditional->target();
-      ranges_.Join(succ, block);
-      if (succ->has_state() && succ->has_phi()) {
-        ProcessPhis(succ, block);
+      // Resume edges into a resumable loop bypass its forward predecessor.
+      if (!(succ->is_loop() && succ->state()->is_resumable_loop())) {
+        ranges_.Join(succ, block);
       }
     } else {
       block->ForEachSuccessor([&](BasicBlock* succ) {
+        DCHECK(!(succ->is_loop() && succ->state()->is_resumable_loop()));
         ranges_.Join(succ, block);
         // Because of split-edge, {succ} cannot have phis.
         DCHECK_IMPLIES(succ->has_state(), !succ->has_phi());
@@ -440,10 +505,11 @@ class RangeProcessor {
   }
 
   void ProcessControlNodeFor(BranchIfInt32Compare* node, BasicBlock* succ) {
+    DCHECK_EQ(succ->predecessor_count(), 1);
     ValueNode* lhs = node->input_node(0);
     ValueNode* rhs = node->input_node(1);
-    Range lhs_range = ranges_.Get(succ, lhs);
-    Range rhs_range = ranges_.Get(succ, rhs);
+    Range lhs_range = Get(lhs);
+    Range rhs_range = Get(rhs);
     switch (node->operation()) {
 #define CASE(Op, InvOp, NegOp, NegInvOp)                                      \
   case Operation::k##Op:                                                      \
@@ -550,17 +616,29 @@ class RangeProcessor {
                         Range::Intersect(Range::Uint32(), range));
   }
 
-  void ProcessPhis(BasicBlock* block, BasicBlock* pred) {
-    int predecessor_id = block->get_predecessor_index(pred);
-    DCHECK_NE(predecessor_id, -1);
+  void ProcessPhis(BasicBlock* block) {
+    int pred_count = block->is_loop() ? block->predecessor_count() - 1
+                                      : block->predecessor_count();
     for (Phi* phi : *block->phis()) {
-      Range phi_range = ranges_.Get(pred, phi->input_node(predecessor_id));
-      if (phi->is_int32()) {
-        // Since phi representation selector promoted this phi to Int32,
-        // take its range into consideration.
-        phi_range = Range::Intersect(Range::Int32(), phi_range);
+      // Union all inputs first, so the phi is inserted only once.
+      std::optional<Range> phi_range;
+      for (int i = 0; i < pred_count; ++i) {
+        BasicBlock* pred = block->predecessor_at(i);
+        if (!ranges_.IsInitialized(pred)) {
+          // Live forward preds are processed before `block`.
+          DCHECK(pred->is_dead());
+          continue;
+        }
+        Range input_range = ranges_.Get(pred, phi->input_node(i));
+        if (phi->is_int32()) {
+          // Since phi representation selector promoted this phi to Int32,
+          // take its range into consideration.
+          input_range = Range::Intersect(Range::Int32(), input_range);
+        }
+        phi_range =
+            phi_range ? Range::Union(*phi_range, input_range) : input_range;
       }
-      ranges_.UnionUpdate(block, phi, phi_range);
+      if (phi_range) ranges_.UnionUpdate(block, phi, *phi_range);
     }
   }
 
@@ -576,7 +654,7 @@ class RangeProcessor {
   bool ProcessLoopPhisBackedge(BasicBlock* block, BasicBlock* backedge_pred) {
     if (!block->has_phi()) return true;
     DCHECK_EQ(backedge_pred, block->backedge_predecessor());
-    ranges_.EnsureMapExistsFor(block);  // TODO(victorgomes): not sure if needed
+    DCHECK(ranges_.IsProcessed(block));
     TRACE_RANGE(">>>> Processing backedges for Block b" << block->id());
     bool is_done = true;
     for (Phi* phi : *block->phis()) {
@@ -608,7 +686,15 @@ inline void NodeRanges::ProcessGraph() {
   // TODO(victorgomes): The first pass could be shared with another
   // optimization.
   GraphProcessor<RangeProcessor> processor(*this);
+  processor.ProcessGraph(graph_);
   while (!processor.node_processor().is_done()) {
+#ifdef DEBUG
+    is_first_pass_ = false;
+#endif
+
+    // Discard per block state from the previous pass so narrowings and
+    // constraints are recomputed from the widened global ranges.
+    std::ranges::for_each(blocks_, &BlockState::Reset);
     processor.ProcessGraph(graph_);
   }
 }

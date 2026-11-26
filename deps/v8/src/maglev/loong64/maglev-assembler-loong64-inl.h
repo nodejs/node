@@ -924,6 +924,7 @@ inline void MaglevAssembler::Move(DoubleRegister dst, Float64 n) {
   MacroAssembler::Move(dst, n.get_scalar());
 }
 inline void MaglevAssembler::Move(Register dst, Handle<HeapObject> obj) {
+  if (TryLoadRoot(dst, obj)) return;
   li(dst, Operand(obj));
 }
 void MaglevAssembler::MoveTagged(Register dst, Handle<HeapObject> obj) {
@@ -949,6 +950,16 @@ inline void MaglevAssembler::StoreInt32(MemOperand dst, Register src) {
   St_w(src, dst);
 }
 
+inline void MaglevAssembler::LoadFloat16(DoubleRegister dst, MemOperand src) {
+  UNREACHABLE();
+}
+inline uint8_t MaglevAssembler::StoreFloat16GeneralTemporaryCount() {
+  return 0;
+}
+inline uint8_t MaglevAssembler::StoreFloat16DoubleTemporaryCount() { return 0; }
+inline void MaglevAssembler::StoreFloat16(MemOperand dst, DoubleRegister src) {
+  UNREACHABLE();
+}
 inline void MaglevAssembler::LoadFloat32(DoubleRegister dst, MemOperand src) {
   Fld_s(dst, src);
   fcvt_d_s(dst, dst);
@@ -966,6 +977,24 @@ inline void MaglevAssembler::StoreFloat64(MemOperand dst, DoubleRegister src) {
   Fst_d(src, dst);
 }
 
+inline void MaglevAssembler::LoadUnalignedFloat16(DoubleRegister dst,
+                                                  Register base,
+                                                  Register index) {
+  UNREACHABLE();
+}
+inline void MaglevAssembler::LoadUnalignedFloat16AndReverseByteOrder(
+    DoubleRegister dst, Register base, Register index) {
+  UNREACHABLE();
+}
+inline void MaglevAssembler::StoreUnalignedFloat16(Register base,
+                                                   Register index,
+                                                   DoubleRegister src) {
+  UNREACHABLE();
+}
+inline void MaglevAssembler::ReverseByteOrderAndStoreUnalignedFloat16(
+    Register base, Register index, DoubleRegister src) {
+  UNREACHABLE();
+}
 inline void MaglevAssembler::LoadUnalignedFloat32(DoubleRegister dst,
                                                   Register base,
                                                   Register index) {
@@ -1045,7 +1074,7 @@ inline void MaglevAssembler::ToUint8Clamped(Register result,
   // if value in [0, 255], then round up to the nearest.
   Round_d(scratch, value);
   TruncateDoubleToInt32(result, scratch);
-  jmp(done);
+  Jump(done);
 }
 
 template <typename NodeT>
@@ -1312,7 +1341,7 @@ inline void MaglevAssembler::CompareUInt32AndEmitEagerDeoptIf(
     NodeT* node) {
   Label Deopt, Done;
 
-  MacroAssembler::Branch(&Deopt, cond, reg, Operand(imm), Label::kNear);
+  MacroAssembler::Branch(&Deopt, cond, reg, Operand(imm));
   Jump(&Done, Label::kNear);
   bind(&Deopt);
   EmitEagerDeopt(node, reason);
@@ -1377,7 +1406,7 @@ inline void MaglevAssembler::CompareFloat64AndBranch(
   }
   CompareF64(left, right, cc);
   BranchTrueF(if_true->label());
-  MacroAssembler::Branch(if_false->label());
+  Jump(if_false->label());
 }
 
 inline void MaglevAssembler::PrepareCallCFunction(int num_reg_arguments,
@@ -1398,11 +1427,13 @@ inline void MaglevAssembler::CallSelf() {
 inline void MaglevAssembler::Jump(Label* target, Label::Distance distance) {
   DCHECK(!IsDeoptLabel(target));
   MacroAssembler::Branch(target /*, distance*/);
+  set_reachable(false);
 }
 
 inline void MaglevAssembler::JumpToDeopt(Label* target) {
   DCHECK(IsDeoptLabel(target));
   MacroAssembler::Branch(target);
+  set_reachable(false);
 }
 
 inline void MaglevAssembler::EmitEagerDeoptStress(Label* target) {
@@ -1664,7 +1695,7 @@ inline void MaglevAssembler::Branch(Register r1, const Operand& r2,
     MacroAssembler::Branch(if_false, NegateCondition(cond), r1, r2);
     // Jump to the true block if it's not the next block.
     if (!fallthrough_when_true) {
-      MacroAssembler::Branch(if_true);
+      Jump(if_true);
     }
   }
 }
@@ -1957,7 +1988,9 @@ inline void MaglevAssembler::MaybeEmitPlaceHolderForDeopt() {
   // Implemented only for x64.
 }
 
-inline void MaglevAssembler::MemoryBarrier(AtomicMemoryOrder order) { dbar(0); }
+inline void MaglevAssembler::MemoryBarrier(AtomicMemoryOrder /*order*/) {
+  dbar(kDbarFull);
+}
 
 }  // namespace maglev
 }  // namespace internal

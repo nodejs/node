@@ -98,9 +98,9 @@ V8_OBJECT class JSPromise : public JSObjectWithEmbedderSlots {
   V8_EXPORT_PRIVATE static Handle<Object> Fulfill(
       DirectHandle<JSPromise> promise, DirectHandle<Object> value);
   // https://tc39.es/ecma262/#sec-rejectpromise
-  static Handle<Object> Reject(DirectHandle<JSPromise> promise,
-                               DirectHandle<Object> reason,
-                               bool debug_event = true);
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> Reject(
+      DirectHandle<JSPromise> promise, DirectHandle<Object> reason,
+      bool debug_event = true);
   // https://tc39.es/ecma262/#sec-promise-resolve-functions
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> Resolve(
       DirectHandle<JSPromise> promise, DirectHandle<Object> resolution);

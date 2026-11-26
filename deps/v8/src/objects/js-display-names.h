@@ -15,6 +15,7 @@
 #include "src/base/bit-field.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
+#include "src/objects/bit-field-group.h"
 #include "src/objects/managed.h"
 #include "src/objects/objects.h"
 
@@ -77,26 +78,34 @@ V8_OBJECT class JSDisplayNames : public JSObject {
   inline void set_language_display(LanguageDisplay language_display);
   inline LanguageDisplay language_display() const;
 
-  // Bit positions in |flags|.
-  using StyleBits = base::BitField<JSDisplayNames::Style, 0, 2, uint32_t>;
-  using FallbackBit = StyleBits::Next<JSDisplayNames::Fallback, 1>;
-  using LanguageDisplayBit =
-      FallbackBit::Next<JSDisplayNames::LanguageDisplay, 1>;
+  struct Flags : BitFieldGroup<Flags, uint32_t> {
+    using BitFieldGroup::BitFieldGroup;
 
-  static_assert(StyleBits::is_valid(Style::kLong));
-  static_assert(StyleBits::is_valid(Style::kShort));
-  static_assert(StyleBits::is_valid(Style::kNarrow));
-  static_assert(FallbackBit::is_valid(Fallback::kCode));
-  static_assert(FallbackBit::is_valid(Fallback::kNone));
-  static_assert(LanguageDisplayBit::is_valid(LanguageDisplay::kDialect));
-  static_assert(LanguageDisplayBit::is_valid(LanguageDisplay::kStandard));
+    using StyleBits = First<JSDisplayNames::Style, 2>;
+    using FallbackBit = StyleBits::Next<JSDisplayNames::Fallback, 1>;
+    using LanguageDisplayBit =
+        FallbackBit::Next<JSDisplayNames::LanguageDisplay, 1>;
+
+    BIT_FIELD_GROUP_ACCESSORS(style, StyleBits)
+    BIT_FIELD_GROUP_ACCESSORS(fallback, FallbackBit)
+    BIT_FIELD_GROUP_ACCESSORS(language_display, LanguageDisplayBit)
+  };
+
+  static_assert(Flags::StyleBits::is_valid(Style::kLong));
+  static_assert(Flags::StyleBits::is_valid(Style::kShort));
+  static_assert(Flags::StyleBits::is_valid(Style::kNarrow));
+  static_assert(Flags::FallbackBit::is_valid(Fallback::kCode));
+  static_assert(Flags::FallbackBit::is_valid(Fallback::kNone));
+  static_assert(Flags::LanguageDisplayBit::is_valid(LanguageDisplay::kDialect));
+  static_assert(
+      Flags::LanguageDisplayBit::is_valid(LanguageDisplay::kStandard));
 
   inline Tagged<CppGCManaged<DisplayNamesInternal>> internal() const;
   inline void set_internal(Tagged<CppGCManaged<DisplayNamesInternal>> value,
                            WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline int flags() const;
-  inline void set_flags(int value);
+  inline Flags flags() const;
+  inline void set_flags(Flags value);
 
   DECL_PRINTER(JSDisplayNames)
   DECL_VERIFIER(JSDisplayNames)
@@ -105,7 +114,7 @@ V8_OBJECT class JSDisplayNames : public JSObject {
 
  public:
   TaggedMember<CppGCManaged<DisplayNamesInternal>> internal_;
-  TaggedMember<Smi> flags_ V8_TQ_TYPE(SmiTagged<JSDisplayNamesFlags>);
+  SmiBitFieldMember<Flags> flags_;
 } V8_OBJECT_END;
 
 inline constexpr int JSDisplayNames::kHeaderSize = sizeof(JSDisplayNames);

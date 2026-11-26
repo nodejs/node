@@ -106,11 +106,11 @@ class V8_EXPORT_PRIVATE SharedMacroAssemblerBase : public MacroAssemblerBase {
  public:
   using MacroAssemblerBase::MacroAssemblerBase;
 
-  void Move(Register dst, uint32_t src);
+  void Move(Register V8_REG_OUT dst, uint32_t src);
   // Move if registers are not identical.
-  void Move(Register dst, Register src);
-  void Add(Register dst, Immediate src);
-  void And(Register dst, Immediate src);
+  void Move(Register V8_REG_OUT dst, Register src);
+  void Add(Register V8_REG_INOUT dst, Immediate src);
+  void And(Register V8_REG_INOUT dst, Immediate src);
 
   // Will move src1 to dst if AVX is not supported.
   void Movhps(XMMRegister dst, XMMRegister src1, Operand src2);
@@ -488,18 +488,21 @@ class V8_EXPORT_PRIVATE SharedMacroAssemblerBase : public MacroAssemblerBase {
   void S128Store32Lane(Operand dst, XMMRegister src, uint8_t laneidx);
   void I8x16Splat(XMMRegister dst, Register src, XMMRegister scratch);
   void I8x16Splat(XMMRegister dst, Operand src, XMMRegister scratch);
-  void I8x16Shl(XMMRegister dst, XMMRegister src1, uint8_t src2, Register tmp1,
-                XMMRegister tmp2);
-  void I8x16Shl(XMMRegister dst, XMMRegister src1, Register src2, Register tmp1,
-                XMMRegister tmp2, XMMRegister tmp3);
+  void I8x16Shl(XMMRegister dst, XMMRegister src1, uint8_t src2,
+                Register V8_REG_SCRATCH tmp1, XMMRegister tmp2);
+  void I8x16Shl(XMMRegister dst, XMMRegister src1, Register src2,
+                Register V8_REG_SCRATCH tmp1, XMMRegister tmp2,
+                XMMRegister tmp3);
   void I8x16ShrS(XMMRegister dst, XMMRegister src1, uint8_t src2,
                  XMMRegister tmp);
   void I8x16ShrS(XMMRegister dst, XMMRegister src1, Register src2,
-                 Register tmp1, XMMRegister tmp2, XMMRegister tmp3);
-  void I8x16ShrU(XMMRegister dst, XMMRegister src1, uint8_t src2, Register tmp1,
-                 XMMRegister tmp2);
+                 Register V8_REG_SCRATCH tmp1, XMMRegister tmp2,
+                 XMMRegister tmp3);
+  void I8x16ShrU(XMMRegister dst, XMMRegister src1, uint8_t src2,
+                 Register V8_REG_SCRATCH tmp1, XMMRegister tmp2);
   void I8x16ShrU(XMMRegister dst, XMMRegister src1, Register src2,
-                 Register tmp1, XMMRegister tmp2, XMMRegister tmp3);
+                 Register V8_REG_SCRATCH tmp1, XMMRegister tmp2,
+                 XMMRegister tmp3);
   void I16x8Splat(XMMRegister dst, Register src);
   void I16x8Splat(XMMRegister dst, Operand src);
   void I16x8ExtMulLow(XMMRegister dst, XMMRegister src1, XMMRegister src2,
@@ -536,7 +539,7 @@ class V8_EXPORT_PRIVATE SharedMacroAssemblerBase : public MacroAssemblerBase {
                          XMMRegister xmm_tmp);
   void I64x2ShrSPreAvx10(XMMRegister dst, XMMRegister src, Register shift,
                          XMMRegister xmm_tmp, XMMRegister xmm_shift,
-                         Register tmp_shift);
+                         Register V8_REG_SCRATCH tmp_shift);
   void I64x2MulPreAvx10(XMMRegister dst, XMMRegister lhs, XMMRegister rhs,
                         XMMRegister tmp1, XMMRegister tmp2);
   void I64x2ExtMul(XMMRegister dst, XMMRegister src1, XMMRegister src2,
@@ -616,38 +619,38 @@ class V8_EXPORT_PRIVATE SharedMacroAssembler : public SharedMacroAssemblerBase {
   using SharedMacroAssemblerBase::SharedMacroAssemblerBase;
 
  public:
-  void Abspd(XMMRegister dst, XMMRegister src, Register tmp) {
+  void Abspd(XMMRegister dst, XMMRegister src, Register V8_REG_SCRATCH tmp) {
     FloatUnop(dst, src, tmp, &SharedMacroAssemblerBase::Andps,
               ExternalReference::address_of_double_abs_constant());
   }
 
-  void Absps(XMMRegister dst, XMMRegister src, Register tmp) {
+  void Absps(XMMRegister dst, XMMRegister src, Register V8_REG_SCRATCH tmp) {
     FloatUnop(dst, src, tmp, &SharedMacroAssemblerBase::Andps,
               ExternalReference::address_of_float_abs_constant());
   }
 
-  void Absph(XMMRegister dst, XMMRegister src, Register tmp) {
+  void Absph(XMMRegister dst, XMMRegister src, Register V8_REG_SCRATCH tmp) {
     FloatUnop(dst, src, tmp, &SharedMacroAssemblerBase::Andps,
               ExternalReference::address_of_fp16_abs_constant());
   }
 
-  void Negpd(XMMRegister dst, XMMRegister src, Register tmp) {
+  void Negpd(XMMRegister dst, XMMRegister src, Register V8_REG_SCRATCH tmp) {
     FloatUnop(dst, src, tmp, &SharedMacroAssemblerBase::Xorps,
               ExternalReference::address_of_double_neg_constant());
   }
 
-  void Negps(XMMRegister dst, XMMRegister src, Register tmp) {
+  void Negps(XMMRegister dst, XMMRegister src, Register V8_REG_SCRATCH tmp) {
     FloatUnop(dst, src, tmp, &SharedMacroAssemblerBase::Xorps,
               ExternalReference::address_of_float_neg_constant());
   }
 
-  void Negph(XMMRegister dst, XMMRegister src, Register tmp) {
+  void Negph(XMMRegister dst, XMMRegister src, Register V8_REG_SCRATCH tmp) {
     FloatUnop(dst, src, tmp, &SharedMacroAssemblerBase::Xorps,
               ExternalReference::address_of_fp16_neg_constant());
   }
 #undef FLOAT_UNOP
 
-  void Pextrd(Register dst, XMMRegister src, uint8_t imm8) {
+  void Pextrd(Register V8_REG_OUT dst, XMMRegister src, uint8_t imm8) {
     if (imm8 == 0) {
       Movd(dst, src);
       return;
@@ -687,7 +690,7 @@ class V8_EXPORT_PRIVATE SharedMacroAssembler : public SharedMacroAssemblerBase {
   }
 
   void F64x2ConvertLowI32x4U(XMMRegister dst, XMMRegister src,
-                             Register scratch) {
+                             Register V8_REG_SCRATCH scratch) {
     ASM_CODE_COMMENT(this);
     // dst = [ src_low, 0x43300000, src_high, 0x4330000 ];
     // 0x43300000'00000000 is a special double where the significand bits
@@ -707,7 +710,7 @@ class V8_EXPORT_PRIVATE SharedMacroAssembler : public SharedMacroAssemblerBase {
   }
 
   void I32x4SConvertF32x4(XMMRegister dst, XMMRegister src, XMMRegister tmp,
-                          Register scratch) {
+                          Register V8_REG_SCRATCH scratch) {
     ASM_CODE_COMMENT(this);
     Operand op = ExternalReferenceAsOperand(
         ExternalReference::address_of_wasm_int32_overflow_as_float(), scratch);
@@ -749,7 +752,8 @@ class V8_EXPORT_PRIVATE SharedMacroAssembler : public SharedMacroAssemblerBase {
   }
 
   void I32x4TruncSatF64x2SZero(XMMRegister dst, XMMRegister src,
-                               XMMRegister scratch, Register tmp) {
+                               XMMRegister scratch,
+                               Register V8_REG_SCRATCH tmp) {
     ASM_CODE_COMMENT(this);
     if (CpuFeatures::IsSupported(AVX)) {
       CpuFeatureScope avx_scope(this, AVX);
@@ -786,7 +790,8 @@ class V8_EXPORT_PRIVATE SharedMacroAssembler : public SharedMacroAssemblerBase {
   }
 
   void I32x4TruncSatF64x2UZero(XMMRegister dst, XMMRegister src,
-                               XMMRegister scratch, Register tmp) {
+                               XMMRegister scratch,
+                               Register V8_REG_SCRATCH tmp) {
     ASM_CODE_COMMENT(this);
     if (CpuFeatures::IsSupported(AVX)) {
       CpuFeatureScope avx_scope(this, AVX);
@@ -862,7 +867,7 @@ class V8_EXPORT_PRIVATE SharedMacroAssembler : public SharedMacroAssemblerBase {
   }
 
   void I32x4ExtAddPairwiseI16x8S(XMMRegister dst, XMMRegister src,
-                                 Register scratch) {
+                                 Register V8_REG_SCRATCH scratch) {
     ASM_CODE_COMMENT(this);
     Operand op = ExternalReferenceAsOperand(
         ExternalReference::address_of_wasm_i16x8_splat_0x0001(), scratch);
@@ -879,7 +884,8 @@ class V8_EXPORT_PRIVATE SharedMacroAssembler : public SharedMacroAssemblerBase {
   }
 
   void I16x8ExtAddPairwiseI8x16S(XMMRegister dst, XMMRegister src,
-                                 XMMRegister scratch, Register tmp) {
+                                 XMMRegister scratch,
+                                 Register V8_REG_SCRATCH tmp) {
     ASM_CODE_COMMENT(this);
     // pmaddubsw treats the first operand as unsigned, so pass the external
     // reference to it as the first operand.
@@ -903,7 +909,7 @@ class V8_EXPORT_PRIVATE SharedMacroAssembler : public SharedMacroAssemblerBase {
   }
 
   void I16x8ExtAddPairwiseI8x16U(XMMRegister dst, XMMRegister src,
-                                 Register scratch) {
+                                 Register V8_REG_SCRATCH scratch) {
     ASM_CODE_COMMENT(this);
     Operand op = ExternalReferenceAsOperand(
         ExternalReference::address_of_wasm_i8x16_splat_0x01(), scratch);
@@ -920,7 +926,8 @@ class V8_EXPORT_PRIVATE SharedMacroAssembler : public SharedMacroAssemblerBase {
   }
 
   void I8x16Swizzle(XMMRegister dst, XMMRegister src, XMMRegister mask,
-                    XMMRegister scratch, Register tmp, bool omit_add = false) {
+                    XMMRegister scratch, Register V8_REG_SCRATCH tmp,
+                    bool omit_add = false) {
     ASM_CODE_COMMENT(this);
     if (omit_add) {
       // We have determined that the indices are immediates, and they are either
@@ -950,7 +957,7 @@ class V8_EXPORT_PRIVATE SharedMacroAssembler : public SharedMacroAssemblerBase {
   }
 
   void I8x16PopcntPreAvx10(XMMRegister dst, XMMRegister src, XMMRegister tmp1,
-                           XMMRegister tmp2, Register scratch) {
+                           XMMRegister tmp2, Register V8_REG_SCRATCH scratch) {
     ASM_CODE_COMMENT(this);
     DCHECK_NE(dst, tmp1);
     DCHECK_NE(src, tmp1);
@@ -1023,14 +1030,14 @@ class V8_EXPORT_PRIVATE SharedMacroAssembler : public SharedMacroAssemblerBase {
   Impl* impl() { return static_cast<Impl*>(this); }
 
   Operand ExternalReferenceAsOperand(ExternalReference reference,
-                                     Register scratch) {
+                                     Register V8_REG_SCRATCH scratch) {
     return impl()->ExternalReferenceAsOperand(reference, scratch);
   }
 
   using FloatInstruction = void (SharedMacroAssemblerBase::*)(XMMRegister,
                                                               XMMRegister,
                                                               Operand);
-  void FloatUnop(XMMRegister dst, XMMRegister src, Register tmp,
+  void FloatUnop(XMMRegister dst, XMMRegister src, Register V8_REG_SCRATCH tmp,
                  FloatInstruction op, ExternalReference ext) {
     if (!CpuFeatures::IsSupported(AVX) && (dst != src)) {
       movaps(dst, src);

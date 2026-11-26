@@ -134,7 +134,6 @@ bool OperatorProperties::NeedsExactContext(const Operator* op) {
       CONTROL_OP_LIST(CASE)
       MACHINE_OP_LIST(CASE)
       MACHINE_SIMD128_OP_LIST(CASE)
-      IF_SIMD256(MACHINE_SIMD256_OP_LIST, CASE)
       SIMPLIFIED_OP_LIST(CASE)
       break;
 #undef CASE
@@ -149,6 +148,12 @@ bool OperatorProperties::HasFrameStateInput(const Operator* op) {
       return true;
     case IrOpcode::kCheckpoint:
     case IrOpcode::kFrameState:
+    case IrOpcode::kSpeculativeBigIntMultiply:
+    case IrOpcode::kSpeculativeBigIntDivide:
+    case IrOpcode::kSpeculativeBigIntModulus:
+    case IrOpcode::kBigIntMultiply:
+    case IrOpcode::kBigIntDivide:
+    case IrOpcode::kBigIntModulus:
       return true;
     case IrOpcode::kJSCallRuntime: {
       const CallRuntimeParameters& p = CallRuntimeParametersOf(op);
@@ -200,6 +205,7 @@ bool OperatorProperties::HasFrameStateInput(const Operator* op) {
     case IrOpcode::kJSCreateObject:
     case IrOpcode::kJSCloneObject:
     case IrOpcode::kJSCreateGeneratorObject:
+    case IrOpcode::kJSGetTemplateObject:
 
     // Property access operations
     case IrOpcode::kJSDeleteProperty:

@@ -86,6 +86,13 @@ def create_relative_symlinks(source_root: Path, target_dir: Path,
       os.symlink(expected_rel, link, target_is_directory=target.is_dir())
 
 
+def is_gclient_synced(deps_file: Path, entries_file: Path) -> bool:
+  try:
+    return entries_file.stat().st_mtime >= deps_file.stat().st_mtime
+  except OSError:
+    return False
+
+
 def get_shared_dirs(root_entries_file: Path) -> list[str]:
   dirs = [
       "build",
@@ -266,11 +273,13 @@ def sync_dependencies(main_repo: Path, worktree_dir: Path):
   with file_lock(worktree_lock):
     deps_main = main_repo / "DEPS"
     deps_worktree = worktree_dir / "DEPS"
+    root_entries_file = main_repo.parent / ".gclient_entries"
 
-    shared_dirs = get_shared_dirs(main_repo.parent / ".gclient_entries")
+    shared_dirs = get_shared_dirs(root_entries_file)
 
-    if deps_main.is_file() and deps_worktree.is_file() and filecmp.cmp(
-        deps_main, deps_worktree, shallow=False):
+    if (deps_main.is_file() and deps_worktree.is_file() and
+        filecmp.cmp(deps_main, deps_worktree, shallow=False) and
+        is_gclient_synced(deps_main, root_entries_file)):
       create_relative_symlinks(main_repo, worktree_dir, shared_dirs)
     elif deps_worktree.is_file():
       content_hash = hashlib.sha256(deps_worktree.read_bytes()).hexdigest()[:12]
@@ -342,6 +351,8 @@ def get_referenced_cache_hashes(main_repo: Path, cache_dir: Path) -> set[str]:
   main_resolved = main_repo.resolve()
   cache_resolved = cache_dir.resolve()
   deps_main = main_repo / "DEPS"
+  main_synced = is_gclient_synced(deps_main,
+                                  main_repo.parent / ".gclient_entries")
 
   for wt in worktrees:
     try:
@@ -367,8 +378,8 @@ def get_referenced_cache_hashes(main_repo: Path, cache_dir: Path) -> set[str]:
     deps_wt = wt / "DEPS"
     if deps_wt.is_file():
       try:
-        if not deps_main.is_file() or not filecmp.cmp(
-            deps_main, deps_wt, shallow=False):
+        if (not main_synced or not deps_main.is_file() or
+            not filecmp.cmp(deps_main, deps_wt, shallow=False)):
           h = hashlib.sha256(deps_wt.read_bytes()).hexdigest()[:12]
           referenced.add(h)
       except OSError:

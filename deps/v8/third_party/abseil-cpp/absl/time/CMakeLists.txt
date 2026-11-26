@@ -168,6 +168,41 @@ absl_cc_test(
 
 absl_cc_library(
   NAME
+    mock_clock
+  HDRS
+    "mock_clock.h"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  DEPS
+    absl::clock_interface
+    absl::config
+    absl::core_headers
+    absl::synchronization
+    absl::time
+    GTest::gmock
+    GTest::gtest
+  PUBLIC
+  TESTONLY
+)
+
+absl_cc_test(
+  NAME
+    mock_clock_test
+  SRCS
+    "mock_clock_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::clock_interface
+    absl::core_headers
+    absl::mock_clock
+    absl::synchronization
+    absl::time
+    GTest::gmock_main
+)
+
+absl_cc_library(
+  NAME
     simulated_clock
   HDRS
     "simulated_clock.h"

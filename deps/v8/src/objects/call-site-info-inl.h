@@ -20,16 +20,17 @@ namespace v8 {
 namespace internal {
 
 #if V8_ENABLE_WEBASSEMBLY
-BOOL_GETTER(CallSiteInfo, flags, IsWasm, IsWasmBit::kShift)
+bool CallSiteInfo::IsWasm() const { return flags().is_wasm(); }
 #if V8_ENABLE_DRUMBRAKE
-BOOL_GETTER(CallSiteInfo, flags, IsWasmInterpretedFrame,
-            IsWasmInterpretedFrameBit::kShift)
+bool CallSiteInfo::IsWasmInterpretedFrame() const {
+  return flags().is_wasm_interpreted_frame();
+}
 #endif  // V8_ENABLE_DRUMBRAKE
-BOOL_GETTER(CallSiteInfo, flags, IsBuiltin, IsBuiltinBit::kShift)
+bool CallSiteInfo::IsBuiltin() const { return flags().is_builtin(); }
 #endif  // V8_ENABLE_WEBASSEMBLY
-BOOL_GETTER(CallSiteInfo, flags, IsStrict, IsStrictBit::kShift)
-BOOL_GETTER(CallSiteInfo, flags, IsConstructor, IsConstructorBit::kShift)
-BOOL_GETTER(CallSiteInfo, flags, IsAsync, IsAsyncBit::kShift)
+bool CallSiteInfo::IsStrict() const { return flags().is_strict(); }
+bool CallSiteInfo::IsConstructor() const { return flags().is_constructor(); }
+bool CallSiteInfo::IsAsync() const { return flags().is_async(); }
 
 CallSiteInfo::CallSiteInfo(
     const AllocationWitness& witness, Tagged<JSAny> receiver_or_instance,
@@ -42,7 +43,7 @@ CallSiteInfo::CallSiteInfo(
       function_(witness, function),
       code_offset_or_source_position_(
           Smi::FromInt(code_offset_or_source_position)),
-      flags_(Smi::FromInt(flags)) {}
+      flags_(Flags(flags)) {}
 
 Tagged<HeapObject> CallSiteInfo::code_object(IsolateForSandbox isolate) const {
   // The field can contain either a Code or a BytecodeArray, so we need to use
@@ -69,10 +70,8 @@ void CallSiteInfo::set_code_offset_or_source_position(int value,
   code_offset_or_source_position_.store(this, Smi::FromInt(value), mode);
 }
 
-int CallSiteInfo::flags() const { return flags_.load().value(); }
-void CallSiteInfo::set_flags(int value) {
-  flags_.store(this, Smi::FromInt(value));
-}
+CallSiteInfo::Flags CallSiteInfo::flags() const { return flags_.load(); }
+void CallSiteInfo::set_flags(Flags value) { flags_.store(value); }
 
 }  // namespace internal
 }  // namespace v8

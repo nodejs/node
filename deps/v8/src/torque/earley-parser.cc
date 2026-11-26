@@ -201,7 +201,6 @@ const Item* RunEarleyAlgorithm(
   CurrentSourcePosition::Scope source_position(
       SourcePosition{CurrentSourceFile::Get(), LineAndColumn::Invalid(),
                      LineAndColumn::Invalid()});
-  std::vector<const Item*> completed_items;
   absl::node_hash_map<std::pair<size_t, Symbol*>, std::set<const Item*>,
                       base::hash<std::pair<size_t, Symbol*>>>
       waiting;

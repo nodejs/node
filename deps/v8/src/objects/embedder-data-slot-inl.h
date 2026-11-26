@@ -14,7 +14,7 @@
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
 #include "src/heap/heap-write-barrier-inl.h"
-#include "src/objects/embedder-data-array.h"
+#include "src/objects/contexts.h"
 #include "src/objects/heap-object-field-inl.h"
 #include "src/objects/heap-object-inl.h"
 #include "src/objects/js-objects-inl.h"
@@ -28,10 +28,10 @@
 namespace v8 {
 namespace internal {
 
-EmbedderDataSlot::EmbedderDataSlot(Tagged<EmbedderDataArray> array,
+EmbedderDataSlot::EmbedderDataSlot(Tagged<NativeContext> context,
                                    int entry_index)
-    : SlotBase(FIELD_ADDR(array,
-                          EmbedderDataArray::OffsetOfElementAt(entry_index))) {}
+    : SlotBase(FIELD_ADDR(
+          context, NativeContext::GetEmbedderFieldOffset(entry_index))) {}
 
 EmbedderDataSlot::EmbedderDataSlot(Tagged<JSObject> object,
                                    int embedder_field_index)
@@ -58,20 +58,20 @@ void EmbedderDataSlot::store_smi(Tagged<Smi> value) {
 }
 
 // static
-void EmbedderDataSlot::store_tagged(Tagged<EmbedderDataArray> array,
+void EmbedderDataSlot::store_tagged(Tagged<NativeContext> context,
                                     int entry_index, Tagged<Object> value) {
 #ifdef V8_COMPRESS_POINTERS
   CHECK(IsSmi(value) ||
         V8HeapCompressionScheme::GetPtrComprCageBaseAddress(value.ptr()) ==
-            V8HeapCompressionScheme::GetPtrComprCageBaseAddress(array.ptr()));
+            V8HeapCompressionScheme::GetPtrComprCageBaseAddress(context.ptr()));
 #endif
-  int slot_offset = EmbedderDataArray::OffsetOfElementAt(entry_index);
-  Address tagged_addr = FIELD_ADDR(array, slot_offset + kTaggedPayloadOffset);
+  int slot_offset = NativeContext::GetEmbedderFieldOffset(entry_index);
+  Address tagged_addr = FIELD_ADDR(context, slot_offset + kTaggedPayloadOffset);
   ObjectSlot(tagged_addr).Relaxed_Store(value);
-  WriteBarrier::ForValue(&*array, MaybeObjectSlot(tagged_addr), value,
+  WriteBarrier::ForValue(&*context, MaybeObjectSlot(tagged_addr), value,
                          UPDATE_WRITE_BARRIER);
   // See store_raw() for the reasons behind two stores.
-  clear_cpp_heap_pointer_field(FIELD_ADDR(array, slot_offset));
+  clear_cpp_heap_pointer_field(FIELD_ADDR(context, slot_offset));
 }
 
 // static
@@ -207,11 +207,12 @@ bool EmbedderDataSlot::store_aligned_pointer(Isolate* isolate,
 
 // static
 template <typename T>
-  requires std::is_same_v<EmbedderDataArray, T> ||
-           std::is_same_v<JSObject, T>
-bool EmbedderDataSlot::store_aligned_pointer(
-    Isolate* isolate, DirectHandle<T> host, int entry_or_embedder_field_index,
-    void* ptr, ExternalPointerTag tag) {
+  requires std::is_same_v<NativeContext, T> || std::is_same_v<JSObject, T>
+bool EmbedderDataSlot::store_aligned_pointer(Isolate* isolate,
+                                             DirectHandle<T> host,
+                                             int entry_or_embedder_field_index,
+                                             void* ptr,
+                                             ExternalPointerTag tag) {
   EmbedderDataSlotWrapper* wrapper = nullptr;
   if (ptr != nullptr) {
     v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
@@ -225,30 +226,6 @@ bool EmbedderDataSlot::store_aligned_pointer(
   return slot.store_aligned_pointer(isolate, *host, wrapper,
                                     kEmbedderDataSlotTag);
 }
-
-#ifdef V8_COMPRESS_POINTERS
-void EmbedderDataSlot::store_tagged_without_barrier(Tagged<Object> value) {
-  ObjectSlot(address() + kTaggedPayloadOffset).Relaxed_Store(value);
-  clear_cpp_heap_pointer_field(address());
-}
-
-bool EmbedderDataSlot::store_handle_without_barrier(
-    IsolateForPointerCompression isolate, CppHeapPointerHandle handle) {
-  DCHECK_NE(handle, kNullCppHeapPointerHandle);
-  CppHeapPointerTable& table = isolate.GetCppHeapPointerTable();
-  CppHeapPointerTable::Space* space = isolate.GetCppHeapPointerTableSpace();
-
-  CppHeapPointerHandle new_handle = table.DuplicateEntry(space, handle);
-  if (new_handle == kNullCppHeapPointerHandle) return false;
-
-  CppHeapPointerSlot slot(address() + kCppHeapPointerOffset);
-  DCHECK_EQ(slot.Relaxed_LoadHandle(), kNullCppHeapPointerHandle);
-  slot.Release_StoreHandle(new_handle);
-
-  ObjectSlot(address() + kTaggedPayloadOffset).Relaxed_Store(Smi::zero());
-  return true;
-}
-#endif  // V8_COMPRESS_POINTERS
 
 EmbedderDataSlot::RawData EmbedderDataSlot::load_raw(
     IsolateForPointerCompression isolate,

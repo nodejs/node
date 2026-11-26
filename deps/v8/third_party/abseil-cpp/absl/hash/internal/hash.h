@@ -293,7 +293,8 @@ class HashStateBase {
   //   state = H::combine(std::move(state), value2);
   //   state = H::combine(std::move(state), value3);
   template <typename T, typename... Ts>
-  static H combine(H state, const T& value, const Ts&... values);
+  ABSL_ATTRIBUTE_ALWAYS_INLINE inline static H combine(H state, const T& value,
+                                                       const Ts&... values);
   static H combine(H state) { return state; }
 
   // Combines a contiguous array of `size` elements into a hash state, returning
@@ -337,7 +338,7 @@ class HashStateBase {
 
 // `is_uniquely_represented` is like `std::has_unique_object_representations`,
 // but with a few differences for legacy reasons that predate cl/989071457, such
-// as disallowing pointers or Booleans.
+// as disallowing Booleans.
 //
 // A type is "uniquely represented" if two equal values of that type are
 // guaranteed to have the same bytes in their underlying storage. In other
@@ -369,10 +370,15 @@ class HashStateBase {
 // to support certain SFINAE techniques when defining specializations.
 template <typename T, typename Enable = void>
 struct is_uniquely_represented
-    : std::conditional_t<(std::is_integral_v<T> && !std::is_same_v<bool, T>) ||
-                             std::is_enum_v<T>,
-                         std::has_unique_object_representations<T>,
-                         std::false_type> {};
+    : std::conditional_t<
+          (std::is_integral_v<T> && !std::is_same_v<bool, T>) ||
+              std::is_enum_v<T> || std::is_pointer_v<T>,
+          // Use `void*` for pointers because Clang's
+          // `has_unique_object_representations` returns false for Objective-C
+          // object pointers.
+          std::has_unique_object_representations<
+              std::conditional_t<std::is_pointer_v<T>, void*, T>>,
+          std::false_type> {};
 
 #ifdef ABSL_HAVE_INTRINSIC_INT128
 // Specialize the trait for GNU extension types.
@@ -383,7 +389,7 @@ struct is_uniquely_represented<unsigned __int128> : std::true_type {};
 #endif  // ABSL_HAVE_INTRINSIC_INT128
 
 template <typename T>
-using FitsIn64Bits =
+using FitsIn64BitsPowerOf2 =
     std::bool_constant<sizeof(T) <= sizeof(uint64_t) &&
                        // Check that sizeof(T) is a power of 2, since unaligned
                        // operations require it.
@@ -408,7 +414,7 @@ struct HashWithSeed {
 // Convenience function that combines `hash_state` with the byte representation
 // of `value`.
 template <typename H, typename T,
-          std::enable_if_t<FitsIn64Bits<T>::value, int> = 0>
+          std::enable_if_t<FitsIn64BitsPowerOf2<T>::value, int> = 0>
 H hash_bytes(H hash_state, const T& value) {
   const unsigned char* start = reinterpret_cast<const unsigned char*>(&value);
   uint64_t v;
@@ -425,7 +431,7 @@ H hash_bytes(H hash_state, const T& value) {
   return CombineRaw()(std::move(hash_state), v);
 }
 template <typename H, typename T,
-          std::enable_if_t<!FitsIn64Bits<T>::value, int> = 0>
+          std::enable_if_t<!FitsIn64BitsPowerOf2<T>::value, int> = 0>
 H hash_bytes(H hash_state, const T& value) {
   const unsigned char* start = reinterpret_cast<const unsigned char*>(&value);
   return H::combine_contiguous(std::move(hash_state), start, sizeof(value));
@@ -450,8 +456,8 @@ H hash_weakly_mixed_integer(H hash_state, WeaklyMixedInteger value) {
 // We use SFINAE to ensure that this overload only accepts bool, not types that
 // are convertible to bool.
 template <typename H, typename B>
-std::enable_if_t<std::is_same_v<B, bool>, H> AbslHashValue(H hash_state,
-                                                           B value) {
+ABSL_ATTRIBUTE_ALWAYS_INLINE inline std::enable_if_t<std::is_same_v<B, bool>, H>
+AbslHashValue(H hash_state, B value) {
   // We use ~size_t{} instead of 1 so that all bits are different between
   // true/false instead of only 1.
   return H::combine(std::move(hash_state),
@@ -526,16 +532,10 @@ H AbslHashValue(H hash_state, T (&)[N]) {
   return hash_state;
 }
 
-// AbslHashValue() for hashing pointers
+// This overload prevents `char*` from matching the `absl::string_view`
+// overload.
 template <typename H, typename T>
-std::enable_if_t<std::is_pointer_v<T>, H> AbslHashValue(H hash_state, T ptr) {
-  auto v = reinterpret_cast<uintptr_t>(ptr);
-  // Due to alignment, pointers tend to have low bits as zero, and the next few
-  // bits follow a pattern since they are also multiples of some base value.
-  // The PointerAlignment test verifies that our mixing is good enough to handle
-  // these cases.
-  return H::combine(std::move(hash_state), v);
-}
+void AbslHashValue(H hash_state, const T* ptr);
 
 // AbslHashValue() for hashing nullptr_t
 template <typename H>
@@ -1164,12 +1164,14 @@ ABSL_ATTRIBUTE_ALWAYS_INLINE inline uint64_t CombineRawImpl(uint64_t state,
 // Slow dispatch path for calls to CombineContiguousImpl with a size argument
 // larger than inlined size. Has the same effect as calling
 // CombineContiguousImpl() repeatedly with the chunk stride size.
-uint64_t CombineLargeContiguousImplOn32BitLengthGt8(uint64_t state,
-                                                    const unsigned char* first,
-                                                    size_t len);
-uint64_t CombineLargeContiguousImplOn64BitLengthGt32(uint64_t state,
-                                                     const unsigned char* first,
-                                                     size_t len);
+ABSL_ATTRIBUTE_PURE_FUNCTION uint64_t
+CombineLargeContiguousImplOn32BitLengthGt8(uint64_t state,
+                                           const unsigned char* first,
+                                           size_t len);
+ABSL_ATTRIBUTE_PURE_FUNCTION uint64_t
+CombineLargeContiguousImplOn64BitLengthGt32(uint64_t state,
+                                            const unsigned char* first,
+                                            size_t len);
 
 ABSL_ATTRIBUTE_ALWAYS_INLINE inline uint64_t CombineSmallContiguousImpl(
     uint64_t state, const unsigned char* first, size_t len) {
@@ -1257,8 +1259,22 @@ inline uint64_t CombineContiguousImpl(
   // reading the memory. Fused instructions also reduce register pressure
   // allowing surrounding code to be more efficient when this code is inlined.
   if (len > 8) {
+#if ABSL_HAVE_BUILTIN(__builtin_constant_p)
+    // CRC32 only uses the low 32 bits of its first argument. When `state` has
+    // known zero upper 32 bits in SwissTable's per-table seed,
+    // `static_cast<uint32_t>(crcs.second)` is a compile-time constant 0;
+    // folding it avoids shifting `state` and breaks the false dependency from
+    // loading the seed to the second CRC32 stream without adding a
+    // zero-extension when `crcs.second` is not a compile-time constant.
+    const uint64_t second_init =
+        __builtin_constant_p(static_cast<uint32_t>(crcs.second))
+            ? static_cast<uint32_t>(crcs.second)
+            : crcs.second;
+#else
+    const uint64_t second_init = crcs.second;
+#endif
     crcs = {ABSL_HASH_INTERNAL_CRC32_U64(crcs.first, Read8(first)),
-            ABSL_HASH_INTERNAL_CRC32_U64(crcs.second, Read8(first + len - 8))};
+            ABSL_HASH_INTERNAL_CRC32_U64(second_init, Read8(first + len - 8))};
     if (len > 16) {
       // We compute the second round of dependent CRC32 operations.
       crcs = {ABSL_HASH_INTERNAL_CRC32_U64(crcs.first, Read8(first + len - 16)),
@@ -1372,13 +1388,29 @@ struct HashSelect {
   struct UniquelyRepresentedProbe {
     template <typename H, typename T>
     static H Invoke(H state, const T& value) {
+      if constexpr (std::is_pointer_v<T>) {
+        static_assert(
+            !std::is_same_v<State,
+                            typename AbslHashValueResultOrVoid<
+                                State, std::remove_const_t<
+                                           std::remove_pointer_t<T>>*>::type>,
+            "Pointer types cannot have custom AbslHashValue overloads. "
+            "All pointers are hashed by address; wrap the pointer in a struct "
+            "or use a custom hash functor to hash the pointee.");
+      }
       return hash_internal::hash_bytes(std::move(state), value);
     }
   };
 
+  template <typename T>
   struct HashValueProbe {
-    template <typename H, typename T>
-    static H Invoke(H state, const T& value) {
+    // The std::conditional_t<false, H, T> test is to enable SFINAE by making T
+    // be a dependent type.
+    template <typename H>
+    ABSL_ATTRIBUTE_ALWAYS_INLINE static H Invoke(
+        H state, type_traits_internal::AddConstRefIfExpensiveToCopy<
+                     std::conditional_t<false, H, T>>
+                     value) {
       return AbslHashValue(std::move(state), value);
     }
   };
@@ -1411,7 +1443,7 @@ struct HashSelect {
     } else if constexpr (std::is_same_v<State,
                                         typename AbslHashValueResultOrVoid<
                                             State, const T&>::type>) {
-      return HashValueProbe();
+      return HashValueProbe<T>();
 #if ABSL_HASH_INTERNAL_SUPPORT_LEGACY_HASH_
     } else if constexpr (std::is_convertible_v<
                              InvokeResultOrVoid<
@@ -1434,7 +1466,7 @@ class ABSL_DLL MixingHashState : public HashStateBase<MixingHashState> {
   template <typename T>
   using IntegralFastPath =
       std::conjunction<std::is_integral<T>, is_uniquely_represented<T>,
-                       FitsIn64Bits<T>>;
+                       FitsIn64BitsPowerOf2<T>>;
 
  public:
   // Move only
@@ -1582,6 +1614,8 @@ struct PoisonedHash : private AggregateBarrier {
 
 template <typename T>
 struct HashImpl {
+  using KeyType = T;
+
   size_t operator()(const T& value) const {
     return MixingHashState::hash(value);
   }

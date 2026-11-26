@@ -25,14 +25,14 @@ static constexpr size_t kMaxOldGenerationSize = 512 * i::MB;
 FuzzerSupport::FuzzerSupport(int* argc, char*** argv) {
   // Disable hard abort, which generates a trap instead of a proper abortion.
   // Traps by default do not cause libfuzzer to generate a crash file.
-  i::v8_flags.hard_abort = false;
+  i::v8_flags.hard_abort.Set(false);
 
-  i::v8_flags.expose_gc = true;
-  i::v8_flags.fuzzing = true;
+  i::v8_flags.expose_gc.Set(true);
+  i::v8_flags.fuzzing.Set(true);
 
   // Allow changing flags in fuzzers.
   // TODO(12887): Refactor fuzzers to not change flags after initialization.
-  i::v8_flags.freeze_flags_after_init = false;
+  i::v8_flags.freeze_flags_after_init.Set(false);
 
 #if V8_ENABLE_WEBASSEMBLY
   if (V8_TRAP_HANDLER_SUPPORTED) {
@@ -40,6 +40,18 @@ FuzzerSupport::FuzzerSupport(int* argc, char*** argv) {
     if (!v8::V8::EnableWebAssemblyTrapHandler(kUseDefaultTrapHandler)) {
       FATAL("Could not register trap handler");
     }
+#if V8_OS_POSIX
+    // The trap handler deliberately handles (and recovers from) the signal
+    // raised by out-of-bounds Wasm memory accesses. Ask FuzzTest to not install
+    // its own crash handler for that signal, which would otherwise report these
+    // as crashes before V8 gets to handle them. Genuine crashes are still
+    // reported by the sanitizer. Existing values are not overwritten.
+#if V8_OS_DARWIN
+    setenv("FUZZTEST_DISABLE_SIGNAL_HANDLERS", "SIGBUS", /*replace=*/0);
+#else
+    setenv("FUZZTEST_DISABLE_SIGNAL_HANDLERS", "SIGSEGV", /*replace=*/0);
+#endif  // V8_OS_DARWIN
+#endif  // V8_OS_POSIX
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
 

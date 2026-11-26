@@ -1,0 +1,8 @@
+[manually marking * <JSFunction f *> for optimization to TURBOFAN_JS, ConcurrencyMode::kConcurrent]
+[compiling method * <JSFunction f *> (target TURBOFAN_JS), mode: ConcurrencyMode::kConcurrent]
+fuzzcode.js:5: rejection
+Promise.reject({
+        ^
+1 pending unhandled Promise rejection(s) detected.
+[flushed compiling * <JSFunction f *> (target TURBOFAN_JS)]
+part 2

@@ -30,8 +30,12 @@ V8_OBJECT class Cell : public HeapObject {
   // only Objects.
   inline Tagged<Object> value() const;
   inline Tagged<Object> value(RelaxedLoadTag) const;
+  inline Tagged<Object> value(AcquireLoadTag) const;
   inline void set_value(
       Tagged<Object> value,
+      WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
+  inline void set_value(
+      Tagged<Object> value, ReleaseStoreTag,
       WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
 
   DECL_PRINTER(Cell)

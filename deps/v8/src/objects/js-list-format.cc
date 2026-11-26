@@ -87,7 +87,7 @@ MaybeDirectHandle<JSListFormat> JSListFormat::New(
   // 10. Let r be ResolveLocale(%ListFormat%.[[AvailableLocales]],
   // requestedLocales, opt, undefined, localeData).
   Intl::ResolvedLocale r;
-  if (!Intl::ResolveLocale(isolate, JSListFormat::GetAvailableLocales(),
+  if (!Intl::ResolveLocale(isolate, JSListFormat::GetAvailableLocales,
                            requested_locales, matcher, {})
            .To(&r)) {
     THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError));

@@ -7,9 +7,9 @@
 #include <memory>
 
 #include "src/codegen/optimized-compilation-info.h"
-#include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/zone-stats.h"
 #include "src/objects/shared-function-info.h"
+#include "src/tracing/trace-event.h"
 
 namespace v8 {
 namespace internal {
@@ -104,7 +104,34 @@ void PipelineStatisticsBase::EndPhase(CompilationStatistics::BasicStats* diff) {
   compilation_stats_->RecordPhaseStats(phase_kind_name_, phase_name_, *diff);
 }
 
-constexpr char TurbofanPipelineStatistics::kTraceCategory[];
+// We log detailed phase information about the pipeline
+// in both the v8.turbofan and the v8.wasm.turbofan categories.
+constexpr char kTraceCategory[] =
+    TRACE_DISABLED_BY_DEFAULT("v8.turbofan") ","  // --
+    TRACE_DISABLED_BY_DEFAULT("v8.wasm.turbofan");
+
+// static
+bool TurbofanPipelineStatistics::IsJsTracingEnabled() {
+  return TRACE_EVENT_CATEGORY_ENABLED(TRACE_DISABLED_BY_DEFAULT("v8.turbofan"));
+}
+
+#if V8_ENABLE_WEBASSEMBLY
+// static
+bool TurbofanPipelineStatistics::IsWasmTracingEnabled() {
+  return TRACE_EVENT_CATEGORY_ENABLED(
+      TRACE_DISABLED_BY_DEFAULT("v8.wasm.turbofan"));
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+// static
+void TurbofanPipelineStatistics::TraceScheduleAndVerifyScope::BeginTrace() {
+  TRACE_EVENT_BEGIN(kTraceCategory, "V8.TraceScheduleAndVerify");
+}
+
+// static
+void TurbofanPipelineStatistics::TraceScheduleAndVerifyScope::EndTrace() {
+  TRACE_EVENT_END(kTraceCategory);
+}
 
 TurbofanPipelineStatistics::TurbofanPipelineStatistics(
     OptimizedCompilationInfo* info,

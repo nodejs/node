@@ -34,7 +34,7 @@ LIBC_INLINE int32_t exp10_to_exp2(int32_t exp10) {
   return static_cast<int32_t>((217706 * static_cast<int64_t>(exp10)) >> 16);
 }
 
-static constexpr uint64_t DETAILED_POWERS_OF_TEN[696][2] = {
+LIBC_INLINE_VAR constexpr uint64_t DETAILED_POWERS_OF_TEN[696][2] = {
     {0x1732C869CD60E453, 0xFA8FD5A0081C0288}, // 1e-348
     {0x0E7FBD42205C8EB4, 0x9C99E58405118195}, // 1e-347
     {0x521FAC92A873B261, 0xC3C05EE50655E1FA}, // 1e-346

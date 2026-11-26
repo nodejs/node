@@ -97,8 +97,8 @@ class DebugFeatureLoweringReducer : public Next {
   }
 
  private:
-  Isolate* isolate_ = __ data() -> isolate();
-  JSHeapBroker* broker_ = __ data() -> broker();
+  Isolate* isolate_ = __ data()->isolate();
+  JSHeapBroker* broker_ = __ data()->broker();
 };
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"

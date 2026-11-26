@@ -66,7 +66,7 @@ class ArrayBufferSweeperUninitializedTest
 // moving the objects through various spaces during GC phases.
 
 TEST_F(ArrayBufferSweeperTest, ArrayBuffer_OnlyMC) {
-  v8_flags.concurrent_array_buffer_sweeping = false;
+  v8_flags.concurrent_array_buffer_sweeping.Set(false);
 
   ManualGCScope manual_gc_scope(i_isolate());
   v8::Isolate* isolate = v8_isolate();
@@ -92,7 +92,7 @@ TEST_F(ArrayBufferSweeperTest, ArrayBuffer_OnlyMC) {
 TEST_F(ArrayBufferSweeperTest, ArrayBuffer_OnlyScavenge) {
   if (v8_flags.single_generation) return;
   if (v8_flags.scavenger_chaos_mode) return;
-  v8_flags.concurrent_array_buffer_sweeping = false;
+  v8_flags.concurrent_array_buffer_sweeping.Set(false);
 
   ManualGCScope manual_gc_scope(i_isolate());
   v8::Isolate* isolate = v8_isolate();
@@ -117,7 +117,7 @@ TEST_F(ArrayBufferSweeperTest, ArrayBuffer_OnlyScavenge) {
 TEST_F(ArrayBufferSweeperTest, ArrayBuffer_ScavengeAndMC) {
   if (v8_flags.single_generation) return;
   if (v8_flags.scavenger_chaos_mode) return;
-  v8_flags.concurrent_array_buffer_sweeping = false;
+  v8_flags.concurrent_array_buffer_sweeping.Set(false);
 
   ManualGCScope manual_gc_scope(i_isolate());
   v8::Isolate* isolate = v8_isolate();
@@ -148,7 +148,7 @@ TEST_F(ArrayBufferSweeperTest, ArrayBuffer_Compaction) {
   ManualGCScope manual_gc_scope(i_isolate());
   ManualEvacuationCandidatesSelectionScope
       manual_evacuation_candidate_selection_scope(manual_gc_scope);
-  v8_flags.concurrent_array_buffer_sweeping = false;
+  v8_flags.concurrent_array_buffer_sweeping.Set(false);
   v8::Isolate* isolate = v8_isolate();
   AbandonCurrentlyFreeMemory(heap()->old_space());
 
@@ -195,10 +195,10 @@ TEST_F(ArrayBufferSweeperTest, ArrayBuffer_UnregisterDuringSweep) {
 // Disable verify-heap since it forces sweeping to be completed in the
 // epilogue of the GC.
 #ifdef VERIFY_HEAP
-  v8_flags.verify_heap = false;
+  v8_flags.verify_heap.Set(false);
 #endif  // VERIFY_HEAP
   ManualGCScope manual_gc_scope(i_isolate());
-  v8_flags.concurrent_array_buffer_sweeping = false;
+  v8_flags.concurrent_array_buffer_sweeping.Set(false);
 
   v8::Isolate* isolate = v8_isolate();
   {
@@ -231,8 +231,8 @@ TEST_F(ArrayBufferSweeperTest, ArrayBuffer_UnregisterDuringSweep) {
 TEST_F(ArrayBufferSweeperTest, ArrayBuffer_SemiSpaceCopyThenPagePromotion) {
   if (!v8_flags.incremental_marking) return;
   if (v8_flags.minor_ms) return;
-  v8_flags.concurrent_array_buffer_sweeping = false;
-  v8_flags.scavenger_precise_object_pinning = false;
+  v8_flags.concurrent_array_buffer_sweeping.Set(false);
+  v8_flags.scavenger_precise_object_pinning.Set(false);
   ManualGCScope manual_gc_scope(i_isolate());
   // The test verifies that the marking state is preserved across semispace
   // copy.
@@ -269,7 +269,7 @@ TEST_F(ArrayBufferSweeperTest, ArrayBuffer_SemiSpaceCopyThenPagePromotion) {
 
 TEST_F(ArrayBufferSweeperTest, ArrayBuffer_PagePromotion) {
   if (!v8_flags.incremental_marking || v8_flags.single_generation) return;
-  v8_flags.concurrent_array_buffer_sweeping = false;
+  v8_flags.concurrent_array_buffer_sweeping.Set(false);
 
   ManualGCScope manual_gc_scope(i_isolate());
   // The test verifies that the marking state is preserved across semispace
@@ -306,7 +306,7 @@ TEST_F(ArrayBufferSweeperUninitializedTest,
   // Test allocates JSArrayBuffer on different pages before triggering a
   // full GC that performs the semispace copy. If parallelized, this test
   // ensures proper synchronization in TSAN configurations.
-  v8_flags.min_semi_space_size = std::max(2 * NormalPage::kPageSize / MB, 1);
+  v8_flags.min_semi_space_size.Set(std::max(2 * NormalPage::kPageSize / MB, 1));
   v8::Isolate::CreateParams create_params;
   std::unique_ptr<v8::ArrayBuffer::Allocator> allocator(
       v8::ArrayBuffer::Allocator::NewDefaultAllocator());
@@ -355,7 +355,7 @@ TEST_F(ArrayBufferSweeperTest, ArrayBuffer_ExternalBackingStoreSizeIncreases) {
 
 TEST_F(ArrayBufferSweeperTest, ArrayBuffer_ExternalBackingStoreSizeDecreases) {
   if (v8_flags.single_generation) return;
-  v8_flags.concurrent_array_buffer_sweeping = false;
+  v8_flags.concurrent_array_buffer_sweeping.Set(false);
   v8::Isolate* isolate = v8_isolate();
 
   const size_t backing_store_before =
@@ -379,7 +379,7 @@ TEST_F(ArrayBufferSweeperTest,
   ManualGCScope manual_gc_scope(i_isolate());
   ManualEvacuationCandidatesSelectionScope
       manual_evacuation_candidate_selection_scope(manual_gc_scope);
-  v8_flags.concurrent_array_buffer_sweeping = false;
+  v8_flags.concurrent_array_buffer_sweeping.Set(false);
   v8::Isolate* isolate = v8_isolate();
   AbandonCurrentlyFreeMemory(heap()->old_space());
 

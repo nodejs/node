@@ -622,10 +622,22 @@ parse_number_string(UC const *p, UC const *pend, parse_options_t<UC> options,
   // JSON and JavaScript are mutually exclusive, so only the non-JSON
   // instantiation has to look at the flag.
   FASTFLOAT_IF_CONSTEXPR17(!basic_json_fmt) {
+    // We have to disable -Wc++20-extensions for the [[unlikely]] attribute
+    // See comment for @jwakely at
+    // https://github.com/fastfloat/fast_float/pull/387#discussion_r3366943539
+#ifdef __clang__
+#pragma clang diagnostic push
+#if (!defined(__APPLE_CC__) && __clang_major__ >= 10) || (__clang_major__ >= 13)
+#pragma clang diagnostic ignored "-Wc++20-extensions"
+#endif
+#endif
     if fastfloat_unlikely (uint64_t(options.format &
                                     detail::basic_javascript_fmt)) {
       return parse_number_string_javascript<UC>(p, pend, options, store_spans);
     }
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
   }
   return parse_number_string_impl<basic_json_fmt, false, UC>(p, pend, options,
                                                              store_spans);

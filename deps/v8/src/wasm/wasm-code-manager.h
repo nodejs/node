@@ -379,7 +379,6 @@ class V8_EXPORT_PRIVATE WasmCode final {
 
   // Returns the last source position before {offset}.
   SourcePosition GetSourcePositionBefore(int code_offset);
-  int GetSourceOffsetBefore(int code_offset);
 
   std::tuple<int, bool, SourcePosition> GetInliningPosition(
       int inlining_id) const;
@@ -407,8 +406,6 @@ class V8_EXPORT_PRIVATE WasmCode final {
   bool frame_has_feedback_slot() const {
     return FrameHasFeedbackSlotField::decode(flags_);
   }
-
-  enum FlushICache : bool { kFlushICache = true, kNoFlushICache = false };
 
   size_t EstimateCurrentMemoryConsumption() const;
 
@@ -716,7 +713,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // first jump table with jumps to the {lazy_compile_table_}.
   void InitializeJumpTableForLazyCompilation(uint32_t num_wasm_functions);
 
-  // Initialize/Free the code pointer table handles for declared functions.
+  // Initialize/Free the code pointer table handles for defined functions.
   void InitializeCodePointerTableHandles(uint32_t num_wasm_functions);
   void FreeCodePointerTableHandles();
 
@@ -774,13 +771,13 @@ class V8_EXPORT_PRIVATE NativeModule final {
   }
 
   uint32_t num_functions() const {
-    return module_->num_declared_functions + module_->num_imported_functions;
+    return module_->num_defined_functions + module_->num_imported_functions;
   }
   uint32_t num_imported_functions() const {
     return module_->num_imported_functions;
   }
-  uint32_t num_declared_functions() const {
-    return module_->num_declared_functions;
+  uint32_t num_defined_functions() const {
+    return module_->num_defined_functions;
   }
   void set_lazy_compile_frozen(bool frozen) { lazy_compile_frozen_ = frozen; }
   bool lazy_compile_frozen() const { return lazy_compile_frozen_; }
@@ -1005,7 +1002,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   JumpTablesRef FindJumpTablesForRegionLocked(base::AddressRegion) const;
 
   // Hold the {allocation_mutex_} when calling one of these methods.
-  // {slot_index} is the index in the declared functions, i.e. function index
+  // {slot_index} is the index in the defined functions, i.e. function index
   // minus the number of imported functions.
   // The {code_pointer_table_target} will be used to update the code pointer
   // table. It should usually be the same as target, except for jump to the lazy
@@ -1120,15 +1117,15 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   // Table of the latest code object per function, updated on initial
   // compilation and tier up. The number of entries is
-  // {WasmModule::num_declared_functions}, i.e. there are no entries for
+  // {WasmModule::num_defined_functions}, i.e. there are no entries for
   // imported functions.
   std::unique_ptr<WasmCode*[]> code_table_;
 
-  // CodePointerTable handles for all declared functions. The entries are
+  // CodePointerTable handles for all defined functions. The entries are
   // initialized to point to the lazy compile table and will later be updated to
   // point to the compiled code.
   std::unique_ptr<WasmCodePointer[]> code_pointer_handles_;
-  // The size will usually be num_declared_functions, except that we sometimes
+  // The size will usually be num_defined_functions, except that we sometimes
   // allocate larger arrays for testing.
   size_t code_pointer_handles_size_ = 0;
 

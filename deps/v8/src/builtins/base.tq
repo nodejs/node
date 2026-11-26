@@ -20,8 +20,6 @@
 #include 'src/objects/js-promise.h'
 #include 'src/objects/js-regexp-string-iterator.h'
 #include 'src/objects/js-shadow-realm.h'
-#include 'src/objects/js-shared-array.h'
-#include 'src/objects/js-struct.h'
 #include 'src/objects/js-weak-refs.h'
 #include 'src/objects/objects.h'
 #include 'src/objects/source-text-module.h'
@@ -413,7 +411,7 @@ extern enum AllocationFlag extends int32
     constexpr 'CodeStubAssembler::AllocationFlag' {
   kNone,
   kDoubleAlignment,
-  kPretenured
+  kOld
 }
 
 extern enum SlackTrackingMode
@@ -533,6 +531,8 @@ extern enum MessageTemplate {
   kPropertyDescObject,
   kMustBePositive,
   kArgumentIsNotUndefinedOrInteger,
+  kMustBeInteger,
+  kIteratorChunkOrWindowSizeRange,
   kIteratorReduceNoInitial,
   kSizeIsNaN,
   kArgumentIsNonObject,
@@ -544,6 +544,7 @@ extern enum MessageTemplate {
   kStrictReadOnlyProperty,
   kInvalidUsingInForInLoop,
   kIllegalInvocation,
+  kInvalidIteratorWindowsMode,
   kInvalidIteratorZipMode,
   kIteratorZipStrictMismatch,
   ...
@@ -746,9 +747,6 @@ extern macro PrintErr(Object): void;
 extern macro Comment(constexpr string): void;
 extern macro DebugBreak(): void;
 extern macro PrintStringSimple(String): void;
-
-extern macro SetSupportsDynamicParameterCount(
-    JSFunction, DispatchHandle): void;
 
 // ES6 7.1.4 ToInteger ( argument )
 transitioning macro ToIntegerImpl(
@@ -2265,12 +2263,7 @@ extern operator '[]' macro LoadUint8Ptr(RawPtr<uint8>, intptr): uint8;
 extern operator '[]' macro LoadUint64Ptr(RawPtr<uint64>, intptr): uint64;
 
 extern enum NameHashFieldType extends uint32
-    constexpr 'Name::HashFieldType' {
-  kHash,
-  kIntegerIndex,
-  kForwardingIndex,
-  kEmpty
-}
+    constexpr 'Name::HashFieldType' { kHash, kIntegerIndex, kEmpty }
 
 operator '==' macro HashFieldTypeEquals(
     s1: NameHashFieldType, s2: NameHashFieldType): bool {

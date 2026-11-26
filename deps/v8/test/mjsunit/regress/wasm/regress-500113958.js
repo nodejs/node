@@ -39,6 +39,7 @@ let proto_seg = builder.addPassiveElementSegment(
 
 let data = [
   2,  // number of prototypes
+  0x7f,  // no parent
   1,  // has constructor
   1, 97,  // name "a"
   0,  // no statics
@@ -48,7 +49,6 @@ let data = [
   1, 98,  // name "b"
   0,  // no statics
   0,  // no methods
-  0x7f,  // no parent
 ];
 let data_seg = builder.addPassiveDataSegment(data);
 

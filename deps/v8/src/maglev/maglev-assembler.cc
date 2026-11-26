@@ -283,6 +283,16 @@ void MaglevAssembler::ToBoolean(Register value, CheckType check_type,
   }
 }
 
+bool MaglevAssembler::TryLoadRoot(Register dst, Handle<HeapObject> obj) {
+  RootIndex root_index;
+  if (!isolate()->roots_table().IsRootHandle(obj, &root_index) ||
+      !RootsTable::IsImmortalImmovable(root_index)) {
+    return false;
+  }
+  LoadRoot(dst, root_index);
+  return true;
+}
+
 void MaglevAssembler::MaterialiseValueNode(Register dst, ValueNode* value) {
   switch (value->opcode()) {
     case Opcode::kInt32Constant: {
@@ -835,7 +845,7 @@ void AttemptOnStackReplacement(MaglevAssembler* masm,
     // A `0` return value means there is no OSR code available yet. Continue
     // execution in Maglev, OSR code will be picked up once it exists and is
     // cached on the feedback vector.
-    __ CompareInt32AndJumpIf(scratch1, 0, kEqual, *no_code_for_osr);
+    __ CompareTaggedAndJumpIf(scratch1, Smi::zero(), kEqual, *no_code_for_osr);
   }
 
   __ bind(&deopt);

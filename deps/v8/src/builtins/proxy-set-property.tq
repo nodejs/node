@@ -69,7 +69,7 @@ transitioning builtin ProxySetProperty(
     const trapResult =
         Call(context, trap, handler, target, key, value, receiverValue);
     if (ToBoolean(trapResult)) {
-      CheckGetSetTrapResult(target, proxy, name, value, kProxySet);
+      CheckGetSetTrapResult(target, name, value, kProxySet);
       return value;
     }
     ThrowTypeErrorIfStrict(

@@ -216,9 +216,8 @@ TF_BUILTIN(ConstructProxy, ProxiesCodeStubAssembler) {
 }
 
 void ProxiesCodeStubAssembler::CheckGetSetTrapResult(
-    TNode<Context> context, TNode<JSReceiver> target, TNode<JSProxy> proxy,
-    TNode<Name> name, TNode<Object> trap_result,
-    JSProxy::AccessKind access_kind) {
+    TNode<Context> context, TNode<JSReceiver> target, TNode<Name> name,
+    TNode<Object> trap_result, JSProxy::AccessKind access_kind) {
   // TODO(mslekova): Think of a better name for the trap_result param.
   TNode<Map> map = LoadMap(target);
   TVARIABLE(Object, var_value);
@@ -226,13 +225,26 @@ void ProxiesCodeStubAssembler::CheckGetSetTrapResult(
   TVARIABLE(Object, var_raw_value);
 
   Label if_found_value(this), check_in_runtime(this, Label::kDeferred),
-      check_passed(this);
+      check_passed(this), if_not_unique_name(this);
 
-  GotoIfNot(IsUniqueNameNoIndex(name), &check_in_runtime);
   TNode<Uint16T> instance_type = LoadInstanceType(target);
+  GotoIfNot(IsUniqueNameNoIndex(name), &if_not_unique_name);
   TryGetOwnProperty(context, target, target, map, instance_type, name,
                     &if_found_value, &var_value, &var_details, &var_raw_value,
                     &check_passed, &check_in_runtime, kReturnAccessorPair);
+
+  BIND(&if_not_unique_name);
+  {
+    // Array index properties of ordinary objects with fast elements are
+    // either absent or configurable, so the invariants hold trivially.
+    GotoIf(IsCustomElementsReceiverInstanceType(instance_type),
+           &check_in_runtime);
+    GotoIfNot(IsClearWord32(LoadNameRawHashField(name),
+                            Name::kDoesNotContainCachedArrayIndexMask),
+              &check_in_runtime);
+    Branch(IsFastElementsKind(LoadMapElementsKind(map)), &check_passed,
+           &check_in_runtime);
+  }
 
   BIND(&if_found_value);
   {
@@ -324,7 +336,6 @@ void ProxiesCodeStubAssembler::CheckGetSetTrapResult(
 
 void ProxiesCodeStubAssembler::CheckHasTrapResult(TNode<Context> context,
                                                   TNode<JSReceiver> target,
-                                                  TNode<JSProxy> proxy,
                                                   TNode<Name> name) {
   TNode<Map> target_map = LoadMap(target);
   TVARIABLE(Object, var_value);
@@ -377,7 +388,6 @@ void ProxiesCodeStubAssembler::CheckHasTrapResult(TNode<Context> context,
 
 void ProxiesCodeStubAssembler::CheckDeleteTrapResult(TNode<Context> context,
                                                      TNode<JSReceiver> target,
-                                                     TNode<JSProxy> proxy,
                                                      TNode<Name> name) {
   TNode<Map> target_map = LoadMap(target);
   TVARIABLE(Object, var_value);
@@ -538,8 +548,7 @@ TF_BUILTIN(ProxyGetPropertyFastPath, ProxiesCodeStubAssembler) {
     Return(result);
 
     BIND(&check_result);
-    CheckGetSetTrapResult(context, CAST(target), proxy, name, result,
-                          JSProxy::kGet);
+    CheckGetSetTrapResult(context, CAST(target), name, result, JSProxy::kGet);
     Return(result);
   }
 
@@ -551,13 +560,50 @@ TF_BUILTIN(ProxyGetPropertyTrapResultLazyDeoptContinuation,
            ProxiesCodeStubAssembler) {
   auto context = Parameter<Context>(Descriptor::kContext);
   auto target = Parameter<JSReceiver>(Descriptor::kTarget);
-  auto proxy = Parameter<JSProxy>(Descriptor::kProxy);
-  auto name = Parameter<Name>(Descriptor::kName);
+  auto key = Parameter<JSAny>(Descriptor::kKey);
   auto trap_result = Parameter<Object>(Descriptor::kTrapResult);
 
-  CheckGetSetTrapResult(context, target, proxy, name, trap_result,
-                        JSProxy::kGet);
+  TNode<Name> name = CAST(CallBuiltin(Builtin::kToName, context, key));
+  CheckGetSetTrapResult(context, target, name, trap_result, JSProxy::kGet);
   Return(trap_result);
+}
+
+TF_BUILTIN(ProxySetPropertyTrapResultLazyDeoptContinuation,
+           ProxiesCodeStubAssembler) {
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto target = Parameter<JSReceiver>(Descriptor::kTarget);
+  auto key = Parameter<JSAny>(Descriptor::kKey);
+  auto value = Parameter<Object>(Descriptor::kValue);
+  auto language_mode = Parameter<Smi>(Descriptor::kLanguageMode);
+  auto trap_result = Parameter<Object>(Descriptor::kTrapResult);
+
+  Label if_true(this), if_false(this);
+  BranchIfToBooleanIsTrue(trap_result, &if_true, &if_false);
+
+  BIND(&if_true);
+  {
+    TNode<Name> name = CAST(CallBuiltin(Builtin::kToName, context, key));
+    CheckGetSetTrapResult(context, target, name, value, JSProxy::kSet);
+    Return(value);
+  }
+
+  BIND(&if_false);
+  {
+    Label if_strict(this, Label::kDeferred), if_sloppy(this);
+    Branch(SmiEqual(language_mode, SmiConstant(LanguageMode::kStrict)),
+           &if_strict, &if_sloppy);
+
+    BIND(&if_strict);
+    {
+      TNode<Name> name = CAST(CallBuiltin(Builtin::kToName, context, key));
+      ThrowTypeError(context, MessageTemplate::kProxyTrapReturnedFalsishFor,
+                     HeapConstantNoHole(isolate()->factory()->set_string()),
+                     name);
+    }
+
+    BIND(&if_sloppy);
+    Return(value);
+  }
 }
 
 #include "src/codegen/undef-code-stub-assembler-macros.inc"

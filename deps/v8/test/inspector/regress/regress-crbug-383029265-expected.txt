@@ -28,6 +28,27 @@ Running test: testSubjectPause
         type : block
     }
     [1] : {
+        emptyReason : all-unavailable
+        endLocation : {
+            columnNumber : 5
+            lineNumber : 4
+            scriptId : <scriptId>
+        }
+        name : f
+        object : {
+            className : Object
+            description : Object
+            objectId : <objectId>
+            type : object
+        }
+        startLocation : {
+            columnNumber : 8
+            lineNumber : 2
+            scriptId : <scriptId>
+        }
+        type : block
+    }
+    [2] : {
         endLocation : {
             columnNumber : 3
             lineNumber : 5
@@ -47,7 +68,7 @@ Running test: testSubjectPause
         }
         type : local
     }
-    [2] : {
+    [3] : {
         object : {
             className : global
             description : global
@@ -143,6 +164,27 @@ Running test: testAsyncSubjectPause
         type : block
     }
     [1] : {
+        emptyReason : all-unavailable
+        endLocation : {
+            columnNumber : 5
+            lineNumber : 4
+            scriptId : <scriptId>
+        }
+        name : h
+        object : {
+            className : Object
+            description : Object
+            objectId : <objectId>
+            type : object
+        }
+        startLocation : {
+            columnNumber : 14
+            lineNumber : 2
+            scriptId : <scriptId>
+        }
+        type : block
+    }
+    [2] : {
         endLocation : {
             columnNumber : 3
             lineNumber : 5
@@ -162,7 +204,7 @@ Running test: testAsyncSubjectPause
         }
         type : local
     }
-    [2] : {
+    [3] : {
         object : {
             className : global
             description : global

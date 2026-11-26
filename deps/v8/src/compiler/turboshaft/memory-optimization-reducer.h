@@ -16,6 +16,7 @@
 #include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/utils.h"
 #include "src/compiler/write-barrier-kind.h"
+#include "src/execution/isolate-data.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8::internal::compiler::turboshaft {
@@ -44,6 +45,33 @@ inline bool ValueNeedsWriteBarrier(const Graph* graph, const Operation& value,
       }
     } else if (constant->kind == ConstantOp::Kind::kSmi) {
       return false;
+    }
+  } else if (const LoadOp* load = value.TryCast<LoadOp>()) {
+    // WasmLoweringReducer (RootConstant/Null) and Assembler::LoadRoot lower
+    // roots to immutable uncompressed-tagged loads off LoadRootRegister.
+    // Objects in ReadOnlyHeap are never in young space or marked by GC, so
+    // stores of read-only roots never require a write barrier.
+    if (!load->kind.tagged_base && !load->index().valid() &&
+        load->kind.is_immutable &&
+        load->loaded_rep ==
+            any_of(MemoryRepresentation::AnyUncompressedTagged(),
+                   MemoryRepresentation::UncompressedTaggedPointer()) &&
+        graph->Get(load->base()).Is<LoadRootRegisterOp>()) {
+      constexpr int32_t kReadOnlyRootsStart =
+          IsolateData::root_slot_offset(RootIndex::kFirstReadOnlyRoot);
+      constexpr int32_t kReadOnlyRootsEnd =
+          IsolateData::root_slot_offset(RootIndex::kLastReadOnlyRoot);
+      // Verify read-only root slots are contiguous and pointer-sized so the
+      // range check below identifies a read-only root load.
+      static_assert(kReadOnlyRootsEnd - kReadOnlyRootsStart ==
+                    (static_cast<int>(RootIndex::kLastReadOnlyRoot) -
+                     static_cast<int>(RootIndex::kFirstReadOnlyRoot)) *
+                        kSystemPointerSize);
+      if (load->offset >= kReadOnlyRootsStart &&
+          load->offset <= kReadOnlyRootsEnd) {
+        DCHECK_EQ((load->offset - kReadOnlyRootsStart) % kSystemPointerSize, 0);
+        return false;
+      }
     }
   } else if (const PhiOp* phi = value.TryCast<PhiOp>()) {
     if (phi->rep == RegisterRepresentation::Tagged()) {
@@ -191,7 +219,7 @@ class MemoryOptimizationReducer : public Next {
   // CopyingPhase.
 
   void Analyze() {
-    auto* info = __ data() -> info();
+    auto* info = __ data()->info();
 #if V8_ENABLE_WEBASSEMBLY
     bool is_wasm = info->IsWasm() || info->IsWasmBuiltin();
 #else
@@ -218,7 +246,7 @@ class MemoryOptimizationReducer : public Next {
     if (analyzer_->skipped_write_barriers.count(ig_index)) {
       __ Store(__ MapToNewGraph(store.base()), __ MapToNewGraph(store.index()),
                __ MapToNewGraph(store.value()), store.kind, store.stored_rep,
-               skipped_write_barrier_kind_, store.memory_order(), store.offset,
+               skipped_write_barrier_kind_, store.offset,
                store.element_size_log2,
                store.maybe_initializing_or_transitioning,
                store.trusted_pointer_tag());
@@ -236,8 +264,8 @@ class MemoryOptimizationReducer : public Next {
             IsSmiDecision::kFalse) {
       __ Store(__ MapToNewGraph(store.base()), __ MapToNewGraph(store.index()),
                __ MapToNewGraph(store.value()), store.kind, store.stored_rep,
-               WriteBarrierKind::kPointerWriteBarrier, store.memory_order(),
-               store.offset, store.element_size_log2,
+               WriteBarrierKind::kPointerWriteBarrier, store.offset,
+               store.element_size_log2,
                store.maybe_initializing_or_transitioning,
                store.trusted_pointer_tag());
       return V<None>::Invalid();
@@ -280,7 +308,7 @@ class MemoryOptimizationReducer : public Next {
       __ StoreOffHeap(top_address, __ GetVariable(top(type)),
                       MemoryRepresentation::UintPtr());
       return __ BitcastWordPtrToHeapObject(
-          __ WordPtrAdd(obj_addr, __ IntPtrConstant(kHeapObjectTag)));
+          __ WordPtrAdd(obj_addr, kHeapObjectTag));
     }
 
     __ SetVariable(top(type), __ LoadOffHeap(top_address,
@@ -342,16 +370,15 @@ class MemoryOptimizationReducer : public Next {
       if (!constant_size) {
         // Check if we can do bump pointer allocation here.
         V<WordPtr> top_value = __ GetVariable(top(type));
-        __ SetVariable(result,
-                       __ BitcastWordPtrToHeapObject(__ WordPtrAdd(
-                           top_value, __ IntPtrConstant(kHeapObjectTag))));
+        __ SetVariable(result, __ BitcastWordPtrToHeapObject(
+                                   __ WordPtrAdd(top_value, kHeapObjectTag)));
         V<WordPtr> new_top = __ WordPtrAdd(top_value, size);
         V<WordPtr> limit =
             __ LoadOffHeap(limit_address, MemoryRepresentation::UintPtr());
         __ GotoIfNot(LIKELY(__ UintPtrLessThan(new_top, limit)), call_runtime);
-        __ GotoIfNot(LIKELY(__ UintPtrLessThan(
-                         size, __ IntPtrConstant(kMaxRegularHeapObjectSize))),
-                     call_runtime);
+        __ GotoIfNot(
+            LIKELY(__ UintPtrLessThan(size, kMaxRegularHeapObjectSize)),
+            call_runtime);
         if (v8_flags.verify_write_barriers) {
           SetLastYoungAllocation(type, top_value);
         }
@@ -379,8 +406,7 @@ class MemoryOptimizationReducer : public Next {
     }
     // Check if we can do bump pointer allocation here.
     bool reachable =
-        __ GotoIfNot(__ UintPtrLessThan(
-                         size, __ IntPtrConstant(kMaxRegularHeapObjectSize)),
+        __ GotoIfNot(__ UintPtrLessThan(size, kMaxRegularHeapObjectSize),
                      call_runtime, BranchHint::kTrue) !=
         ConditionalGotoStatus::kGotoDestination;
     if (reachable) {
@@ -399,7 +425,7 @@ class MemoryOptimizationReducer : public Next {
           OpEffects().CanAllocate());
       __ SetVariable(top(type),
                      __ WordPtrSub(__ BitcastHeapObjectToWordPtr(allocated),
-                                   __ IntPtrConstant(kHeapObjectTag)));
+                                   kHeapObjectTag));
       __ Goto(done);
     }
 
@@ -415,10 +441,10 @@ class MemoryOptimizationReducer : public Next {
     __ StoreOffHeap(top_address, __ GetVariable(top(type)),
                     MemoryRepresentation::UintPtr());
     return __ BitcastWordPtrToHeapObject(
-        __ WordPtrAdd(obj_addr, __ IntPtrConstant(kHeapObjectTag)));
+        __ WordPtrAdd(obj_addr, kHeapObjectTag));
   }
 
-#if V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
   V<WordPtr> REDUCE(LoadExternalPointer)(V<Word32> handle,
                                          ExternalPointerTagRange tag_range) {
     // Decode loaded external pointer.
@@ -465,7 +491,7 @@ class MemoryOptimizationReducer : public Next {
     __ BindReachable(done);
     return __ Word64BitwiseAnd(pointer, kExternalPointerPayloadMask);
   }
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
 
   V<None> REDUCE(MajorGCForCompilerTesting)() {
     __ template CallRuntime<runtime::MajorGCForCompilerTesting>(
@@ -475,7 +501,7 @@ class MemoryOptimizationReducer : public Next {
 
  private:
   std::optional<MemoryAnalyzer> analyzer_;
-  Isolate* isolate_ = __ data() -> isolate();
+  Isolate* isolate_ = __ data()->isolate();
   const TSCallDescriptor* allocate_builtin_descriptor_ = nullptr;
 #if V8_ENABLE_WEBASSEMBLY
   const TSCallDescriptor* allocate_wasm_shared_builtin_descriptor_ = nullptr;

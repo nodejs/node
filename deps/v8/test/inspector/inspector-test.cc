@@ -980,7 +980,7 @@ int InspectorTestMain(int argc, char* argv[]) {
   CHECK(v8::V8::InitializeICUDefaultLocation(argv[0]));
   std::unique_ptr<Platform> platform(platform::NewDefaultPlatform());
   v8::V8::InitializePlatform(platform.get());
-  v8_flags.flag_processing_mode = "abort-on-error";
+  v8_flags.flag_processing_mode.Overwrite("abort-on-error");
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
   v8::V8::InitializeExternalStartupData(argv[0]);
   v8::V8::Initialize();
@@ -993,6 +993,25 @@ int InspectorTestMain(int argc, char* argv[]) {
     } else if (strcmp(argv[i], "--no-wasm-trap-handler") == 0) {
       enable_wasm_trap_handler = false;
       argv[i] = nullptr;
+    } else if (strcmp(argv[i], "--cache") == 0 ||
+               strcmp(argv[i], "--cache=code") == 0) {
+      ExecuteStringTask::SetCodeCacheMode(
+          ExecuteStringTask::CodeCacheMode::kProduceAfterCompile);
+      argv[i] = nullptr;
+    } else if (strcmp(argv[i], "--cache=after-execute") == 0) {
+      ExecuteStringTask::SetCodeCacheMode(
+          ExecuteStringTask::CodeCacheMode::kProduceAfterExecute);
+      argv[i] = nullptr;
+    } else if (strcmp(argv[i], "--cache=full-code-cache") == 0) {
+      ExecuteStringTask::SetCodeCacheMode(
+          ExecuteStringTask::CodeCacheMode::kProduceEagerAfterCompile);
+      argv[i] = nullptr;
+    } else if (strcmp(argv[i], "--cache=none") == 0) {
+      ExecuteStringTask::SetCodeCacheMode(
+          ExecuteStringTask::CodeCacheMode::kNone);
+      argv[i] = nullptr;
+    } else if (strncmp(argv[i], "--cache=", 8) == 0) {
+      FATAL("Unknown option to --cache.\n");
     }
   }
   if (enable_wasm_trap_handler) {

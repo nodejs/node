@@ -107,9 +107,9 @@ struct tzhead {
 
 #ifndef TZ_MAX_LEAPS
 /* The following limit applies to localtime.c; zic has no such limit.
-   The limit must be at least 27 for leap seconds from 1972 through mid-2023.
-   There's a plan to discontinue leap seconds by 2035.  */
-#define TZ_MAX_LEAPS 50 /* Maximum number of leap second corrections */
-#endif                  /* !defined TZ_MAX_LEAPS */
+   It must be at least 27 for all 27 historical leap seconds (1972-2016),
+   plus 1 for leap second table expiry as per TZif version 4.  */
+#define TZ_MAX_LEAPS (27 + 1) /* Maximum number of leap second corrections */
+#endif                        /* !defined TZ_MAX_LEAPS */
 
 #endif /* !defined TZFILE_H */

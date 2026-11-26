@@ -1,0 +1,45 @@
+diff --git a/src/compiler/turboshaft/store-store-elimination-reducer-inl.h b/src/compiler/turboshaft/store-store-elimination-reducer-inl.h
+index 62eb2898856..11cc6f00592 100644
+--- a/src/compiler/turboshaft/store-store-elimination-reducer-inl.h
++++ b/src/compiler/turboshaft/store-store-elimination-reducer-inl.h
+@@ -341,18 +341,6 @@ class RedundantStoreAnalysis {
+       if (block.IsLoop()) {
+         Block* back_edge = block.LastPredecessor();
+         DCHECK_GE(back_edge->index(), block_index);
+-        // Objects allocated inside the loop body belong to a specific loop
+-        // iteration and are distinct across iterations. We must invalidate
+-        // their store observability across the backedge so that stores to a
+-        // fresh object in one iteration are not incorrectly eliminated by
+-        // stores to an object from the next iteration.
+-        // Note that checking the BlockIndex range [block_index,
+-        // back_edge->index()] is a slight overapproximation since some blocks
+-        // in this range might not belong to the loop. However, this is
+-        // conservative and safe, and using LoopFinder here would be both more
+-        // complicated and significantly more expensive.
+-        table_.InvalidateBasesInRange(block_index, back_edge->index());
+-
+         TRACE("Considering Loop revisit for " << block.index());
+         DCHECK(!table_.IsSealed());
+         bool needs_revisit = false;
+@@ -413,18 +401,9 @@ class RedundantStoreAnalysis {
+                 break;
+               case StoreObservability::kGCObservable:
+                 TRACE("> kGCObservable");
+-                if (store.maybe_initializing_or_transitioning) {
+-                  TRACE(">> initializing/transitionin)");
+-                  // We cannot eliminate this store, but we mark all following
+-                  // stores to the same `base+offset` as unobservable.
+-                  table_.MarkStoreAsUnobservable(store.base(), store.offset,
+-                                                 size);
+-                } else {
+-                  TRACE(">> regular store");
+-                  eliminable_stores_->insert(index);
+-                  last_field_initialization_store_ = OpIndex::Invalid();
+-                  is_eliminable_store = true;
+-                }
++                eliminable_stores_->insert(index);
++                last_field_initialization_store_ = OpIndex::Invalid();
++                is_eliminable_store = true;
+                 break;
+               case StoreObservability::kObservable:
+                 TRACE("> kObservable");

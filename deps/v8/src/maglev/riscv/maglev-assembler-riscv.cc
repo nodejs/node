@@ -267,13 +267,12 @@ void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
                                          Register result, Register char_code,
                                          Register scratch,
                                          CharCodeMaskMode mask_mode) {
-  ZeroExtendWord(char_code, char_code);
-  AssertZeroExtended(char_code);
   DCHECK_NE(char_code, scratch);
   ZoneLabelRef done(this);
   if (mask_mode == CharCodeMaskMode::kMustApplyMask) {
     And(char_code, char_code, Operand(0xFFFF));
   }
+  AssertZeroExtended(char_code);
   // Allocate two-bytes string if {char_code} doesn't fit one byte.
   MacroAssembler::Branch(  // FIXME: reimplement with JumpToDeferredIf
       MakeDeferredCode(
@@ -303,7 +302,7 @@ void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
             if (need_restore_result) {
               __ Move(result, string);
             }
-            __ jmp(*done);
+            __ Jump(*done);
           },
           register_snapshot, done, result, char_code, scratch),
       Ugreater, char_code, Operand(String::kMaxOneByteCharCode));
@@ -384,7 +383,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
           __ SmiUntag(kReturnRegister0);
           __ Move(result, kReturnRegister0);
         }
-        __ jmp(*done);
+        __ Jump(*done);
       },
       mode, register_snapshot, done, result, string, index);
 
@@ -436,6 +435,22 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     MaglevAssembler::TemporaryRegisterScope temps(this);
     Register offset = temps.AcquireScratch();
 
+    if (mode == BuiltinStringPrototypeCharCodeOrCodePointAt::kCodePointAt) {
+      Label unwrap_sliced;
+      And(offset, instance_type, Operand(kOneByteStringTag));
+      MacroAssembler::Branch(&unwrap_sliced, kNotEqual, offset,
+                             Operand(zero_reg), Label::kNear);
+      // Unwrapping a two-byte SlicedString loses its end bound; if {index} is
+      // the last code unit of the slice, fall back to the runtime before
+      // unwrapping.
+      Register length = temps.AcquireScratch();
+      Lw(length, FieldMemOperand(string, offsetof(String, length_)));
+      Add32(offset, index, Operand(1));
+      MacroAssembler::Branch(deferred_runtime_call, kUnsignedGreaterThanEqual,
+                             offset, Operand(length), Label::kNear);
+      bind(&unwrap_sliced);
+    }
+
     LoadAndUntagTaggedSignedField(offset, string,
                                   offsetof(SlicedString, offset_));
     LoadTaggedField(string, string, offsetof(SlicedString, parent_));
@@ -472,7 +487,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     // (CharCodeAt/CodePointAt), since it cannot be the first half of a
     // surrogate pair.
     SeqOneByteStringCharCodeAt(result, string, index);
-    MacroAssembler::Branch(result_fits_one_byte);
+    Jump(result_fits_one_byte);
 
     bind(&two_byte_string);
     // {instance_type} is unused from this point, so we can use as scratch.

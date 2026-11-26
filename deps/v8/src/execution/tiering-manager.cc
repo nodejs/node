@@ -149,7 +149,20 @@ void TieringManager::Optimize(Tagged<JSFunction> function,
   function->RequestOptimization(isolate_, d.code_kind, d.concurrency_mode);
 }
 
+void TieringManager::MarkForMaglevOptimization(Tagged<JSFunction> function) {
+  Tagged<SharedFunctionInfo> shared = function->shared();
+  if (V8_UNLIKELY(shared->optimization_disabled(CodeKind::MAGLEV) ||
+                  shared->maglev_compilation_failed())) {
+    return;
+  }
+  Optimize(function, OptimizationDecision::Maglev());
+}
+
 void TieringManager::MarkForTurboFanOptimization(Tagged<JSFunction> function) {
+  if (V8_UNLIKELY(
+          function->shared()->optimization_disabled(CodeKind::TURBOFAN_JS))) {
+    return;
+  }
   Optimize(function, OptimizationDecision::TurbofanHotAndStable());
 }
 
@@ -443,14 +456,18 @@ OptimizationDecision TieringManager::ShouldOptimize(
       !shared->maglev_compilation_failed()) {
     if (v8_flags.profile_guided_optimization &&
         shared->cached_tiering_decision() ==
-            CachedTieringDecision::kEarlyTurbofan) {
+            CachedTieringDecision::kEarlyTurbofan &&
+        !shared->optimization_disabled(CodeKind::TURBOFAN_JS)) {
       return OptimizationDecision::TurbofanHotAndStable();
     }
-    return OptimizationDecision::Maglev();
+    if (!shared->optimization_disabled(CodeKind::MAGLEV)) {
+      return OptimizationDecision::Maglev();
+    }
   }
 
   if (V8_UNLIKELY(!v8_flags.turbofan ||
                   !shared->PassesFilter(v8_flags.turbo_filter) ||
+                  shared->optimization_disabled(CodeKind::TURBOFAN_JS) ||
                   (v8_flags.efficiency_mode_disable_turbofan &&
                    isolate_->EfficiencyModeEnabled()) ||
                   isolate_->BatterySaverModeEnabled())) {

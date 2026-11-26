@@ -74,8 +74,8 @@ LIBC_INLINE float acosf(float x) {
 #endif // !LIBC_MATH_HAS_SKIP_ACCURATE_PASS
 
       double xd = static_cast<double>(x);
-      return static_cast<float>(fputil::multiply_add(
-          -0x1.5555555555555p-3 * xd, xd * xd, M_MATH_PI_2 - xd));
+      return static_cast<float>(fputil::sub_multiply(
+          M_MATH_PI_2 - xd, 0x1.5555555555555p-3 * xd, xd * xd));
     }
 
     // For |x| <= 0.5, we approximate acosf(x) by:
@@ -88,7 +88,7 @@ LIBC_INLINE float acosf(float x) {
     double xsq = xd * xd;
     double x3 = xd * xsq;
     double r = asin_eval(xsq);
-    return static_cast<float>(fputil::multiply_add(-x3, r, M_MATH_PI_2 - xd));
+    return static_cast<float>(fputil::sub_multiply(M_MATH_PI_2 - xd, x3, r));
   }
 
   // |x| >= 1, return 0, 2pi, or NaNs.
@@ -136,7 +136,7 @@ LIBC_INLINE float acosf(float x) {
 
   xbits.set_sign(Sign::POS);
   double xd = static_cast<double>(xbits.get_val());
-  double u = fputil::multiply_add(-0.5, xd, 0.5);
+  double u = fputil::sub_multiply(0.5, 0.5, xd);
   double cv = 2 * fputil::sqrt<double>(u);
 
   double r3 = asin_eval(u);

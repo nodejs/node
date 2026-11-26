@@ -1018,17 +1018,64 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
               Operand(interrupt_limit));
   }
 
+  // Reduce interrupt budget.
+  Label budget_interrupt;
+  {
+    ASM_CODE_COMMENT_STRING(masm, "Update Interrupt Budget");
+    UseScratchRegisterScope temps(masm);
+    Register interrupt_budget = temps.Acquire();
+    Register bytecode_length = temps.Acquire();
+    Register bytecode_array = descriptor.GetRegisterParameter(
+        BaselineOutOfLinePrologueDescriptor::kInterpreterBytecodeArray);
+    __ Lw(interrupt_budget,
+          FieldMemOperand(feedback_cell,
+                          offsetof(FeedbackCell, interrupt_budget_)));
+    __ SmiUntag(bytecode_length,
+                FieldMemOperand(bytecode_array,
+                                offsetof(BytecodeArray, length_)));
+    __ Subu(interrupt_budget, interrupt_budget, bytecode_length);
+    __ Sw(interrupt_budget,
+          FieldMemOperand(feedback_cell,
+                          offsetof(FeedbackCell, interrupt_budget_)));
+    __ Branch(&budget_interrupt, lt, interrupt_budget, Operand(zero_reg));
+  }
+
   // Do "fast" return to the caller pc in ra.
-  // TODO(v8:11429): Document this frame setup better.
+  __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
   __ Ret();
 
+  __ bind(&budget_interrupt);
+  {
+    ASM_CODE_COMMENT_STRING(masm, "Budget interrupt call");
+    Register new_target = descriptor.GetRegisterParameter(
+        BaselineOutOfLinePrologueDescriptor::kJavaScriptCallNewTarget);
+    FrameScope frame_scope(masm, StackFrame::INTERNAL);
+    // Save incoming new target or generator
+    __ Push(new_target);
+#ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
+    // No need to SmiTag as dispatch handles always look like Smis.
+    static_assert(kJSDispatchHandleShift > 0);
+    __ AssertSmi(kJavaScriptCallDispatchHandleRegister);
+    __ Push(kJavaScriptCallDispatchHandleRegister);
+#endif
+    __ Push(closure);
+    __ CallRuntime(Runtime::kBytecodeBudgetInterrupt_Sparkplug, 1);
+#ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
+    __ Pop(kJavaScriptCallDispatchHandleRegister);
+#endif
+    __ Pop(new_target);
+  }
+  __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
+  __ Ret();
 
   __ bind(&call_stack_guard);
   {
     ASM_CODE_COMMENT_STRING(masm, "Stack/interrupt call");
+    Register new_target = descriptor.GetRegisterParameter(
+        BaselineOutOfLinePrologueDescriptor::kJavaScriptCallNewTarget);
     FrameScope frame_scope(masm, StackFrame::INTERNAL);
     // Save incoming new target or generator
-    __ Push(kJavaScriptCallNewTargetRegister);
+    __ Push(new_target);
 #ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
     // No need to SmiTag as dispatch handles always look like Smis.
     static_assert(kJSDispatchHandleShift > 0);
@@ -1041,8 +1088,9 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
 #ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
     __ Pop(kJavaScriptCallDispatchHandleRegister);
 #endif
-    __ Pop(kJavaScriptCallNewTargetRegister);
+    __ Pop(new_target);
   }
+  __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
   __ Ret();
   temps.Exclude({s1, s2, s3});
 }
@@ -4096,6 +4144,8 @@ void Builtins::Generate_DeoptimizationEntry_LazyAfterFastCall(
   __ MultiPop(kCalleeSaveRegisters);
   __ MultiPopFPU(kCalleeSaveFPRegisters);
   __ LeaveFrame(StackFrame::INTERNAL);
+  __ TailCallBuiltin(Builtin::kDeoptimizationEntry_Lazy);
+
   __ bind(&no_exception);
   // Deoptimization expects that the return value of the API call is in the
   // return register. As we only allow deoptimization if the return type is

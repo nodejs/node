@@ -136,7 +136,7 @@ std::optional<OS::MemoryRange> OS::GetFirstFreeMemoryRangeWithin(
 }
 
 // static
-Stack::StackSlot Stack::ObtainCurrentThreadStackStart() {
+Stack::StackBounds Stack::ObtainCurrentThreadStackBounds() {
   // pthread_getthrds_np creates 3 values:
   // __pi_stackaddr, __pi_stacksize, __pi_stackend
 
@@ -159,29 +159,10 @@ Stack::StackSlot Stack::ObtainCurrentThreadStackStart() {
                                      sizeof(buf), regbuf, &regbufsize);
   CHECK(!rc);
   if (buf.__pi_stackend == NULL || buf.__pi_stackaddr == NULL) {
-    return nullptr;
+    return {nullptr, nullptr};
   }
-  return reinterpret_cast<void*>(buf.__pi_stackend);
-}
-
-// static
-Stack::StackSlot Stack::ObtainCurrentThreadStackReservedLimit() {
-  pthread_t tid = pthread_self();
-  struct __pthrdsinfo buf;
-  memset(&buf, 0, sizeof(buf));
-  char regbuf[1];
-  int regbufsize = sizeof(regbuf);
-
-  const int rc = pthread_getthrds_np(&tid, PTHRDSINFO_QUERY_ALL, &buf,
-                                     sizeof(buf), regbuf, &regbufsize);
-  if (rc != 0) {
-    return nullptr;
-  }
-
-  if (buf.__pi_stackaddr == NULL) {
-    return nullptr;
-  }
-  return reinterpret_cast<void*>(buf.__pi_stackaddr);
+  return {reinterpret_cast<void*>(buf.__pi_stackend),
+          reinterpret_cast<void*>(buf.__pi_stackaddr)};
 }
 
 // static

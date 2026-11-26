@@ -8,7 +8,17 @@ macros:
     macro_header: malloc-macros.h
   - macro_name: M_PURGE_ALL
     macro_header: malloc-macros.h
+types:
+  - type_name: struct_mallinfo2
+    standards:
+      - gnu
 functions:
+  - name: mallinfo2
+    standards:
+      - gnu
+    return_type: struct mallinfo2
+    arguments:
+      - type: void
   - name: malloc_usable_size
     standards:
       - gnu

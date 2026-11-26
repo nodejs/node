@@ -8,8 +8,10 @@
 #include <memory>
 #include <utility>
 
+#include "include/cppgc/heap-state.h"
 #include "include/v8-platform.h"
 #include "src/flags/flags.h"
+#include "src/heap/cppgc-internal/heap-base.h"
 #include "src/heap/heap-controller.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/incremental-marking.h"
@@ -20,6 +22,8 @@
 
 namespace v8 {
 namespace internal {
+
+namespace memory_reducer_unittest {
 
 MemoryReducer::Event MarkCompactEvent(double time_ms,
                                       bool next_gc_likely_to_collect_more,
@@ -371,8 +375,8 @@ class MemoryReducerMockPlatform final : public v8::platform::DefaultPlatform {
     // The MemoryReducer is constructed alongside the Heap, which happens
     // before the test bodies are run. So, we choose which MemoryReducer we use
     // here.
-    v8_flags.memory_reducer_limit_based = true;
-    v8_flags.stress_incremental_marking = false;
+    v8_flags.memory_reducer_limit_based.Set(true);
+    v8_flags.stress_incremental_marking.Set(false);
     EnsureBackgroundTaskRunnerInitialized();
     V8::SetPlatformForTesting(this);
   }
@@ -426,9 +430,9 @@ using LimitBasedMemoryReducerTest =                              //
 
 TEST_F(LimitBasedMemoryReducerTest, LimitBasedMemoryReducerTriggersGC) {
   if (!v8_flags.incremental_marking) return;
-  v8_flags.stress_concurrent_allocation = false;  // For SimulateFullSpace.
-  v8_flags.stress_incremental_marking = false;
-  v8_flags.memory_reducer_delay_ms = 0;
+  v8_flags.stress_concurrent_allocation.Set(false);  // For SimulateFullSpace.
+  v8_flags.stress_incremental_marking.Set(false);
+  v8_flags.memory_reducer_delay_ms.Set(0);
 
   Isolate* i_isolate = this->i_isolate();
   Heap* heap = this->heap();
@@ -446,13 +450,15 @@ TEST_F(LimitBasedMemoryReducerTest, LimitBasedMemoryReducerTriggersGC) {
 
   SimulateFullSpace(heap->old_space());
   i_isolate->factory()->NewFixedArray(
-      V8HeapTrait::kMinimumAllocationLimitGrowingStep, AllocationType::kOld);
+      V8HeapTrait::kMinimumAllocationLimitGrowingStep / kTaggedSize,
+      AllocationType::kOld);
 
   // Run the MemoryReducer task.
   platform.PerformTask();
 
   // Check that we do a GC here, and reschedule memory reducer.
   CHECK(!marking->IsStopped());
+  CHECK(heap->ShouldReduceMemory());
   CHECK(platform.PendingTask());
   CHECK(!memory_reducer->is_scheduled());
 
@@ -461,6 +467,9 @@ TEST_F(LimitBasedMemoryReducerTest, LimitBasedMemoryReducerTriggersGC) {
     platform.PerformTask();
   }
   CHECK(marking->IsStopped());
+  CHECK_EQ(cppgc::EmbedderStackState::kNoHeapPointers,
+           cppgc::internal::HeapBase::From(heap->cpp_heap()->GetHeapHandle())
+               .stack_state_of_prev_gc());
 
   // We did a GC, so memory reducer should be rescheduled.
   CHECK(platform.PendingTask());
@@ -477,7 +486,7 @@ TEST_F(LimitBasedMemoryReducerTest, LimitBasedMemoryReducerTriggersGC) {
 
 TEST_F(LimitBasedMemoryReducerTest, LimitBasedMemoryReducerNotifyMarkCompact) {
   if (v8_flags.single_generation || !v8_flags.memory_reducer) return;
-  v8_flags.memory_reducer_delay_ms = 0;
+  v8_flags.memory_reducer_delay_ms.Set(0);
 
   ManualGCScope manual_gc_scope(i_isolate());
   Heap* heap = this->heap();
@@ -505,7 +514,7 @@ TEST_F(LimitBasedMemoryReducerTest, LimitBasedMemoryReducerNotifyMarkCompact) {
 
 TEST_F(LimitBasedMemoryReducerTest, LimitBasedMemoryReducerBackgrounded) {
   if (v8_flags.single_generation || !v8_flags.memory_reducer) return;
-  v8_flags.memory_reducer_delay_ms = 0;
+  v8_flags.memory_reducer_delay_ms.Set(0);
 
   ManualGCScope manual_gc_scope(i_isolate());
   Isolate* isolate = i_isolate();
@@ -546,7 +555,7 @@ TEST_F(LimitBasedMemoryReducerTest, LimitBasedMemoryReducerBackgrounded) {
 
 TEST_F(LimitBasedMemoryReducerTest, LimitBasedMemoryReducerOvershoot) {
   if (v8_flags.single_generation || !v8_flags.memory_reducer) return;
-  v8_flags.memory_reducer_delay_ms = 0;
+  v8_flags.memory_reducer_delay_ms.Set(0);
 
   ManualGCScope manual_gc_scope(i_isolate());
   Isolate* isolate = i_isolate();
@@ -561,7 +570,7 @@ TEST_F(LimitBasedMemoryReducerTest, LimitBasedMemoryReducerOvershoot) {
 
   // Allocate 20MB in old space after the simulated GC and start major
   // incremental marking.
-  v8_flags.memory_reducer_for_small_heaps = false;
+  v8_flags.memory_reducer_for_small_heaps.Set(false);
   for (int i = 0; i < 20; i++) {
     isolate->factory()->NewFixedArray(1024 * 1024 / kTaggedSize,
                                       AllocationType::kOld);
@@ -593,6 +602,8 @@ TEST_F(LimitBasedMemoryReducerTest, LimitBasedMemoryReducerOvershoot) {
   CHECK_EQ(limit_before, heap->limits()->old_generation_allocation_limit());
   CHECK_GE(heap->limits()->old_generation_allocation_limit(), consumed);
 }
+
+}  // namespace memory_reducer_unittest
 
 }  // namespace internal
 }  // namespace v8

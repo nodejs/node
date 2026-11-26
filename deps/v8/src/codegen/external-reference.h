@@ -33,14 +33,12 @@ enum class IsolateFieldId : uint8_t;
   V(interpreter_dispatch_table_address, "Interpreter::dispatch_table_address") \
   V(force_slow_path, "Isolate::force_slow_path_address()")                     \
   V(isolate_root, "Isolate::isolate_root()")                                   \
-  V(allocation_sites_list_address, "Heap::allocation_sites_list_address()")    \
   V(address_of_jslimit, "StackGuard::address_of_jslimit()")                    \
   V(address_of_no_heap_write_interrupt_request,                                \
     "StackGuard::address_of_interrupt_request(StackGuard::InterruptLevel::"    \
     "kNoHeapWrites)")                                                          \
   V(address_of_real_jslimit, "StackGuard::address_of_real_jslimit()")          \
   V(heap_is_marking_flag_address, "heap_is_marking_flag_address")              \
-  V(heap_is_minor_marking_flag_address, "heap_is_minor_marking_flag_address")  \
   V(is_shared_space_isolate_flag_address,                                      \
     "is_shared_space_isolate_flag_address")                                    \
   V(last_young_allocation_address, "last_young_allocation_address")            \
@@ -225,24 +223,6 @@ enum class IsolateFieldId : uint8_t;
   V(replace_unpaired_surrogates, "Utf16::ReplaceUnpairedSurrogates")           \
   V(try_string_to_index_or_lookup_existing,                                    \
     "try_string_to_index_or_lookup_existing")                                  \
-  V(string_from_forward_table, "string_from_forward_table")                    \
-  V(raw_hash_from_forward_table, "raw_hash_from_forward_table")                \
-  V(name_dictionary_lookup_forwarded_string,                                   \
-    "name_dictionary_lookup_forwarded_string")                                 \
-  V(name_dictionary_find_insertion_entry_forwarded_string,                     \
-    "name_dictionary_find_insertion_entry_forwarded_string")                   \
-  V(global_dictionary_lookup_forwarded_string,                                 \
-    "global_dictionary_lookup_forwarded_string")                               \
-  V(global_dictionary_find_insertion_entry_forwarded_string,                   \
-    "global_dictionary_find_insertion_entry_forwarded_string")                 \
-  V(name_to_index_hashtable_lookup_forwarded_string,                           \
-    "name_to_index_hashtable_lookup_forwarded_string")                         \
-  V(name_to_index_hashtable_find_insertion_entry_forwarded_string,             \
-    "name_to_index_hashtable_find_insertion_entry_forwarded_string")           \
-  V(simple_name_dictionary_lookup_forwarded_string,                            \
-    "simple_name_dictionary_lookup_forwarded_string")                          \
-  V(simple_name_dictionary_find_insertion_entry_forwarded_string,              \
-    "simple_name_dictionary_find_insertion_entry_forwarded_string")            \
   V(verify_skipped_trusted_write_barrier,                                      \
     "Heap::VerifySkippedTrustedWriteBarrier")                                  \
   V(verify_skipped_write_barrier, "Heap::VerifySkippedWriteBarrier")           \
@@ -359,23 +339,19 @@ enum class IsolateFieldId : uint8_t;
   IF_WASM(V, wasm_atomic_notify, "wasm_atomic_notify")                         \
   IF_WASM(V, wasm_waitqueue_notify, "wasm_waitqueue_notify")                   \
   IF_WASM(V, wasm_WebAssemblyCompile, "wasm::WebAssemblyCompile")              \
-  IF_WASM(V, wasm_WebAssemblyException, "wasm::WebAssemblyException")          \
   IF_WASM(V, wasm_WebAssemblyExceptionGetArg,                                  \
           "wasm::WebAssemblyExceptionGetArg")                                  \
   IF_WASM(V, wasm_WebAssemblyExceptionIs, "wasm::WebAssemblyExceptionIs")      \
   IF_WASM(V, wasm_WebAssemblyExceptionGetStack,                                \
           "wasm::WebAssemblyExceptionGetStack")                                \
-  IF_WASM(V, wasm_WebAssemblyGlobal, "wasm::WebAssemblyGlobal")                \
   IF_WASM(V, wasm_WebAssemblyGlobalGetValue,                                   \
           "wasm::WebAssemblyGlobalGetValue")                                   \
   IF_WASM(V, wasm_WebAssemblyGlobalSetValue,                                   \
           "wasm::WebAssemblyGlobalSetValue")                                   \
   IF_WASM(V, wasm_WebAssemblyGlobalValueOf, "wasm::WebAssemblyGlobalValueOf")  \
-  IF_WASM(V, wasm_WebAssemblyInstance, "wasm::WebAssemblyInstance")            \
   IF_WASM(V, wasm_WebAssemblyInstanceGetExports,                               \
           "wasm::WebAssemblyInstanceGetExports")                               \
   IF_WASM(V, wasm_WebAssemblyInstantiate, "wasm::WebAssemblyInstantiate")      \
-  IF_WASM(V, wasm_WebAssemblyMemory, "wasm::WebAssemblyMemory")                \
   IF_WASM(V, wasm_WebAssemblyMemoryMapDescriptor,                              \
           "wasm::WebAssemblyMemoryMapDescriptor")                              \
   IF_WASM(V, wasm_WebAssemblyMemoryGetBuffer,                                  \
@@ -389,19 +365,16 @@ enum class IsolateFieldId : uint8_t;
           "wasm::WebAssemblyMemoryToFixedLengthBuffer")                        \
   IF_WASM(V, wasm_WebAssemblyMemoryToResizableBuffer,                          \
           "wasm::WebAssemblyMemoryToResizableBuffer")                          \
-  IF_WASM(V, wasm_WebAssemblyModule, "wasm::WebAssemblyModule")                \
   IF_WASM(V, wasm_WebAssemblyModuleCustomSections,                             \
           "wasm::WebAssemblyModuleCustomSections")                             \
   IF_WASM(V, wasm_WebAssemblyModuleExports, "wasm::WebAssemblyModuleExports")  \
   IF_WASM(V, wasm_WebAssemblyModuleImports, "wasm::WebAssemblyModuleImports")  \
-  IF_WASM(V, wasm_WebAssemblySuspending, "wasm::WebAssemblySuspending")        \
-  IF_WASM(V, wasm_WebAssemblyTable, "wasm::WebAssemblyTable")                  \
+  IF_WASM(V, wasm_WebAssemblyPromising, "wasm::WebAssemblyPromising")          \
   IF_WASM(V, wasm_WebAssemblyTableGet, "wasm::WebAssemblyTableGet")            \
   IF_WASM(V, wasm_WebAssemblyTableGetLength,                                   \
           "wasm::WebAssemblyTableGetLength")                                   \
   IF_WASM(V, wasm_WebAssemblyTableGrow, "wasm::WebAssemblyTableGrow")          \
   IF_WASM(V, wasm_WebAssemblyTableSet, "wasm::WebAssemblyTableSet")            \
-  IF_WASM(V, wasm_WebAssemblyTag, "wasm::WebAssemblyTag")                      \
   IF_WASM(V, wasm_WebAssemblyValidate, "wasm::WebAssemblyValidate")            \
   V(address_of_wasm_i8x16_swizzle_mask, "wasm_i8x16_swizzle_mask")             \
   V(address_of_wasm_i8x16_popcnt_mask, "wasm_i8x16_popcnt_mask")               \

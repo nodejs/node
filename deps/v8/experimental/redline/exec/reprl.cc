@@ -32,9 +32,8 @@ constexpr int kChildCtrlOut = 101;
 constexpr int kChildDataIn = 102;
 constexpr int kChildDataOut = 103;
 
-// Maximum size of a data channel (and thus of a script / of captured
-// output). Same value as Fuzzilli's REPRL_MAX_DATA_SIZE.
-constexpr size_t kMaxDataSize = size_t{16} << 20;
+// Maximum size of a data channel, script or captured output.
+constexpr size_t kMaxDataSize = ReprlChild::kMaxDataSize;
 
 // poll(2) takes an int number of milliseconds.
 constexpr uint64_t kMaxTimeoutUs = uint64_t{INT32_MAX} * 1000;
@@ -193,14 +192,7 @@ bool ReprlChild::Initialize(std::string* error) {
     return false;
   }
 
-  argv_storage_.push_back(options_.executable);
-  for (const std::string& arg : options_.args) {
-    argv_storage_.push_back(arg);
-  }
-  for (std::string& s : argv_storage_) {
-    argv_.push_back(s.data());
-  }
-  argv_.push_back(nullptr);
+  BuildArgv();
 
   for (const auto& [key, value] : options_.env) {
     std::string entry = key;
@@ -258,7 +250,78 @@ void ReprlChild::Kill() {
   OnChildTerminated();
 }
 
+void ReprlChild::BuildArgv() {
+  argv_storage_.clear();
+  argv_.clear();
+  argv_storage_.push_back(options_.executable);
+  for (const std::string& arg : CurrentArgs()) {
+    argv_storage_.push_back(arg);
+  }
+  for (std::string& s : argv_storage_) {
+    argv_.push_back(s.data());
+  }
+  argv_.push_back(nullptr);
+}
+
+std::vector<std::string> ReprlChild::CurrentArgs() const {
+  std::vector<std::string> args = random_args_;
+  args.insert(args.end(), options_.args.begin(), options_.args.end());
+  return args;
+}
+
+void ReprlChild::Pin(bool pinned) {
+  pinned_ = pinned;
+  // The respawns while pinned kept the flags. Replace a child whose flags
+  // are as old as the respawn limit: the next child draws new flags.
+  if (!pinned && options_.random_args &&
+      options_.max_execs_before_respawn > 0 &&
+      execs_since_draw_ >= options_.max_execs_before_respawn) {
+    Kill();
+  }
+}
+
 bool ReprlChild::Spawn(std::string* error) {
+  // A new child gets new random flags, unless they are pinned. The first
+  // child always gets them.
+  const bool drew = options_.random_args && (!pinned_ || total_spawns_ == 0);
+  if (drew) {
+    random_args_ = options_.random_args();
+    execs_since_draw_ = 0;
+    BuildArgv();
+  }
+  bool flag_failure = false;
+  const bool started = SpawnProcess(error, &flag_failure);
+  // Pinned flags already started a child. Thus a failed start with them is
+  // not a flag failure, and the child must keep them.
+  if (!drew || random_args_.empty() || (!started && !flag_failure)) {
+    return started;
+  }
+  if (started) {
+    if (options_.spawn_result) {
+      options_.spawn_result(random_args_, true);
+    }
+    return true;
+  }
+  // A random flag can stop d8 before the handshake. Start the child again
+  // with the fixed flags only, so that the worker does not stop.
+  REDLINE_WARN(kLog, "target did not start with random flags: %s",
+               error->c_str());
+  std::vector<std::string> failed_args = std::move(random_args_);
+  random_args_.clear();
+  execs_since_draw_ = 0;
+  BuildArgv();
+  if (!SpawnProcess(error, &flag_failure)) {
+    return false;
+  }
+  // The fixed flags start d8. Thus the random flags probably stopped it.
+  if (options_.spawn_result) {
+    options_.spawn_result(failed_args, false);
+  }
+  return true;
+}
+
+bool ReprlChild::SpawnProcess(std::string* error, bool* flag_failure) {
+  *flag_failure = false;
   int child_to_parent[2] = {-1, -1};
   int parent_to_child[2] = {-1, -1};
   if (pipe2(child_to_parent, O_CLOEXEC) != 0) {
@@ -369,14 +432,16 @@ bool ReprlChild::Spawn(std::string* error) {
       output = std::string(stderr_channel_->Content());
     }
     Kill();
+    *flag_failure = true;
     *error = StringPrintf(
         "Did not receive HELO from target %s (%s). Is it built with "
-        "v8_fuzzilli=true? stderr: %s",
+        "v8_redline=true or v8_fuzzilli=true? stderr: %s",
         argv_[0], res == 0 ? "timeout" : "child exited", output.c_str());
     return false;
   }
   if (memcmp(helo, "HELO", 4) != 0) {
     Kill();
+    *flag_failure = true;
     *error = "Received invalid HELO message from target";
     return false;
   }
@@ -465,6 +530,7 @@ bool ReprlChild::Execute(std::string_view script, uint64_t timeout_us,
 
   total_executions_++;
   execs_since_spawn_++;
+  execs_since_draw_++;
 
   // Wait for the status word, EOF (child died) or the timeout.
   uint64_t start = MonotonicNowUs();

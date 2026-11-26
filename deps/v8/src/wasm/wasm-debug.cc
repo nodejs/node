@@ -16,6 +16,7 @@
 #include "src/compiler/wasm-compiler.h"
 #include "src/debug/debug-evaluate.h"
 #include "src/debug/debug.h"
+#include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frames-inl.h"
 #include "src/heap/factory.h"
 #include "src/wasm/baseline/liftoff-compiler.h"
@@ -392,6 +393,17 @@ class DebugInfoImpl {
         func_index, base::VectorOf(all_breakpoints),
         base::VectorOf(dead_breakpoints));
     UpdateReturnAddresses(isolate, new_code, isolate_data.stepping_frame);
+  }
+
+  bool HasBreakpoint(int func_index) const {
+    base::MutexGuard guard(&mutex_);
+    for (const auto& [isolate, data] : per_isolate_data_) {
+      auto it = data.breakpoints_per_function.find(func_index);
+      if (it != data.breakpoints_per_function.end() && !it->second.empty()) {
+        return true;
+      }
+    }
+    return false;
   }
 
   std::vector<int> FindAllBreakpoints(int func_index) {
@@ -969,6 +981,10 @@ void DebugInfo::SetBreakpoint(int func_index, int offset,
   impl_->SetBreakpoint(func_index, offset, current_isolate);
 }
 
+bool DebugInfo::HasBreakpoint(int func_index) const {
+  return impl_->HasBreakpoint(func_index);
+}
+
 bool DebugInfo::IsFrameBlackboxed(WasmFrame* frame) {
   return impl_->IsFrameBlackboxed(frame);
 }
@@ -1090,6 +1106,13 @@ void WasmScript::SetInstrumentationBreakpoint(
 
   // Update the "break_on_entry" flag on all live instances.
   SetBreakOnEntryFlag(*script, true);
+
+  // Deoptimize any JS code that already inlined Wasm functions from this
+  // module so on-entry instrumentation breakpoints are not skipped.
+  // Must be called without holding DebugInfoImpl::mutex_.
+  Isolate* isolate = Isolate::Current();
+  Deoptimizer::DeoptimizeAllOptimizedCodeWithWasmFunction(
+      isolate, script->wasm_native_module().raw());
 }
 
 // static
@@ -1127,6 +1150,12 @@ bool WasmScript::SetBreakPointForFunction(
   AddBreakpointToInfo(script, func.code.offset() + offset, break_point);
 
   native_module->GetDebugInfo()->SetBreakpoint(func_index, offset, isolate);
+
+  // Deoptimize any JS code that already inlined this Wasm function.
+  // Must be called after SetBreakpoint releases DebugInfoImpl::mutex_ to avoid
+  // deadlock when waiting on background compiler threads.
+  Deoptimizer::DeoptimizeAllOptimizedCodeWithWasmFunction(
+      isolate, native_module.raw(), func_index);
 
   return true;
 }

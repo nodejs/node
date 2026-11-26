@@ -676,6 +676,8 @@ Builtins::JSBuiltinStateFlags Builtins::GetJSBuiltinState(Builtin builtin) {
     case Builtin::kArrayForEachLoopEagerDeoptContinuation:
     case Builtin::kArrayForEachLoopLazyDeoptContinuation:
     case Builtin::kArraySortContinueFromSnapshotEagerDeoptContinuation:
+    case Builtin::
+        kArraySortContinueFromSnapshotAfterCallbackEagerDeoptContinuation:
     case Builtin::kArraySortContinueFromSnapshotLazyDeoptContinuation:
     case Builtin::kArrayMapPreLoopLazyDeoptContinuation:
     case Builtin::kArrayMapLoopEagerDeoptContinuation:
@@ -786,6 +788,8 @@ Builtins::JSBuiltinStateFlags Builtins::GetJSBuiltinState(Builtin builtin) {
     case Builtin::kWebAssemblyStringCompare:
     case Builtin::kWebAssemblyConfigureAllPrototypes:
       return JSBuiltinStateFlag::kCoreJSLazy;
+    case Builtin::kWebAssemblySuspending:
+      RETURN_FLAG_DEPENDENT_BUILTIN_STATE(!v8_flags.wasm_jitless);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 #ifdef V8_INTL_SUPPORT
@@ -831,16 +835,6 @@ Builtins::JSBuiltinStateFlags Builtins::GetJSBuiltinState(Builtin builtin) {
     case Builtin::kShadowRealmImportValueFulfilled:
       RETURN_FLAG_DEPENDENT_LAZY_BUILTIN_STATE(v8_flags.harmony_shadow_realm);
 
-    // --harmony-struct
-    case Builtin::kSharedSpaceJSObjectHasInstance:
-    case Builtin::kSharedStructTypeConstructor:
-    case Builtin::kSharedStructTypeIsSharedStruct:
-    case Builtin::kSharedArrayConstructor:
-    case Builtin::kSharedArrayIsSharedArray:
-      RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.harmony_struct);
-    case Builtin::kSharedStructConstructor:
-      RETURN_FLAG_DEPENDENT_LAZY_BUILTIN_STATE(v8_flags.harmony_struct);
-
     // --js-iterator-sequencing:
     case Builtin::kIteratorConcat:
       RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_iterator_sequencing);
@@ -867,6 +861,11 @@ Builtins::JSBuiltinStateFlags Builtins::GetJSBuiltinState(Builtin builtin) {
     // --js-iterator-includes
     case Builtin::kIteratorPrototypeIncludes:
       RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_iterator_includes);
+
+    // --js-iterator-chunking
+    case Builtin::kIteratorPrototypeChunks:
+    case Builtin::kIteratorPrototypeWindows:
+      RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_iterator_chunking);
 
     default: {
       // Treat all other JS builtins as mandatory core JS language builtins.
@@ -1005,12 +1004,10 @@ void Builtins::VerifyGetJSBuiltinState(bool allow_non_initial_state) {
   //     various continuation builtins),
   //  b) the builtin is supposed to be installed into JSFunction but it belongs
   //     to an experimental, incomplete or otherwise disabled feature
-  //     controlled by a certain runtime flag (for example,
-  //     ShadowRealmConstructor),
+  //     controlled by a certain runtime flag,
   //  c) the builtin is supposed to be installed into JSFunction lazily and
   //     it belongs to an experimental, incomplete or otherwise disabled feature
-  //     controlled by a certain runtime flag (for example,
-  //     SharedStructConstructor),
+  //     controlled by a certain runtime flag,
   //  d) the builtin belongs to a JavaScript language feature but respective
   //     JSFunction instances are created lazily (for example, Temporal
   //     builtins).

@@ -71,6 +71,8 @@ LIBC_INLINE constexpr void normalize<long double>(int &exponent,
 
 } // namespace internal
 
+namespace generic {
+
 // Correctly rounded IEEE 754 SQRT for all rounding modes.
 // Shift-and-add algorithm.
 template <typename OutType, typename InType>
@@ -79,8 +81,8 @@ LIBC_INLINE LIBC_CONSTEXPR_DEFAULT static cpp::enable_if_t<
         sizeof(OutType) <= sizeof(InType),
     OutType>
 sqrt(InType x) {
-  if constexpr (internal::SpecialLongDouble<OutType>::VALUE &&
-                internal::SpecialLongDouble<InType>::VALUE) {
+  if constexpr (fputil::internal::SpecialLongDouble<OutType>::VALUE &&
+                fputil::internal::SpecialLongDouble<InType>::VALUE) {
 #ifdef LIBC_TYPES_LONG_DOUBLE_IS_X86_FLOAT80
     // Special 80-bit long double.
     return x86::sqrt(x);
@@ -116,7 +118,7 @@ sqrt(InType x) {
       // Step 1a: Normalize denormal input and append hidden bit to the mantissa
       if (bits.is_subnormal()) {
         ++x_exp; // let x_exp be the correct exponent of ONE bit.
-        internal::normalize<InType>(x_exp, x_mant);
+        fputil::internal::normalize<InType>(x_exp, x_mant);
       } else {
         x_mant |= ONE;
       }
@@ -170,6 +172,20 @@ sqrt(InType x) {
       return yd.template as<OutType, /*ShouldSignalExceptions=*/true>();
     }
   }
+}
+
+} // namespace generic
+
+// Targets with a square root instruction specialize this for the supported
+// types in the target specific headers, dispatching to generic::sqrt during
+// constant evaluation.
+template <typename OutType, typename InType>
+LIBC_INLINE constexpr cpp::enable_if_t<cpp::is_floating_point_v<OutType> &&
+                                           cpp::is_floating_point_v<InType> &&
+                                           sizeof(OutType) <= sizeof(InType),
+                                       OutType>
+sqrt(InType x) {
+  return generic::sqrt<OutType>(x);
 }
 
 } // namespace fputil

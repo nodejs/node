@@ -7,6 +7,7 @@
 #include <optional>
 
 #include "include/cppgc/allocation.h"
+#include "include/v8-cppgc.h"
 #include "include/v8-fast-api-calls.h"
 #include "src/api/api.h"
 #include "src/base/bits.h"
@@ -492,13 +493,13 @@ FUNCTION_REFERENCE(ephemeron_key_write_barrier_function,
 
 ExternalPointerHandle AllocateAndInitializeYoungExternalPointerTableEntry(
     Isolate* isolate, Address pointer) {
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
   return isolate->external_pointer_table().AllocateAndInitializeEntry(
       isolate->heap()->young_external_pointer_space(), pointer,
       kFastApiExternalTypeTag);
 #else
   return 0;
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
 }
 
 FUNCTION_REFERENCE(allocate_and_initialize_young_external_pointer_table_entry,
@@ -710,11 +711,6 @@ ExternalReference ExternalReference::isolate_root(Isolate* isolate) {
   return ExternalReference(isolate->isolate_root());
 }
 
-ExternalReference ExternalReference::allocation_sites_list_address(
-    Isolate* isolate) {
-  return ExternalReference(isolate->heap()->allocation_sites_list_address());
-}
-
 ExternalReference ExternalReference::address_of_jslimit(Isolate* isolate) {
   Address address = isolate->stack_guard()->address_of_jslimit();
   // For efficient generated code, this should be root-register-addressable.
@@ -741,11 +737,6 @@ ExternalReference ExternalReference::address_of_real_jslimit(Isolate* isolate) {
 ExternalReference ExternalReference::heap_is_marking_flag_address(
     Isolate* isolate) {
   return ExternalReference(isolate->heap()->IsMarkingFlagAddress());
-}
-
-ExternalReference ExternalReference::heap_is_minor_marking_flag_address(
-    Isolate* isolate) {
-  return ExternalReference(isolate->heap()->IsMinorMarkingFlagAddress());
 }
 
 ExternalReference ExternalReference::is_shared_space_isolate_flag_address(
@@ -1341,74 +1332,6 @@ static uint32_t ComputeSeededIntegerHash(Isolate* isolate, int32_t key) {
 }
 
 FUNCTION_REFERENCE(compute_integer_hash, ComputeSeededIntegerHash)
-
-enum LookupMode { kFindExisting, kFindInsertionEntry };
-template <typename Dictionary, LookupMode mode>
-static size_t NameDictionaryLookupForwardedStringWithHandle(Isolate* isolate,
-                                                            Address raw_dict,
-                                                            Address raw_key) {
-  // This function cannot allocate, but there is a HandleScope because it needs
-  // to pass Handle<Name> to the dictionary methods.
-  DisallowGarbageCollection no_gc;
-  HandleScope handle_scope(isolate);
-
-  DirectHandle<String> key(Cast<String>(Tagged<Object>(raw_key)), isolate);
-  // This function should only be used as the slow path for forwarded strings.
-  DCHECK(Name::IsForwardingIndex(key->raw_hash_field()));
-
-  Tagged<Dictionary> dict = Cast<Dictionary>(Tagged<Object>(raw_dict));
-  ReadOnlyRoots roots(isolate);
-  uint32_t hash = key->hash();
-  InternalIndex entry = mode == kFindExisting
-                            ? dict->FindEntry(roots, key, hash)
-                            : dict->FindInsertionEntry(roots, hash);
-  return entry.raw_value();
-}
-
-FUNCTION_REFERENCE(name_dictionary_lookup_forwarded_string,
-                   (NameDictionaryLookupForwardedStringWithHandle<
-                       NameDictionary, kFindExisting>))
-FUNCTION_REFERENCE(name_dictionary_find_insertion_entry_forwarded_string,
-                   (NameDictionaryLookupForwardedStringWithHandle<
-                       NameDictionary, kFindInsertionEntry>))
-FUNCTION_REFERENCE(global_dictionary_lookup_forwarded_string,
-                   (NameDictionaryLookupForwardedStringWithHandle<
-                       GlobalDictionary, kFindExisting>))
-FUNCTION_REFERENCE(global_dictionary_find_insertion_entry_forwarded_string,
-                   (NameDictionaryLookupForwardedStringWithHandle<
-                       GlobalDictionary, kFindInsertionEntry>))
-FUNCTION_REFERENCE(simple_name_dictionary_lookup_forwarded_string,
-                   (NameDictionaryLookupForwardedStringWithHandle<
-                       SimpleNameDictionary, kFindExisting>))
-FUNCTION_REFERENCE(simple_name_dictionary_find_insertion_entry_forwarded_string,
-                   (NameDictionaryLookupForwardedStringWithHandle<
-                       SimpleNameDictionary, kFindInsertionEntry>))
-
-template <typename Dictionary, LookupMode mode>
-static size_t NameDictionaryLookupForwardedString(Isolate* isolate,
-                                                  Address raw_dict,
-                                                  Address raw_key) {
-  Tagged<String> key = Cast<String>(Tagged<Object>(raw_key));
-  // This function should only be used as the slow path for forwarded strings.
-  DCHECK(Name::IsForwardingIndex(key->raw_hash_field()));
-
-  Tagged<Dictionary> dict = Cast<Dictionary>(Tagged<Object>(raw_dict));
-  ReadOnlyRoots roots(isolate);
-  uint32_t hash = key->hash();
-  InternalIndex entry = mode == kFindExisting
-                            ? dict->FindEntry(roots, key, hash)
-                            : dict->FindInsertionEntry(roots, hash);
-  return entry.raw_value();
-}
-
-FUNCTION_REFERENCE(
-    name_to_index_hashtable_lookup_forwarded_string,
-    (NameDictionaryLookupForwardedString<NameToIndexHashTable, kFindExisting>))
-FUNCTION_REFERENCE(
-    name_to_index_hashtable_find_insertion_entry_forwarded_string,
-    (NameDictionaryLookupForwardedString<NameToIndexHashTable,
-                                         kFindInsertionEntry>))
-
 FUNCTION_REFERENCE(copy_fast_number_jsarray_elements_to_typed_array,
                    CopyFastNumberJSArrayElementsToTypedArray)
 FUNCTION_REFERENCE(copy_typed_array_elements_to_typed_array,
@@ -1416,10 +1339,6 @@ FUNCTION_REFERENCE(copy_typed_array_elements_to_typed_array,
 FUNCTION_REFERENCE(copy_typed_array_elements_slice, CopyTypedArrayElementsSlice)
 FUNCTION_REFERENCE(try_string_to_index_or_lookup_existing,
                    StringTable::TryStringToIndexOrLookupExisting)
-FUNCTION_REFERENCE(string_from_forward_table,
-                   StringForwardingTable::GetForwardStringAddress)
-FUNCTION_REFERENCE(raw_hash_from_forward_table,
-                   StringForwardingTable::GetRawHashStatic)
 FUNCTION_REFERENCE(string_to_array_index_function, String::ToArrayIndex)
 FUNCTION_REFERENCE(array_indexof_includes_smi_or_object,
                    ArrayIndexOfIncludesSmiOrObject)

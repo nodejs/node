@@ -1020,6 +1020,7 @@ TEST(StringVec, SelfRefPushBackWithMove) {
 
 TEST(StringVec, SelfMove) {
   const std::string s = "A quite long string to ensure heap.";
+  std::vector<std::string> copy;
   for (int len = 0; len < 20; len++) {
     SCOPED_TRACE(len);
     absl::InlinedVector<std::string, 8> v;
@@ -1032,7 +1033,7 @@ TEST(StringVec, SelfMove) {
     // Ensure that the inlined vector is still in a valid state by copying it.
     // We don't expect specific contents since a self-move results in an
     // unspecified valid state.
-    std::vector<std::string> copy(v.begin(), v.end());
+    copy.assign(v.begin(), v.end());
   }
 }
 

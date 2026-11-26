@@ -9,19 +9,17 @@
 #ifndef LLVM_LIBC_SRC___SUPPORT_MATH_EXPM1F_H
 #define LLVM_LIBC_SRC___SUPPORT_MATH_EXPM1F_H
 
-#include "common_constants.h" // Lookup tables EXP_M1 and EXP_M2.
-#include "src/__support/FPUtil/BasicOperations.h"
-#include "src/__support/FPUtil/FEnvImpl.h"
-#include "src/__support/FPUtil/FMA.h"
 #include "src/__support/FPUtil/FPBits.h"
-#include "src/__support/FPUtil/PolyEval.h"
+#include "src/__support/FPUtil/except_value_utils.h"
 #include "src/__support/FPUtil/multiply_add.h"
 #include "src/__support/FPUtil/nearest_integer.h"
+#include "src/__support/FPUtil/polyeval.h"
 #include "src/__support/FPUtil/rounding_mode.h"
 #include "src/__support/common.h"
 #include "src/__support/macros/config.h"
 #include "src/__support/macros/optimization.h"            // LIBC_UNLIKELY
 #include "src/__support/macros/properties/cpu_features.h" // LIBC_TARGET_CPU_HAS_FMA
+#include "src/__support/math/common_constants.h" // Lookup tables EXP_M1 and EXP_M2.
 
 namespace LIBC_NAMESPACE_DECL {
 
@@ -80,16 +78,8 @@ LIBC_INLINE float expm1f(float x) {
     } else {
       // x >= 89 or nan
       if (xbits.uintval() >= 0x42b2'0000) {
-        if (xbits.uintval() < 0x7f80'0000U) {
-#ifndef LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
-          int rounding = fputil::quick_get_round();
-          if (rounding == FE_DOWNWARD || rounding == FE_TOWARDZERO)
-            return FPBits::max_normal().get_val();
-#endif
-
-          fputil::set_errno_if_required(ERANGE);
-          fputil::raise_except_if_required(FE_OVERFLOW);
-        }
+        if (xbits.uintval() < 0x7f80'0000U)
+          return fputil::set_overflow<float>();
         return x + FPBits::inf().get_val();
       }
     }
@@ -169,7 +159,7 @@ LIBC_INLINE float expm1f(float x) {
   float kf = fputil::nearest_integer(x * 0x1.0p7f);
   int x_hi = static_cast<int>(kf);
   // Subtract (hi + mid) from x to get lo.
-  double xd = static_cast<double>(fputil::multiply_add(kf, -0x1.0p-7f, x));
+  double xd = static_cast<double>(fputil::sub_multiply(x, kf, 0x1.0p-7f));
   x_hi += 104 << 7;
   // hi = x_hi >> 7
   double exp_hi = EXP_M1[x_hi >> 7];
@@ -184,7 +174,7 @@ LIBC_INLINE float expm1f(float x) {
   double exp_lo =
       fputil::polyeval(xd, 0x1.0p0, 0x1.ffffffffff777p-1, 0x1.000000000071cp-1,
                        0x1.555566668e5e7p-3, 0x1.55555555ef243p-5);
-  return static_cast<float>(fputil::multiply_add(exp_hi_mid, exp_lo, -1.0));
+  return static_cast<float>(fputil::multiply_sub(exp_hi_mid, exp_lo, 1.0));
 }
 
 } // namespace math

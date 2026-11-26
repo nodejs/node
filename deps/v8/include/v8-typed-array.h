@@ -6,6 +6,7 @@
 #define INCLUDE_V8_TYPED_ARRAY_H_
 
 #include <limits>
+#include <span>
 
 #include "v8-array-buffer.h"  // NOLINT(build/include_directory)
 #include "v8-local-handle.h"  // NOLINT(build/include_directory)
@@ -62,6 +63,13 @@ class V8_EXPORT Uint8Array : public TypedArray {
 
   static Local<Uint8Array> New(Local<ArrayBufferBase> array_buffer,
                                size_t byte_offset, size_t length);
+  /**
+   * Allocates a new Uint8Array initialized with a copy of `data`.
+   * Returns an empty MaybeLocal if `data.size() > kMaxLength` or if
+   * backing-store allocation fails.
+   */
+  static MaybeLocal<Uint8Array> MaybeNew(Isolate* isolate,
+                                         std::span<const uint8_t> data);
   V8_INLINE static Uint8Array* Cast(Value* value) {
 #ifdef V8_ENABLE_CHECKS
     CheckCast(value);

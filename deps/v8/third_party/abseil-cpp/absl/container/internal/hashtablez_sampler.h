@@ -52,6 +52,7 @@
 #include "absl/base/internal/per_thread_tls.h"
 #include "absl/base/optimization.h"
 #include "absl/base/thread_annotations.h"
+#include "absl/container/internal/container_memory.h"
 #include "absl/profiling/internal/sample_recorder.h"
 #include "absl/synchronization/mutex.h"
 #include "absl/time/time.h"
@@ -75,8 +76,7 @@ struct HashtablezInfo : public profiling_internal::Sample<HashtablezInfo> {
   // blocking for any readers that are currently sampling the object.
   void PrepareForSampling(int64_t stride, size_t inline_element_size_value,
                           size_t key_size, size_t value_size,
-                          uint16_t soo_capacity_value)
-      ABSL_EXCLUSIVE_LOCKS_REQUIRED(init_mu);
+                          uint16_t soo_capacity_value);
 
   // These fields are mutated by the various Record* APIs and need to be
   // thread-safe.
@@ -99,9 +99,10 @@ struct HashtablezInfo : public profiling_internal::Sample<HashtablezInfo> {
   absl::Time create_time;
   uint32_t depth;
   // The SOO capacity for this table in elements (not bytes). Note that sampled
-  // tables are never SOO because we need to store the infoz handle on the heap.
-  // Tables that would be SOO if not sampled should have: soo_capacity > 0 &&
-  // size <= soo_capacity && max_reserve <= soo_capacity.
+  // tables are never SOO because we need to store the infoz handle on the heap,
+  // but tables that would be SOO if not sampled report `capacity ==
+  // soo_capacity` (and have `soo_capacity > 0 && size <= soo_capacity &&
+  // max_reserve <= soo_capacity`).
   uint16_t soo_capacity;
   void* stack[kMaxStackDepth];
   size_t inline_element_size;  // How big is the slot in bytes?
@@ -237,24 +238,33 @@ inline bool ShouldSampleNextTable() {
 
 // Returns a sampling handle.
 // Must be called only if HashSetShouldBeSampled() returned true.
-// Returned handle still can be unsampled if sampling is not possible.
-HashtablezInfoHandle ForcedTrySample(size_t inline_element_size,
-                                     size_t key_size, size_t value_size,
-                                     uint16_t soo_capacity);
+// Returned handle still can be unsampled if sampling is not possible or if
+// `info.is_hashtablez_enabled` is false.
+HashtablezInfoHandle ForcedTrySample(const HashtableTypeInfo& info);
 
 // In case sampling needs to be disabled and re-enabled in tests, this function
 // can be used to reset the sampling state for the current thread.
 // It is useful to avoid sampling attempts and sampling delays in tests.
 void TestOnlyRefreshSamplingStateForCurrentThread();
 
-// Returns a sampling handle.
-inline HashtablezInfoHandle Sample(size_t inline_element_size, size_t key_size,
-                                   size_t value_size, uint16_t soo_capacity) {
+// Returns a sampling handle. For use in tests only: `raw_hash_set` calls
+// `ShouldSampleNextTable()` and `ForcedTrySample()` directly.
+inline HashtablezInfoHandle SampleForTesting(size_t inline_element_size,
+                                             size_t key_size, size_t value_size,
+                                             uint16_t soo_capacity) {
   if (ABSL_PREDICT_TRUE(!ShouldSampleNextTable())) {
     return HashtablezInfoHandle(nullptr);
   }
-  return ForcedTrySample(inline_element_size, key_size, value_size,
-                         soo_capacity);
+  const HashtableTypeInfo info = {
+      static_cast<uint32_t>(inline_element_size),
+      /*slot_align_mask=*/0,  // Unused by sampling.
+      /*soo_enabled=*/soo_capacity != 0,
+      /*is_hashtablez_enabled=*/true,
+      /*is_custom_alloc=*/false,  // Unused by sampling.
+      static_cast<uint32_t>(key_size),
+      static_cast<uint32_t>(value_size),
+  };
+  return ForcedTrySample(info);
 }
 
 using HashtablezSampler =

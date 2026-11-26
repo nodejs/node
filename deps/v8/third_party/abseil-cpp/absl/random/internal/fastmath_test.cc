@@ -89,9 +89,11 @@ TEST(FastMathTest, StirlingLogFactorial) {
   EXPECT_NEAR(StirlingLogFactorial(1.50), 0.284683, 1e-3);
   EXPECT_NEAR(StirlingLogFactorial(2.0), 0.69314718056, 1e-4);
 
+  double log_factorial = 0.0;
   for (int i = 2; i < 50; i++) {
     double d = static_cast<double>(i);
-    EXPECT_NEAR(StirlingLogFactorial(d), std::lgamma(d + 1), 3e-5);
+    log_factorial += std::log(d);
+    EXPECT_NEAR(StirlingLogFactorial(d), log_factorial, 3e-5);
   }
 }
 

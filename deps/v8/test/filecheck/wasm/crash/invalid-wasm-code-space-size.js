@@ -3,4 +3,4 @@
 // found in the LICENSE file.
 
 // Flags: --wasm-max-code-space-size-mb=2000
-// CHECK: Fatal error with no security impact
+// CHECK: Flag processing error: Invalid value for flag: --wasm-max-code-space-size-mb > kDefaultMaxWasmCodeSpaceSizeMb.

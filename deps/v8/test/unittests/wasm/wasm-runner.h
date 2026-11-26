@@ -8,6 +8,7 @@
 #include "src/api/api-inl.h"
 #include "src/sandbox/hardware-support.h"
 #include "src/trap-handler/trap-handler.h"
+#include "test/common/flag-utils.h"
 #include "test/common/wasm/wasm-run-utils.h"
 #include "test/unittests/test-utils.h"
 
@@ -35,6 +36,16 @@ class WithWasmTrapHandlerMixin : private WasmTrapHandlerInitializer,
                                  public TMixin {};
 
 using WasmUninitializedTestBase = WithWasmTrapHandlerMixin<TestWithPlatform>;
+
+#if V8_ENABLE_DRUMBRAKE
+// Set the flag before the fixture initializes V8 and creates its isolate, and
+// restore it only after the fixture (including its isolate) has been destroyed.
+template <typename TMixin>
+class WithWasmInterpreterMixin : private FlagScope<bool>, public TMixin {
+ public:
+  WithWasmInterpreterMixin() : FlagScope<bool>(&v8_flags.wasm_jitless, true) {}
+};
+#endif  // V8_ENABLE_DRUMBRAKE
 
 class WasmExecutionTestBase : public WithIsolateScopeMixin<
                                   WithIsolateMixin<WasmUninitializedTestBase>> {
@@ -102,12 +113,15 @@ class WasmRunner : public CommonWasmRunner<ReturnType, ParamTypes...> {
 };
 
 #if V8_ENABLE_DRUMBRAKE
-#define TEST_IF_DRUMBRAKE(name)                             \
-  TEST_F(WASM_EXEC_TEST_SUITE, RunWasmInterpreter_##name) { \
-    FLAG_SCOPE(wasm_jitless);                               \
-    WasmInterpreterThread::Initialize();                    \
-    RunWasm_##name(TestExecutionTier::kInterpreter);        \
-    WasmInterpreterThread::Terminate();                     \
+// Keep the original suite name and fixture ID, but select interpreter mode
+// before constructing the fixture rather than in the test body.
+#define WASM_INTERPRETER_TEST_F(test_fixture, test_name)                       \
+  GTEST_TEST_(test_fixture, test_name, WithWasmInterpreterMixin<test_fixture>, \
+              ::testing::internal::GetTypeId<test_fixture>())
+
+#define TEST_IF_DRUMBRAKE(name)                                              \
+  WASM_INTERPRETER_TEST_F(WASM_EXEC_TEST_SUITE, RunWasmInterpreter_##name) { \
+    RunWasm_##name(TestExecutionTier::kInterpreter);                         \
   }
 #else
 #define TEST_IF_DRUMBRAKE(name)

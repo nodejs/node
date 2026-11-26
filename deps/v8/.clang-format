@@ -19,6 +19,13 @@ Macros:
   - DEFINE_WEAK_IMPLICATION(cond,flag,value)=if(cond) { flag; };
   - DEFINE_VALUE_IMPLICATION(cond,flag,value)=if(cond) { flag = value; };
   - DEFINE_WEAK_VALUE_IMPLICATION(cond,flag,value)=if(cond) { flag = value; };
+StatementAttributeLikeMacros:
+  # Prevent clang-format from treating the assembler macro `__` as a return
+  # type in expressions like `__ cache_state()->Split()` (which otherwise
+  # formats `->` with spaces as a trailing return arrow). `Macros` is avoided
+  # here because two-pass macro reconstruction misaligns wrapped call arguments
+  # and hangs on `__(...)` calls in tsa-generator.cc.
+  - __
 StatementMacros:
   - DECL_CAST
   - DECL_VERIFIER

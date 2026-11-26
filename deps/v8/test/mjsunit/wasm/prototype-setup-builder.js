@@ -137,6 +137,7 @@ class WasmPrototypeSetupBuilder {
 
     for (let config of this.configs) {
       prototypes.push([kExprGlobalGet, config.prototype]);
+      data.push(...wasmSignedLeb(config.parent));
       if (config.constructor) {
         data.push(1);
         data.push(...StringToArray(config.constructor.name));
@@ -156,7 +157,6 @@ class WasmPrototypeSetupBuilder {
         data.push(...StringToArray(method.name));
         functions.push(method.func_index);
       }
-      data.push(...wasmSignedLeb(config.parent));
     }
 
     let proto_segment = this.module_builder.addPassiveElementSegment(

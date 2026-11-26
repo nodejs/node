@@ -55,7 +55,8 @@ Handle<NameToIndexHashTable> AddLocalNamesFromContext(
   ReadOnlyRoots roots(isolate);
   DirectHandle<ScopeInfo> scope_info(script_context->scope_info(), isolate);
   int local_count = scope_info->ContextLocalCount();
-  names_table = names_table->EnsureCapacity(isolate, names_table, local_count);
+  names_table =
+      NameToIndexHashTable::EnsureCapacity(isolate, names_table, local_count);
 
   for (auto it : ScopeInfo::IterateLocalNames(scope_info)) {
     DirectHandle<Name> name(it->name(), isolate);
@@ -477,9 +478,9 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
       Tagged<Object> obj = context->get(WRAPPED_CONTEXT_INDEX, kRelaxedLoad);
       if (IsContext(obj)) {
         Handle<Context> wrapped_context(Cast<Context>(obj), isolate);
-        Handle<Object> result =
-            Context::Lookup(wrapped_context, name, DONT_FOLLOW_CHAINS, index,
-                            attributes, init_flag, variable_mode);
+        Handle<Object> result = Context::Lookup(
+            wrapped_context, name, DONT_FOLLOW_CHAINS, index, attributes,
+            init_flag, variable_mode, is_sloppy_function_name);
         if (!result.is_null()) return result;
         // The lookup in the wrapped context can throw, e.g. when the subject
         // of a with statement is a proxy or a deferred module namespace. Stop
@@ -490,6 +491,25 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
             PrintF(" - name lookup causes exception. Aborting.\n");
           }
           return Handle<Object>();
+        }
+        if (follow_context_chain && wrapped_context->IsFunctionContext()) {
+          int function_index =
+              wrapped_context->scope_info()->FunctionContextSlotIndex(*name);
+          if (function_index >= 0) {
+            if (v8_flags.trace_contexts) {
+              PrintF("=> found intermediate function in context slot %d\n",
+                     function_index);
+            }
+            *index = function_index;
+            *attributes = READ_ONLY;
+            *init_flag = kCreatedInitialized;
+            *variable_mode = VariableMode::kConst;
+            if (is_sloppy_function_name != nullptr &&
+                is_sloppy(wrapped_context->scope_info()->language_mode())) {
+              *is_sloppy_function_name = true;
+            }
+            return wrapped_context;
+          }
         }
       }
     }
@@ -743,7 +763,7 @@ DirectHandle<Object> Context::ErrorMessageForWasmCodeGeneration() {
 
 #ifdef VERIFY_HEAP
 namespace {
-// TODO(v8:12298): Fix js-context-specialization cctests to set up full
+// TODO(v8:12298): Fix js-context-specialization unittests to set up full
 // native contexts instead of using dummy internalized strings as
 // extensions.
 bool IsContexExtensionTestObject(Tagged<HeapObject> extension) {

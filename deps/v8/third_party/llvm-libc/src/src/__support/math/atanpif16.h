@@ -16,9 +16,9 @@
 #include "hdr/fenv_macros.h"
 #include "src/__support/FPUtil/FEnvImpl.h"
 #include "src/__support/FPUtil/FPBits.h"
-#include "src/__support/FPUtil/PolyEval.h"
 #include "src/__support/FPUtil/cast.h"
 #include "src/__support/FPUtil/multiply_add.h"
+#include "src/__support/FPUtil/polyeval.h"
 #include "src/__support/FPUtil/sqrt.h"
 #include "src/__support/macros/optimization.h"
 
@@ -151,7 +151,7 @@ LIBC_INLINE float16 atanpif16(float16 x) {
     double x_recip_sq = x_recip * x_recip;
     double sqrt_term = fputil::sqrt<double>(1.0 + x_recip_sq);
     double x_prime = x_recip / (1.0 + sqrt_term);
-    result = fputil::multiply_add(-2.0, atanpi_eval(x_prime), 0.5);
+    result = fputil::sub_multiply(0.5, 2.0, atanpi_eval(x_prime));
   } else {
     // direct evaluation since 1/|x| <= 0.5
     result = 0.5 - atanpi_eval(x_recip);

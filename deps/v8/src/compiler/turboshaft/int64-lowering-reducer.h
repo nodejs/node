@@ -47,7 +47,7 @@ class Int64LoweringReducer : public Next {
     // Int64 lowering is currently only supported and used in Wasm pipelines.
     CHECK_NE(__ data()->pipeline_kind(), TurboshaftPipelineKind::kJS);
 
-    wasm::CallOrigin origin = __ data() -> is_js_to_wasm()
+    wasm::CallOrigin origin = __ data()->is_js_to_wasm()
                                   ? wasm::kCalledFromJS
                                   : wasm::kCalledFromWasm;
     // To compute the machine signature, it doesn't matter whether types
@@ -389,7 +389,7 @@ class Int64LoweringReducer : public Next {
                        MemoryRepresentation loaded_rep,
                        RegisterRepresentation result_rep, int32_t offset,
                        uint8_t element_scale) {
-    if (kind.is_atomic) {
+    if (kind.is_atomic()) {
       if (loaded_rep == MemoryRepresentation::Int64() ||
           loaded_rep == MemoryRepresentation::Uint64()) {
         // TODO(jkummerow): Support non-zero scales in AtomicWord32PairOp, and
@@ -428,15 +428,14 @@ class Int64LoweringReducer : public Next {
 
   V<None> REDUCE(Store)(OpIndex base, OptionalOpIndex index, OpIndex value,
                         StoreOp::Kind kind, MemoryRepresentation stored_rep,
-                        WriteBarrierKind write_barrier,
-                        std::optional<AtomicMemoryOrder> memory_order,
-                        int32_t offset, uint8_t element_size_log2,
+                        WriteBarrierKind write_barrier, int32_t offset,
+                        uint8_t element_size_log2,
                         bool maybe_initializing_or_transitioning,
                         TrustedPointerTag maybe_trusted_pointer_tag) {
     if (stored_rep == MemoryRepresentation::Int64() ||
         stored_rep == MemoryRepresentation::Uint64()) {
       auto [low, high] = Unpack(value);
-      if (kind.is_atomic) {
+      if (kind.is_atomic()) {
         // TODO(jkummerow): Support non-zero scales in AtomicWord32PairOp, and
         // remove the corresponding bailout in MachineOptimizationReducer to
         // allow generating them.
@@ -453,22 +452,22 @@ class Int64LoweringReducer : public Next {
       }
       // low store
       Next::ReduceStore(base, index, low, kind, MemoryRepresentation::Int32(),
-                        write_barrier, memory_order, offset, element_size_log2,
+                        write_barrier, offset, element_size_log2,
                         maybe_initializing_or_transitioning,
                         maybe_trusted_pointer_tag);
       // high store
       int32_t high_offset =
           base::bits::WraparoundAdd32(offset, sizeof(int32_t));
       Next::ReduceStore(base, index, high, kind, MemoryRepresentation::Int32(),
-                        write_barrier, memory_order, high_offset,
-                        element_size_log2, maybe_initializing_or_transitioning,
+                        write_barrier, high_offset, element_size_log2,
+                        maybe_initializing_or_transitioning,
                         maybe_trusted_pointer_tag);
       return V<None>::Invalid();
     }
-    return Next::ReduceStore(
-        base, index, value, kind, stored_rep, write_barrier, memory_order,
-        offset, element_size_log2, maybe_initializing_or_transitioning,
-        maybe_trusted_pointer_tag);
+    return Next::ReduceStore(base, index, value, kind, stored_rep,
+                             write_barrier, offset, element_size_log2,
+                             maybe_initializing_or_transitioning,
+                             maybe_trusted_pointer_tag);
   }
 
   OpIndex REDUCE(AtomicRMW)(OpIndex base, OpIndex index, OpIndex value,

@@ -361,10 +361,9 @@ TEST_F(InterceptorTest, IndexedInterceptorIterableToList_ValidityCellBypass) {
   // 3. Trigger fast path and let it switch the prototype to fast mode and
   // perform the necessary checks.
   RunJS("Array.from(obj);");
-  ASSERT_EQ(data.call_count, 1);
+  ASSERT_EQ(V8_DICT_PROTOTYPES_BOOL ? 0 : 1, data.call_count);
   ASSERT_TRUE(i_prototype->map()->should_be_fast_prototype_map());
-  ASSERT_EQ(!V8_DICT_PROPERTY_CONST_TRACKING_BOOL,
-            i_prototype->HasFastProperties());
+  ASSERT_EQ(!V8_DICT_PROTOTYPES_BOOL, i_prototype->HasFastProperties());
 
   // 4. Modify Symbol.iterator again, the fast path shouldn't be taken.
   RunJS("proto[Symbol.iterator] = function*() { yield 42; };");
@@ -407,8 +406,7 @@ TEST_F(InterceptorTest,
   ASSERT_EQ(3, res.As<Integer>()->Value());
   ASSERT_EQ(0, data.call_count);
   ASSERT_TRUE(i_prototype->map()->should_be_fast_prototype_map());
-  ASSERT_EQ(!V8_DICT_PROPERTY_CONST_TRACKING_BOOL,
-            i_prototype->HasFastProperties());
+  ASSERT_EQ(!V8_DICT_PROTOTYPES_BOOL, i_prototype->HasFastProperties());
 }
 
 TEST_F(InterceptorTest, IndexedInterceptorIterableToList_SetPrototypeBypass) {

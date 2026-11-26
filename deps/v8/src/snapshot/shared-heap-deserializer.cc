@@ -26,9 +26,11 @@ void SharedHeapDeserializer::DeserializeIntoIsolate() {
   DCHECK(isolate()->shared_heap_object_cache()->empty());
   HandleScope scope(isolate());
 
+  DeserializeFixedTrustedSection();
   IterateSharedHeapObjectCache(isolate(), this);
   DeserializeStringTable();
   DeserializeDeferredObjects();
+  DeserializeTrustedSection();
   PostProcessExposedTrustedObjects();
 
   if (should_rehash()) {

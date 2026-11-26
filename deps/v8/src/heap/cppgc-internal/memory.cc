@@ -58,16 +58,18 @@ void SetMemoryInaccessible(void* address, size_t size) {
 void CheckMemoryIsInaccessible(const void* address, size_t size) {
 #if defined(V8_USE_MEMORY_SANITIZER)
 
-  static_assert(CheckMemoryIsInaccessibleIsNoop(),
-                "CheckMemoryIsInaccessibleIsNoop() needs to reflect "
-                "CheckMemoryIsInaccessible().");
+  static_assert(
+      CanPurgeMemory(),
+      "CanPurgeMemory() must match whether CheckMemoryIsInaccessible() is a "
+      "no-op.");
   // Unable to check that memory is marked as uninitialized by MSAN.
 
 #elif defined(V8_USE_ADDRESS_SANITIZER)
 
-  static_assert(!CheckMemoryIsInaccessibleIsNoop(),
-                "CheckMemoryIsInaccessibleIsNoop() needs to reflect "
-                "CheckMemoryIsInaccessible().");
+  static_assert(
+      !CanPurgeMemory(),
+      "CanPurgeMemory() must match whether CheckMemoryIsInaccessible() is a "
+      "no-op.");
   // Only check if memory is poisoned on 64 bit, since there we make sure that
   // object sizes and alignments are multiple of shadow memory granularity.
 #if defined(V8_HOST_ARCH_64_BIT)
@@ -79,9 +81,10 @@ void CheckMemoryIsInaccessible(const void* address, size_t size) {
 
 #else  // Debug builds.
 
-  static_assert(!CheckMemoryIsInaccessibleIsNoop(),
-                "CheckMemoryIsInaccessibleIsNoop() needs to reflect "
-                "CheckMemoryIsInaccessible().");
+  static_assert(
+      !CanPurgeMemory(),
+      "CanPurgeMemory() must match whether CheckMemoryIsInaccessible() is a "
+      "no-op.");
   CheckMemoryIsZapped(address, size);
 
 #endif  // Debug builds.

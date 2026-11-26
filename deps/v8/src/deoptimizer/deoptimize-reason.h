@@ -10,11 +10,11 @@
 namespace v8 {
 namespace internal {
 
-// TODO(olivf, 420433007): We should have a custom BuiltinOutOfBounds reason
-// which is only used when needed for builtin speculation. Currently this is
-// not done since it would mean quite a major refactoring in Turbofan.
-#define DEOPTIMIZE_IN_BUILTIN_REASON_LIST(V) \
-  V(OutOfBounds, "out of bounds",            \
+// Deopt reasons of inlined builtin calls that move the call site to the given
+// speculation mode. Only code compiled with kAllowSpeculation may use them;
+// code compiled with the given mode must handle the case without deopting.
+#define DEOPTIMIZE_IN_BUILTIN_REASON_LIST(V)                         \
+  V(SpeculativeBoundsCheckFailed, "speculative bounds check failed", \
     SpeculationMode::kDisallowBoundsCheckSpeculation)
 
 #define DEOPTIMIZE_REASON_LIST(V)                                              \
@@ -82,6 +82,7 @@ namespace internal {
   V(NotInt32, "not int32")                                                     \
   V(NotUint32, "not unsigned int32")                                           \
   V(OSREarlyExit, "exit from OSR'd inner loop")                                \
+  V(OutOfBounds, "out of bounds")                                              \
   V(Overflow, "overflow")                                                      \
   V(PrepareForOnStackReplacement, "prepare for on stack replacement (OSR)")    \
   V(Smi, "Smi")                                                                \
@@ -114,8 +115,6 @@ enum class DeoptimizeReason : uint8_t {
   V(FieldTypeChange, "dependent field type changed")                          \
   V(FieldRepresentationChange, "dependent field representation changed")      \
   V(InitialMapChange, "dependent initial map changed")                        \
-  V(AllocationSiteTenuringChange,                                             \
-    "dependent allocation site tenuring changed")                             \
   V(AllocationSiteTransitionChange,                                           \
     "dependent allocation site transition changed")                           \
   V(ContextCellChange, "dependent context cell state changed")                \

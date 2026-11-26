@@ -1,0 +1,112 @@
+Tests stepping into Set and Map forEach callbacks.
+--- Testing Set.prototype.forEach ---
+debugger;          // B0
+s.forEach(cb_set); // B1
+var msg = "element " + num; // B2 B5 B8
+return true                 // B3 B6 B9
+;                           // B4 B7 B10
+var msg = "element " + num; // B2 B5 B8
+return true                 // B3 B6 B9
+;                           // B4 B7 B10
+var msg = "element " + num; // B2 B5 B8
+return true                 // B3 B6 B9
+;                           // B4 B7 B10
+}                    // B11
+breaks: 12
+--- Testing Map.prototype.forEach ---
+debugger;          // B0
+m.forEach(cb_map); // B1
+var msg = "key " + key + ", value " + val; // B2 B5 B8
+return true                                // B3 B6 B9
+;                                          // B4 B7 B10
+var msg = "key " + key + ", value " + val; // B2 B5 B8
+return true                                // B3 B6 B9
+;                                          // B4 B7 B10
+var msg = "key " + key + ", value " + val; // B2 B5 B8
+return true                                // B3 B6 B9
+;                                          // B4 B7 B10
+}                    // B11
+breaks: 12
+--- Testing nested Set.prototype.forEach ---
+debugger;                   // B0
+s.forEach(cb_set_foreach);  // B1
+s.forEach(cb_set_2);        // B2  B14 B26
+var msg = "element " + num; // B3 B6 B9  B15 B18 B21 B27 B30 B33
+return true                 // B4 B7 B10 B16 B19 B22 B28 B31 B34
+;                           // B5 B8 B11 B17 B20 B23 B29 B32 B35
+var msg = "element " + num; // B3 B6 B9  B15 B18 B21 B27 B30 B33
+return true                 // B4 B7 B10 B16 B19 B22 B28 B31 B34
+;                           // B5 B8 B11 B17 B20 B23 B29 B32 B35
+var msg = "element " + num; // B3 B6 B9  B15 B18 B21 B27 B30 B33
+return true                 // B4 B7 B10 B16 B19 B22 B28 B31 B34
+;                           // B5 B8 B11 B17 B20 B23 B29 B32 B35
+var back = "back.";         // B12 B24 B36
+}                             // B13 B25 B37
+s.forEach(cb_set_2);        // B2  B14 B26
+var msg = "element " + num; // B3 B6 B9  B15 B18 B21 B27 B30 B33
+return true                 // B4 B7 B10 B16 B19 B22 B28 B31 B34
+;                           // B5 B8 B11 B17 B20 B23 B29 B32 B35
+var msg = "element " + num; // B3 B6 B9  B15 B18 B21 B27 B30 B33
+return true                 // B4 B7 B10 B16 B19 B22 B28 B31 B34
+;                           // B5 B8 B11 B17 B20 B23 B29 B32 B35
+var msg = "element " + num; // B3 B6 B9  B15 B18 B21 B27 B30 B33
+return true                 // B4 B7 B10 B16 B19 B22 B28 B31 B34
+;                           // B5 B8 B11 B17 B20 B23 B29 B32 B35
+var back = "back.";         // B12 B24 B36
+}                             // B13 B25 B37
+s.forEach(cb_set_2);        // B2  B14 B26
+var msg = "element " + num; // B3 B6 B9  B15 B18 B21 B27 B30 B33
+return true                 // B4 B7 B10 B16 B19 B22 B28 B31 B34
+;                           // B5 B8 B11 B17 B20 B23 B29 B32 B35
+var msg = "element " + num; // B3 B6 B9  B15 B18 B21 B27 B30 B33
+return true                 // B4 B7 B10 B16 B19 B22 B28 B31 B34
+;                           // B5 B8 B11 B17 B20 B23 B29 B32 B35
+var msg = "element " + num; // B3 B6 B9  B15 B18 B21 B27 B30 B33
+return true                 // B4 B7 B10 B16 B19 B22 B28 B31 B34
+;                           // B5 B8 B11 B17 B20 B23 B29 B32 B35
+var back = "back.";         // B12 B24 B36
+}                             // B13 B25 B37
+}                             // B38
+breaks: 39
+--- Testing nested Map.prototype.forEach ---
+debugger;                   // B0
+m.forEach(cb_map_foreach);  // B1
+m.forEach(cb_map_2);        // B2  B14 B26
+var msg = `key ${k}, value ${v}`; // B3 B6 B9  B15 B18 B21 B27 B30 B33
+return true                       // B4 B7 B10 B16 B19 B22 B28 B31 B34
+;                                 // B5 B8 B11 B17 B20 B23 B29 B32 B35
+var msg = `key ${k}, value ${v}`; // B3 B6 B9  B15 B18 B21 B27 B30 B33
+return true                       // B4 B7 B10 B16 B19 B22 B28 B31 B34
+;                                 // B5 B8 B11 B17 B20 B23 B29 B32 B35
+var msg = `key ${k}, value ${v}`; // B3 B6 B9  B15 B18 B21 B27 B30 B33
+return true                       // B4 B7 B10 B16 B19 B22 B28 B31 B34
+;                                 // B5 B8 B11 B17 B20 B23 B29 B32 B35
+var back = "back.";         // B12 B24 B36
+}                             // B13 B25 B37
+m.forEach(cb_map_2);        // B2  B14 B26
+var msg = `key ${k}, value ${v}`; // B3 B6 B9  B15 B18 B21 B27 B30 B33
+return true                       // B4 B7 B10 B16 B19 B22 B28 B31 B34
+;                                 // B5 B8 B11 B17 B20 B23 B29 B32 B35
+var msg = `key ${k}, value ${v}`; // B3 B6 B9  B15 B18 B21 B27 B30 B33
+return true                       // B4 B7 B10 B16 B19 B22 B28 B31 B34
+;                                 // B5 B8 B11 B17 B20 B23 B29 B32 B35
+var msg = `key ${k}, value ${v}`; // B3 B6 B9  B15 B18 B21 B27 B30 B33
+return true                       // B4 B7 B10 B16 B19 B22 B28 B31 B34
+;                                 // B5 B8 B11 B17 B20 B23 B29 B32 B35
+var back = "back.";         // B12 B24 B36
+}                             // B13 B25 B37
+m.forEach(cb_map_2);        // B2  B14 B26
+var msg = `key ${k}, value ${v}`; // B3 B6 B9  B15 B18 B21 B27 B30 B33
+return true                       // B4 B7 B10 B16 B19 B22 B28 B31 B34
+;                                 // B5 B8 B11 B17 B20 B23 B29 B32 B35
+var msg = `key ${k}, value ${v}`; // B3 B6 B9  B15 B18 B21 B27 B30 B33
+return true                       // B4 B7 B10 B16 B19 B22 B28 B31 B34
+;                                 // B5 B8 B11 B17 B20 B23 B29 B32 B35
+var msg = `key ${k}, value ${v}`; // B3 B6 B9  B15 B18 B21 B27 B30 B33
+return true                       // B4 B7 B10 B16 B19 B22 B28 B31 B34
+;                                 // B5 B8 B11 B17 B20 B23 B29 B32 B35
+var back = "back.";         // B12 B24 B36
+}                             // B13 B25 B37
+}                             // B38
+breaks: 39
+allMatched: true

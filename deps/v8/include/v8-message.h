@@ -7,6 +7,7 @@
 
 #include <stdio.h>
 
+#include <cstddef>
 #include <iosfwd>
 
 #include "v8-callbacks.h"     // NOLINT(build/include_directory)
@@ -183,14 +184,38 @@ class V8_EXPORT Message {
   bool IsSharedCrossOrigin() const;
   bool IsOpaque() const;
 
+  static void PrintCurrentStackTrace(Isolate* isolate, std::ostream& out);
+
+  // TODO(563337460): Remove once the deprecated callback overload is removed.
+  // Keep explicit nullptr calls unambiguous when overloading the callbacks.
+  static void PrintCurrentStackTrace(Isolate* isolate, std::ostream& out,
+                                     std::nullptr_t);
+
   /**
-   * If provided, the callback can be used to selectively include
-   * or redact frames based on their script names. (true to include a frame)
+   * The callback can be used to selectively include or redact frames based on
+   * their script names. (true to include a frame)
+   */
+  V8_DEPRECATE_SOON(
+      "Use the overload taking "
+      "PrintCurrentStackTraceWithOriginFilterCallback.")
+  static void PrintCurrentStackTrace(
+      Isolate* isolate, std::ostream& out,
+      PrintCurrentStackTraceFilterCallback should_include_frame_callback);
+
+  /**
+   * The callback gets the script's name and
+   * ScriptOriginOptions::IsSharedCrossOrigin() value. Return true to print a
+   * frame, or false to print "<redacted>" instead.
+   *
+   * A frame without a script, such as a built-in function, is checked using
+   * the nearest caller that has a script. This only changes what the callback
+   * gets, not how the frame is printed. If no caller has a script, the
+   * callback gets an empty script name and false.
    */
   static void PrintCurrentStackTrace(
       Isolate* isolate, std::ostream& out,
-      PrintCurrentStackTraceFilterCallback should_include_frame_callback =
-          nullptr);
+      PrintCurrentStackTraceWithOriginFilterCallback
+          should_include_frame_callback);
 
   static const int kNoLineNumberInfo = 0;
   static const int kNoColumnInfo = 0;

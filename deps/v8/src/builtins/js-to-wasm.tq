@@ -796,7 +796,7 @@ macro JSToWasmWrapperHelper(
   const paramEnd = locationAllocator.GetStackEnd();
   locationAllocator.CheckBufferOverflow();
 
-  const callTarget = functionData.internal.raw_call_target;
+  const callTarget = functionData.internal.call_target;
 
   // We construct a state that will be passed to `JSToWasmWrapperAsm`
   // and `JSToWasmHandleReturns`. There are too many parameters to pass
@@ -837,34 +837,22 @@ macro JSToWasmWrapperHelper(
 }
 
 transitioning javascript builtin JSToWasmWrapper(
-    js-implicit context: NativeContext, receiver: JSAny, target: JSFunction,
-    dispatchHandle: DispatchHandle)(...arguments): JSAny {
-  // This is a generic builtin that can be installed on functions with different
-  // parameter counts, so we need to support that.
-  SetSupportsDynamicParameterCount(target, dispatchHandle);
-
+    js-implicit context: NativeContext, receiver: JSAny, target: JSFunction)(
+    ...arguments): JSAny {
   return JSToWasmWrapperHelper(
       context, receiver, target, arguments, Promise::kNoPromise);
 }
 
 transitioning javascript builtin WasmPromising(
-    js-implicit context: NativeContext, receiver: JSAny, target: JSFunction,
-    dispatchHandle: DispatchHandle)(...arguments): JSAny {
-  // This is a generic builtin that can be installed on functions with different
-  // parameter counts, so we need to support that.
-  SetSupportsDynamicParameterCount(target, dispatchHandle);
-
+    js-implicit context: NativeContext, receiver: JSAny, target: JSFunction)(
+    ...arguments): JSAny {
   return JSToWasmWrapperHelper(
       context, receiver, target, arguments, Promise::kPromise);
 }
 
 transitioning javascript builtin WasmStressSwitch(
-    js-implicit context: NativeContext, receiver: JSAny, target: JSFunction,
-    dispatchHandle: DispatchHandle)(...arguments): JSAny {
-  // This is a generic builtin that can be installed on functions with different
-  // parameter counts, so we need to support that.
-  SetSupportsDynamicParameterCount(target, dispatchHandle);
-
+    js-implicit context: NativeContext, receiver: JSAny, target: JSFunction)(
+    ...arguments): JSAny {
   return JSToWasmWrapperHelper(
       context, receiver, target, arguments, Promise::kStressSwitch);
 }

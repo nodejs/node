@@ -1,0 +1,9 @@
+Test step out from function without local variables to builtin.
+Paused in replacer
+Paused after stepOut:
+Function name: testStepOutToBuiltIn
+  JSON.stringify(obj, replacer);
+#}  // expected line
+
+
+Final state: 3

@@ -31,6 +31,7 @@
 #include "absl/container/internal/unordered_map_lookup_test.h"
 #include "absl/container/internal/unordered_map_members_test.h"
 #include "absl/container/internal/unordered_map_modifiers_test.h"
+#include "absl/hash/hash.h"
 #include "absl/log/check.h"
 #include "absl/meta/type_traits.h"
 
@@ -400,9 +401,18 @@ TEST(FlatHashMap, Reserve) {
 TEST(FlatHashMap, RecursiveTypeCompiles) {
   struct RecursiveType {
     flat_hash_map<int, RecursiveType> m;
+    flat_hash_map<int, RecursiveType>::iterator it;
+    flat_hash_map<int, RecursiveType>::const_iterator cit;
+    void Erase(int key) { m.erase(key); }
   };
   RecursiveType t;
   t.m[0] = RecursiveType{};
+  t.it = t.m.begin();
+  t.cit = t.m.cbegin();
+  EXPECT_NE(t.it, t.m.end());
+  EXPECT_NE(t.cit, t.m.cend());
+  t.Erase(0);
+  EXPECT_TRUE(t.m.empty());
 }
 
 TEST(FlatHashMap, FlatHashMapPolicyDestroyReturnsTrue) {
@@ -414,6 +424,13 @@ TEST(FlatHashMap, FlatHashMapPolicyDestroyReturnsTrue) {
           nullptr, nullptr))()));
   EXPECT_FALSE((decltype(FlatHashMapPolicy<int, std::unique_ptr<int>>::destroy<
                          std::allocator<char>>(nullptr, nullptr))()));
+}
+
+TEST(FlatHashMap, NonStandardLayoutKeyAndValueUseTypeErasedSlotFns) {
+  using Policy = FlatHashMapPolicy<NonStandardLayout, NonStandardLayout>;
+  EXPECT_NE((Policy::get_hash_slot_fn<absl::Hash<NonStandardLayout>,
+                                      /*kIsDefault=*/true, /*kSeedShift=*/0>()),
+            nullptr);
 }
 
 struct InconsistentHashEqType {

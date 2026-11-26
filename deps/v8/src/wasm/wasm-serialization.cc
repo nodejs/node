@@ -467,7 +467,7 @@ size_t NativeModuleSerializer::Measure() {
   }
 
   // Tiering budget, wrote in {Write} directly.
-  size += native_module_->module()->num_declared_functions * sizeof(uint32_t);
+  size += native_module_->module()->num_defined_functions * sizeof(uint32_t);
 
   return size;
 }
@@ -506,7 +506,7 @@ void NativeModuleSerializer::WriteCode(
     // will not get compiled upon deserialization.
     NativeModule* native_module = code->native_module();
     uint32_t budget = native_module
-                          ->tiering_budget_array()[declared_function_index(
+                          ->tiering_budget_array()[defined_function_index(
                               native_module->module(), code->index())]
                           .load(std::memory_order_relaxed);
     writer->Write(budget == static_cast<uint32_t>(v8_flags.wasm_tiering_budget)
@@ -657,8 +657,7 @@ void NativeModuleSerializer::WriteCode(
 }
 
 void NativeModuleSerializer::WriteTieringBudget(Writer* writer) {
-  for (size_t i = 0; i < native_module_->module()->num_declared_functions;
-       ++i) {
+  for (size_t i = 0; i < native_module_->module()->num_defined_functions; ++i) {
     writer->Write(native_module_->tiering_budget_array()[i].load(
         std::memory_order_relaxed));
   }
@@ -1162,7 +1161,7 @@ void NativeModuleDeserializer::CopyAndRelocate(
 
 void NativeModuleDeserializer::ReadTieringBudget(Reader* reader) {
   size_t size_of_tiering_budget =
-      native_module_->module()->num_declared_functions * sizeof(uint32_t);
+      native_module_->module()->num_defined_functions * sizeof(uint32_t);
   if (size_of_tiering_budget > reader->current_size()) {
     return;
   }

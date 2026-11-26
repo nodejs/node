@@ -28,8 +28,7 @@ ModuleRequest::ModuleRequest(const AllocationWitness& witness,
     : Struct(witness.roots().module_request_map()),
       specifier_(witness, specifier),
       import_attributes_(witness, import_attributes),
-      flags_(Smi::From31BitPattern(PhaseBits::encode(phase) |
-                                   PositionBits::encode(position))) {
+      flags_(Flags{}.with_phase(phase).with_position(position)) {
   DCHECK_GE(position, 0);
 }
 
@@ -39,9 +38,7 @@ Tagged<FixedArray> ModuleRequest::import_attributes() const {
   return import_attributes_.load();
 }
 
-uint32_t ModuleRequest::flags() const {
-  return static_cast<uint32_t>(flags_.load().value());
-}
+ModuleRequest::Flags ModuleRequest::flags() const { return flags_.load(); }
 
 SourceTextModuleInfoEntry::SourceTextModuleInfoEntry(
     const AllocationWitness& witness,
@@ -169,10 +166,10 @@ void SourceTextModule::set_pending_async_dependencies(int value) {
   pending_async_dependencies_.store(this, Smi::FromInt(value));
 }
 
-uint32_t SourceTextModule::flags() const { return flags_.load().value(); }
-void SourceTextModule::set_flags(uint32_t value) {
-  flags_.store(this, Smi::FromInt(value));
+SourceTextModule::Flags SourceTextModule::flags() const {
+  return flags_.load();
 }
+void SourceTextModule::set_flags(Flags value) { flags_.store(value); }
 
 template <typename ModuleT, Module::Status... kStates>
 Tagged<SharedFunctionInfo> Module::InState<ModuleT, kStates...>::sfi() const

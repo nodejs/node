@@ -760,6 +760,8 @@ void Walk(Node* node, F&& f) {
 }
 
 size_t CountNodes(const Node* node);
+// Counts the AST nodes of `node` and stops after `limit + 1` nodes.
+size_t CountNodesUpTo(const Node* node, size_t limit);
 
 }  // namespace fast
 }  // namespace redline

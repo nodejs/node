@@ -142,6 +142,7 @@ void CPU::DetectFeatures() {
       __cpuid(cpu_info24, 0x24);
       has_avx10_1_ = (cpu_info24[1] & 0xff) >= 1;
       DCHECK_IMPLIES(has_avx10_1_, (cpu_info24[1] & 0x70000) == 0x70000);
+      has_avx10_2_ = (cpu_info24[1] & 0xff) >= 2;
     }
     // CET shadow stack feature flag. See
     // https://en.wikipedia.org/wiki/CPUID#EAX=7,_ECX=0:_Extended_Features

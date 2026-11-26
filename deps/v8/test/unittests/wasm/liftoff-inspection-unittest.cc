@@ -451,8 +451,7 @@ TEST_F(LiftoffInspectionTest, Liftoff_breakpoint_simple) {
 
 TEST_F(LiftoffInspectionTest, Liftoff_debug_side_table_catch_all) {
   LiftoffCompileEnvironment env;
-  TestSignatures sigs;
-  int ex = env.builder()->AddException(sigs.v_v());
+  int ex = env.builder()->AddException(TestSignatures::v_v());
   ValueType exception_type = kWasmAnyRef.AsNonNull();
   auto debug_side_table = env.GenerateDebugSideTable(
       {}, {kWasmI32},

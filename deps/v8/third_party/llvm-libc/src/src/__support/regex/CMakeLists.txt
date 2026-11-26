@@ -9,18 +9,21 @@ add_object_library(
     libc.hdr.limits_macros
     libc.hdr.regex_macros
     libc.hdr.stdint_proxy
-    libc.src.__support.alloc_checker
+    libc.hdr.types.size_t
+    libc.src.__support.blockstore
+    libc.src.__support.checked_ptr
+    libc.src.__support.CPP.algorithm
     libc.src.__support.CPP.array
     libc.src.__support.CPP.bitset
     libc.src.__support.CPP.new
-    libc.src.__support.CPP.scope
+    libc.src.__support.CPP.optional
     libc.src.__support.CPP.span
+    libc.src.__support.CPP.unique_ptr
     libc.src.__support.CPP.utility
     libc.src.__support.error_or
     libc.src.__support.hash
     libc.src.__support.libc_assert
-    libc.src.__support.macros.config
-    libc.src.string.memory_utils.inline_memset
+    libc.src.__support.macros.optimization
 )
 
 add_header_library(
@@ -43,10 +46,10 @@ add_object_library(
     .regex_expr_pool
     .regex_internal
     libc.hdr.regex_macros
-    libc.src.__support.common
     libc.src.__support.CPP.string_view
     libc.src.__support.error_or
     libc.src.__support.libc_assert
+    libc.src.__support.macros.attributes
 )
 
 add_object_library(
@@ -54,16 +57,24 @@ add_object_library(
   SRCS
     regex_parser.cpp
   HDRS
+    regex_charclass.h
     regex_parser.h
   DEPENDS
     .regex_expr_pool
+    libc.hdr.limits_macros
     libc.hdr.regex_macros
-    libc.src.__support.alloc_checker
+    libc.hdr.stdint_proxy
+    libc.hdr.types.size_t
+    libc.src.__support.checked_ptr
     libc.src.__support.CPP.array
+    libc.src.__support.CPP.bitset
     libc.src.__support.CPP.new
-    libc.src.__support.CPP.scope
+    libc.src.__support.CPP.optional
     libc.src.__support.CPP.span
     libc.src.__support.CPP.string_view
+    libc.src.__support.CPP.unique_ptr
+    libc.src.__support.ctype_utils
     libc.src.__support.error_or
-    libc.src.__support.macros.config
+    libc.src.__support.libc_assert
+    libc.src.__support.macros.attributes
 )

@@ -7,7 +7,7 @@
 #include "include/v8-template.h"
 #include "src/api/api-inl.h"
 #include "src/base/strings.h"
-#include "src/common/synchronization-point-support.h"
+#include "src/base/synchronization-point-support.h"
 #include "src/execution/isolate.h"
 #include "src/handles/handles.h"
 #include "src/heap/heap-layout-inl.h"
@@ -72,16 +72,6 @@ ExternalizeStringExtension::GetNativeFunctionTemplate(
   }
 }
 
-namespace {
-
-bool HasExternalForwardingIndex(DirectHandle<String> string) {
-  if (!string->IsShared()) return false;
-  uint32_t raw_hash = string->raw_hash_field(kAcquireLoad);
-  return Name::IsExternalForwardingIndex(raw_hash);
-}
-
-}  // namespace
-
 void ExternalizeStringExtension::Externalize(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(ValidateCallbackInfo(info));
@@ -97,14 +87,7 @@ void ExternalizeStringExtension::Externalize(
   if (!string->SupportsExternalization(
           externalize_as_one_byte ? v8::String::Encoding::ONE_BYTE_ENCODING
                                   : v8::String::Encoding::TWO_BYTE_ENCODING)) {
-    // If the string is shared, testing with the combination of
-    // --shared-string-table and --isolate in d8 may result in races to
-    // externalize the same string. If GC is stressed in addition, this test
-    // might fail as the string was already externalized (marked for
-    // externalization by another thread and externalized during GC).
-    if (!StringShape(*string).IsExternal()) {
-      info.GetIsolate()->ThrowError("string does not support externalization.");
-    }
+    info.GetIsolate()->ThrowError("string does not support externalization.");
     return;
   }
   if (externalize_as_one_byte) {
@@ -118,12 +101,7 @@ void ExternalizeStringExtension::Externalize(
     result = Utils::ToLocal(string)->MakeExternal(info.GetIsolate(), resource);
     if (!result) delete resource;
   }
-  // If the string is shared, testing with the combination of
-  // --shared-string-table and --isolate in d8 may result in races to
-  // externalize the same string. Those races manifest as externalization
-  // sometimes failing if another thread won and already forwarded the string to
-  // the external resource. Don't consider those races as failures.
-  if (!result && !HasExternalForwardingIndex(string)) {
+  if (!result) {
     info.GetIsolate()->ThrowError("externalizeString() failed.");
     return;
   }
@@ -168,13 +146,6 @@ MaybeDirectHandle<String> CreateExternalizableString(
     isolate->ThrowError("Read-only strings cannot be externalized.");
     return kNullMaybeHandle;
   }
-#ifdef V8_COMPRESS_POINTERS
-  // Small strings may not be in-place externalizable.
-  if (string->Size() < static_cast<int>(sizeof(UncachedExternalString))) {
-    isolate->ThrowError("String is too short to be externalized.");
-    return kNullMaybeHandle;
-  }
-#endif
 
   // Special handling for ConsStrings, as the ConsString -> ExternalString
   // migration is special for GC (Tagged pointers to Untagged pointers).
@@ -187,7 +158,8 @@ MaybeDirectHandle<String> CreateExternalizableString(
     DirectHandle<String> result;
     if (CopyConsStringToOld(i_isolate, Cast<ConsString>(string), encoding)
             .ToHandle(&result)) {
-      DCHECK(result->SupportsExternalization(encoding));
+      DCHECK_IMPLIES(!i_isolate->is_executing_api_interrupt(),
+                     result->SupportsExternalization(encoding));
       return result;
     } else {
       return kNullMaybeHandle;
@@ -203,7 +175,8 @@ MaybeDirectHandle<String> CreateExternalizableString(
       DisallowGarbageCollection no_gc;
       String::WriteToFlat(*string, result->GetChars(no_gc), 0,
                           string->length());
-      DCHECK(result->SupportsExternalization(encoding));
+      DCHECK_IMPLIES(!i_isolate->is_executing_api_interrupt(),
+                     result->SupportsExternalization(encoding));
       return result;
     }
   } else {
@@ -215,7 +188,8 @@ MaybeDirectHandle<String> CreateExternalizableString(
       DisallowGarbageCollection no_gc;
       String::WriteToFlat(*string, result->GetChars(no_gc), 0,
                           string->length());
-      DCHECK(result->SupportsExternalization(encoding));
+      DCHECK_IMPLIES(!i_isolate->is_executing_api_interrupt(),
+                     result->SupportsExternalization(encoding));
       return result;
     }
   }

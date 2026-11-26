@@ -73,7 +73,7 @@ void BytecodeArray::set_wrapper(Tagged<BytecodeWrapper> value,
 Tagged<TrustedByteArray> BytecodeArray::source_position_table(
     AcquireLoadTag) const {
   DCHECK(has_source_position_table(kAcquireLoad));
-  return source_position_table_.Acquire_Load();
+  return TrustedCast<TrustedByteArray>(source_position_table_.Acquire_Load());
 }
 void BytecodeArray::set_source_position_table(Tagged<TrustedByteArray> value,
                                               ReleaseStoreTag,
@@ -81,10 +81,35 @@ void BytecodeArray::set_source_position_table(Tagged<TrustedByteArray> value,
   source_position_table_.Release_Store(this, value, mode);
 }
 bool BytecodeArray::has_source_position_table(AcquireLoadTag) const {
-  return !source_position_table_.Acquire_Load().is_null();
+  return IsTrustedByteArray(raw_source_position_table(kAcquireLoad));
 }
 void BytecodeArray::clear_source_position_table(ReleaseStoreTag) {
-  source_position_table_.Release_Store(this, {}, SKIP_WRITE_BARRIER);
+  source_position_table_.Release_Store_no_write_barrier(Smi::zero());
+}
+
+void BytecodeArray::set_source_positions_coverage_flags(
+    bool coverage_enabled, bool block_coverage_enabled) {
+  DCHECK(!has_source_position_table(kAcquireLoad));
+  CoverageFlags flags =
+      CoverageFlags()
+          .with_coverage_enabled(coverage_enabled)
+          .with_block_coverage_enabled(block_coverage_enabled);
+  source_position_table_.Release_Store_no_write_barrier(
+      Smi::From31BitPattern(flags.value()));
+}
+
+bool BytecodeArray::coverage_enabled_for_source_positions() const {
+  DCHECK(!has_source_position_table(kAcquireLoad));
+  CoverageFlags flags(
+      Smi::To31BitPattern(raw_source_position_table(kAcquireLoad)));
+  return flags.coverage_enabled();
+}
+
+bool BytecodeArray::block_coverage_enabled_for_source_positions() const {
+  DCHECK(!has_source_position_table(kAcquireLoad));
+  CoverageFlags flags(
+      Smi::To31BitPattern(raw_source_position_table(kAcquireLoad)));
+  return flags.block_coverage_enabled();
 }
 
 uint8_t BytecodeArray::get(int index) const {
@@ -170,24 +195,18 @@ bool BytecodeArray::HasSourcePositionTable() const {
 Tagged<TrustedByteArray> BytecodeArray::SourcePositionTable() const {
   // WARNING: This function may be called from a background thread, hence
   // changes to how it accesses the heap can easily lead to bugs.
-  Tagged<Object> maybe_table = raw_source_position_table(kAcquireLoad);
-  if (maybe_table != Smi::zero()) {
-    return TrustedCast<TrustedByteArray>(maybe_table);
+  auto maybe_table = raw_source_position_table(kAcquireLoad);
+  if (Tagged<TrustedByteArray> table; TryCast(maybe_table, &table)) {
+    return table;
   }
+  DCHECK(IsSmi(maybe_table));
   return Isolate::Current()->heap()->empty_trusted_byte_array();
 }
 
 void BytecodeArray::SetSourcePositionsFailedToCollect() {
-  // Store Smi::zero() into the protected source_position_table_ slot
-  // without a write barrier. ProtectedTaggedMember<TrustedByteArray> cannot
-  // hold a Smi directly, so we fall back to a raw TaggedField store using
-  // TrustedSpaceCompressionScheme (the scheme of the surrounding trusted
-  // object). The encoded Smi value is scheme-independent, but the scheme
-  // matters for non-Smi values, so any future caller must keep using
-  // TrustedSpaceCompressionScheme here.
-  TaggedField<Object, 0, TrustedSpaceCompressionScheme>::Release_Store(
-      Tagged(this), offsetof(BytecodeArray, source_position_table_),
-      Smi::zero());
+  // Preserve the Smi encoding the compilation coverage flags so a subsequent
+  // retry still parses with matching flags.
+  DCHECK(!HasSourcePositionTable());
 }
 
 Tagged<Union<Smi, TrustedFixedArray>> BytecodeArray::raw_constant_pool() const {
@@ -204,11 +223,12 @@ Tagged<Union<Smi, TrustedByteArray>> BytecodeArray::raw_handler_table() const {
   return TrustedCast<Union<Smi, TrustedByteArray>>(value);
 }
 
-Tagged<Object> BytecodeArray::raw_source_position_table(AcquireLoadTag) const {
-  Tagged<Object> value = source_position_table_.Acquire_Load();
-  // This field might be 0 during deserialization or if source positions have
-  // not been (successfully) collected.
-  DCHECK(value == Smi::zero() || IsTrustedByteArray(value));
+Tagged<UnionOf<TrustedByteArray, Smi>> BytecodeArray::raw_source_position_table(
+    AcquireLoadTag) const {
+  auto value = source_position_table_.Acquire_Load();
+  // This field holds a Smi (0 during deserialization, or encoded coverage flags
+  // if source positions have not been collected) or a TrustedByteArray.
+  DCHECK(IsSmi(value) || IsTrustedByteArray(value));
   return value;
 }
 

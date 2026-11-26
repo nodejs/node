@@ -53,22 +53,22 @@ void BaselineCompiler::PrologueFillFrame() {
   if (has_new_target) {
     DCHECK_LE(new_target_index, register_count);
     for (int i = 0; i < new_target_index; i++) {
-      __ Push(kInterpreterAccumulatorRegister);
+      __ PushUnpadded(kInterpreterAccumulatorRegister);
     }
     // Push new_target_or_generator.
-    __ Push(kJavaScriptCallNewTargetRegister);
+    __ PushUnpadded(kJavaScriptCallNewTargetRegister);
     register_count -= new_target_index + 1;
   }
   if (register_count < 2 * kLoopUnrollSize) {
     // If the frame is small enough, just unroll the frame fill completely.
     for (int i = 0; i < register_count; ++i) {
-      __ Push(kInterpreterAccumulatorRegister);
+      __ PushUnpadded(kInterpreterAccumulatorRegister);
     }
   } else {
     // Extract the first few registers to round to the unroll size.
     int first_registers = register_count % kLoopUnrollSize;
     for (int i = 0; i < first_registers; ++i) {
-      __ Push(kInterpreterAccumulatorRegister);
+      __ PushUnpadded(kInterpreterAccumulatorRegister);
     }
     BaselineAssembler::ScratchRegisterScope scope(&basm_);
     Register scratch = scope.AcquireScratch();
@@ -79,21 +79,21 @@ void BaselineCompiler::PrologueFillFrame() {
     Label loop;
     __ Bind(&loop);
     for (int i = 0; i < kLoopUnrollSize; ++i) {
-      __ Push(kInterpreterAccumulatorRegister);
+      __ PushUnpadded(kInterpreterAccumulatorRegister);
     }
     __ masm()->decl(scratch);
     __ masm()->j(greater, &loop);
   }
   if (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL &&
       (bytecode_->register_count() & 1) != 0) {
-    __ Push(kInterpreterAccumulatorRegister);
+    __ PushUnpadded(kInterpreterAccumulatorRegister);
   }
 }
 
 void BaselineCompiler::VerifyFrameSize() {
   ASM_CODE_COMMENT(&masm_);
   __ Move(kScratchRegister, rsp);
-  __ masm() -> addq(
+  __ masm()->addq(
       kScratchRegister,
       Immediate(RoundUp(
           InterpreterFrameConstants::kFixedFrameSizeFromFp +

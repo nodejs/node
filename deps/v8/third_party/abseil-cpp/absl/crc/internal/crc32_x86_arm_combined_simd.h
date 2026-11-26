@@ -49,10 +49,21 @@
 #include <intrin.h>
 #define ABSL_CRC_INTERNAL_HAVE_X86_SIMD
 
-#elif defined(__aarch64__) && defined(__LITTLE_ENDIAN__) &&                 \
-    defined(__ARM_FEATURE_CRC32) && defined(ABSL_INTERNAL_HAVE_ARM_NEON) && \
-    defined(__ARM_FEATURE_CRYPTO)
+#elif defined(__aarch64__) && defined(__LITTLE_ENDIAN__) &&             \
+    defined(ABSL_INTERNAL_HAVE_ARM_NEON) &&                             \
+    ((defined(__ARM_FEATURE_CRC32) && defined(__ARM_FEATURE_CRYPTO)) || \
+     defined(__clang__) || defined(__GNUC__))
 
+// Enable ARM64 CRC32 + PMULL when either:
+// 1. Both extensions are enabled by the compiler target
+//    (-march=...+crc+crypto), providing standard ACLE intrinsics
+//    (__crc32c*, vmull_p64), or
+// 2. Building with Clang or GCC, where GNU inline assembly with
+//    .arch_extension directives can emit CRC32 and PMULL instructions on
+//    baseline -march=armv8-a targets (e.g., Android, Windows clang-cl, and
+//    default open-source Linux builds) for runtime dispatch via
+//    SupportsArmCRC32PMULL(). Visual C++ (MSVC) does not support GNU inline
+//    assembly on ARM64.
 #include <arm_acle.h>
 #include <arm_neon.h>
 #define ABSL_CRC_INTERNAL_HAVE_ARM_SIMD
@@ -75,9 +86,30 @@
 #define ABSL_INTERNAL_ATTRIBUTE_AVX
 #endif
 
+#if defined(ABSL_CRC_INTERNAL_HAVE_X86_SIMD) && \
+    (defined(__AVX__) || defined(ABSL_INTERNAL_CAN_FORCE_AVX))
+#define ABSL_CRC_INTERNAL_HAVE_X86_V256 1
+#endif
+
+#if defined(ABSL_CRC_INTERNAL_HAVE_X86_V256) && \
+    (!defined(_MSC_VER) || defined(__clang__))
+#define ABSL_CRC_INTERNAL_HAVE_VPCLMUL 1
+#endif
+
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace crc_internal {
+// Constants for switching between algorithms.
+// Chosen by comparing speed at different powers of 2.
+// Inputs shorter than kSmallCutoff are processed with a simple serial loop of
+// CRC32 instructions instead of dispatching to platform-specific SIMD code.
+constexpr size_t kSmallCutoff = 256;
+// Inputs shorter than kMediumCutoff may be split into multiple chunks and
+// processed in parallel (depending on the CPU we're running on) using
+// interleaved CRC32 instructions. Inputs larger than this are split into a
+// larger number of chunks and processed with interleaved CRC32 instructions and
+// PCLMULQDQ streams.
+constexpr size_t kMediumCutoff = 1024;
 
 #if defined(ABSL_CRC_INTERNAL_HAVE_ARM_SIMD)
 using V128 = uint64x2_t;
@@ -89,8 +121,7 @@ using V128 = __m128i;
 using V128 = std::array<uint64_t, 2>;
 #endif
 
-#if (defined(__AVX__) || defined(ABSL_INTERNAL_CAN_FORCE_AVX)) && \
-    defined(ABSL_CRC_INTERNAL_HAVE_X86_SIMD)
+#if defined(ABSL_CRC_INTERNAL_HAVE_X86_V256)
 using V256 = __m256i;
 #else
 // Placeholder for V256 when AVX is not available.
@@ -167,8 +198,7 @@ V128 V128_Add64(const V128 l, const V128 r);
 // DebugReportNonTemporalStore() and DebugReportStoreFence() in crc.h.
 void NonTemporalStoreFence();
 
-#if (defined(__AVX__) || defined(ABSL_INTERNAL_CAN_FORCE_AVX)) && \
-    defined(ABSL_CRC_INTERNAL_HAVE_X86_SIMD)
+#if defined(ABSL_CRC_INTERNAL_HAVE_X86_V256)
 ABSL_INTERNAL_ATTRIBUTE_AVX inline V256 V256_LoadU(const void* src);
 ABSL_INTERNAL_ATTRIBUTE_AVX inline V256 V256_Broadcast128(const V128* src);
 ABSL_INTERNAL_ATTRIBUTE_AVX inline void V256_StoreU(void* dst, V256 data);
@@ -268,6 +298,7 @@ inline V128 V128_Add64(const V128 l, const V128 r) {
 }
 #elif defined(ABSL_CRC_INTERNAL_HAVE_ARM_SIMD)
 
+#ifdef __ARM_FEATURE_CRC32
 inline uint32_t CRC32_u8(uint32_t crc, uint8_t v) { return __crc32cb(crc, v); }
 
 inline uint32_t CRC32_u16(uint32_t crc, uint16_t v) {
@@ -281,6 +312,51 @@ inline uint32_t CRC32_u32(uint32_t crc, uint32_t v) {
 inline uint32_t CRC32_u64(uint32_t crc, uint64_t v) {
   return __crc32cd(crc, v);
 }
+#else
+inline uint32_t CRC32_u8(uint32_t crc, uint8_t v) {
+  uint32_t res;
+  __asm__(
+      ".arch_extension crc \n\t"
+      "crc32cb %w0, %w1, %w2 \n\t"
+      ".arch_extension nocrc \n\t"
+      : "=r"(res)
+      : "r"(crc), "r"(static_cast<uint32_t>(v)));
+  return res;
+}
+
+inline uint32_t CRC32_u16(uint32_t crc, uint16_t v) {
+  uint32_t res;
+  __asm__(
+      ".arch_extension crc \n\t"
+      "crc32ch %w0, %w1, %w2 \n\t"
+      ".arch_extension nocrc \n\t"
+      : "=r"(res)
+      : "r"(crc), "r"(static_cast<uint32_t>(v)));
+  return res;
+}
+
+inline uint32_t CRC32_u32(uint32_t crc, uint32_t v) {
+  uint32_t res;
+  __asm__(
+      ".arch_extension crc \n\t"
+      "crc32cw %w0, %w1, %w2 \n\t"
+      ".arch_extension nocrc \n\t"
+      : "=r"(res)
+      : "r"(crc), "r"(v));
+  return res;
+}
+
+inline uint32_t CRC32_u64(uint32_t crc, uint64_t v) {
+  uint32_t res;
+  __asm__(
+      ".arch_extension crc \n\t"
+      "crc32cx %w0, %w1, %2 \n\t"
+      ".arch_extension nocrc \n\t"
+      : "=r"(res)
+      : "r"(crc), "r"(v));
+  return res;
+}
+#endif
 
 inline V128 V128_Load(const V128* src) {
   return vld1q_u64(reinterpret_cast<const uint64_t*>(src));
@@ -300,9 +376,16 @@ inline void V128_Store(V128* dst, V128 data) {
 // using intrinsics instead of inline assembly.
 inline V128 V128_PMulHi(const V128 l, const V128 r) {
   uint64x2_t res;
-  __asm__ __volatile__("pmull2 %0.1q, %1.2d, %2.2d \n\t"
-                       : "=w"(res)
-                       : "w"(l), "w"(r));
+  __asm__ __volatile__(
+#ifndef __ARM_FEATURE_CRYPTO
+      ".arch_extension crypto \n\t"
+#endif
+      "pmull2 %0.1q, %1.2d, %2.2d \n\t"
+#ifndef __ARM_FEATURE_CRYPTO
+      ".arch_extension nocrypto \n\t"
+#endif
+      : "=w"(res)
+      : "w"(l), "w"(r));
   return res;
 }
 
@@ -310,22 +393,37 @@ inline V128 V128_PMulHi(const V128 l, const V128 r) {
 // loop multiplicands from GPR to Neon registers every loop iteration.
 inline V128 V128_PMulLow(const V128 l, const V128 r) {
   uint64x2_t res;
-  __asm__ __volatile__("pmull %0.1q, %1.1d, %2.1d \n\t"
-                       : "=w"(res)
-                       : "w"(l), "w"(r));
+  __asm__ __volatile__(
+#ifndef __ARM_FEATURE_CRYPTO
+      ".arch_extension crypto \n\t"
+#endif
+      "pmull %0.1q, %1.1d, %2.1d \n\t"
+#ifndef __ARM_FEATURE_CRYPTO
+      ".arch_extension nocrypto \n\t"
+#endif
+      : "=w"(res)
+      : "w"(l), "w"(r));
   return res;
 }
 
 inline V128 V128_PMul01(const V128 l, const V128 r) {
+#ifdef __ARM_FEATURE_CRYPTO
   return reinterpret_cast<V128>(vmull_p64(
       reinterpret_cast<poly64_t>(vget_high_p64(vreinterpretq_p64_u64(l))),
       reinterpret_cast<poly64_t>(vget_low_p64(vreinterpretq_p64_u64(r)))));
+#else
+  return V128_PMulLow(vextq_u64(l, l, 1), r);
+#endif
 }
 
 inline V128 V128_PMul10(const V128 l, const V128 r) {
+#ifdef __ARM_FEATURE_CRYPTO
   return reinterpret_cast<V128>(vmull_p64(
       reinterpret_cast<poly64_t>(vget_low_p64(vreinterpretq_p64_u64(l))),
       reinterpret_cast<poly64_t>(vget_high_p64(vreinterpretq_p64_u64(r)))));
+#else
+  return V128_PMulLow(l, vextq_u64(r, r, 1));
+#endif
 }
 
 inline V128 V128_Xor(const V128 l, const V128 r) { return veorq_u64(l, r); }
@@ -383,8 +481,7 @@ inline void NonTemporalStoreFence() {
   DebugReportStoreFence();
 }
 
-#if (defined(__AVX__) || defined(ABSL_INTERNAL_CAN_FORCE_AVX)) && \
-    defined(ABSL_CRC_INTERNAL_HAVE_X86_SIMD)
+#if defined(ABSL_CRC_INTERNAL_HAVE_X86_V256)
 ABSL_INTERNAL_ATTRIBUTE_AVX inline V256 V256_LoadU(const void* src) {
   return _mm256_loadu_si256(reinterpret_cast<const __m256i*>(src));
 }
@@ -430,8 +527,7 @@ inline void V256_StoreNonTemporal(void* dst, const T& data) {
   std::memcpy(dst, &data, sizeof(T));
   DebugReportNonTemporalStore();
 }
-#endif  // (defined(__AVX__) || defined(ABSL_INTERNAL_CAN_FORCE_AVX)) &&
-        // defined(ABSL_CRC_INTERNAL_HAVE_X86_SIMD)
+#endif  // defined(ABSL_CRC_INTERNAL_HAVE_X86_V256)
 
 ABSL_INTERNAL_ATTRIBUTE_AVX inline void V256_LoadPairU(const void* src,
                                                        V256* v0, V256* v1) {

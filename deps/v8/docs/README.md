@@ -1,90 +1,97 @@
-# V8 Internals Documentation
+# V8 Architecture and Engineering Documentation
 
-This directory contains deep-dive documentation into V8 internals, generated from source code analysis. For general documentation, see [v8.dev/docs](https://v8.dev/docs).
+Welcome to the V8 codebase architecture documentation. These guides are designed for **both human engineers onboarding to V8** (providing a clear conceptual model at the top of each document) and **experienced V8 developers and AI coding agents** (providing exact C++ class names, bitfield layouts, cross-tier invariants, and sharp edges verified against `src/`).
 
-## Table of Contents
+*(Note: The top-level `.md` files directly inside `docs/` are legacy copies of historical [v8.dev/docs](https://v8.dev/docs) articles. The structured subsystem and cross-component documentation lives in the subdirectories indexed below.)*
 
-### General
-*   [High-Level Overview](overview.md): High-level overview of V8's architecture and execution pipeline.
-*   [JavaScript Overview](javascript-overview.md): High-level overview of JavaScript concepts for V8 developers.
-*   [Security Bug Triaging](security/triaging.md): How V8 triages security bugs.
+---
 
-### Heap and Memory
-*   [Heap Overview](heap/heap-overview.md): General overview of V8's paged heap and object layout.
-*   [Garbage Collection](heap/garbage-collection.md): Overview of V8's generational GC.
-*   [Marking and Sweeping](heap/marking-and-sweeping.md): Deep dive into Major GC phases.
-*   [Roots](heap/roots.md): How V8 manages root objects and static roots.
-*   [Handles](heap/handles.md): V8's mechanism for safe heap object references (Indirect vs Direct).
-*   [Heap Compaction](heap/compaction.md): How V8 resolves memory fragmentation in the Old Generation.
-*   [Pointer Compression](heap/pointer-compression.md): Technique to reduce memory footprint on 64-bit architectures.
-*   [Pointer Tagging](heap/pointer-tagging.md): How V8 encodes type information in pointers (Smis vs HeapObjects).
-*   [Zone Allocator](heap/zone-allocator.md): Region-based memory manager for fast allocation and batch deallocation.
+## 1. Parsing, Scopes, and TDZ Hole Check Elision (`docs/parsing/`)
 
-### Object Model
-*   [Objects and Maps](heap/objects-and-maps.md): How JavaScript objects and Maps (hidden classes) are represented in V8's heap.
-*   [Descriptor and Transition Arrays](objects/descriptor-and-transition-arrays.md): How V8 tracks property additions and shares descriptor arrays between maps.
-*   [Field Representations and Elements Kinds](objects/fields-and-elements.md): How V8 specializes storage for properties and elements based on their types.
-*   [Lookup Iterator](objects/lookup-iterator.md): V8's central mechanism for resolving property accesses.
-*   [Strings](objects/strings.md): Overview of V8's complex string representation and transitions.
+How JavaScript source text is scanned, parsed into an AST, analyzed for variable allocation, and checked for Temporal Dead Zone (TDZ) invariants across tiers:
 
-### Sandbox
-*   [Architecture](sandbox/architecture.md): V8's in-process sandbox to protect memory outside of it.
+- **[Parser, Scanner, and AST](parsing/parser-and-ast.md)**: `Scanner` (1-character `c0_` lookahead + 4-token `TokenDesc` ring buffer), off-heap `AstRawString` / `AstConsString` deduplication in `AstValueFactory` (internalized in `Parser::PostProcessParseResult`), `ParserBase<Impl>` CRTP, single-pass ambiguity resolution via `ExpressionScope`, vtable-free `AstNode` bit-packing, `DeclarationScope::Analyze`, and `Rewriter::Rewrite` (`.result`).
+- **[Lazy Parsing, `PreParser`, and `PreparseData`](parsing/lazy-parsing-and-preparser.md)**: Eager vs lazy compilation heuristics (IIFE/PIFE detection), `ParserTypes<PreParser>` (`PreParserExpression` 32-bit bitfields), why `PreParser` tracks outer variable references (`VariableProxy`), and how `ProducedPreparseData` / `ConsumedPreparseData` avoid re-preparsing nested functions.
+- **[TDZ Hole Check Elision Overview (Cross-Component Pipeline)](parsing/hole-check-elision.md)**: End-to-end overview of how V8 represents lexical TDZ bindings with `tdz_hole_value` (`TdzHole`) and eliminates redundant checks across three compiler stages:
+  - **[Stage 1: Parser & Scope Hole Check Elimination](parsing/hole-check-elimination-parser.md)**: Static position analysis in `UpdateNeedsHoleCheck` (`src/ast/scopes.cc`), `ScopeInfo::kMaxVariablePositionDistance`, module import & `kDynamic`/`kDynamicLocal` edge cases, and eliding `LdaTdzHole` via `ForceHoleInitializationFlag`.
+  - **[Stage 2: Bytecode Hole Check Elision](parsing/hole-checks-bytecode.md)**: Ignition's 64-bit `Variable::HoleCheckBitmap` (tracking up to 63 variables per function in bits `1..63`), `HoleCheckElisionScope`, and branch intersection via `HoleCheckElisionMergeScope`.
+  - **[Stage 3: Optimizing Compiler Hole Check Elision](parsing/hole-checks-optimized.md)**: Maglev (`ValueNode::IsTdzHole()`, `ThrowReferenceErrorIfTdzHole`, `KnownNodeAspects`) and TurboFan / Turboshaft (`TdzHoleConstant`, `RootEqual`) hole check elimination, including how Maglev prevents `LoadContextSlotNoCells` (`loaded_context_constants_`) in the "Inverted Generator" pattern from poisoning `catch` block merges before `ThrowReferenceErrorIfTdzHole`.
 
-### Torque
-*   [Architecture](torque/architecture.md): V8's domain-specific language for writing builtins.
-*   [User Manual](torque/user-manual.md): The V8 Torque language manual.
+---
 
-### Builtins
-*   [Architecture](builtins/architecture.md): How V8 implements standard library and runtime helpers (Torque, CSA, C++, ASM).
-*   [Torque Tutorial](builtins/torque-tutorial.md): Introduction to writing Torque builtins.
+## 2. Object Model, Hidden Classes, and Sentinels (`docs/objects/`)
 
-### Code Generation
-*   [Assembler and MacroAssembler](codegen/assembler-architecture.md): Low-level code generation abstractions.
-*   [CodeStubAssembler](codegen/code-stub-assembler.md): Portable macro-assembler for writing builtins and bytecode handlers.
-*   [CodeStubAssembler Tutorial](codegen/csa-tutorial.md): Introduction to writing CodeStubAssembler builtins.
+How JavaScript values, strings, hidden classes (`Map`s), properties, elements, and internal sentinels are laid out in the V8 heap:
 
-### RegExp
-*   [Architecture](regexp/architecture.md): Irregexp, V8's regular expression engine.
+- **[Holes and Internal Sentinels (Cross-Component Guide)](objects/holes-and-sentinels.md)**: Why V8 segregates `ReadOnlyRoots` holes (`TheHole` strictly for array/dictionary elements, `TdzHole` for lexical TDZ & derived `this`, `PropertyCellHole`, `HashTableHole`, `PromiseHole`, `UninitializedHole`, `ExceptionHole`, `TerminationException`, `OptimizedOut`, etc.), `--unmap-holes` 64 KB hardware guard pages (`Hole::kPayloadSize`), `kHoleNanInt64` vs user NaN canonicalization (`DOUBLE_LITERAL` vs `HOLEY_DOUBLE_LITERAL`), and two-phase literal boilerplate initialization (`JSDataObjectBuilder` / `FoldedMutableHeapNumberAllocation` / `gc-observable` stores).
+- **[Strings: Representations, Encoding, and Hashing](objects/strings.md)**: `InstanceType` low 7-bit string encoding (`kStringRepresentationMask`, `kIsIndirectStringMask`, `kStringEncodingMask`, `kUncachedExternalStringMask`, Bit 5 `kSharedStringMask`, and Bit 6 `kIsNotInternalizedMask`), `SeqString`, `ConsString` in-place flattening and GC shortcutting, `SlicedString`, `ExternalString` / `UncachedExternalString`, `ThinString`, and `Name::raw_hash_field_` (`kHash`, `kIntegerIndex`, `kForwardingIndex` in `StringForwardingTable`, `kEmpty`).
+- **[DescriptorArrays and TransitionArrays](objects/descriptor-and-transition-arrays.md)**: `DescriptorArray` header (`number_of_all_descriptors`, `number_of_descriptors`, slack descriptors, concurrent marking `raw_gc_state`, `EnumCache`), 3-slot entry layout, `FieldType` encoding (`None`, `Any`, `Weak<Map>`), `DescriptorPointer` binary search, `TransitionsAccessor::Encoding` (6 inline/out-of-line states), `TransitionArray`, and `SideStepTransition` (`kCloneObject`, `kObjectAssign`).
+- **[Fields, Elements, and Map Generalization](objects/fields-and-elements.md)**: In-object fields vs `PropertyArray`, why `Representation::Double()` fields box values in mutable `HeapNumber`s under pointer compression, `SwissNameDictionary` (SIMD SSE2/NEON H2 probing + insertion-order `meta_table`), `ElementsKind` transition sequence (`kFastElementsKindSequence` vs enum order warning), and `MapUpdater` generalization.
+- **[`LookupIterator`: Property Resolution State Machine](objects/lookup-iterator.md)**: `receiver_` vs `lookup_start_object_` (`super.prop`), `holder_`, the `LookupIterator::State` machine (`ACCESS_CHECK`, `INTERCEPTOR`, `JSPROXY`, `TYPED_ARRAY_INDEX_NOT_FOUND`, `DATA`, `ACCESSOR`, `TRANSITION`), two-pass masking vs non-masking `InterceptorState`, and write transitions (`PrepareForDataProperty`, `PrepareTransitionToDataProperty`).
 
-### WebAssembly
-*   [Architecture](wasm/architecture.md): V8's WebAssembly implementation, including Liftoff and Turboshaft tiers.
+---
 
-### Snapshots
-*   [Architecture](snapshot/architecture.md): V8's snapshot and serializer system for fast startup.
+## 3. Execution Runtime, ICs, Tiering, and Deoptimization (`docs/runtime/`)
 
-### Execution - Runtime
-*   [Ignition (Interpreter)](interpreter/interpreter-ignition.md): V8's register-based interpreter.
-*   [Hidden Classes and Inline Caches](runtime/hidden-classes-and-ics.md): How V8 optimizes property access using Maps and ICs.
-*   [Maps (Hidden Classes) Tutorial](runtime/hidden-classes-tutorial.md): Tutorial on how V8 builds hidden classes.
-*   [Scopes and ScopeInfos](runtime/scopes-and-scope-infos.md): The relationship between compile-time Scopes and runtime ScopeInfos.
-*   [Function Architecture](runtime/function-architecture.md): How V8 splits function data into context-independent (SFI) and context-dependent (JSFunction) parts, and how they are chained.
-*   [Tiering and Interrupt Budget](runtime/tiering.md): How V8 decides to optimize functions.
-*   [Exception Handling](runtime/exception-handling.md): How V8 implements exceptions using side-tables across all tiers.
-*   [Deoptimization](runtime/deoptimization.md): How V8 transitions from optimized code back to the interpreter.
-*   [Stack Walking](runtime/stack-walking.md): How V8 traverses and inspects call stack frames.
+How V8 executes functions, caches property accesses, walks the call stack, unwinds exceptions, tiers up across compilers, and deoptimizes back to bytecode:
 
-### Compiler
+- **[Function Architecture (`JSFunction`, `SharedFunctionInfo`, `Context`, `FeedbackVector`)](runtime/function-architecture.md)**: Separation of per-definition `SharedFunctionInfo` (dual `trusted_function_data_` and `untrusted_function_data_` slots) from per-closure `JSFunction` (`context()` invariant pointing to the creation scope's `Context`), `JSDispatchTable` dispatch (`dispatch_handle_`), and the three-stage `FeedbackCell` lifecycle (`Undefined -> ClosureFeedbackCellArray -> FeedbackVector`).
+- **[Scopes, Contexts, `ScopeInfo`, and `ContextCell`](runtime/scopes-and-scope-infos.md)**: Compile-time `Scope` analysis vs persistent `ScopeInfo` bit-packing, runtime `Context` chains, and `ContextCell` state specialization (`kConst`, `kSmi`, unboxed `kInt32`, unboxed `kFloat64`, and `kDetached` with `DependentCode` deoptimization).
+- **[Hidden Classes and Inline Caches (ICs)](runtime/hidden-classes-and-ics.md)**: IC state lattice (`UNINITIALIZED -> MONOMORPHIC -> POLYMORPHIC -> MEGAMORPHIC`), `LoadHandler` and `StoreHandler` Smi bitfields, variable-length `DataHandler` (`smi_handler_`, `validity_cell_`, `data1..data5`), prototype validity cells, and the three per-Isolate `StubCache`s (`load_stub_cache_`, `store_stub_cache_`, `define_own_stub_cache_` with `primary_` and `secondary_` tables).
+- **[Hidden Classes Step-by-Step Tutorial](runtime/hidden-classes-tutorial.md)**: Walkthrough of hidden-class transitions, shared `DescriptorArray` prefixes, branching `TransitionArray`s, and `PropertyConstness::kConst` constant folding (`DependentCode::kFieldConstGroup`).
+- **[Execution Tiers and the `TieringManager`](runtime/tiering.md)**: How `FeedbackCell::interrupt_budget_` drives `TieringManager::OnInterruptTick`, feedback allocation + Sparkplug batch compilation on the 1st interrupt tick, IC stabilization (`NotifyICChanged`), `JSDispatchTable::SetTieringRequest` (`TieringBuiltin`), and On-Stack Replacement (`FeedbackVector::osr_urgency`, `JumpLoop` `loop_depth`, and Maglev-to-TurboFan deopt-to-OSR).
+- **[Deoptimization Architecture](runtime/deoptimization.md)**: `DeoptimizeKind::kEager` vs `kLazy`, trusted-space `DeoptimizationData` (`DeoptimizationLiteralArray` vs `ProtectedDeoptimizationLiteralArray`), `DeoptimizationFrameTranslation` opcodes (`INTERPRETED_FRAME_WITH_RETURN` vs `WITHOUT_RETURN`, `DOUBLE_LITERAL` vs `HOLEY_DOUBLE_LITERAL`, `CAPTURED_OBJECT`), and two-phase no-GC stack rewriting followed by GC-allowed heap materialization.
+- **[Exception Handling](runtime/exception-handling.md)**: `Isolate::pending_exception` vs `scheduled_exception`, `TerminationException`, `HandlerTable` encodings (`kRangeBasedEncoding` with `CatchPrediction` + `HandlerWasUsed` vs `kReturnAddressBasedEncoding`), `kNoHandlerFound = -1` vs `kLazyDeopt = HandlerOffsetField::kMax`, how Sparkplug handles exceptions directly via `BytecodeArray`'s `HandlerTable` without deoptimizing, and `finally` token re-dispatch.
+- **[Stack Walking and Frame Layouts](runtime/stack-walking.md)**: Frame pointer (`fp`) chains, `Context` vs `Smi` `StackFrame::Type` markers (`INTERPRETED`, `BASELINE`, `MAGLEV`, `TURBOFAN_JS`, `ENTRY`, `EXIT`, `BUILTIN_CONTINUATION`, `WASM`), `c_entry_fp` bridging, `StackFrameIterator` vs signal-safe `StackFrameIteratorForProfiler` (and why it must never be `V8_EXPORT_PRIVATE`), and Conservative Stack Scanning (`CSS`) with `SafepointTable`s.
 
-#### Sparkplug
-*   [Sparkplug (Baseline Compiler)](compiler/sparkplug/compiler-sparkplug.md): Fast, non-optimizing compiler that mirrors the interpreter.
+---
 
-#### Maglev
-*   [Maglev (Mid-Tier Compiler)](compiler/maglev/compiler-maglev.md): Graph-based optimizing compiler.
-*   [Maglev Register Allocator](compiler/maglev/compiler-maglev-regalloc.md): Linear scan and node constraints.
+## 4. Interpreter, Compilers, Codegen, Builtins, and Torque
 
-#### TurboFan
-*   [TurboFan (Optimizing Compiler)](compiler/turbofan/compiler-turbofan.md): Top-tier optimizing compiler using Sea-of-Nodes and Turboshaft IRs.
+- **Ignition Interpreter (`docs/interpreter/`)**:
+  - [Ignition Interpreter & Bytecode Architecture](interpreter/interpreter-ignition.md)
+- **Sparkplug, Maglev, TurboFan, and Turboshaft (`docs/compiler/`)**:
+  - [Sparkplug Baseline Compiler](compiler/sparkplug/compiler-sparkplug.md)
+  - [Maglev Mid-Tier Optimizing Compiler](compiler/maglev/compiler-maglev.md)
+  - [Maglev Register Allocator](compiler/maglev/compiler-maglev-regalloc.md)
+  - [TurboFan Sea-of-Nodes Compiler](compiler/turbofan/compiler-turbofan.md)
+  - [Why Control-Flow Graphs (CFG) over Sea-of-Nodes](compiler/why-cfg.md)
+  - [Turboshaft Architecture Overview](compiler/turboshaft/compiler-turboshaft.md)
+  - [Turboshaft IR Operations & Types](compiler/turboshaft/compiler-turboshaft-ir.md)
+  - [Turboshaft Reducers & Optimization Phases](compiler/turboshaft/compiler-turboshaft-reducers.md)
+  - [Turboshaft Graph-Copying Approach](compiler/turboshaft/compiler-turboshaft-copying-approach.md)
+  - [Concurrency, Background Compilation, and `HeapBroker`](compiler/concurrency-and-background-compilation.md)
+- **Code Generation & Assemblers (`docs/codegen/`)**:
+  - [Assembler & MacroAssembler Architecture](codegen/assembler-architecture.md)
+  - [CodeStubAssembler (CSA) & Turboshaft Builtins Assembler (TSA)](codegen/code-stub-assembler.md)
+  - [CodeStubAssembler Tutorial](codegen/csa-tutorial.md)
+- **Builtins & Torque (`docs/builtins/`, `docs/torque/`)**:
+  - [V8 Builtins Architecture](builtins/architecture.md)
+  - [Torque Language Tutorial](builtins/torque-tutorial.md)
+  - [Torque Compiler Architecture](torque/architecture.md)
+  - [Torque User Manual](torque/user-manual.md)
 
-#### Turboshaft
-*   [Turboshaft and Turbolev](compiler/turboshaft/compiler-turboshaft.md): Next-generation IR and pipeline, including the Maglev frontend.
-*   [Turboshaft IR Details](compiler/turboshaft/compiler-turboshaft-ir.md): Operations and the side-effect system.
-*   [Turboshaft Reducers](compiler/turboshaft/compiler-turboshaft-reducers.md): Composable optimization passes.
-*   [Turboshaft Copying Approach](compiler/turboshaft/compiler-turboshaft-copying-approach.md): Semi-spaces for IR and cheap copies.
+---
 
-#### Common
-*   [Why V8 Embraced CFG](compiler/why-cfg.md): The transition from TurboFan's SoN to Turboshaft's CFG and its benefits.
-*   [Concurrency and Background Compilation](compiler/concurrency-and-background-compilation.md): How V8 uses background threads safely.
+## 5. Heap, Memory Management, Sandbox, Snapshot, Wasm, RegExp, and Security
 
-### Parsing
-*   [Parser and AST](parsing/parser-and-ast.md): How V8 parses JavaScript into an Abstract Syntax Tree.
-*   [Lazy Parsing and Preparser](parsing/lazy-parsing-and-preparser.md): How V8 delays parsing and handles closures.
+- **Heap & Garbage Collection (`docs/heap/`)**:
+  - [Heap Spaces & Memory Layout Overview](heap/heap-overview.md)
+  - [Heap Objects, Maps, and C++ Object Macros](heap/objects-and-maps.md)
+  - [Pointer Tagging (`Smi`, `HeapObject`, `MaybeObject`)](heap/pointer-tagging.md)
+  - [Pointer Compression (`PtrComprCageBase`)](heap/pointer-compression.md)
+  - [Garbage Collection & Orinoco Architecture](heap/garbage-collection.md)
+  - [Tri-Color Marking, Write Barriers, and Sweeping](heap/marking-and-sweeping.md)
+  - [Evacuation, Compaction, and Slot Updates](heap/compaction.md)
+  - [Handles (`DirectHandle`, `IndirectHandle`, `LocalHandles`, `TracedHandles`)](heap/handles.md)
+  - [Roots (`ReadOnlyRoots`, `RootsTable`, Static Roots)](heap/roots.md)
+  - [Zone Arena Allocator (`Zone`, `AccountingAllocator`)](heap/zone-allocator.md)
+- **V8 Sandbox & Startup Snapshots (`docs/sandbox/`, `docs/snapshot/`)**:
+  - [V8 Sandbox, Trusted Space, and Pointer Tables](sandbox/architecture.md)
+  - [Startup Snapshot Serialization & Deserialization](snapshot/architecture.md)
+- **WebAssembly, RegExp, and Security (`docs/wasm/`, `docs/regexp/`, `docs/security/`)**:
+  - [WebAssembly Compilation & Runtime Architecture](wasm/architecture.md)
+  - [Liftoff WebAssembly Baseline Compiler](wasm/liftoff.md)
+  - [Irregexp Regular Expression Engine Architecture](regexp/architecture.md)
+  - [V8 Security Bug Triaging Guide](security/triaging.md)
+  - [Reproducing Security Bugs](security/reproducing-bugs.md)

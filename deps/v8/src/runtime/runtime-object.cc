@@ -240,6 +240,10 @@ RUNTIME_FUNCTION(Runtime_IsDictPropertyConstTrackingEnabled) {
       V8_DICT_PROPERTY_CONST_TRACKING_BOOL);
 }
 
+RUNTIME_FUNCTION(Runtime_IsDictPrototypesEnabled) {
+  return ReadOnlyRoots(isolate).boolean_value(V8_DICT_PROTOTYPES_BOOL);
+}
+
 RUNTIME_FUNCTION(Runtime_AddDictionaryProperty) {
   HandleScope scope(isolate);
   DirectHandle<JSObject> receiver = args.at<JSObject>(0);
@@ -248,8 +252,9 @@ RUNTIME_FUNCTION(Runtime_AddDictionaryProperty) {
 
   DCHECK(IsUniqueName(*name));
 
+  PropertyAttributes attributes = name->IsAnyPrivate() ? DONT_ENUM : NONE;
   PropertyDetails property_details(
-      PropertyKind::kData, NONE,
+      PropertyKind::kData, attributes,
       PropertyDetails::kConstIfDictConstnessTracking);
   if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
     DirectHandle<SwissNameDictionary> dictionary(
@@ -286,12 +291,16 @@ RUNTIME_FUNCTION(Runtime_AddPrivateBrand) {
 
   LookupIterator it(isolate, receiver, brand, LookupIterator::OWN);
 
-  if (it.IsFound()) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate,
-        NewTypeError(MessageTemplate::kInvalidPrivateBrandReinitialization,
-                     brand));
-  }
+  // InitializeInstanceElements ( O, constructor )
+  // 1. Let methods be the value of constructor.[[PrivateMethods]].
+  // 2. If methods is not empty, then
+  //   a. If the host is a web browser, then
+  //     i. Perform ? HostEnsureCanAddPrivateElement(O).
+  //   b. If ? IsExtensible(O) is false, throw a TypeError exception.
+  //   c. For each PrivateElement method of methods, do
+  //     i. Perform ? PrivateMethodOrAccessorAdd(O, method).
+  MAYBE_RETURN(JSReceiver::CheckPrivateNameStore(&it, true),
+               ReadOnlyRoots(isolate).exception());
 
   PropertyAttributes attributes =
       static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
@@ -307,13 +316,9 @@ RUNTIME_FUNCTION(Runtime_AddPrivateBrand) {
   DCHECK_EQ(context->scope_info()->scope_type(), ScopeType::CLASS_SCOPE);
   Maybe<bool> added_brand = Object::AddDataProperty(
       &it, context, attributes, Just(kThrowOnError), StoreOrigin::kMaybeKeyed);
-  // Objects in shared space are fixed shape, so private symbols cannot be
-  // added.
-  if (V8_UNLIKELY(IsAlwaysSharedSpaceJSObject(*receiver))) {
-    CHECK(added_brand.IsNothing());
+  if (added_brand.IsNothing()) {
     return ReadOnlyRoots(isolate).exception();
   }
-  CHECK(added_brand.IsJust());
   return *receiver;
 }
 
@@ -462,7 +467,8 @@ RUNTIME_FUNCTION(Runtime_OptimizeObjectForAddingMultipleProperties) {
   int properties = args.smi_value_at(1);
   // Conservative upper limit to prevent fuzz tests from going OOM.
   if (properties > 100000) return isolate->ThrowIllegalOperation();
-  if (object->HasFastProperties() && !IsJSGlobalProxy(*object)) {
+  if (object->HasFastProperties() && object->map()->is_extensible() &&
+      !IsJSGlobalProxy(*object)) {
     JSObject::NormalizeProperties(isolate, object, KEEP_INOBJECT_PROPERTIES,
                                   properties, "OptimizeForAdding");
   }
@@ -1181,8 +1187,8 @@ RUNTIME_FUNCTION(Runtime_CopyDataPropertiesWithExcludedPropertiesOnStack) {
         isolate, source, MaybeDirectHandle<Object>());
   }
 
-  DirectHandleVector<Object> excluded_properties(isolate,
-                                                 excluded_property_count);
+  DirectHandleSmallVector<Object, 8> excluded_properties(
+      isolate, excluded_property_count);
   for (int i = 0; i < excluded_property_count; i++) {
     // Because the excluded properties on stack is from high address
     // to low address, so we need to use sub
@@ -1493,14 +1499,14 @@ MaybeDirectHandle<Object> Runtime::GetPrivateMember(
     case PrivateMemberType::kPrivateAccessor: {
       // The accessors are collected from the contexts, so there is no need to
       // perform brand checks.
-      auto pair = Cast<AccessorPair>(result.value);
-      if (IsNull(pair->getter())) {
+      DirectHandle<AccessorPair> pair = CheckedCast<AccessorPair>(result.value);
+      Tagged<Object> raw_getter = pair->getter();
+      if (IsNull(raw_getter)) {
         THROW_NEW_ERROR(
             isolate,
             NewError(MessageTemplate::kInvalidPrivateGetterAccess, desc));
       }
-      DCHECK(IsJSFunction(pair->getter()));
-      DirectHandle<JSFunction> getter(Cast<JSFunction>(pair->getter()),
+      DirectHandle<JSFunction> getter(CheckedCast<JSFunction>(raw_getter),
                                       isolate);
       return Execution::Call(isolate, getter, receiver, {});
     }
@@ -1529,15 +1535,15 @@ MaybeDirectHandle<Object> Runtime::SetPrivateMember(
     case PrivateMemberType::kPrivateAccessor: {
       // The accessors are collected from the contexts, so there is no need to
       // perform brand checks.
-      auto pair = Cast<AccessorPair>(result.value);
-      if (IsNull(pair->setter())) {
+      DirectHandle<AccessorPair> pair = CheckedCast<AccessorPair>(result.value);
+      Tagged<Object> raw_setter = pair->setter();
+      if (IsNull(raw_setter)) {
         THROW_NEW_ERROR(
             isolate,
             NewError(MessageTemplate::kInvalidPrivateSetterAccess, desc));
       }
-      DCHECK(IsJSFunction(pair->setter()));
       DirectHandle<Object> args[] = {value};
-      DirectHandle<JSFunction> setter(Cast<JSFunction>(pair->setter()),
+      DirectHandle<JSFunction> setter(CheckedCast<JSFunction>(raw_setter),
                                       isolate);
       return Execution::Call(isolate, setter, receiver, base::VectorOf(args));
     }
@@ -1600,17 +1606,19 @@ RUNTIME_FUNCTION(Runtime_SetPrivateMember) {
 RUNTIME_FUNCTION(Runtime_LoadPrivateSetter) {
   HandleScope scope(isolate);
   DCHECK_EQ(args.length(), 1);
-  DirectHandle<AccessorPair> pair = args.at<AccessorPair>(0);
-  DCHECK(IsJSFunction(pair->setter()));
-  return pair->setter();
+  DirectHandle<AccessorPair> pair = CheckedCast<AccessorPair>(args.at(0));
+  Tagged<Object> setter = pair->setter();
+  CHECK(IsJSFunction(setter));
+  return setter;
 }
 
 RUNTIME_FUNCTION(Runtime_LoadPrivateGetter) {
   HandleScope scope(isolate);
   DCHECK_EQ(args.length(), 1);
-  DirectHandle<AccessorPair> pair = args.at<AccessorPair>(0);
-  DCHECK(IsJSFunction(pair->getter()));
-  return pair->getter();
+  DirectHandle<AccessorPair> pair = CheckedCast<AccessorPair>(args.at(0));
+  Tagged<Object> getter = pair->getter();
+  CHECK(IsJSFunction(getter));
+  return getter;
 }
 
 RUNTIME_FUNCTION(Runtime_CreatePrivateAccessors) {
@@ -1780,6 +1788,9 @@ RUNTIME_FUNCTION(Runtime_CheckFastIterableToListPrototype) {
   // Switch prototype to fast mode in order to ensure that constness tracking
   // will invalidate the prototype's validity cell in case of modification.
   JSObject::MakePrototypesFast(prototype, kStartAtReceiver, isolate);
+  if (!V8_DICT_PROTOTYPES_BOOL && !prototype->HasFastProperties()) {
+    return ReadOnlyRoots(isolate).false_value();
+  }
 
   // 1. Check if the prototype has expected [Symbol.iterator] property (kData
   // and kConst).

@@ -5,6 +5,7 @@
 #include "src/compiler/turboshaft/graph-visualizer.h"
 
 #include "src/base/small-vector.h"
+#include "src/base/string-format.h"
 #include "src/compiler/node-origin-table.h"
 #include "src/compiler/turbofan-graph-visualizer.h"
 
@@ -120,7 +121,7 @@ void PrintTurboshaftCustomDataPerOperation(
     std::stringstream sstream;
     if (printer(sstream, graph, index)) {
       stream << (first ? "\n" : ",\n") << "{\"key\":" << index.id()
-             << ", \"value\":\"" << sstream.str() << "\"}";
+             << ", \"value\":\"" << base::JSONEscaped(sstream.str()) << "\"}";
       first = false;
     }
   }
@@ -140,7 +141,7 @@ void PrintTurboshaftCustomDataPerBlock(
     BlockIndex index = block.index();
     if (printer(sstream, graph, index)) {
       stream << (first ? "\n" : ",\n") << "{\"key\":" << index.id()
-             << ", \"value\":\"" << sstream.str() << "\"}";
+             << ", \"value\":\"" << base::JSONEscaped(sstream.str()) << "\"}";
       first = false;
     }
   }

@@ -753,7 +753,7 @@ WritableJumpTablePair::~WritableJumpTablePair() {
   if (jump_table_pages_.has_value()) {
     // We disabled RWX write access for debugging. But we'll need it in the
     // destructor again to release the jit page reference.
-    write_scope_.SetWritable();
+    RwxMemoryWriteScope::SetWritable();
   }
 #endif
 }

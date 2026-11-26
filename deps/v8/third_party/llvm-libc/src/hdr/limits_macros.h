@@ -17,6 +17,14 @@
 
 #include <limits.h>
 
+#ifndef _POSIX2_RE_DUP_MAX
+#define _POSIX2_RE_DUP_MAX 255
+#endif // _POSIX2_RE_DUP_MAX
+
+#ifndef RE_DUP_MAX
+#define RE_DUP_MAX _POSIX2_RE_DUP_MAX
+#endif // RE_DUP_MAX
+
 #endif // LIBC_FULL_BUILD
 
 #endif // LLVM_LIBC_HDR_LIMITS_MACROS_H

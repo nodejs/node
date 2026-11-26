@@ -295,8 +295,8 @@ TEST_F(HeapSnapshotTest, ScopeInfoProperties) {
 }
 
 TEST_F(HeapSnapshotTest, RemovedObjectIsDroppedFromHeapObjectsMapOnGC) {
-  v8_flags.heap_snapshot_on_gc = 0;
-  v8_flags.heap_snapshot_path = "/dev/null";
+  v8_flags.heap_snapshot_on_gc.Set(0);
+  v8_flags.heap_snapshot_path.Set("/dev/null");
 
   HeapProfiler* heap_profiler = i_isolate()->heap()->heap_profiler();
   Factory* factory = i_isolate()->factory();
@@ -357,7 +357,7 @@ TEST_F(HeapSnapshotTest,
 }
 
 TEST_F(HeapSnapshotTest, StringProperties) {
-  v8_flags.heap_snapshot_string_limit = 512;
+  v8_flags.heap_snapshot_string_limit.Set(512);
   // Re-initialize StringsStorage to pick up the new flag value.
   i_isolate()->heap()->heap_profiler()->DeleteAllSnapshots();
 
@@ -502,7 +502,7 @@ TEST_F(HeapSnapshotTest, LongScriptName) {
   v8::Local<v8::Context> context = v8_context();
 
   // Set string limit to unlimited to allow very long names.
-  v8_flags.heap_snapshot_string_limit = 0;
+  v8_flags.heap_snapshot_string_limit.Set(0);
   // Re-initialize StringsStorage to pick up the new flag value.
   i_isolate()->heap()->heap_profiler()->DeleteAllSnapshots();
 
@@ -743,7 +743,7 @@ TEST_F(HeapSnapshotTest, ScriptMetadata) {
 
 TEST_F(HeapSnapshotTest, InstructionStreamReferences) {
   if (v8_flags.jitless) return;
-  v8_flags.allow_natives_syntax = true;
+  v8_flags.allow_natives_syntax.Set(true);
   RunJS(
       "function bar(x) { return x.a + 1; }\n"
       "function foo(obj) { return bar(obj) + 'constant_string'; }\n"

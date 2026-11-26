@@ -380,7 +380,7 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, DirectHandle<Map> map,
   // requestedLocales, opt, %Collator%.[[RelevantExtensionKeys]],
   // localeData).
   Intl::ResolvedLocale r;
-  if (!Intl::ResolveLocale(isolate, JSCollator::GetAvailableLocales(),
+  if (!Intl::ResolveLocale(isolate, JSCollator::GetAvailableLocales,
                            requested_locales, matcher, {"co", "kn", "kf"})
            .To(&r)) {
     THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError));

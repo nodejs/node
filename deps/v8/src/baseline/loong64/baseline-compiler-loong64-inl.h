@@ -36,7 +36,13 @@ void BaselineCompiler::PrologueFillFrame() {
   // Inlined register frame fill
   interpreter::Register new_target_or_generator_register =
       bytecode_->incoming_new_target_or_generator_register();
-  __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
+  if (v8_flags.debug_code) {
+    UseScratchRegisterScope temps(__ masm());
+    Register scratch = temps.Acquire();
+    __ LoadRoot(scratch, RootIndex::kUndefinedValue);
+    __ masm()->Assert(eq, AbortReason::kUnexpectedValue,
+                      kInterpreterAccumulatorRegister, Operand(scratch));
+  }
   int register_count = bytecode_->register_count();
   // Magic value
   const int kLoopUnrollSize = 8;

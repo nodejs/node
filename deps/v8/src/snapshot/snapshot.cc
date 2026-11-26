@@ -6,6 +6,7 @@
 
 #include "src/snapshot/snapshot.h"
 
+#include "include/v8-cppgc.h"
 #include "src/api/api-inl.h"  // For OpenHandle.
 #include "src/base/numerics/safe_conversions.h"
 #include "src/baseline/baseline-batch-compiler.h"
@@ -25,6 +26,7 @@
 #include "src/snapshot/shared-heap-serializer.h"
 #include "src/snapshot/snapshot-utils.h"
 #include "src/snapshot/startup-serializer.h"
+#include "src/tracing/trace-event.h"
 #include "src/utils/memcopy.h"
 #include "src/utils/version.h"
 
@@ -258,7 +260,7 @@ void Snapshot::ClearReconstructableDataForSerialization(
 #if V8_ENABLE_WEBASSEMBLY
     // Clear the cached js-to-wasm wrappers.
     isolate->heap()->SetJSToWasmWrappers(
-        ReadOnlyRoots(isolate).empty_weak_fixed_array());
+        isolate->heap()->empty_protected_weak_fixed_array());
 #endif  // V8_ENABLE_WEBASSEMBLY
 
     // Must happen after heap iteration since SFI::DiscardCompiled may allocate.
@@ -676,18 +678,12 @@ uint32_t SnapshotImpl::ExtractNumContexts(const v8::StartupData* data) {
   return GetHeaderValue(data, kNumberOfContextsOffset);
 }
 
-uint32_t Snapshot::GetExpectedChecksum(const v8::StartupData* data) {
-  return SnapshotImpl::GetHeaderValue(data, SnapshotImpl::kChecksumOffset);
-}
-uint32_t Snapshot::CalculateChecksum(const v8::StartupData* data) {
-  return Checksum(SnapshotImpl::ChecksummedContent(data));
-}
-
 bool Snapshot::VerifyChecksum(const v8::StartupData* data) {
   base::ElapsedTimer timer;
   if (v8_flags.profile_deserialization) timer.Start();
-  uint32_t expected = GetExpectedChecksum(data);
-  uint32_t result = CalculateChecksum(data);
+  uint32_t expected =
+      SnapshotImpl::GetHeaderValue(data, SnapshotImpl::kChecksumOffset);
+  uint32_t result = Checksum(SnapshotImpl::ChecksummedContent(data));
   if (v8_flags.profile_deserialization) {
     double ms = timer.Elapsed().InMillisecondsF();
     PrintF("[Verifying snapshot checksum took %0.3f ms]\n", ms);
@@ -1142,7 +1138,7 @@ StartupData SnapshotCreatorImpl::CreateBlob(
 
   // RO space is usually writable when serializing a snapshot s.t. preceding
   // heap initialization can also extend RO space. There are notable exceptions
-  // though, including --stress-snapshot and serializer cctests.
+  // though, including --stress-snapshot and serializer unittests.
   if (isolate_->heap()->read_only_space()->writable()) {
     // Promote objects from mutable heap spaces to read-only space prior to
     // serialization. Objects can be promoted if a) they are themselves

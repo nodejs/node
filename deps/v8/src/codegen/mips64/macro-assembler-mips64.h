@@ -654,6 +654,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   void CheckPageFlag(Register object, Register scratch, int mask, Condition cc,
                      Label* condition_met);
+  void JumpIfMarking(Label* is_marking);
 #undef COND_ARGS
 
   // Performs a truncating conversion of a floating point number as used by

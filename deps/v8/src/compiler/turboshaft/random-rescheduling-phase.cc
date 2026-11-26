@@ -41,7 +41,7 @@ class ReschedulingReducer : public Next {
 #if V8_ENABLE_WEBASSEMBLY
     if (!op.effect_handlers.empty()) {
       base::Vector<EffectHandler> output_handlers =
-          __ graph_zone() -> template AllocateVector<EffectHandler>(
+          __ graph_zone()->template AllocateVector<EffectHandler>(
               op.effect_handlers.size());
       for (int i = 0; i < op.effect_handlers.length(); ++i) {
         output_handlers[i].tag_and_kind = op.effect_handlers[i].tag_and_kind;

@@ -922,9 +922,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (mode > RecordWriteMode::kValueIsPointer) {
         __ JumpIfSmi(value, ool->exit());
       }
-      __ CheckPageFlag(object, scratch0,
-                       MemoryChunk::kPointersFromHereAreInterestingMask, ne,
-                       ool->entry());
+      if (mode == RecordWriteMode::kValueIsMap) {
+        // Maps are never allocated in the young generation, so storing a map
+        // never requires the generational barrier. The barrier is thus only
+        // needed while marking. Checking the marking flag instead of the page
+        // flags of the host object avoids jumping to the out-of-line code for
+        // each map store into an old object.
+        __ JumpIfMarking(ool->entry());
+      } else {
+        __ CheckPageFlag(object, scratch0,
+                         MemoryChunk::kPointersFromHereAreInterestingMask, ne,
+                         ool->entry());
+      }
       __ bind(ool->exit());
       break;
     }
@@ -1899,7 +1908,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           __ ld_b(i.OutputSimd128Register(), MemOperand(fp, offset));
         }
       } else {
-        __ Ld(i.OutputRegister(0), MemOperand(fp, offset));
+        if (Is32BitOperand(instr->OutputAt(0))) {
+          // Like AssembleMove, use a sign-extending load for 32-bit slots so
+          // that the register keeps the mips64 sign-extension invariant.
+          __ Lw(i.OutputRegister(0), MemOperand(fp, offset));
+        } else {
+          __ Ld(i.OutputRegister(0), MemOperand(fp, offset));
+        }
       }
       break;
     }
@@ -4648,14 +4663,6 @@ void CodeGenerator::SetPendingMove(MoveOperands* move) {
 
 namespace {
 
-bool Is32BitOperand(InstructionOperand* operand) {
-  DCHECK(operand->IsStackSlot() || operand->IsRegister());
-  MachineRepresentation mr = LocationOperand::cast(operand)->representation();
-  return mr == MachineRepresentation::kWord32 ||
-         mr == MachineRepresentation::kCompressed ||
-         mr == MachineRepresentation::kCompressedPointer;
-}
-
 // When we need only 32 bits, move only 32 bits, otherwise the destination
 // register' upper 32 bits may contain dirty data.
 bool Use32BitMove(InstructionOperand* source, InstructionOperand* destination) {
@@ -4821,7 +4828,14 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
       DCHECK(destination->IsStackSlot());
       MemOperand dst = g.ToMemOperand(destination);
       __ mov(temp, src);
-      __ Ld(src, dst);
+      // Like AssembleMove, never load a 32-bit stack slot into a Word32
+      // register with a 64-bit load: the slot's upper half may be dirty, and
+      // the mips64 backend evaluates Word32 compares at full register width.
+      if (Use32BitMove(source, destination)) {
+        __ Lw(src, dst);
+      } else {
+        __ Ld(src, dst);
+      }
       __ Sd(temp, dst);
     }
   } else if (source->IsStackSlot()) {

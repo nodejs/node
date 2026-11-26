@@ -9,7 +9,38 @@ macros:
   # to system-specific ones.
   - macro_name: MS_RDONLY
     macro_header: sys-mount-macros.h
+  - macro_name: MNT_FORCE
+    macro_header: sys-mount-macros.h
+  - macro_name: MNT_DETACH
+    macro_header: sys-mount-macros.h
+  - macro_name: MNT_EXPIRE
+    macro_header: sys-mount-macros.h
+  - macro_name: UMOUNT_NOFOLLOW
+    macro_header: sys-mount-macros.h
 types: []
 enums: []
 objects: []
-functions: []
+functions:
+  - name: mount
+    standards:
+      - linux
+    return_type: int
+    arguments:
+      - type: const char *
+      - type: const char *
+      - type: const char *
+      - type: unsigned long
+      - type: const void *
+  - name: umount
+    standards:
+      - linux
+    return_type: int
+    arguments:
+      - type: const char *
+  - name: umount2
+    standards:
+      - linux
+    return_type: int
+    arguments:
+      - type: const char *
+      - type: int

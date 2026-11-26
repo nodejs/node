@@ -15,6 +15,7 @@
 #define LLVM_LIBC_SHARED_MATH_STATIC_ROUNDING_EXPF_H
 
 #include "shared/libc_common.h"
+#include "src/__support/macros/config.h"
 #include "src/__support/math/expf_integer_eval.h"
 
 namespace LIBC_NAMESPACE_DECL {

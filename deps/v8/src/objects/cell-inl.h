@@ -51,8 +51,19 @@ Tagged<Object> Cell::value(RelaxedLoadTag) const {
   return v.GetHeapObjectOrSmi();
 }
 
+Tagged<Object> Cell::value(AcquireLoadTag) const {
+  Tagged<MaybeObject> v = maybe_value_.Acquire_Load();
+  DCHECK(v.IsObject());
+  return v.GetHeapObjectOrSmi();
+}
+
 void Cell::set_value(Tagged<Object> value, WriteBarrierMode mode) {
   set_maybe_value(value, mode);
+}
+
+void Cell::set_value(Tagged<Object> value, ReleaseStoreTag,
+                     WriteBarrierMode mode) {
+  maybe_value_.Release_Store(this, value, mode);
 }
 
 }  // namespace internal

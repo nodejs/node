@@ -9,6 +9,7 @@ from typing import cast
 
 from .helpers.args import check_args
 from .helpers.args import check_args_mismatch
+from .helpers.args import check_param_names
 from .helpers.args import check_frame_relative_inspect
 from .helpers.backtrace import check_backtrace
 from .helpers.corruptions import check_corruption
@@ -162,6 +163,16 @@ class GdbArgsCoreTest(unittest.TestCase):
     )
     with session:
       check_args_mismatch(session)
+
+  def test_param_names(self):
+    """Checks that captured parameters are labeled with their names."""
+    session = GdbSession(
+        _CONFIG,
+        target_binary=_CONFIG.d8_binary,
+        core_path=os.path.join(_CORE_DIR, "captured-args.core"),
+    )
+    with session:
+      check_param_names(session)
 
 
 class GdbCorruptedMapCoreTest(unittest.TestCase):

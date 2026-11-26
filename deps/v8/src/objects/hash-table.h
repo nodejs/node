@@ -180,7 +180,8 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
   inline InternalIndex FindEntry(IsolateT* isolate, Key key);
 
   // Rehashes the table in-place.
-  void Rehash();
+  template <typename IsolateT>
+  void Rehash(IsolateT* isolate);
 
   // Returns whether k is a real key.  The hole and undefined are not allowed as
   // keys and can be used to indicate missing or deleted elements.
@@ -214,8 +215,8 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
   // Don't shrink a HashTable below this capacity.
   static const int kMinShrinkCapacity = 16;
 
-  // Pretenure hashtables above this capacity.
-  static const int kMinCapacityForPretenure = 256;
+  // Keep already-old hashtables in old space when growing above this capacity.
+  static const int kMinCapacityForOldGrowth = 256;
 
   static const int kMaxRegularCapacity = kMaxRegularHeapObjectSize / 32;
 
@@ -285,10 +286,14 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
       Isolate* isolate, HandleType<Derived> table, int additionalCapacity = 0);
 
   // Rehashes this hash-table into the new table.
-  void Rehash(Tagged<Derived> new_table);
+  template <typename IsolateT>
+  void Rehash(IsolateT* isolate, Tagged<Derived> new_table);
 
-  inline void set_key(int index, Tagged<Object> value);
-  inline void set_key(int index, Tagged<Object> value, WriteBarrierMode mode);
+  template <typename IsolateT>
+  inline void set_key(IsolateT* isolate, int index, Tagged<Object> value);
+  template <typename IsolateT>
+  inline void set_key(IsolateT* isolate, int index, Tagged<Object> value,
+                      WriteBarrierMode mode);
 
  private:
   // Ensure that kMaxRegularCapacity yields a non-large object dictionary.
@@ -310,12 +315,19 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
   InternalIndex EntryForProbe(ReadOnlyRoots roots, Tagged<Object> k, int probe,
                               InternalIndex expected);
 
-  void Swap(InternalIndex entry1, InternalIndex entry2, WriteBarrierMode mode);
+  template <typename IsolateT>
+  void Swap(IsolateT* isolate, InternalIndex entry1, InternalIndex entry2,
+            WriteBarrierMode mode);
 } V8_OBJECT_END;
 
 #define EXTERN_DECLARE_HASH_TABLE(DERIVED, SHAPE)                             \
   extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)            \
       HashTable<class DERIVED, SHAPE>;                                        \
+                                                                              \
+  extern template EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) void             \
+  HashTable<DERIVED, SHAPE>::Rehash(Isolate*);                                \
+  extern template EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) void             \
+  HashTable<DERIVED, SHAPE>::Rehash(LocalIsolate*);                           \
                                                                               \
   extern template EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)                  \
       MaybeHandle<DERIVED>                                                    \
@@ -452,7 +464,8 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) ObjectHashTableBase
   }
 
  protected:
-  void AddEntry(InternalIndex entry, Tagged<Object> key, Tagged<Object> value);
+  void AddEntry(Isolate* isolate, InternalIndex entry, Tagged<Object> key,
+                Tagged<Object> value);
   void RemoveEntry(InternalIndex entry);
 };
 
@@ -494,8 +507,11 @@ V8_OBJECT class V8_EXPORT_PRIVATE EphemeronHashTable
   friend class ScavengerEphemeronProcessor;
   friend class HashTable<EphemeronHashTable, EphemeronHashTableShape>;
   friend class ObjectHashTableBase<EphemeronHashTable, EphemeronHashTableShape>;
-  inline void set_key(int index, Tagged<Object> value);
-  inline void set_key(int index, Tagged<Object> value, WriteBarrierMode mode);
+  template <typename IsolateT>
+  inline void set_key(IsolateT* isolate, int index, Tagged<Object> value);
+  template <typename IsolateT>
+  inline void set_key(IsolateT* isolate, int index, Tagged<Object> value,
+                      WriteBarrierMode mode);
 } V8_OBJECT_END;
 
 // ObjectMultihashTable is a hash table that maps Object keys to N Object
@@ -593,10 +609,6 @@ V8_OBJECT class V8_EXPORT_PRIVATE NameToIndexHashTable
                                           Handle<NameToIndexHashTable> table,
                                           DirectHandle<Name> key,
                                           int32_t value);
-
-  // Exposed for NameDictionaryLookupForwardedString slow path for forwarded
-  // strings.
-  using HashTable<NameToIndexHashTable, NameToIndexShape>::FindInsertionEntry;
 
   DECL_PRINTER(NameToIndexHashTable)
 

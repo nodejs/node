@@ -9,6 +9,7 @@
 #include "include/v8-cppgc.h"
 #include "src/base/macros.h"
 #include "src/heap/cppgc-internal/marking-visitor.h"
+#include "src/heap/cppgc-js/cpp-heap.h"
 #include "src/heap/cppgc-js/unified-heap-marking-state.h"
 
 namespace cppgc {

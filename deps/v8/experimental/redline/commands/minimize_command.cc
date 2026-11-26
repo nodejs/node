@@ -20,6 +20,9 @@
 #include "experimental/redline/commands/command.h"
 #include "experimental/redline/core/component.h"
 #include "experimental/redline/core/program.h"
+#include "experimental/redline/core/tunable.h"
+#include "experimental/redline/engine/config.h"
+#include "experimental/redline/engine/crash.h"
 #include "experimental/redline/engine/prelude.h"
 #include "experimental/redline/exec/runner.h"
 #include "experimental/redline/exec/target_options.h"
@@ -44,16 +47,24 @@ const char kUsage[] =
     "                      of the baseline programs reach count (this is what\n"
     "                      the fuzzer preserves: the edges new w.r.t. the\n"
     "                      parent)\n"
-    "  --oracle=crash      the program must still crash\n"
+    "  --oracle=crash      the program must still crash with the signature\n"
+    "                      of its first run (see --any-crash)\n"
     "  --oracle=fail       the program must still fail (uncaught exception)\n"
     "  --oracle=output     stdout of the program must stay identical\n"
     "\n"
     "options:\n"
+    "  --any-crash         the crash oracle accepts a crash with any "
+    "signature\n"
     "  --baseline=FILE,... programs whose edges are subtracted (edges oracle)\n"
     "  --reducer=NAME,...  run only these reducers, in this order (see "
     "--list)\n"
     "  --max-tests=N       oracle executions (default 300)\n"
     "  --max-time-ms=N     wall-clock bound (default 30000)\n"
+    "  --target-time-ms=N  adaptive slow-program budget in ms (default 1500,\n"
+    "                      0 for crash oracle or to disable)\n"
+    "  --expressions-share=X  budget share for expressions (default 0.15,\n"
+    "                         1 for crash or standalone expressions)\n"
+    "  --tunable=NAME=V,.  set minimizer tunables\n"
     "  --reruns=N          re-runs to settle the edge set (default 2)\n"
     "  --probe-timeout-ms=N  timeout for the reduced candidates (default:\n"
     "                      5x the program's run time + 20 ms, at least 50 ms;\n"
@@ -94,8 +105,9 @@ int Run(const Flags& flags) {
     return kExitFailure;
   }
 
+  const std::vector<std::string> requested_reducers = flags.GetList("reducer");
   std::vector<Reducer*> reducers;
-  for (const std::string& name : flags.GetList("reducer")) {
+  for (const std::string& name : requested_reducers) {
     Reducer* reducer = minimizer.Find(name);
     if (reducer == nullptr) {
       REDLINE_ERROR(kLog, "unknown reducer '%s' (see --list)", name.c_str());
@@ -108,15 +120,40 @@ int Run(const Flags& flags) {
       reducers.push_back(reducer.get());
     }
   }
-  MinimizerOptions options;
-  options.max_tests =
-      static_cast<int>(flags.GetInt("max-tests", options.max_tests));
-  options.max_time_ms = static_cast<uint64_t>(
-      flags.GetInt("max-time-ms", static_cast<int64_t>(options.max_time_ms)));
-  Minimizer configured(options);
-  // Use the reducers of `minimizer` (which carry the stats) with the
-  // configured budget.
+  if (flags.Has("tunable") && !TunableRegistry::Instance().SetFromList(
+                                  flags.GetString("tunable"), &error)) {
+    REDLINE_ERROR(kLog, "%s", error.c_str());
+    return kExitUsage;
+  }
   std::string oracle_name = flags.GetString("oracle", "edges");
+  MinimizerOptions options;
+  if (oracle_name == "crash") {
+    // Keep crash minimization uncapped by adaptive scaling and early stopping.
+    options.target_time_ms = 0;
+    options.expressions_share = 1.0;
+  } else {
+    options = FuzzConfig().minimizer;
+    if (requested_reducers.size() == 1 &&
+        requested_reducers[0] == "expressions") {
+      // Keep standalone `expressions` runs uncapped unless configured.
+      options.expressions_share = 1.0;
+    }
+  }
+  options.max_tests = static_cast<int>(
+      std::max<int64_t>(0, flags.GetInt("max-tests", options.max_tests)));
+  options.max_time_ms = static_cast<uint64_t>(std::max<int64_t>(
+      0,
+      flags.GetInt("max-time-ms", static_cast<int64_t>(options.max_time_ms))));
+  if (flags.Has("target-time-ms")) {
+    options.target_time_ms = static_cast<uint64_t>(std::max<int64_t>(
+        0, flags.GetInt("target-time-ms",
+                        static_cast<int64_t>(options.target_time_ms))));
+  }
+  if (flags.Has("expressions-share")) {
+    options.expressions_share = std::clamp(
+        flags.GetDouble("expressions-share", options.expressions_share), 0.0,
+        1.0);
+  }
   std::string prelude;
   std::string prelude_flag = flags.GetString("prelude");
   if (prelude_flag.empty()) {
@@ -126,6 +163,12 @@ int Run(const Flags& flags) {
     REDLINE_ERROR(kLog, "%s", error.c_str());
     return kExitFailure;
   }
+  // With the tunable `prelude.on_demand`, a candidate gets the same part of
+  // the prelude as in a session. The command runs the printed program. The
+  // printed runtime of an instrumented program is not the text of a helper,
+  // so the fallback rules apply to this runtime here.
+  const std::unique_ptr<OnDemandPrelude> on_demand =
+      MakeOnDemandPrelude(prelude);
 
   if (!InitializeV8(flags.GetString(
                         "v8-flags",
@@ -148,8 +191,7 @@ int Run(const Flags& flags) {
   }
   auto execute = [&](const std::string& candidate, Execution* execution,
                      uint64_t timeout_us) {
-    std::string script =
-        prelude.empty() ? candidate : prelude + "\n" + candidate;
+    std::string script = ScriptWithPrelude(prelude, on_demand.get(), candidate);
     std::string exec_error;
     if (!runner->RunWithoutEvaluation(script, timeout_us, execution,
                                       &exec_error)) {
@@ -262,10 +304,23 @@ int Run(const Flags& flags) {
                     first.exit_code);
       return kExitFailure;
     }
-    oracle = [&](const std::string& candidate) {
+    // Like the crash minimizer of a session, keep the signature, so that
+    // the reduction cannot move to a different bug. --any-crash accepts
+    // every crash.
+    const bool any_crash = flags.GetBool("any-crash", false);
+    const CrashSignature signature = CrashSignature::FromExecution(first);
+    if (any_crash) {
+      REDLINE_LOG(kLog, "preserving a crash with any signature");
+    } else {
+      REDLINE_LOG(kLog, "preserving the crash signature `%s`",
+                  signature.text.c_str());
+    }
+    oracle = [&, any_crash, signature](const std::string& candidate) {
       Execution execution;
       return execute(candidate, &execution, probe_timeout_us) &&
-             execution.crashed();
+             execution.crashed() &&
+             (any_crash ||
+              CrashSignature::FromExecution(execution) == signature);
     };
   } else if (oracle_name == "fail") {
     if (first.outcome != Outcome::kFailed) {
@@ -300,7 +355,8 @@ int Run(const Flags& flags) {
 
   std::unique_ptr<fast::Tree> tree = program->CopyTree();
   MinimizationResult result =
-      configured.MinimizeWith(reducers, tree.get(), oracle, &checker);
+      minimizer.MinimizeWith(reducers, tree.get(), oracle, &checker,
+                             options.ForProgram(first.exec_time_us));
   std::string minimized = fast::Print(tree->root());
 
   // Verify the result once more (a few attempts: the target is not fully

@@ -1,0 +1,27 @@
+Checks that mirroring an arguments object with an accessor "length" does not run user-defined getters on Object.prototype
+
+Running test: testReplayOnEnable
+{
+    className : Arguments
+    description : Arguments
+    type : object
+}
+{
+    className : Arguments
+    description : Arguments(3)
+    type : object
+}
+getterCalls: 0
+
+Running test: testEvaluate
+{
+    className : Arguments
+    description : Arguments
+    type : object
+}
+{
+    className : Arguments
+    description : Arguments(3)
+    type : object
+}
+getterCalls: 0

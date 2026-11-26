@@ -156,14 +156,18 @@ bool RawLoggingFullySupported();
 // Function type for a raw_log customization hook for suppressing messages
 // by severity, and for writing custom prefixes on non-suppressed messages.
 //
-// The installed hook is called for every raw log invocation.  The message will
-// be logged to stderr only if the hook returns true.  FATAL errors will cause
-// the process to abort, even if writing to stderr is suppressed.  The hook is
-// also provided with an output buffer, where it can write a custom log message
-// prefix.
+// The installed hook is called for every raw log invocation when logging is
+// enabled (for example, it is skipped when low-level stderr writes are
+// unsupported or when the message is suppressed by ABSL_MIN_LOG_LEVEL).  The
+// message will be logged to stderr only if the hook returns true.  FATAL
+// errors will cause the process to abort, even if writing to stderr is
+// suppressed.  The hook is also provided with an output buffer, where it can
+// write a custom log message prefix.
 //
 // The raw_log system does not allocate memory or grab locks.  User-provided
-// hooks must avoid these operations, and must not throw exceptions.
+// hooks must avoid these operations, must not throw exceptions, and must not
+// have side effects other than writing to 'buf' (and updating '*buf' and
+// '*buf_size').
 //
 // 'severity' is the severity level of the message being written.
 // 'file' and 'line' are the file and line number where the ABSL_RAW_LOG macro

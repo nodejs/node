@@ -1,0 +1,6 @@
+Tests block scopes in closures.
+Scope chain types: ["local","block","closure","global"]
+Scope 0 (local): {}
+Scope 1 (block): {"z":4}
+Scope 2 (closure): {"a":1,"x":2,"y":3}
+Scope 3 (global) marker matches: true

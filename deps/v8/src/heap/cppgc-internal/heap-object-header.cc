@@ -44,6 +44,18 @@ HeapObjectName HeapObjectHeader::GetName() const {
 
 HeapObjectName HeapObjectHeader::GetName(
     HeapObjectNameForUnnamedObject heap_object_name) const {
+  if (IsInConstruction()) {
+    // Objects in construction may not have an initialized vtable or member
+    // fields yet, so calling `NameProvider::GetHumanReadableName()` via
+    // `gc_info.name` below is unsafe.
+    static constexpr const char kNonHiddenInConstructionName[] =
+        "InConstructionObject";
+    const bool use_hidden_name =
+        heap_object_name == HeapObjectNameForUnnamedObject::kUseHiddenName;
+    return {use_hidden_name ? NameProvider::kHiddenName
+                            : kNonHiddenInConstructionName,
+            use_hidden_name};
+  }
   const GCInfo& gc_info = GlobalGCInfoTable::GCInfoFromIndex(GetGCInfoIndex());
   return gc_info.name(ObjectStart(), heap_object_name);
 }

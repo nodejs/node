@@ -50,8 +50,33 @@ class CodeGen {
   fast::Expression* Expression(int depth = 0);
   fast::Expression* ObjectLiteral(int depth = 0);
   fast::Expression* ArrayLiteral(int depth = 0);
-  // A function or arrow expression with a generated body.
-  fast::Expression* FunctionValue(int depth = 0);
+  // A function or arrow expression with a generated body. If
+  // `parameter_types` is not null, the parameters get types (see
+  // Parameters()), and their types go to `parameter_types`.
+  fast::Expression* FunctionValue(
+      int depth = 0, std::vector<JsType>* parameter_types = nullptr);
+  // `count` parameters for a function whose body uses `nested`. Declares
+  // each fresh name in `nested`. The last parameter can be a rest parameter
+  // (an array), and the others can have a default value that uses the
+  // earlier parameters. Appends the names to `names` if it is not null.
+  // If `types` is not null, each parameter gets a type from
+  // ParameterTypes(), the body sees the parameter with this type, and the
+  // types go to `types`.
+  std::vector<fast::Expression*> Parameters(
+      GenContext& nested, int count, std::string_view prefix = "a",
+      std::vector<std::string_view>* names = nullptr,
+      std::vector<JsType>* types = nullptr);
+  // Types for the `count` parameters of a new function: types that enough
+  // visible variables have, so that calls can pass these variables.
+  std::vector<JsType> ParameterTypes(int count);
+  // Arguments for parameters of the given types: most arguments have the
+  // type of their parameter, the others have any type.
+  std::vector<fast::Expression*> ArgumentsFor(const std::vector<JsType>& types);
+  // True if a function with `params` can have a "use strict" directive:
+  // no default, rest or pattern parameter.
+  static bool SimpleParameters(const std::vector<fast::Expression*>& params);
+  // A "use strict" directive for the start of a function body.
+  fast::Statement* UseStrict();
   // Something callable: a function variable, a builtin function or a new
   // arrow function.
   fast::Expression* Callable();
@@ -70,9 +95,38 @@ class CodeGen {
   std::vector<fast::Expression*> Arguments(const BuiltinFunction& function);
   std::vector<fast::Expression*> Arguments(int min_args, int max_args);
 
+  // --- typed builtin arguments (Fuzzilli: findOrGenerateArguments and
+  // generateTypeInternal, ProgramBuilder.swift:709-1084) ----------------------
+
+  // A value for one typed parameter: a visible variable of the kind, or a
+  // new value of the kind. A new value can be an enum string, an options
+  // bag, or an instance that its typed constructor makes.
+  fast::Expression* ArgumentFor(const ArgSpec& spec, int depth = 1);
+  // Values for a typed parameter list. The list can stop at an optional
+  // parameter, and a rest parameter takes 0 to 2 values.
+  std::vector<fast::Expression*> ArgumentsFor(std::span<const ArgSpec> params,
+                                              int depth = 1);
+  // A new object of a builtin type of the model (`new DataView(buf)`,
+  // `Temporal.PlainDate.from(...)`, `[].values()`), or nullptr.
+  fast::Expression* Instance(JsType type, int depth = 1,
+                             std::string_view hint = {});
+  // `Name`, or `A.B` for a dotted global of the model (`Temporal.PlainDate`).
+  fast::Expression* GlobalPath(std::string_view path);
+  // A visible variable whose type has methods of its own in the model (not
+  // a plain object or function), or nullptr.
+  fast::Identifier* TypedReceiver();
+
   // Builtin calls.
   fast::Expression* BuiltinCall();  // Math.max(..) etc.
   fast::Expression* MethodCall(fast::Expression* object, JsType type);
+  // `object.name(args)`. Sometimes the callee is `object["name"]`, and
+  // sometimes the call appends a spread of an array to the arguments.
+  fast::CallExpression* CallMethod(fast::Expression* object,
+                                   std::string_view name,
+                                   std::vector<fast::Expression*> args);
+  // A call of a method that returns a boolean, on a visible variable of a
+  // type that has such methods (s.startsWith(x), re.test(s)), or nullptr.
+  fast::Expression* BooleanMethodCall();
   fast::Expression* Construct(JsType type = JsType::kUnknown);  // new X(..)
 
   // Operators.
@@ -97,9 +151,15 @@ class CodeGen {
   void DeclareMaybeGuarded(std::vector<fast::Statement*>* out,
                            fast::Expression* init, JsType type,
                            std::string_view prefix, double guard_probability);
+  // `var/let/const x = init;` with a name x of a small shared pool, or in
+  // sloppy code `x = init;` for a new global (Fuzzilli's
+  // NamedVariableGenerator). Registers x. nullptr if no such statement is
+  // valid here.
+  fast::Statement* SharedNameStatement(fast::Expression* init, JsType type);
   // Statements for a nested body (function/loop), via the generator set.
   std::vector<fast::Statement*> Body(GenContext& nested, int count);
-  // A call of `callee` with random arguments.
+  // A call of `callee` with random arguments. If `callee` names a function
+  // with known parameter types (Builder::InfoOf), the arguments follow them.
   fast::CallExpression* CallWithArguments(fast::Expression* callee,
                                           int max_args = 3);
   // Wraps an expression in a statement.
@@ -113,7 +173,36 @@ class CodeGen {
   static fast::AssignOp RandomCompoundAssignOp(Random& rng);
   static fast::LogicalOp RandomLogicalOp(Random& rng);
 
+  // Valid-by-construction regular expression helpers shared with mutators.
+  static std::string RandomRegExpFlags(Random& rng);
+  static std::string RandomRegExpPattern(Random& rng, bool unicode, bool sets);
+  // A short pattern piece without capturing groups or backreferences, safe to
+  // combine with an existing pattern of the same `unicode` and `sets` mode.
+  static std::string RandomRegExpPiece(Random& rng, bool unicode, bool sets);
+
  private:
+  struct ExprDepthGuard {
+    explicit ExprDepthGuard(GenContext& c) : depth(c.expr_depth) { ++depth; }
+    ~ExprDepthGuard() { --depth; }
+    int& depth;
+  };
+  bool TooDeep() const;
+  fast::Expression* Leaf(JsType type);
+
+  // Shared names of Declare(). This function returns a name of the shared
+  // pool for a declaration of `kind` with `init` at this position. It
+  // returns an empty name if such a declaration can be a SyntaxError. It
+  // also does so if the declaration can put a reference into a TDZ.
+  std::string_view SharedName(fast::VariableKind kind,
+                              const fast::Expression* init);
+  // True if no variable of this mutation and no statement of this block
+  // uses `name`. With `hoists` (a `var`), the statements of the tree block
+  // count even inside nested generated code.
+  bool NameIsFreeHere(std::string_view name, bool hoists);
+  // True if `x = v;` with this name creates a global property: no binding
+  // of the name is in scope, and no scope is dynamic.
+  bool ImplicitGlobalAllowed(std::string_view name);
+
   GenContext& ctx_;
 };
 

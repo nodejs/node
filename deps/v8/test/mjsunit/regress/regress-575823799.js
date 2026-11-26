@@ -15,7 +15,6 @@ const v6 = f2();
 function f7(a8) {
   a8.f = 0;
   for (const v9 in a8) {
-      print("got " + v9);
       delete a8.a;
       gc();
   }

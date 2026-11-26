@@ -31,6 +31,7 @@
 #include "absl/base/macros.h"
 #include "absl/base/no_destructor.h"
 #include "absl/base/optimization.h"
+#include "absl/container/internal/container_memory.h"
 #include "absl/debugging/stacktrace.h"
 #include "absl/memory/memory.h"
 #include "absl/profiling/internal/exponential_biased.h"
@@ -58,6 +59,30 @@ ABSL_PER_THREAD_TLS_KEYWORD absl::profiling_internal::ExponentialBiased
 void TriggerHashtablezConfigListener() {
   auto* listener = g_hashtablez_config_listener.load(std::memory_order_acquire);
   if (listener != nullptr) listener();
+}
+
+// Sampled SOO tables allocate a `NextCapacity(soo_capacity)` (3-slot) backing
+// array on the heap to store `HashtablezInfoHandle`, while reporting
+// `capacity == soo_capacity` until grown or reserved past `soo_capacity`.
+constexpr size_t SampledSooAllocatedCapacity(size_t soo_capacity) {
+  return 2 * soo_capacity + 1;
+}
+
+// Returns true when `info` represents a sampled SOO table that is still
+// reporting `soo_capacity`. `PrepareForSampling` initializes `capacity` to 0,
+// and the initial `RecordStorageChangedSlow` call clamps the 3-slot heap
+// capacity to `soo_capacity` so this becomes true until `LeaveSooCapacity`.
+bool IsReportingSooCapacity(const HashtablezInfo* info) {
+  return info->soo_capacity > 0 &&
+         info->capacity.load(std::memory_order_relaxed) == info->soo_capacity;
+}
+
+// Transitions `info` from reporting `soo_capacity` to reporting its actual
+// 3-slot heap capacity and records the logical SOO-to-heap growth rehash.
+void LeaveSooCapacity(HashtablezInfo* info) {
+  info->capacity.store(SampledSooAllocatedCapacity(info->soo_capacity),
+                       std::memory_order_relaxed);
+  RecordRehashSlow(info, /*total_probe_length=*/0);
 }
 
 }  // namespace
@@ -124,12 +149,11 @@ static bool ShouldForceSampling() {
 }
 
 #if defined(ABSL_INTERNAL_HASHTABLEZ_SAMPLE)
-HashtablezInfoHandle ForcedTrySample(size_t inline_element_size,
-                                     size_t key_size, size_t value_size,
-                                     uint16_t soo_capacity) {
-  return HashtablezInfoHandle(SampleSlow(global_next_sample,
-                                         inline_element_size, key_size,
-                                         value_size, soo_capacity));
+HashtablezInfoHandle ForcedTrySample(const HashtableTypeInfo& info) {
+  if (!info.is_hashtablez_enabled) return HashtablezInfoHandle(nullptr);
+  return HashtablezInfoHandle(
+      SampleSlow(global_next_sample, info.slot_size, info.key_size,
+                 info.value_size, info.soo_capacity()));
 }
 void TestOnlyRefreshSamplingStateForCurrentThread() {
   global_next_sample.next_sample =
@@ -137,7 +161,7 @@ void TestOnlyRefreshSamplingStateForCurrentThread() {
   global_next_sample.sample_stride = global_next_sample.next_sample;
 }
 #else
-HashtablezInfoHandle ForcedTrySample(size_t, size_t, size_t, uint16_t) {
+HashtablezInfoHandle ForcedTrySample(const HashtableTypeInfo&) {
   return HashtablezInfoHandle{nullptr};
 }
 void TestOnlyRefreshSamplingStateForCurrentThread() {}
@@ -195,6 +219,7 @@ void UnsampleSlow(HashtablezInfo* info) {
 }
 
 void RecordRehashSlow(HashtablezInfo* info, size_t total_probe_length) {
+  if (IsReportingSooCapacity(info)) return;
 #ifdef ABSL_INTERNAL_HAVE_SSE2
   total_probe_length /= 16;
 #else
@@ -210,6 +235,10 @@ void RecordRehashSlow(HashtablezInfo* info, size_t total_probe_length) {
 }
 
 void RecordReservationSlow(HashtablezInfo* info, size_t target_capacity) {
+  if (target_capacity <= info->soo_capacity) return;
+  if (IsReportingSooCapacity(info)) {
+    LeaveSooCapacity(info);
+  }
   info->max_reserve.store(
       (std::max)(info->max_reserve.load(std::memory_order_relaxed),
                  target_capacity),
@@ -222,6 +251,11 @@ void RecordClearedReservationSlow(HashtablezInfo* info) {
 
 void RecordStorageChangedSlow(HashtablezInfo* info, size_t size,
                               size_t capacity) {
+  if (info->soo_capacity > 0 && size <= info->soo_capacity &&
+      capacity == SampledSooAllocatedCapacity(info->soo_capacity) &&
+      info->capacity.load(std::memory_order_relaxed) <= info->soo_capacity) {
+    capacity = info->soo_capacity;
+  }
   info->size.store(size, std::memory_order_relaxed);
   info->capacity.store(capacity, std::memory_order_relaxed);
   if (size == 0) {
@@ -233,6 +267,10 @@ void RecordStorageChangedSlow(HashtablezInfo* info, size_t size,
 
 void RecordInsertMissSlow(HashtablezInfo* info, size_t hash,
                           size_t distance_from_desired) {
+  if (IsReportingSooCapacity(info) &&
+      info->size.load(std::memory_order_relaxed) >= info->soo_capacity) {
+    LeaveSooCapacity(info);
+  }
   // SwissTables probe in groups of 16, so scale this to count items probes and
   // not offset from desired.
   size_t probe_length = distance_from_desired;

@@ -58,6 +58,11 @@ Gerrit Change List (CL).
 
 - **Local Build/Test**: Instruct the subagent to verify that the fix compiles
   locally and the reproduced failure is now resolved.
+- **Documentation Sync (`docs/`)**: Check whether the fix or refactoring on the
+  CL renames classes/methods, changes pipeline passes, flags, or invariants, or
+  otherwise invalidates documentation in `docs/`, and update the relevant `.md`
+  files if so (keep `docs/security/triaging.md` unchanged unless explicitly
+  requested).
 - **Upload**: Once verified locally, follow `agents/rules/git-cl.md` and the
   `git-cl-helper` skill to upload the new patchset
   (`SKIP_GCE_AUTH_FOR_GIT=1 GIT_EDITOR=true git cl upload -t "<what you changed>"`),

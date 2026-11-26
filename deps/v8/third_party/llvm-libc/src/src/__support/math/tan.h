@@ -10,23 +10,24 @@
 #define LLVM_LIBC_SRC___SUPPORT_MATH_TAN_H
 
 #include "hdr/errno_macros.h"
-#include "range_reduction_double_common.h"
 #include "src/__support/FPUtil/FEnvImpl.h"
 #include "src/__support/FPUtil/FPBits.h"
-#include "src/__support/FPUtil/PolyEval.h"
 #include "src/__support/FPUtil/double_double.h"
 #include "src/__support/FPUtil/dyadic_float.h"
 #include "src/__support/FPUtil/except_value_utils.h"
 #include "src/__support/FPUtil/multiply_add.h"
+#include "src/__support/FPUtil/polyeval.h"
 #include "src/__support/FPUtil/rounding_mode.h"
+#include "src/__support/macros/attributes.h"
 #include "src/__support/macros/config.h"
 #include "src/__support/macros/optimization.h"            // LIBC_UNLIKELY
 #include "src/__support/macros/properties/cpu_features.h" // LIBC_TARGET_CPU_HAS_FMA
+#include "src/__support/math/range_reduction_double_common.h"
 
 #ifdef LIBC_TARGET_CPU_HAS_FMA_DOUBLE
-#include "range_reduction_double_fma.h"
+#include "src/__support/math/range_reduction_double_fma.h"
 #else
-#include "range_reduction_double_nofma.h"
+#include "src/__support/math/range_reduction_double_nofma.h"
 #endif // LIBC_TARGET_CPU_HAS_FMA_DOUBLE
 
 namespace LIBC_NAMESPACE_DECL {
@@ -75,34 +76,30 @@ LIBC_INLINE double tan_eval(const DoubleDouble &u, DoubleDouble &result) {
 }
 
 #ifndef LIBC_MATH_HAS_SKIP_ACCURATE_PASS
+// tan(x) ~ x + x^3/3 + x^5 * 2/15 + x^7 * 17/315 + x^9 * 62/2835 +
+//          + x^11 * 1382/155925 + x^13 * 21844/6081075 +
+//          + x^15 * 929569/638512875 + x^17 * 6404582/10854718875
+// Relative errors < 2^-127 for |u| < pi/256.
+LIBC_INLINE_VAR constexpr DFloat128 TAN_COEFFS[9] = {
+    {Sign::POS, -127, 0x80000000'00000000'00000000'00000000_u128}, // 1
+    {Sign::POS, -129, 0xaaaaaaaa'aaaaaaaa'aaaaaaaa'aaaaaaab_u128}, // 1
+    {Sign::POS, -130, 0x88888888'88888888'88888888'88888889_u128}, // 2/15
+    {Sign::POS, -132, 0xdd0dd0dd'0dd0dd0d'd0dd0dd0'dd0dd0dd_u128}, // 17/315
+    {Sign::POS, -133, 0xb327a441'6087cf99'6b5dd24e'ec0b327a_u128}, // 62/2835
+    {Sign::POS, -134,
+     0x91371aaf'3611e47a'da8e1cba'7d900eca_u128}, // 1382/155925
+    {Sign::POS, -136,
+     0xeb69e870'abeefdaf'e606d2e4'd1e65fbc_u128}, // 21844/6081075
+    {Sign::POS, -137,
+     0xbed1b229'5baf15b5'0ec9af45'a2619971_u128}, // 929569/638512875
+    {Sign::POS, -138,
+     0x9aac1240'1b3a2291'1b2ac7e3'e4627d0a_u128}, // 6404582/10854718875
+};
+
 // Accurate evaluation of tan for small u.
 [[maybe_unused]] LIBC_INLINE DFloat128 tan_eval(const DFloat128 &u) {
   DFloat128 u_sq = fputil::quick_mul(u, u);
-
-  // tan(x) ~ x + x^3/3 + x^5 * 2/15 + x^7 * 17/315 + x^9 * 62/2835 +
-  //          + x^11 * 1382/155925 + x^13 * 21844/6081075 +
-  //          + x^15 * 929569/638512875 + x^17 * 6404582/10854718875
-  // Relative errors < 2^-127 for |u| < pi/256.
-  constexpr DFloat128 TAN_COEFFS[] = {
-      {Sign::POS, -127, 0x80000000'00000000'00000000'00000000_u128}, // 1
-      {Sign::POS, -129, 0xaaaaaaaa'aaaaaaaa'aaaaaaaa'aaaaaaab_u128}, // 1
-      {Sign::POS, -130, 0x88888888'88888888'88888888'88888889_u128}, // 2/15
-      {Sign::POS, -132, 0xdd0dd0dd'0dd0dd0d'd0dd0dd0'dd0dd0dd_u128}, // 17/315
-      {Sign::POS, -133, 0xb327a441'6087cf99'6b5dd24e'ec0b327a_u128}, // 62/2835
-      {Sign::POS, -134,
-       0x91371aaf'3611e47a'da8e1cba'7d900eca_u128}, // 1382/155925
-      {Sign::POS, -136,
-       0xeb69e870'abeefdaf'e606d2e4'd1e65fbc_u128}, // 21844/6081075
-      {Sign::POS, -137,
-       0xbed1b229'5baf15b5'0ec9af45'a2619971_u128}, // 929569/638512875
-      {Sign::POS, -138,
-       0x9aac1240'1b3a2291'1b2ac7e3'e4627d0a_u128}, // 6404582/10854718875
-  };
-
-  return fputil::quick_mul(
-      u, fputil::polyeval(u_sq, TAN_COEFFS[0], TAN_COEFFS[1], TAN_COEFFS[2],
-                          TAN_COEFFS[3], TAN_COEFFS[4], TAN_COEFFS[5],
-                          TAN_COEFFS[6], TAN_COEFFS[7], TAN_COEFFS[8]));
+  return fputil::quick_mul(u, fputil::loop_polyeval(u_sq, TAN_COEFFS));
 }
 
 // Calculation a / b = a * (1/b) for DFloat128.

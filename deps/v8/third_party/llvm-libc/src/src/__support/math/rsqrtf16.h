@@ -304,7 +304,7 @@ LIBC_INLINE constexpr float16 rsqrtf16(float16 x) {
   if (LIBC_UNLIKELY(half_mantissa == 0x011F)) {
     result = fputil::multiply_add(result, 0x1.0p-21f, result);
   } else if (LIBC_UNLIKELY(half_mantissa == 0x0313)) {
-    result = fputil::multiply_add(result, -0x1.0p-21f, result);
+    result = fputil::sub_multiply(result, result, 0x1.0p-21f);
   }
 
   return fputil::cast<float16>(result);

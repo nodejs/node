@@ -29,6 +29,8 @@ class MaglevRangeVerificationProcessor {
   }
 
  private:
+  void EmitRangeAssertion(ValueNode* node, Range range);
+
   MaglevReducer<MaglevRangeVerificationProcessor> reducer_;
   NodeRanges* ranges_;
 };

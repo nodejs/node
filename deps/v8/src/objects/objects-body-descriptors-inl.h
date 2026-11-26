@@ -23,7 +23,7 @@
 #include "src/objects/call-site-info.h"
 #include "src/objects/cell.h"
 #include "src/objects/data-handler.h"
-#include "src/objects/embedder-data-array-inl.h"
+#include "src/objects/embedder-data-slot-inl.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/fixed-primitive-array.h"
 #include "src/objects/foreign-inl.h"
@@ -677,7 +677,14 @@ class DescriptorArray::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
+#ifdef V8_ADD_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+    static_assert(offsetof(DescriptorArray, enum_cache_) + kTaggedSize ==
+                  offsetof(DescriptorArray, lookup_table_));
+    IteratePointers(obj, offsetof(DescriptorArray, enum_cache_),
+                    offsetof(DescriptorArray, lookup_table_) + kTaggedSize, v);
+#else
     IteratePointer(obj, offsetof(DescriptorArray, enum_cache_), v);
+#endif  // V8_ADD_DESCRIPTOR_ARRAY_LOOKUP_TABLE
     const int nof_all_descriptors =
         UncheckedCast<DescriptorArray>(obj)->number_of_all_descriptors();
     for (int i = 0; i < nof_all_descriptors; ++i) {
@@ -769,34 +776,19 @@ class JSFinalizationRegistry::BodyDescriptor final : public BodyDescriptorBase {
 
 class AllocationSite::BodyDescriptor final : public BodyDescriptorBase {
  public:
-  static constexpr int kCommonPointerFieldsStart = sizeof(HeapObject);
-  static constexpr int kCommonPointerFieldsEnd =
+  static constexpr int kStartOffset = sizeof(HeapObject);
+  static constexpr int kEndOffset =
       offsetof(AllocationSite, dependent_code_) + kTaggedSize;
-
-  static_assert(kCommonPointerFieldsEnd ==
-                offsetof(AllocationSite, pretenure_data_));
-  static_assert(offsetof(AllocationSite, pretenure_data_) + kInt32Size ==
-                offsetof(AllocationSite, pretenure_create_count_));
-  static_assert(offsetof(AllocationSite, pretenure_create_count_) +
-                    kInt32Size ==
-                offsetof(AllocationSiteWithWeakNext, weak_next_));
+  static_assert(kEndOffset == sizeof(AllocationSite));
 
   template <typename ObjectVisitor>
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
-    // Iterate over all the common pointer fields
-    IteratePointers(obj, kCommonPointerFieldsStart, kCommonPointerFieldsEnd, v);
-    // Skip PretenureDataOffset and PretenureCreateCount which are Int32 fields.
-    // Visit weak_next only if it has weak_next field.
-    if (object_size == sizeof(AllocationSiteWithWeakNext)) {
-      IterateCustomWeakPointers(
-          obj, offsetof(AllocationSiteWithWeakNext, weak_next_),
-          sizeof(AllocationSiteWithWeakNext), v);
-    }
+    IteratePointers(obj, kStartOffset, kEndOffset, v);
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
-    return map->instance_size();
+    return sizeof(AllocationSite);
   }
 };
 
@@ -1009,7 +1001,7 @@ class V8_EXPORT_PRIVATE SwissNameDictionary::BodyDescriptor final
     static_assert(MetaTablePointerOffset() + kTaggedSize ==
                   DataTableStartOffset());
     int start_offset = MetaTablePointerOffset();
-    int end_offset = table->DataTableEndOffset(table->Capacity());
+    int end_offset = SwissNameDictionary::DataTableEndOffset(table->Capacity());
     IteratePointers(obj, start_offset, end_offset, v);
   }
 
@@ -1685,7 +1677,7 @@ class ExternalString::BodyDescriptor final : public BodyDescriptorBase {
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
     Tagged<ExternalString> string = UncheckedCast<ExternalString>(obj);
-    v->VisitExternalPointer(obj, ExternalPointerSlot(&string->resource_));
+    v->VisitCppHeapPointer(obj, CppHeapPointerSlot(&string->resource_));
     if (string->is_uncached()) return;
     v->VisitExternalPointer(obj, ExternalPointerSlot(&string->resource_data_));
   }
@@ -1823,7 +1815,9 @@ class DataHandler::BodyDescriptor final : public BodyDescriptorBase {
 
 // Covers the non-NativeContext leaves (Block / Script / Function / ...),
 // whose slots are all strong. NativeContext has its own descriptor below
-// to cover the weak tail slots that only exist past MIN_CONTEXT_EXTENDED_SLOTS.
+// to cover the inlined EmbedderDataSlots (including their CppHeapPointer
+// fields) and the weak tail slots that only exist past
+// MIN_CONTEXT_EXTENDED_SLOTS.
 class Context::BodyDescriptor final
     : public SuffixRangeBodyDescriptor<OFFSET_OF_DATA_START(Context)> {
  public:
@@ -1840,6 +1834,15 @@ class NativeContext::BodyDescriptor final : public BodyDescriptorBase {
     // Strong fields start at elements[0]; length_ is a Smi before that and
     // doesn't need visitation.
     IteratePointers(obj, OFFSET_OF_DATA_START(Context),
+                    NativeContext::kEmbedderDataOffset, v);
+    for (int i = 0; i < V8_EMBEDDER_DATA_ARRAY_SIZE; ++i) {
+      int offset = NativeContext::GetEmbedderFieldOffset(i);
+      IteratePointer(obj, offset + EmbedderDataSlot::kTaggedPayloadOffset, v);
+      v->VisitCppHeapPointer(
+          obj, obj->RawCppHeapPointerField(
+                   offset + EmbedderDataSlot::kCppHeapPointerOffset));
+    }
+    IteratePointers(obj, NativeContext::kStartOfNativeContextFieldsOffset,
                     NativeContext::kEndOfStrongFieldsOffset, v);
     IterateCustomWeakPointers(obj, NativeContext::kStartOfWeakFieldsOffset,
                               NativeContext::kEndOfWeakFieldsOffset, v);
@@ -1890,26 +1893,6 @@ class CodeWrapper::BodyDescriptor final : public BodyDescriptorBase {
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> obj) {
     return sizeof(CodeWrapper);
-  }
-};
-
-class EmbedderDataArray::BodyDescriptor final : public BodyDescriptorBase {
- public:
-  template <typename ObjectVisitor>
-  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
-                                 int object_size, ObjectVisitor* v) {
-    static_assert(kEmbedderDataSlotSize == 2 * kTaggedSize);
-    for (int offset = EmbedderDataArray::OffsetOfElementAt(0);
-         offset < object_size; offset += kEmbedderDataSlotSize) {
-      IteratePointer(obj, offset + EmbedderDataSlot::kTaggedPayloadOffset, v);
-      v->VisitCppHeapPointer(
-          obj, obj->RawCppHeapPointerField(
-                   offset + EmbedderDataSlot::kCppHeapPointerOffset));
-    }
-  }
-
-  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
-    return object->SizeFromMap(map);
   }
 };
 

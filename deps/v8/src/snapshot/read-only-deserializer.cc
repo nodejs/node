@@ -156,9 +156,9 @@ class ReadOnlyHeapImageDeserializer final {
 ReadOnlyDeserializer::ReadOnlyDeserializer(Isolate* isolate,
                                            const SnapshotData* data,
                                            bool can_rehash)
-    : Deserializer(isolate, data->Payload(), /* trusted_payload */ {},
+    : Deserializer(isolate, data->UntrustedPayload(), data->TrustedPayload(),
                    data->GetMagicNumber(), /* deserializing_user_code */ false,
-                   can_rehash) {}
+                   can_rehash, SnapshotTrustLevel::kTrusted) {}
 
 void ReadOnlyDeserializer::DeserializeIntoIsolate() {
   base::ElapsedTimer timer;
@@ -210,7 +210,7 @@ class ObjectPostProcessor final {
     if (Builtins::kCodeObjectsAreInROSpace) {
       isolate_->builtins()->MarkInitialized();
     }
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
     std::vector<ReadOnlyArtifacts::ExternalPointerRegistryEntry> registry;
     registry.reserve(external_pointer_slots_.size());
     for (auto& slot : external_pointer_slots_) {
@@ -220,7 +220,7 @@ class ObjectPostProcessor final {
 
     isolate_->read_only_artifacts()->set_external_pointer_registry(
         std::move(registry));
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
   }
 #define POST_PROCESS_TYPE_LIST(V) \
   V(AccessorInfo)                 \
@@ -275,7 +275,7 @@ class ObjectPostProcessor final {
         GetAnyExternalReferenceAt(encoded.index, encoded.is_api_reference);
     ExternalPointerTag tag = static_cast<ExternalPointerTag>(encoded.tag);
     slot.init(isolate_, host, slot_value, tag);
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
     // Register these slots during deserialization s.t. later isolates (which
     // share the RO space we are currently deserializing) can properly
     // initialize their external pointer table RO space. Note that slot values
@@ -286,7 +286,7 @@ class ObjectPostProcessor final {
     // ExternalPointerSlot has a tag range, but here we need an exact tag.
     external_pointer_slots_.emplace_back(
         ExternalPointerSlot(slot.address(), tag));
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
   }
   void DecodeLazilyInitializedExternalPointerSlot(Tagged<HeapObject> host,
                                                   ExternalPointerSlot slot) {
@@ -304,7 +304,7 @@ class ObjectPostProcessor final {
     } else {
       ExternalPointerTag tag = static_cast<ExternalPointerTag>(encoded.tag);
       slot.init(isolate_, host, slot_value, tag);
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
       // Register these slots during deserialization s.t. later isolates (which
       // share the RO space we are currently deserializing) can properly
       // initialize their external pointer table RO space. Note that slot values
@@ -315,7 +315,7 @@ class ObjectPostProcessor final {
       // ExternalPointerSlot has a tag range, but here we need an exact tag.
       external_pointer_slots_.emplace_back(
           ExternalPointerSlot(slot.address(), tag));
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
     }
   }
   void PostProcessAccessorInfo(Tagged<AccessorInfo> o) {
@@ -426,9 +426,9 @@ class ObjectPostProcessor final {
   Tagged<Code> potential_ISX_code_;
 #endif
 
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
   std::vector<ExternalPointerSlot> external_pointer_slots_;
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
 };
 
 void ReadOnlyDeserializer::PostProcessNewObjects() {

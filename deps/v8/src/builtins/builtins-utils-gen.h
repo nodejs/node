@@ -52,9 +52,7 @@ class CodeAssemblerState;
   void Builtins::Generate_##Name(compiler::CodeAssemblerState* state) {     \
     Name##Assembler assembler(state);                                       \
     state->SetInitialDebugInformation(#Name, __FILE__, __LINE__);           \
-    if (Builtins::KindOf(Builtin::k##Name) == Builtins::TFJ) {              \
-      assembler.PerformStackCheck(assembler.GetJSContextParameter());       \
-    }                                                                       \
+    assembler.EmitBuiltinProlog(Builtin::k##Name);                          \
     assembler.Generate##Name##Impl();                                       \
   }                                                                         \
   void Name##Assembler::Generate##Name##Impl()

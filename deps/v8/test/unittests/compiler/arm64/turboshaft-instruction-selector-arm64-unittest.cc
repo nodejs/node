@@ -1788,13 +1788,13 @@ TEST_F(TurboshaftInstructionSelectorTest, ConditionalTraps) {
     OpIndex src = m.Parameter(0);
     OpIndex dst = m.Parameter(1);
     OpIndex size = m.Parameter(2);
-    OpIndex max_size = m.IntPtrConstant(16);
-    OpIndex limit = m.IntPtrConstant(4096);
+    constexpr int kMaxSize = 16;
+    constexpr int kLimit = 4096;
 
     m.TrapIfNot(m.Word32BitwiseAnd(
-                    m.Word32BitwiseAnd(m.UintPtrLessThanOrEqual(src, limit),
-                                       m.UintPtrLessThanOrEqual(dst, limit)),
-                    m.UintPtrLessThanOrEqual(size, max_size)),
+                    m.Word32BitwiseAnd(m.UintPtrLessThanOrEqual(src, kLimit),
+                                       m.UintPtrLessThanOrEqual(dst, kLimit)),
+                    m.UintPtrLessThanOrEqual(size, kMaxSize)),
                 TrapId::kTrapMemOutOfBounds);
     m.Return(m.Int32Constant(0));
     Stream s = m.Build();
@@ -1808,10 +1808,10 @@ TEST_F(TurboshaftInstructionSelectorTest, ConditionalTraps) {
     OpIndex mem_size = m.Parameter(0);
     OpIndex offset_limit = m.Parameter(1);
     OpIndex offset = m.Parameter(2);
-    OpIndex size = m.IntPtrConstant(100);
+    constexpr int kSize = 100;
     m.TrapIfNot(
         m.Word32BitwiseAnd(m.UintPtrLessThanOrEqual(offset, offset_limit),
-                           m.UintPtrLessThanOrEqual(size, mem_size)),
+                           m.UintPtrLessThanOrEqual(kSize, mem_size)),
         TrapId::kTrapMemOutOfBounds);
     m.Return(m.Int32Constant(0));
     Stream s = m.Build();
@@ -2568,7 +2568,7 @@ TEST_P(TurboshaftInstructionSelectorBranchIfOverflowTest,
   m.Bind(loop_header);
   OpIndex phi = m.PendingLoopPhi(v1, phi_repr);
   OpIndex binop = m.Emit(ovf_binop.op, v1, v2);
-  m.Branch(m.Word32Equal(m.Projection(binop, 1), m.Word32Constant(0)), b1, b2);
+  m.Branch(m.Word32Equal(m.Projection(binop, 1), 0), b1, b2);
   m.Bind(b2);
   m.Goto(loop_header);
   m.Bind(b1);
@@ -3397,6 +3397,221 @@ TEST_F(TurboshaftInstructionSelectorTest, I32x4DotI16x8S) {
   EXPECT_EQ(s.ToVreg(s[2]->InputAt(1)), s.ToVreg(s[1]->Output()));
 }
 
+TEST_F(TurboshaftInstructionSelectorTest, I32x4AddTwoDotI16x8S) {
+  StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128(),
+                  MachineType::Simd128(), MachineType::Simd128(),
+                  MachineType::Simd128());
+  V<Simd128> dot0 = m.I32x4DotI16x8S(m.Parameter(0), m.Parameter(1));
+  V<Simd128> dot1 = m.I32x4DotI16x8S(m.Parameter(2), m.Parameter(3));
+  m.Return(m.I32x4Add(dot0, dot1));
+  Stream s = m.Build();
+  ASSERT_EQ(5U, s.size());
+
+  EXPECT_EQ(kArm64Smull, s[0]->arch_opcode());
+  EXPECT_EQ(32, LaneSizeBits(LaneSizeField::decode(s[0]->opcode())));
+  EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(m.Parameter(1)), s.ToVreg(s[0]->InputAt(1)));
+
+  EXPECT_EQ(kArm64Smull2, s[1]->arch_opcode());
+  EXPECT_EQ(32, LaneSizeBits(LaneSizeField::decode(s[1]->opcode())));
+  EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[1]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(m.Parameter(1)), s.ToVreg(s[1]->InputAt(1)));
+
+  EXPECT_EQ(kArm64Smlal, s[2]->arch_opcode());
+  EXPECT_EQ(32, LaneSizeBits(LaneSizeField::decode(s[2]->opcode())));
+  EXPECT_EQ(s.ToVreg(s[0]->Output()), s.ToVreg(s[2]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(m.Parameter(2)), s.ToVreg(s[2]->InputAt(1)));
+  EXPECT_EQ(s.ToVreg(m.Parameter(3)), s.ToVreg(s[2]->InputAt(2)));
+
+  EXPECT_EQ(kArm64Smlal2, s[3]->arch_opcode());
+  EXPECT_EQ(32, LaneSizeBits(LaneSizeField::decode(s[3]->opcode())));
+  EXPECT_EQ(s.ToVreg(s[1]->Output()), s.ToVreg(s[3]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(m.Parameter(2)), s.ToVreg(s[3]->InputAt(1)));
+  EXPECT_EQ(s.ToVreg(m.Parameter(3)), s.ToVreg(s[3]->InputAt(2)));
+
+  EXPECT_EQ(kArm64IAddp, s[4]->arch_opcode());
+  EXPECT_EQ(32, LaneSizeBits(LaneSizeField::decode(s[4]->opcode())));
+  EXPECT_EQ(s.ToVreg(s[2]->Output()), s.ToVreg(s[4]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(s[3]->Output()), s.ToVreg(s[4]->InputAt(1)));
+}
+
+TEST_F(TurboshaftInstructionSelectorTest,
+       I32x4AddDotI16x8SWithAllExtMulVariants) {
+  StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128(),
+                  MachineType::Simd128(), MachineType::Simd128());
+  V<Simd128> p0 = m.Parameter(0);
+  V<Simd128> p1 = m.Parameter(1);
+  V<Simd128> p2 = m.Parameter(2);
+  V<Simd128> dot0 = m.I32x4DotI16x8S(p0, p1);
+  V<Simd128> dot1 = m.I32x4DotI16x8S(p1, p2);
+  V<Simd128> extmul_lo_s = m.I32x4ExtMulLowI16x8S(p0, p1);
+  V<Simd128> extmul_hi_s = m.I32x4ExtMulHighI16x8S(p1, p2);
+  V<Simd128> extmul_lo_u = m.I32x4ExtMulLowI16x8U(p0, p2);
+  V<Simd128> extmul_hi_u = m.I32x4ExtMulHighI16x8U(p1, p2);
+  V<Simd128> sum_dots = m.I32x4Add(dot0, dot1);
+  V<Simd128> sum_muls = m.I32x4Add(m.I32x4Add(extmul_lo_s, extmul_hi_s),
+                                   m.I32x4Add(extmul_lo_u, extmul_hi_u));
+  V<Simd128> res = m.I32x4Add(sum_dots, sum_muls);
+  m.Return(res);
+  Stream s = m.Build();
+
+  ASSERT_EQ(9U, s.size());
+  EXPECT_EQ(kArm64Smull, s[0]->arch_opcode());
+  EXPECT_EQ(kArm64Smull2, s[1]->arch_opcode());
+  EXPECT_EQ(kArm64Smlal, s[2]->arch_opcode());
+  EXPECT_EQ(kArm64Smlal2, s[3]->arch_opcode());
+  EXPECT_EQ(kArm64IAddp, s[4]->arch_opcode());
+  EXPECT_EQ(s.ToVreg(s[2]->Output()), s.ToVreg(s[4]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(s[3]->Output()), s.ToVreg(s[4]->InputAt(1)));
+
+  EXPECT_EQ(kArm64Smlal, s[5]->arch_opcode());
+  EXPECT_EQ(s.ToVreg(s[4]->Output()), s.ToVreg(s[5]->InputAt(0)));
+
+  EXPECT_EQ(kArm64Smlal2, s[6]->arch_opcode());
+  EXPECT_EQ(s.ToVreg(s[5]->Output()), s.ToVreg(s[6]->InputAt(0)));
+
+  EXPECT_EQ(kArm64Umlal, s[7]->arch_opcode());
+  EXPECT_EQ(s.ToVreg(s[6]->Output()), s.ToVreg(s[7]->InputAt(0)));
+
+  EXPECT_EQ(kArm64Umlal2, s[8]->arch_opcode());
+  EXPECT_EQ(s.ToVreg(s[7]->Output()), s.ToVreg(s[8]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(res), s.ToVreg(s[8]->Output()));
+}
+
+TEST_F(TurboshaftInstructionSelectorTest,
+       I32x4AddDotI16x8SChainWithAccAndExtMul) {
+  StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128(),
+                  MachineType::Simd128(), MachineType::Simd128(),
+                  MachineType::Simd128());
+  V<Simd128> acc = m.Parameter(0);
+  V<Simd128> dot0 = m.I32x4DotI16x8S(m.Parameter(1), m.Parameter(2));
+  V<Simd128> dot1 = m.I32x4DotI16x8S(m.Parameter(2), m.Parameter(3));
+  V<Simd128> dot2 = m.I32x4DotI16x8S(m.Parameter(1), m.Parameter(3));
+  V<Simd128> extmul_lo = m.I32x4ExtMulLowI16x8S(m.Parameter(1), m.Parameter(2));
+  V<Simd128> extmul_hi =
+      m.I32x4ExtMulHighI16x8U(m.Parameter(2), m.Parameter(3));
+  V<Simd128> sum_dots =
+      m.I32x4Add(m.I32x4Add(m.I32x4Add(acc, dot0), dot1), dot2);
+  V<Simd128> sum_muls = m.I32x4Add(extmul_lo, extmul_hi);
+  m.Return(m.I32x4Add(sum_dots, sum_muls));
+  Stream s = m.Build();
+
+  ASSERT_EQ(10U, s.size());
+  EXPECT_EQ(kArm64Smull, s[0]->arch_opcode());
+  EXPECT_EQ(kArm64Smull2, s[1]->arch_opcode());
+  EXPECT_EQ(kArm64Smlal, s[2]->arch_opcode());
+  EXPECT_EQ(kArm64Smlal2, s[3]->arch_opcode());
+  EXPECT_EQ(kArm64Smlal, s[4]->arch_opcode());
+  EXPECT_EQ(kArm64Smlal2, s[5]->arch_opcode());
+  EXPECT_EQ(kArm64IAddp, s[6]->arch_opcode());
+  EXPECT_EQ(s.ToVreg(s[4]->Output()), s.ToVreg(s[6]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(s[5]->Output()), s.ToVreg(s[6]->InputAt(1)));
+
+  EXPECT_EQ(kArm64Smlal, s[7]->arch_opcode());
+  EXPECT_EQ(s.ToVreg(s[6]->Output()), s.ToVreg(s[7]->InputAt(0)));
+
+  EXPECT_EQ(kArm64Umlal2, s[8]->arch_opcode());
+  EXPECT_EQ(s.ToVreg(s[7]->Output()), s.ToVreg(s[8]->InputAt(0)));
+
+  EXPECT_EQ(kArm64IAdd, s[9]->arch_opcode());
+  EXPECT_EQ(s.ToVreg(s[8]->Output()), s.ToVreg(s[9]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(acc), s.ToVreg(s[9]->InputAt(1)));
+}
+
+TEST_F(TurboshaftInstructionSelectorTest,
+       I32x4AddDotI16x8SLongChainSplitsIntoFusedGroups) {
+  StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128(),
+                  MachineType::Simd128(), MachineType::Simd128());
+  V<Simd128> p0 = m.Parameter(0);
+  V<Simd128> p1 = m.Parameter(1);
+  V<Simd128> p2 = m.Parameter(2);
+  // Left-associative chain of 10 dot products added to `p0` (exceeding
+  // kMaxDotProducts = 6 and kMaxVisitedAdds = 8). The top 6 dot products fuse
+  // at the root, and the remaining prefix of 4 dot products + `p0` stays intact
+  // and fuses as a second group when visited.
+  V<Simd128> sum = p0;
+  for (int i = 0; i < 10; ++i) {
+    sum = m.I32x4Add(sum, m.I32x4DotI16x8S(p1, p2));
+  }
+  m.Return(sum);
+  Stream s = m.Build();
+
+  // Group 1 (4 dots + p0): 2*4 + 1 (IAddp) + 1 (IAdd) = 10 instructions.
+  // Group 2 (6 dots + Group 1): 2*6 + 1 (IAddp) + 1 (IAdd) = 14 instructions.
+  ASSERT_EQ(24U, s.size());
+  EXPECT_EQ(kArm64IAddp, s[8]->arch_opcode());
+  EXPECT_EQ(kArm64IAdd, s[9]->arch_opcode());
+  EXPECT_EQ(s.ToVreg(s[8]->Output()), s.ToVreg(s[9]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[9]->InputAt(1)));
+
+  EXPECT_EQ(kArm64IAddp, s[22]->arch_opcode());
+  EXPECT_EQ(kArm64IAdd, s[23]->arch_opcode());
+  EXPECT_EQ(s.ToVreg(s[22]->Output()), s.ToVreg(s[23]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(s[9]->Output()), s.ToVreg(s[23]->InputAt(1)));
+}
+
+TEST_F(TurboshaftInstructionSelectorTest, I32x4AddDotI16x8SMultiUseNotFused) {
+  StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128(),
+                  MachineType::Simd128(), MachineType::Simd128());
+  V<Simd128> shared = m.I32x4DotI16x8S(m.Parameter(0), m.Parameter(1));
+  V<Simd128> dot1 = m.I32x4DotI16x8S(m.Parameter(1), m.Parameter(2));
+  V<Simd128> dot2 = m.I32x4DotI16x8S(m.Parameter(0), m.Parameter(2));
+  m.Return(m.I32x4Add(m.I32x4Add(m.I32x4Add(shared, dot1), dot2), shared));
+  Stream s = m.Build();
+
+  // `shared` has two uses, so it is computed once (Smull + Smull2 + IAddp) and
+  // added twice as a normal addend, while `dot1` and `dot2` are fused
+  // (Smull + Smull2 + Smlal + Smlal2 + IAddp).
+  ASSERT_EQ(10U, s.size());
+  EXPECT_EQ(kArm64Smull, s[0]->arch_opcode());
+  EXPECT_EQ(kArm64Smull2, s[1]->arch_opcode());
+  EXPECT_EQ(kArm64IAddp, s[2]->arch_opcode());
+  EXPECT_EQ(kArm64Smull, s[3]->arch_opcode());
+  EXPECT_EQ(kArm64Smull2, s[4]->arch_opcode());
+  EXPECT_EQ(kArm64Smlal, s[5]->arch_opcode());
+  EXPECT_EQ(kArm64Smlal2, s[6]->arch_opcode());
+  EXPECT_EQ(kArm64IAddp, s[7]->arch_opcode());
+  EXPECT_EQ(kArm64IAdd, s[8]->arch_opcode());
+  EXPECT_EQ(kArm64IAdd, s[9]->arch_opcode());
+}
+
+TEST_F(TurboshaftInstructionSelectorTest,
+       I32x4AddDotI16x8SPreservesBalancedNonDotSubtree) {
+  StreamBuilder m(this, MachineType::Simd128(), MachineType::Simd128(),
+                  MachineType::Simd128(), MachineType::Simd128(),
+                  MachineType::Simd128());
+  V<Simd128> p0 = m.Parameter(0);
+  V<Simd128> p1 = m.Parameter(1);
+  V<Simd128> p2 = m.Parameter(2);
+  V<Simd128> p3 = m.Parameter(3);
+  V<Simd128> dots =
+      m.I32x4Add(m.I32x4DotI16x8S(p0, p1), m.I32x4DotI16x8S(p2, p3));
+  V<Simd128> non_dots = m.I32x4Add(m.I32x4Add(p0, p1), m.I32x4Add(p2, p3));
+  m.Return(m.I32x4Add(dots, non_dots));
+  Stream s = m.Build();
+
+  // `non_dots` has no fusable leaves, so its balanced tree of 3 `IAdd`s is
+  // preserved and added once to the fused dot-product sum (5 instructions +
+  // 4 `IAdd`s = 9 instructions total), with the final `IAdd` combining `dots`
+  // (`s[7]`) and `non_dots` (`s[2]`).
+  ASSERT_EQ(9U, s.size());
+  EXPECT_EQ(kArm64IAdd, s[0]->arch_opcode());
+  EXPECT_EQ(kArm64IAdd, s[1]->arch_opcode());
+  EXPECT_EQ(kArm64IAdd, s[2]->arch_opcode());
+  EXPECT_EQ(s.ToVreg(s[0]->Output()), s.ToVreg(s[2]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(s[1]->Output()), s.ToVreg(s[2]->InputAt(1)));
+
+  EXPECT_EQ(kArm64Smull, s[3]->arch_opcode());
+  EXPECT_EQ(kArm64Smull2, s[4]->arch_opcode());
+  EXPECT_EQ(kArm64Smlal, s[5]->arch_opcode());
+  EXPECT_EQ(kArm64Smlal2, s[6]->arch_opcode());
+  EXPECT_EQ(kArm64IAddp, s[7]->arch_opcode());
+
+  EXPECT_EQ(kArm64IAdd, s[8]->arch_opcode());
+  EXPECT_EQ(s.ToVreg(s[7]->Output()), s.ToVreg(s[8]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(s[2]->Output()), s.ToVreg(s[8]->InputAt(1)));
+}
+
 TEST_F(TurboshaftInstructionSelectorTest, AddReduce) {
   {
     StreamBuilder m(this, MachineType::Int32(), MachineType::Simd128());
@@ -3478,8 +3693,7 @@ TEST_F(TurboshaftInstructionSelectorTest, AddReduce) {
 }
 
 TEST_F(TurboshaftInstructionSelectorTest, I64x2MulSVE2) {
-  if (!CpuFeatures::IsSupported(SVE2) ||
-      CpuFeatures::svevlen() != kSimd128Size) {
+  if (!CpuFeatures::IsSupported(SVE2) || CpuFeatures::vlenb() != kSimd128Size) {
     GTEST_SKIP() << "Requires a 128-bit SVE vector-length";
   }
 
@@ -7729,8 +7943,10 @@ TEST_P(TurboshaftInstructionSelectorMemoryAccessTest, StoreWithShiftedIndex) {
 
 INSTANTIATE_TEST_SUITE_P(TurboshaftInstructionSelectorTest,
                          TurboshaftInstructionSelectorMemoryAccessTest,
-                         (::testing::ValuesIn(kMemoryAccesses),
-                          ::testing::ValuesIn(kMemoryAccessesTagged)));
+                         ::testing::ValuesIn(kMemoryAccesses));
+INSTANTIATE_TEST_SUITE_P(TurboshaftInstructionSelectorTestTagged,
+                         TurboshaftInstructionSelectorMemoryAccessTest,
+                         ::testing::ValuesIn(kMemoryAccessesTagged));
 
 #if V8_ENABLE_WEBASSEMBLY
 TEST_F(TurboshaftInstructionSelectorTest, LoadTransform) {
@@ -7831,9 +8047,10 @@ TEST_F(TurboshaftInstructionSelectorTest, AtomicStoreWithWriteBarrier) {
   StreamBuilder m(this, MachineType::Int32(), MachineType::Int64(),
                   MachineType::Int64(), MachineType::AnyTagged());
   m.Store(m.Parameter(0), m.Parameter(1), m.Parameter(2),
-          StoreOp::Kind::Aligned(BaseTaggedness::kTaggedBase).Atomic(),
+          StoreOp::Kind::Aligned(BaseTaggedness::kTaggedBase)
+              .Atomic(AtomicMemoryOrder::kSeqCst),
           MemoryRepresentation::TaggedPointer(),
-          WriteBarrierKind::kFullWriteBarrier, AtomicMemoryOrder::kSeqCst);
+          WriteBarrierKind::kFullWriteBarrier);
   m.Return(m.Int32Constant(0));
   Stream s = m.Build(kAllExceptNopInstructions);
   ASSERT_EQ(3U, s.size());
@@ -9198,7 +9415,7 @@ TEST_F(TurboshaftInstructionSelectorTest, Word32MulHighWithParameters) {
   EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
   EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
   ASSERT_EQ(1U, s[0]->OutputCount());
-  EXPECT_EQ(kArm64Asr, s[1]->arch_opcode());
+  EXPECT_EQ(kArm64Lsr, s[1]->arch_opcode());
   ASSERT_EQ(2U, s[1]->InputCount());
   EXPECT_EQ(s.ToVreg(s[0]->Output()), s.ToVreg(s[1]->InputAt(0)));
   EXPECT_EQ(32, s.ToInt64(s[1]->InputAt(1)));
@@ -9229,6 +9446,23 @@ TEST_F(TurboshaftInstructionSelectorTest, Word32MulHighWithSar) {
     ASSERT_EQ(1U, s[1]->OutputCount());
     EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[1]->Output()));
   }
+}
+
+TEST_F(TurboshaftInstructionSelectorTest,
+       Word32MulHighWithSarAndChangeUint32ToUint64) {
+  StreamBuilder m(this, MachineType::Uint64(), MachineType::Int32(),
+                  MachineType::Int32());
+  OpIndex const p0 = m.Parameter(0);
+  OpIndex const p1 = m.Parameter(1);
+  OpIndex const sar = m.Word32ShiftRightArithmetic(
+      m.Int32MulOverflownBits(p0, p1), m.Int32Constant(1));
+  OpIndex const n = m.ChangeUint32ToUint64(sar);
+  m.Return(n);
+  Stream s = m.Build();
+  ASSERT_EQ(3U, s.size());
+  EXPECT_EQ(kArm64Smull, s[0]->arch_opcode());
+  EXPECT_EQ(kArm64Asr, s[1]->arch_opcode());
+  EXPECT_EQ(kArm64Mov32, s[2]->arch_opcode());
 }
 
 TEST_F(TurboshaftInstructionSelectorTest, Word32MulHighWithAdd) {
@@ -9883,11 +10117,13 @@ TEST_F(TurboshaftInstructionSelectorTest, ExternalReferenceLoad2) {
 namespace {
 // Builds a call with the specified signature and nodes as arguments.
 // Then checks that the correct number of kArm64Poke and kArm64PokePair were
-// generated.
+// generated, counting the kArm64ClaimPoke and kArm64ClaimPokePair variants
+// that claim the stack space with their store. Exactly one of those replaces
+// kArm64Claim unless the claim is too large for a pre-indexed address.
 void TestPokePair(TurboshaftInstructionSelectorTest::StreamBuilder* m,
                   Zone* zone, MachineSignature::Builder* builder,
                   base::Vector<const OpIndex> args, int expected_poke_pair,
-                  int expected_poke) {
+                  int expected_poke, bool expect_claim_with_store = true) {
   auto call_descriptor = TurboshaftInstructionSelectorTest::StreamBuilder::
       MakeSimpleTSCallDescriptor(zone, builder->Get());
 
@@ -9898,18 +10134,36 @@ void TestPokePair(TurboshaftInstructionSelectorTest::StreamBuilder* m,
   auto s = m->Build();
   int num_poke_pair = 0;
   int num_poke = 0;
+  int num_claim = 0;
+  int num_claim_with_store = 0;
   for (size_t i = 0; i < s.size(); ++i) {
-    if (s[i]->arch_opcode() == kArm64PokePair) {
-      num_poke_pair++;
-    }
-
-    if (s[i]->arch_opcode() == kArm64Poke) {
-      num_poke++;
+    switch (s[i]->arch_opcode()) {
+      case kArm64PokePair:
+        num_poke_pair++;
+        break;
+      case kArm64ClaimPokePair:
+        num_poke_pair++;
+        num_claim_with_store++;
+        break;
+      case kArm64Poke:
+        num_poke++;
+        break;
+      case kArm64ClaimPoke:
+        num_poke++;
+        num_claim_with_store++;
+        break;
+      case kArm64Claim:
+        num_claim++;
+        break;
+      default:
+        break;
     }
   }
 
   EXPECT_EQ(expected_poke_pair, num_poke_pair);
   EXPECT_EQ(expected_poke, num_poke);
+  EXPECT_EQ(expect_claim_with_store ? 1 : 0, num_claim_with_store);
+  EXPECT_EQ(expect_claim_with_store ? 0 : 1, num_claim);
 }
 }  // namespace
 
@@ -9927,10 +10181,10 @@ TEST_F(TurboshaftInstructionSelectorTest, PokePairPrepareArgumentsInt32) {
         m.Int32Constant(0),
     };
 
-    const int expected_poke_pair = 1;
-    // Note: The `+ 1` here comes from the padding Poke in
-    // EmitPrepareArguments.
-    const int expected_poke = 1 + 1;
+    // Note: The `+ 1` here comes from the padding slot, which is stored
+    // together with the last parameter.
+    const int expected_poke_pair = 1 + 1;
+    const int expected_poke = 0;
 
     TestPokePair(&m, zone(), &builder, base::VectorOf(nodes, arraysize(nodes)),
                  expected_poke_pair, expected_poke);
@@ -10074,6 +10328,67 @@ TEST_F(TurboshaftInstructionSelectorTest,
     TestPokePair(&m, zone(), &builder, base::VectorOf(nodes, arraysize(nodes)),
                  expected_poke_pair, expected_poke);
   }
+}
+
+TEST_F(TurboshaftInstructionSelectorTest, PokePairPrepareArgumentsPadding) {
+  {
+    // The padding slot pairs with an integer parameter.
+    MachineSignature::Builder builder(zone(), 0, 1);
+    builder.AddParam(MachineType::Int32());
+
+    StreamBuilder m(this, MachineType::AnyTagged());
+    OpIndex nodes[] = {m.Int32Constant(0)};
+
+    const int expected_poke_pair = 1;
+    const int expected_poke = 0;
+
+    TestPokePair(&m, zone(), &builder, base::VectorOf(nodes, arraysize(nodes)),
+                 expected_poke_pair, expected_poke);
+  }
+  {
+    // A floating-point parameter cannot pair with the padding slot.
+    MachineSignature::Builder builder(zone(), 0, 1);
+    builder.AddParam(MachineType::Float64());
+
+    StreamBuilder m(this, MachineType::AnyTagged());
+    OpIndex nodes[] = {m.Float64Constant(0.0)};
+
+    const int expected_poke_pair = 0;
+    const int expected_poke = 1 + 1;
+
+    TestPokePair(&m, zone(), &builder, base::VectorOf(nodes, arraysize(nodes)),
+                 expected_poke_pair, expected_poke);
+  }
+}
+
+TEST_F(TurboshaftInstructionSelectorTest, PokePairPrepareArgumentsLargeClaim) {
+  // A claim beyond the pre-indexed addressing range keeps kArm64Claim. The
+  // call descriptor holds at most 31 parameters of each kind.
+  constexpr int kIntParams = 16;
+  constexpr int kFloatParams = 18;
+  constexpr int kParams = kIntParams + kFloatParams;
+  MachineSignature::Builder builder(zone(), 0, kParams);
+  for (int i = 0; i < kIntParams; i++) {
+    builder.AddParam(MachineType::Int32());
+  }
+  for (int i = 0; i < kFloatParams; i++) {
+    builder.AddParam(MachineType::Float64());
+  }
+
+  StreamBuilder m(this, MachineType::AnyTagged());
+  OpIndex nodes[kParams];
+  for (int i = 0; i < kIntParams; i++) {
+    nodes[i] = m.Int32Constant(i);
+  }
+  for (int i = kIntParams; i < kParams; i++) {
+    nodes[i] = m.Float64Constant(i);
+  }
+
+  const int expected_poke_pair = kParams / 2;
+  const int expected_poke = 0;
+
+  TestPokePair(&m, zone(), &builder, base::VectorOf(nodes, arraysize(nodes)),
+               expected_poke_pair, expected_poke, false);
 }
 
 #if V8_ENABLE_WEBASSEMBLY

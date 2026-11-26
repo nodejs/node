@@ -922,6 +922,7 @@
   V(s2s_Table64Size)                             \
   V(s2s_TableFill)                               \
   V(s2s_Table64Fill)                             \
+  V(s2s_TrapMemOutOfBounds)                      \
   V(s2s_Unreachable)                             \
   V(s2s_Unwind)                                  \
   V(s2s_OnLoopBegin)                             \

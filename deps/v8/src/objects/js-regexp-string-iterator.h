@@ -6,6 +6,7 @@
 #define V8_OBJECTS_JS_REGEXP_STRING_ITERATOR_H_
 
 #include "src/base/bit-field.h"
+#include "src/objects/bit-field-group.h"
 #include "src/objects/js-objects.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -24,8 +25,20 @@ V8_OBJECT class JSRegExpStringIterator : public JSObject {
   inline void set_iterated_string(Tagged<String> value,
                                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline int flags() const;
-  inline void set_flags(int value);
+  struct Flags : BitFieldGroup<Flags, uint32_t> {
+    using BitFieldGroup::BitFieldGroup;
+
+    using DoneBit = First<bool, 1>;
+    using GlobalBit = DoneBit::Next<bool, 1>;
+    using UnicodeBit = GlobalBit::Next<bool, 1>;
+
+    BIT_FIELD_GROUP_ACCESSORS(done, DoneBit)
+    BIT_FIELD_GROUP_ACCESSORS(global, GlobalBit)
+    BIT_FIELD_GROUP_ACCESSORS(unicode, UnicodeBit)
+  };
+
+  inline Flags flags() const;
+  inline void set_flags(Flags value);
 
   // [boolean]: The [[Done]] internal property.
   DECL_BOOLEAN_ACCESSORS(done)
@@ -39,16 +52,10 @@ V8_OBJECT class JSRegExpStringIterator : public JSObject {
   DECL_PRINTER(JSRegExpStringIterator)
   DECL_VERIFIER(JSRegExpStringIterator)
 
-  // Bit layout for flags_.
-  using DoneBit = base::BitField<bool, 0, 1>;
-  using GlobalBit = DoneBit::Next<bool, 1>;
-  using UnicodeBit = GlobalBit::Next<bool, 1>;
-
  public:
   TaggedMember<JSReceiver> iterating_reg_exp_;
   TaggedMember<String> iterated_string_;
-  // SmiTagged<JSRegExpStringIteratorFlags>.
-  TaggedMember<Smi> flags_ V8_TQ_TYPE(SmiTagged<JSRegExpStringIteratorFlags>);
+  SmiBitFieldMember<Flags> flags_;
 } V8_OBJECT_END;
 
 }  // namespace internal

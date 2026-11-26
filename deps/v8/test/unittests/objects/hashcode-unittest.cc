@@ -122,7 +122,7 @@ TEST_F(HashcodeTest, AddHashCodeToSlowObject) {
       i_isolate()->factory()->NewJSObject(i_isolate()->object_function());
   CHECK(obj->HasFastProperties());
   JSObject::NormalizeProperties(i_isolate(), obj, CLEAR_INOBJECT_PROPERTIES, 0,
-                                "cctest/test-hashcode");
+                                "unittests/hashcode-unittest");
 
   CheckIsDictionaryModeObject(obj);
 
@@ -180,7 +180,7 @@ TEST_F(HashcodeTest, TransitionFastWithPropertyArrayToSlow) {
   CHECK_EQ(hash, obj->property_array()->Hash());
 
   JSObject::NormalizeProperties(i_isolate(), obj, KEEP_INOBJECT_PROPERTIES, 0,
-                                "cctest/test-hashcode");
+                                "unittests/hashcode-unittest");
   CheckDictionaryObject(obj, hash);
 }
 
@@ -190,7 +190,7 @@ TEST_F(HashcodeTest, TransitionSlowToSlow) {
 
   DirectHandle<JSObject> obj = GetGlobal<JSObject>("x");
   JSObject::NormalizeProperties(i_isolate(), obj, CLEAR_INOBJECT_PROPERTIES, 0,
-                                "cctest/test-hashcode");
+                                "unittests/hashcode-unittest");
   CheckIsDictionaryModeObject(obj);
 
   int hash = AddToSetAndGetHash(obj, false);
@@ -206,13 +206,13 @@ TEST_F(HashcodeTest, TransitionSlowToFastWithoutProperties) {
   DirectHandle<JSObject> obj =
       i_isolate()->factory()->NewJSObject(i_isolate()->object_function());
   JSObject::NormalizeProperties(i_isolate(), obj, CLEAR_INOBJECT_PROPERTIES, 0,
-                                "cctest/test-hashcode");
+                                "unittests/hashcode-unittest");
   CheckIsDictionaryModeObject(obj);
 
   int hash = AddToSetAndGetHash(obj, false);
   CHECK_EQ(hash, GetPropertyDictionaryHash(obj));
 
-  JSObject::MigrateSlowToFast(obj, 0, "cctest/test-hashcode");
+  JSObject::MigrateSlowToFast(obj, 0, "unittests/hashcode-unittest");
   CHECK_EQ(Smi::FromInt(hash), Object::GetHash(*obj));
 }
 
@@ -228,7 +228,7 @@ TEST_F(HashcodeTest, TransitionSlowToFastWithPropertyArray) {
   int hash = AddToSetAndGetHash(obj, false);
   CHECK_EQ(hash, GetPropertyDictionaryHash(obj));
 
-  JSObject::MigrateSlowToFast(obj, 0, "cctest/test-hashcode");
+  JSObject::MigrateSlowToFast(obj, 0, "unittests/hashcode-unittest");
   CheckFastObject(obj, hash);
 }
 

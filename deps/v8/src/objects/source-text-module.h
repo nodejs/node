@@ -6,6 +6,7 @@
 #define V8_OBJECTS_SOURCE_TEXT_MODULE_H_
 
 #include "src/base/bit-field.h"
+#include "src/objects/bit-field-group.h"
 #include "src/objects/contexts.h"
 #include "src/objects/module.h"
 #include "src/objects/promise.h"
@@ -121,9 +122,20 @@ V8_OBJECT class SourceTextModule : public Module {
                               ReleaseStoreTag,
                               WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
+  struct Flags : BitFieldGroup<Flags, uint32_t> {
+    using BitFieldGroup::BitFieldGroup;
+
+    using HasToplevelAwaitBit = First<bool, 1>;
+    using AsyncEvaluationOrdinalBits = HasToplevelAwaitBit::Next<uint32_t, 30>;
+
+    BIT_FIELD_GROUP_ACCESSORS(has_toplevel_await, HasToplevelAwaitBit)
+    BIT_FIELD_GROUP_ACCESSORS(async_evaluation_ordinal,
+                              AsyncEvaluationOrdinalBits)
+  };
+
  private:
-  inline uint32_t flags() const;
-  inline void set_flags(uint32_t value);
+  inline Flags flags() const;
+  inline void set_flags(Flags value);
 
   friend class Factory;
   friend class Module;
@@ -179,11 +191,6 @@ V8_OBJECT class SourceTextModule : public Module {
   inline bool HasPendingAsyncDependencies();
   inline void IncrementPendingAsyncDependencies();
   inline void DecrementPendingAsyncDependencies();
-
-  // Bits for flags.
-  using HasToplevelAwaitBit = base::BitField<bool, 0, 1, uint32_t>;
-  using AsyncEvaluationOrdinalBits = HasToplevelAwaitBit::Next<uint32_t, 30>;
-  friend class TorqueGeneratedBitFieldAsserts;
 
   // async_evaluation_ordinal, top_level_capability, pending_async_dependencies,
   // and async_parent_modules are used exclusively during evaluation of async
@@ -278,13 +285,15 @@ V8_OBJECT class SourceTextModule : public Module {
 
   // Implementation of spec concrete method Evaluate.
   static V8_WARN_UNUSED_RESULT MaybeDirectHandle<JSPromise> Evaluate(
-      Isolate* isolate, Handle<InState<kLinked>> module);
+      Isolate* isolate, Handle<InState<kLinked>> module, bool debug_event,
+      bool* body_threw);
 
-  // Implementation of spec abstract operation InnerModuleEvaluation.
+  // Implementation of spec abstract operation InnerModuleEvaluation. Sets
+  // |body_threw| to true if a module body threw.
   static V8_WARN_UNUSED_RESULT bool InnerModuleEvaluation(
       Isolate* isolate, Handle<SourceTextModule> module,
-      ZoneForwardList<Handle<InState<kEvaluating>>>* stack,
-      unsigned* dfs_index);
+      ZoneForwardList<Handle<InState<kEvaluating>>>* stack, unsigned* dfs_index,
+      bool* body_threw);
 
   // Implementation of spec ExecuteModule is broken up into
   // InnerExecuteAsyncModule for asynchronous modules and ExecuteModule
@@ -334,7 +343,7 @@ V8_OBJECT class SourceTextModule : public Module {
   TaggedMember<Smi> dfs_index_;
   TaggedMember<Smi> dfs_ancestor_index_;
   TaggedMember<Smi> pending_async_dependencies_;
-  TaggedMember<Smi> flags_ V8_TQ_TYPE(SmiTagged<SourceTextModuleFlags>);
+  SmiBitFieldMember<Flags> flags_;
 } V8_OBJECT_END;
 
 template <>
@@ -400,7 +409,18 @@ V8_OBJECT class ModuleRequest : public Struct {
 
   inline Tagged<String> specifier() const;
   inline Tagged<FixedArray> import_attributes() const;
-  inline uint32_t flags() const;
+
+  struct Flags : BitFieldGroup<Flags, uint32_t> {
+    using BitFieldGroup::BitFieldGroup;
+
+    using PhaseBits = First<ModuleImportPhase, 2>;
+    using PositionBits = PhaseBits::Next<uint32_t, 29>;
+
+    BIT_FIELD_GROUP_ACCESSORS(phase, PhaseBits)
+    BIT_FIELD_GROUP_ACCESSORS(position, PositionBits)
+  };
+
+  inline Flags flags() const;
 
   DECL_VERIFIER(ModuleRequest)
   DECL_PRINTER(ModuleRequest)
@@ -415,10 +435,7 @@ V8_OBJECT class ModuleRequest : public Struct {
   // a single attribute.
   static const size_t kAttributeEntrySize = 3;
 
-  // Bits for flags.
-  using PhaseBits = base::BitField<ModuleImportPhase, 0, 2, uint32_t>;
-  using PositionBits = PhaseBits::Next<uint32_t, 29>;
-  static_assert(PositionBits::kMax >= String::kMaxLength,
+  static_assert(Flags::PositionBits::kMax >= String::kMaxLength,
                 "String::kMaxLength should fit in PositionBits::kMax");
   inline unsigned position() const;
   inline ModuleImportPhase phase() const;
@@ -428,7 +445,7 @@ V8_OBJECT class ModuleRequest : public Struct {
  public:
   const TaggedMember<String> specifier_;
   const TaggedMember<FixedArray> import_attributes_;
-  const TaggedMember<Smi> flags_ V8_TQ_TYPE(SmiTagged<ModuleRequestFlags>);
+  const SmiBitFieldMember<Flags> flags_;
 } V8_OBJECT_END;
 
 V8_OBJECT class SourceTextModuleInfoEntry : public Struct {

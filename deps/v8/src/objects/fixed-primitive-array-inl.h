@@ -325,10 +325,10 @@ DirectHandle<TrustedFixedAddressArray> TrustedFixedAddressArray::New(
 }
 
 template <typename T, typename Base>
-template <typename... MoreArgs>
+template <typename IsolateT, typename... MoreArgs>
 // static
 Handle<FixedIntegerArrayBase<T, Base>> FixedIntegerArrayBase<T, Base>::New(
-    Isolate* isolate, uint32_t length, MoreArgs&&... more_args) {
+    IsolateT* isolate, uint32_t length, MoreArgs&&... more_args) {
   uint32_t byte_length;
   base::internal::CheckedNumeric<uint32_t> checked_byte_length = length;
   checked_byte_length *= sizeof(T);

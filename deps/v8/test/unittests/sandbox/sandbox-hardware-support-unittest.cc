@@ -311,6 +311,31 @@ TEST_F(SandboxHardwareSupportTest, InvalidScopeNesting) {
       "");
 }
 
+using SandboxHardwareSupportWithIsolateTest = TestWithIsolate;
+
+TEST_F(SandboxHardwareSupportWithIsolateTest,
+       HandleDereferenceUnderDisallowSandboxAccess) {
+  if (!DEBUG_BOOL) GTEST_SKIP();
+  if (!SandboxHardwareSupport::IsActive()) GTEST_SKIP();
+
+  IndirectHandle<ByteArray> indirect = isolate()->factory()->NewByteArray(4);
+  DirectHandle<ByteArray> direct = indirect;
+
+  // Unwrapping a Handle or DirectHandle into a Tagged pointer does not read
+  // in-sandbox memory, so it must succeed under DisallowSandboxAccess even
+  // when slow-DCHECK handle validation is enabled. Accessing in-sandbox fields
+  // on the resulting Tagged object must still fault.
+  DisallowSandboxAccess no_sandbox_access("For testing");
+  Tagged<Object> from_indirect = *indirect;
+  Tagged<Object> from_direct = *direct;
+  EXPECT_TRUE(IsHeapObject(from_indirect));
+  EXPECT_TRUE(IsHeapObject(from_direct));
+  volatile uint32_t length = 0;
+  ASSERT_DEATH_IF_SUPPORTED(length = indirect->length().value(), "");
+  ASSERT_DEATH_IF_SUPPORTED(length = direct->length().value(), "");
+  USE(length);
+}
+
 }  // namespace internal
 }  // namespace v8
 

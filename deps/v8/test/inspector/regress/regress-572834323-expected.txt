@@ -6,7 +6,7 @@ Regression test for crbug.com/572834323.
             columnNumber : 0
             exception : {
                 className : LinkError
-                description : LinkError: WebAssembly.Instance(): Import #0 "m" "f": function import requires a callable     at <anonymous>:5:1
+                description : LinkError: WebAssembly.Instance(): Import #0 "m" "f": function import requires a callable     at new Instance (<anonymous>)     at <anonymous>:5:1
                 objectId : <objectId>
                 subtype : error
                 type : object
@@ -18,7 +18,7 @@ Regression test for crbug.com/572834323.
         }
         result : {
             className : LinkError
-            description : LinkError: WebAssembly.Instance(): Import #0 "m" "f": function import requires a callable     at <anonymous>:5:1
+            description : LinkError: WebAssembly.Instance(): Import #0 "m" "f": function import requires a callable     at new Instance (<anonymous>)     at <anonymous>:5:1
             objectId : <objectId>
             subtype : error
             type : object

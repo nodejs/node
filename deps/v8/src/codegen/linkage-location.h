@@ -24,6 +24,8 @@ class Signature;
 // Describes the location for a parameter or a return value to a call.
 class LinkageLocation {
  public:
+  static constexpr int32_t MAX_STACK_SLOT = 32767;
+
   bool operator==(const LinkageLocation& other) const {
     return bit_field_ == other.bit_field_ &&
            machine_type_ == other.machine_type_;
@@ -159,7 +161,6 @@ class LinkageLocation {
   using LocationField = TypeField::Next<int32_t, 31>;
 
   static constexpr int32_t ANY_REGISTER = -1;
-  static constexpr int32_t MAX_STACK_SLOT = 32767;
 
   LinkageLocation(LocationType type, int32_t location,
                   MachineType machine_type) {

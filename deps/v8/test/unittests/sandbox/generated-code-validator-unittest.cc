@@ -20,30 +20,30 @@ namespace {
 
 void CheckValidationSucceeds(Isolate* i_isolate, MacroAssembler& masm) {
   // Delay validation until we're ready to call it explicitly.
-  v8_flags.validate_generated_code = false;
+  v8_flags.validate_generated_code.Set(false);
   CodeDesc desc;
   masm.GetCode(i_isolate, &desc);
   DirectHandle<Code> code =
       Factory::CodeBuilder(i_isolate, desc, CodeKind::FOR_TESTING).Build();
 
   // This should not crash.
-  v8_flags.validate_generated_code = true;
-  v8_flags.validate_generated_code_non_fatal = false;
+  v8_flags.validate_generated_code.Set(true);
+  v8_flags.validate_generated_code_non_fatal.Set(false);
   GeneratedCodeValidator::Validate(i_isolate, *code);
 }
 
 void CheckValidationFails(Isolate* i_isolate, MacroAssembler& masm,
                           std::string expected_error) {
   // Delay validation until we're ready to call it explicitly.
-  v8_flags.validate_generated_code = false;
+  v8_flags.validate_generated_code.Set(false);
   CodeDesc desc;
   masm.GetCode(i_isolate, &desc);
   DirectHandle<Code> code =
       Factory::CodeBuilder(i_isolate, desc, CodeKind::FOR_TESTING).Build();
 
   // This should not crash.
-  v8_flags.validate_generated_code = true;
-  v8_flags.validate_generated_code_non_fatal = false;
+  v8_flags.validate_generated_code.Set(true);
+  v8_flags.validate_generated_code_non_fatal.Set(false);
   ASSERT_DEATH_IF_SUPPORTED(GeneratedCodeValidator::Validate(i_isolate, *code),
                             expected_error);
 }
@@ -54,7 +54,7 @@ void CheckValidationFails(Isolate* i_isolate, MacroAssembler& masm,
 
 TEST_F(GeneratedCodeValidatorTest, DisassembleValidCode) {
   // This validation until we're ready to call it explicitly.
-  v8_flags.validate_generated_code = false;
+  v8_flags.validate_generated_code.Set(false);
   Isolate* i_isolate = this->i_isolate();
   auto buffer = AllocateAssemblerBuffer();
   MacroAssembler masm(i_isolate, CodeObjectRequired{false},
@@ -519,6 +519,19 @@ TEST_F(GeneratedCodeValidatorTest, ValidateControlFlowLoop) {
 
 #if V8_TARGET_ARCH_ARM64
 
+TEST_F(GeneratedCodeValidatorTest, ValidateConstantPool) {
+  Isolate* i_isolate = this->i_isolate();
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler masm(i_isolate, CodeObjectRequired{false},
+                      buffer->CreateView());
+
+  // The constant pool after the return is data, which validation skips.
+  __ Ldr(x0, i_isolate->factory()->undefined_value());
+  __ ret();
+
+  CheckValidationSucceeds(i_isolate, masm);
+}
+
 TEST_F(GeneratedCodeValidatorTest, ValidateCageBaseWritebackFails) {
   static_assert(kPtrComprCageBaseRegister != no_reg);
   Isolate* i_isolate = this->i_isolate();
@@ -678,6 +691,56 @@ TEST_F(GeneratedCodeValidatorTest, ValidateSystemRegisterWrites) {
 
     CheckValidationFails(i_isolate, masm,
                          "Instruction writes to prohibited system registers");
+  }
+}
+
+TEST_F(GeneratedCodeValidatorTest, ValidateAsmLocationControlFlow) {
+  Isolate* i_isolate = this->i_isolate();
+
+  // Entry instruction is `ASM_LOCATION`, and a jump targets a label bound
+  // right before another `ASM_LOCATION`. State should propagate through both.
+  {
+    auto buffer = AllocateAssemblerBuffer();
+    MacroAssembler masm(i_isolate, CodeObjectRequired{false},
+                        buffer->CreateView());
+
+    Label target;
+    ASM_LOCATION("GeneratedCodeValidatorTest::entry");
+    __ Mov(kRootRegister, Operand(ExternalReference::isolate_root(i_isolate)));
+    __ B(&target);
+    __ ret();
+
+    __ Bind(&target);
+    ASM_LOCATION("GeneratedCodeValidatorTest::target");
+    __ LoadRootRelative(kPtrComprCageBaseRegister,
+                        IsolateData::cage_base_offset());
+    __ ret();
+
+    CheckValidationSucceeds(i_isolate, masm);
+  }
+
+  // Jumping to a label bound right before `ASM_LOCATION` without initializing
+  // the root register should propagate the invalid state through `ASM_LOCATION`
+  // and fail validation.
+  {
+    auto buffer = AllocateAssemblerBuffer();
+    MacroAssembler masm(i_isolate, CodeObjectRequired{false},
+                        buffer->CreateView());
+
+    Label skip_init;
+    __ B(&skip_init);
+    __ Mov(kRootRegister, Operand(ExternalReference::isolate_root(i_isolate)));
+    __ ret();
+
+    __ Bind(&skip_init);
+    ASM_LOCATION("GeneratedCodeValidatorTest::skip_init");
+    __ LoadRootRelative(kPtrComprCageBaseRegister,
+                        IsolateData::cage_base_offset());
+    __ ret();
+
+    CheckValidationFails(
+        i_isolate, masm,
+        "Cage base register initialization uses invalid root register");
   }
 }
 

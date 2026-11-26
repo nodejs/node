@@ -129,7 +129,7 @@ class RegExp final : public AllStatic {
   // As above, but passes the result through the old-style RegExpMatchInfo|Null
   // interface. At most one match is returned.
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeDirectHandle<Object>
-  Exec_Single(Isolate* isolate, DirectHandle<JSRegExp> regexp,
+  Exec_Single(Isolate* isolate, DirectHandle<RegExpData> data,
               DirectHandle<String> subject, int index,
               DirectHandle<RegExpMatchInfo> last_match_info);
 

@@ -199,6 +199,11 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
                                     const InstructionBlock* block);
   void AssembleGaps(Instruction* instr);
 
+  // Returns true if {instr}, a compare, is the first code of a block whose
+  // only predecessor ends by branching on the same compare, so that the flags
+  // already hold its result and the compare can be skipped.
+  bool FlagsAlreadySet(Instruction* instr);
+
   // Compute branch info from given instruction. Returns a valid rpo number
   // if the branch is redundant, the returned rpo number point to the target
   // basic block.

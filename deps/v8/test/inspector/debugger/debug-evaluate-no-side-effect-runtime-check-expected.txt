@@ -1,0 +1,211 @@
+Tests debug-evaluate-no-side-effect-runtime-check.
+(function(){
+  const x = 10;
+  function f1() {return x;}
+  return x;
+})(): 10
+set_name(a): EvalError
+set_name({name: 'foo'}): "bar"
+create_object_literal(): "value"
+create_array_literal(): [1]
+b[1] ^= 2: EvalError
+return_array_use_spread([1]): [1]
+array.length = 2: EvalError
+[1,2,3].length = 2: 2
+return_literal_with_data_property('foo'): {"foo":1}
+set.add(3).size: EvalError
+new Set().add(1).size: 1
+(() => { const s = new Set([1]); s.delete(1); return s.size; })(): 0
+set.delete(1): EvalError
+(() => { const s = new Set([1]); s.clear(); return s.size; })(): 0
+set.clear(): EvalError
+(() => {
+  let s = 0;
+  for (const a of new Set([1,2]))
+    s += a;
+  return s;
+})(): 3
+(() => {
+  let s = 0;
+  for (const a of set)
+    s += a;
+  return s;
+})(): 3
+(() => {
+  let s = 0;
+  for (const a of setIterator)
+    s += a;
+  return s;
+})(): EvalError
+[1,2,3].fill(1): [1,1,1]
+array.fill(1): EvalError
+(() => { const a = []; a.push(1); return a; })(): [1]
+array.push(1): EvalError
+(() => { const a = [1,2]; a.pop(); return a; })(): [1]
+array.pop(): EvalError
+[1,2,3].reverse(): [3,2,1]
+array.reverse(): EvalError
+[2,1,3].sort(): [1,2,3]
+array.sort(): EvalError
+[1,2,3].splice(1,2): [2,3]
+array.splice(1,2): EvalError
+(() => { const a = [2]; a.unshift(1); return a; })(): [1,2]
+array.unshift(1): EvalError
+[1,2].shift(): 1
+array.shift(): EvalError
+(() => {
+  let s = 0;
+  for (const a of [1,2,3])
+    s += a;
+  return s;
+})(): 6
+(() => {
+  let s = 0;
+  for (const a of array)
+    s += a;
+  return s;
+})(): 6
+(() => {
+  let s = 0;
+  for (const a of arrayIterator)
+    s += a;
+  return s;
+})(): EvalError
+array.reduce((a,b) => a + b, 0): 6
+map.set(3, 4).size: EvalError
+new Map().set(1, 2).size: 1
+(() => {
+  const m = new Map([[1, 2]]);
+  m.delete(1);
+  return m.size;
+})(): 0
+map.delete(1): EvalError
+(() => {
+  const m = new Map([[1, 2]]);
+  m.clear();
+  return m.size;
+})(): 0
+map.clear(): EvalError
+(() => {
+  let s = 0;
+  for (const [a, b] of new Map([[1,2]]))
+    s += b;
+  return s;
+})(): 2
+(() => {
+  let s = 0;
+  for (const [a,b] of map)
+    s += b;
+  return s;
+})(): 2
+(() => {
+  let s = 0;
+  for (const [a,b] of mapIterator)
+    s += a;
+  return s;
+})(): EvalError
+/a/.test('a'): true
+/a/.test({toString: () => {map.clear(); return 'a';}}): EvalError
+regExp.test('a'): EvalError
+(() => {
+  const disposable = {
+    value: 1,
+    [Symbol.dispose]() {
+      return 43;
+    }
+  };
+  disposable_stack.use(disposable);
+})(): EvalError
+(() => {
+  let stack = new DisposableStack();
+  const disposable = {
+    value: 1,
+    [Symbol.dispose]() {
+      return 43;
+    }
+  };
+  stack.use(disposable);
+  return 42;
+})(): 42
+disposable_stack.dispose(): EvalError
+(() => {
+  let stack = new DisposableStack();
+  stack.dispose();
+  return 42;
+})(): 42
+disposable_stack.adopt(42, function(v) {return v}): EvalError
+(() => {
+  let stack = new DisposableStack();
+  stack.adopt(42, function(v) {return v});
+  return 42;
+})(): 42
+disposable_stack.defer(() => console.log(42)): EvalError
+(() => {
+  let stack = new DisposableStack();
+  stack.defer(() => console.log(42));
+  return 42;
+})(): 42
+let new_disposable_stack = disposable_stack.move(): EvalError
+(() => {
+  let stack = new DisposableStack();
+  const disposable = {
+    value: 1,
+    [Symbol.dispose]() {
+      return 43;
+    }
+  };
+  stack.use(disposable);
+  let new_disposable_stack = stack.move()
+  return 42;
+})(): 42
+(() => {
+  const async_disposable = {
+    value: 1,
+    [Symbol.asyncDispose]() {
+      return 43;
+    }
+  };
+  async_disposable_stack.use(async_disposable);
+})(): EvalError
+(() => {
+  let stack = new AsyncDisposableStack();
+  const async_disposable = {
+    value: 1,
+    [Symbol.asyncDispose]() {
+      return 43;
+    }
+  };
+  stack.use(async_disposable);
+  return 42;
+})(): 42
+async_disposable_stack.disposeAsync(): EvalError
+(() => {
+  let stack = new AsyncDisposableStack();
+  stack.disposeAsync();
+  return 42;
+})(): 42
+async_disposable_stack.adopt(42, function(v) {return v}): EvalError
+(() => {
+  let stack = new AsyncDisposableStack();
+  stack.adopt(42, function(v) {return v});
+  return 42;
+})(): 42
+async_disposable_stack.defer(() => console.log(42)): EvalError
+(() => {
+  let stack = new AsyncDisposableStack();
+  stack.defer(() => console.log(42));
+  return 42;
+})(): 42
+let new_async_Sdisposable_stack = async_disposable_stack.move(): EvalError
+(() => {
+  let stack = new AsyncDisposableStack();
+  const async_disposable = {
+    value: 1,
+    [Symbol.asyncDispose]() {
+      return 43;
+    }
+  };
+  stack.use(async_disposable);
+  let new_async_disposable_stack = stack.move()
+  return 42;
+})(): 42

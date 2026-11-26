@@ -1251,6 +1251,15 @@ class VirtualAddressSpace {
    */
   virtual bool SetName(const std::string& name) { return false; }
 
+#if V8_OS_FUCHSIA
+  /**
+   * Returns the zx_handle_t for the VMAR backing this address space, or
+   * ZX_HANDLE_INVALID (0) if backed by the root VMAR. This VirtualAddressSpace
+   * retains ownership of the handle, which remains valid only for its lifetime.
+   */
+  virtual uint32_t GetVmarHandle() const { return 0; }
+#endif  // V8_OS_FUCHSIA
+
  private:
   const size_t page_size_;
   const size_t allocation_granularity_;

@@ -22,7 +22,7 @@
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
 
-// NOTE: The functions in this file are test only, and are should not be used in
+// NOTE: The functions in this file are test only, and should not be used in
 // non-test code.
 
 namespace absl {
@@ -55,15 +55,14 @@ double ZScore(double expected_mean, const DistributionMoments& moments);
 // than `p_fail`.
 double RequiredSuccessProbability(double p_fail, int num_trials);
 
-// Computes the maximum distance from the mean tolerable, for Z-Tests that are
-// expected to pass with `acceptance_probability`. Will terminate if the
-// resulting tolerance is zero (due to passing in 0.0 for
-// `acceptance_probability` or rounding errors).
+// Computes the maximum tolerable Z-score magnitude (in standard errors) for
+// two-sided Z-tests expected to pass with `acceptance_probability`. Asserts in
+// debug builds that the resulting tolerance is positive.
 //
-// For example,
-// MaxErrorTolerance(0.001) = 0.0
-// MaxErrorTolerance(0.5) = ~0.47
-// MaxErrorTolerance(1.0) = inf
+// For example:
+// MaxErrorTolerance(0.001) ~= 0.00125
+// MaxErrorTolerance(0.5)   ~= 0.6745
+// MaxErrorTolerance(1.0)    = inf
 double MaxErrorTolerance(double acceptance_probability);
 
 // Approximation to inverse of the Error Function in double precision.
@@ -73,7 +72,8 @@ double erfinv(double x);
 // Beta(p, q) = Gamma(p) * Gamma(q) / Gamma(p+q)
 double beta(double p, double q);
 
-// The inverse of the normal survival function.
+// Inverse of the standard normal survival function: returns z such that
+// P(Z > z) = x for x in [0, 1], or NaN outside [0, 1].
 double InverseNormalSurvival(double x);
 
 // Returns whether actual is "near" expected, based on the bound.
@@ -91,19 +91,18 @@ bool Near(absl::string_view msg, double actual, double expected, double bound);
 //
 double BetaIncomplete(double x, double p, double q);
 
-// Implements the inverse of the incomplete regularized beta function, AS109,
-// XINBTA.
+// Implements the inverse of the incomplete regularized beta function, adapted
+// from AS109, XINBTA.
 //   https://www.jstor.org/stable/2346798
 //   https://www.jstor.org/stable/2346887
 //
-// BetaIncompleteInv(p, q, beta, alpha)
+// BetaIncompleteInv(p, q, alpha)
 //   `p` is beta parameter p, `q` is beta parameter q.
 //   `alpha` is the value of the lower tail area.
 //
-// NOTE: This is a test-only function and, when successful, is only accurate to
-// within ~1e-6 of the actual value; there are some cases where it diverges from
-// the actual value by much more than that.  The function uses Newton's method,
-// and thus the runtime is highly variable.
+// NOTE: This is a test-only function using modified Newton-Raphson iteration
+// over BetaIncomplete(), targeting ~1e-13 relative accuracy where the CDF is
+// not flat to double precision.
 double BetaIncompleteInv(double p, double q, double alpha);
 
 }  // namespace random_internal

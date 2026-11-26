@@ -19,7 +19,7 @@ class V8InspectorImpl;
 
 enum MultilineMode { MultilineDisabled, MultilineEnabled };
 
-class V8Regex {
+class V8_EXPORT_PRIVATE V8Regex {
  public:
   V8Regex(V8InspectorImpl*, const String16&, bool caseSensitive,
           bool multiline = false);

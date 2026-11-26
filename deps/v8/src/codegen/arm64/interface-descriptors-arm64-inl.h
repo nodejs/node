@@ -152,8 +152,6 @@ constexpr Register GrowArrayElementsDescriptor::KeyRegister() { return x3; }
 constexpr Register BaselineLeaveFrameDescriptor::ParamsSizeRegister() {
   return x3;
 }
-// static
-constexpr Register BaselineLeaveFrameDescriptor::WeightRegister() { return x4; }
 
 // static
 // static

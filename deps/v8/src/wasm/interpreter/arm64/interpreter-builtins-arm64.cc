@@ -257,6 +257,18 @@ class RegisterAllocator {
 #define FREE_REG(Name) regs.Free(&Name);
 
 void Builtins::Generate_JSToWasmInterpreterWrapperAsm(MacroAssembler* masm) {
+  Label stack_overflow;
+  __ Ldr(
+      x9,
+      MemOperand(
+          WasmJSToWasmWrapperDescriptor::WrapperBufferRegister(),
+          JSToWasmWrapperFrameConstants::kWrapperBufferStackReturnBufferSize));
+  // The return buffer size is at most kMaxInterpreterWrapperReturnBufferSlots
+  // (see wasm-interpreter-runtime.h), so the arithmetic below cannot wrap.
+  __ Add(x9, x9, 1);
+  __ Bic(x9, x9, 1);
+  __ StackOverflowCheck(x9, &stack_overflow);
+
   auto regs = RegisterAllocator::WithAllocatableGeneralRegisters();
   __ EnterFrame(StackFrame::JS_TO_WASM);
 
@@ -371,6 +383,21 @@ void Builtins::Generate_JSToWasmInterpreterWrapperAsm(MacroAssembler* masm) {
   constexpr int64_t stack_arguments_in = 2;
   __ DropArguments(stack_arguments_in);
   __ Ret();
+
+  __ Bind(&stack_overflow);
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    // The assembly wrapper is called without a context.
+    __ Ldr(cp,
+           MemOperand(fp, JSToWasmWrapperFrameConstants::kImplicitArgOffset));
+    __ LoadProtectedPointerField(
+        cp, FieldMemOperand(cp, offsetof(WasmExportedFunctionData,
+                                         protected_instance_data_)));
+    __ LoadTaggedField(
+        cp, FieldMemOperand(cp, WasmTrustedInstanceData::kNativeContextOffset));
+    __ CallRuntime(Runtime::kThrowStackOverflow);
+    __ Trap();
+  }
 }
 
 void Builtins::Generate_WasmInterpreterCWasmEntry(MacroAssembler* masm) {
@@ -491,7 +518,7 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
     MacroAssembler* masm) {
   auto regs = RegisterAllocator::WithAllocatableGeneralRegisters();
 
-  DEFINE_PINNED(target_js_function, x0);
+  DEFINE_PINNED(target_context, x0);
   DEFINE_PINNED(packed_args, x1);
   DEFINE_PINNED(signature, x3);
   DEFINE_PINNED(callable, x5);
@@ -565,38 +592,12 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
          MemOperand(fp,
                     WasmToJSInterpreterFrameConstants::kGCScanSlotLimitOffset));
 
-  DEFINE_REG(shared_function_info);
-  __ LoadTaggedField(
-      shared_function_info,
-      MemOperand(target_js_function,
-                 offsetof(JSFunction, shared_function_info_) - kHeapObjectTag));
-
-  // Set the context of the function; the call has to run in the function
-  // context.
-  DEFINE_REG(context);
-  __ LoadTaggedField(context, FieldMemOperand(target_js_function,
-                                              offsetof(JSFunction, context_)));
-  __ Mov(cp, context);
+  __ Mov(cp, target_context);
   __ Str(cp, MemOperand(fp, kContextOffset));
 
-  // Load global receiver if sloppy else use undefined.
-  Label receiver_undefined;
-  Label calculate_js_function_arity;
+  // Call_ReceiverIsAny handles receiver conversion for the original callable.
   DEFINE_REG(receiver);
-  DEFINE_REG(flags);
-  __ Ldr(flags, FieldMemOperand(shared_function_info,
-                                offsetof(SharedFunctionInfo, flags_)));
-  __ Tst(flags, Immediate(SharedFunctionInfo::IsNativeBit::kMask |
-                          SharedFunctionInfo::IsStrictBit::kMask));
-  FREE_REG(flags);
-  __ B(&receiver_undefined, ne);
-  __ LoadGlobalProxy(receiver);
-  __ B(&calculate_js_function_arity);
-
-  __ bind(&receiver_undefined);
   __ LoadRoot(receiver, RootIndex::kUndefinedValue);
-
-  __ bind(&calculate_js_function_arity);
 
   // Load values from the signature.
   DEFINE_REG(return_count);
@@ -605,7 +606,6 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
   Register valuetypes_array_ptr = signature;
   LoadFromSignature(masm, valuetypes_array_ptr, return_count, param_count);
   __ Str(param_count, MemOperand(fp, kParamCountOffset));
-  FREE_REG(shared_function_info);
 
   // Make room to pass the args and the receiver.
   DEFINE_REG(array_size);
@@ -624,6 +624,22 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
   // Ensure that the array is 16-bytes aligned.
   __ Add(scratch, array_size, Immediate(1));
   __ And(array_size, scratch, Immediate(-2));
+
+  // Throw a RangeError instead of overflowing the stack when there is not
+  // enough room for the arguments.
+  {
+    Label stack_overflow, stack_ok;
+    __ StackOverflowCheck(array_size, &stack_overflow);
+    __ B(&stack_ok);
+    __ bind(&stack_overflow);
+    {
+      FrameScope scope(masm, StackFrame::MANUAL);
+      __ CallRuntime(Runtime::kThrowStackOverflow);
+      __ Trap();
+    }
+    __ bind(&stack_ok);
+  }
+
   __ Sub(sp, sp, Operand(array_size, LSL, kSystemPointerSizeLog2));
 
   // Make sure that the padding slot (if present) is reset to zero. The other
@@ -672,7 +688,7 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
   // Heap pointers for ref type values in packed_args can be invalidated if GC
   // is triggered when converting wasm numbers to JS numbers and allocating
   // heap numbers. So, we have to move them to the stack first.
-  Register param = target_js_function;  // x0
+  Register param = target_context;  // x0
   {
     Label loop_copy_param_ref, load_ref_param, set_and_move;
 
@@ -876,8 +892,8 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
   // -------------------------------------------
   __ bind(&prepare_for_js_call);
 
-  regs.ResetExcept(param, packed_args, valuetypes_array_ptr, context,
-                   return_count, valuetype, scratch);
+  regs.ResetExcept(param, packed_args, valuetypes_array_ptr, return_count,
+                   valuetype, scratch);
 
   // -------------------------------------------
   // Call the JS function.
@@ -962,6 +978,10 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
   // We can have a GC here!
   __ Call(BUILTIN_CODE(masm->isolate(), IterableToFixedArrayForWasm),
           RelocInfo::CODE_TARGET);
+  // IterableToFixedArrayForWasm can run arbitrary JavaScript (iterator
+  // getters), which may clobber cp. Restore it before the conversion builtins
+  // below use it as their implicit context.
+  __ Ldr(cp, MemOperand(fp, kContextOffset));
   __ Mov(fixed_array, kReturnRegister0);
 
   // Store fixed_array at the second top of the stack (in place of callable).
@@ -1025,9 +1045,9 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
 
   __ bind(&return_kWasmI32);
   __ JumpIfNotSmi(return_reg, &return_kWasmI32_not_smi);
-  // Change the param from Smi to int32.
+  // Untag the Smi and zero-extend the int32 result.
   __ SmiUntag(return_reg);
-  __ AssertZeroExtended(return_reg);
+  __ Mov(return_reg.W(), return_reg.W());
   __ Ldr(packed_args, MemOperand(fp, kPackedArrayOffset));
   __ Str(return_reg.W(), MemOperand(packed_args, current_result_offset));
   __ Add(current_result_offset, current_result_offset,
@@ -2305,12 +2325,14 @@ class WasmInterpreterHandlerBuiltins {
     Register memory_start_plus_store_index = x11;
     __ Add(memory_start_plus_store_index, memory_start, store_index);
 
+    // A fault in the store must select its PC, not the preceding load's PC.
+    __ Add(code, code, Immediate(kNextHandlerId));
     EmitStoreInstruction(masm, value, memory_start_plus_store_index,
                          store_offset, memory_type);
 
     Register next_handler_id = x12;
-    EmitLoadNextInstructionId(masm, next_handler_id, code, kNextHandlerId);
-    __ Add(code, code, Immediate(kInstructionCodeLength));
+    EmitLoadNextInstructionId(masm, next_handler_id, code, 0);
+    __ Add(code, code, Immediate(kInstructionCodeLength - kNextHandlerId));
 
     Register instr_table = x4;
     __ Ldr(
@@ -2382,12 +2404,14 @@ class WasmInterpreterHandlerBuiltins {
     Register memory_start_plus_store_index = x10;
     __ Add(memory_start_plus_store_index, memory_start, store_index);
 
+    // A fault in the store must select its PC, not the preceding load's PC.
+    __ Add(code, code, Immediate(kNextHandlerId));
     EmitStoreInstruction(masm, value, memory_start_plus_store_index,
                          store_offset, float_type);
 
     Register next_handler_id = x11;
-    EmitLoadNextInstructionId(masm, next_handler_id, code, kNextHandlerId);
-    __ Add(code, code, Immediate(kInstructionCodeLength));
+    EmitLoadNextInstructionId(masm, next_handler_id, code, 0);
+    __ Add(code, code, Immediate(kInstructionCodeLength - kNextHandlerId));
 
     Register instr_table = x4;
     __ Ldr(
@@ -2454,12 +2478,14 @@ class WasmInterpreterHandlerBuiltins {
     Register memory_start_plus_store_index = x13;
     __ Add(memory_start_plus_store_index, memory_start, store_index);
 
+    // A fault in the store must select its PC, not the preceding load's PC.
+    __ Add(code, code, Immediate(kNextHandlerId));
     EmitStoreInstruction(masm, value, memory_start_plus_store_index,
                          store_offset, memory_type);
 
     Register next_handler_id = x14;
-    EmitLoadNextInstructionId(masm, next_handler_id, code, kNextHandlerId);
-    __ Add(code, code, Immediate(kInstructionCodeLength));
+    EmitLoadNextInstructionId(masm, next_handler_id, code, 0);
+    __ Add(code, code, Immediate(kInstructionCodeLength - kNextHandlerId));
 
     Register instr_table = x4;
     __ Ldr(
@@ -2534,12 +2560,14 @@ class WasmInterpreterHandlerBuiltins {
     Register memory_start_plus_store_index = x12;
     __ Add(memory_start_plus_store_index, memory_start, store_index);
 
+    // A fault in the store must select its PC, not the preceding load's PC.
+    __ Add(code, code, Immediate(kNextHandlerId));
     EmitStoreInstruction(masm, value, memory_start_plus_store_index,
                          store_offset, float_type);
 
     Register next_handler_id = x13;
-    EmitLoadNextInstructionId(masm, next_handler_id, code, kNextHandlerId);
-    __ Add(code, code, Immediate(kInstructionCodeLength));
+    EmitLoadNextInstructionId(masm, next_handler_id, code, 0);
+    __ Add(code, code, Immediate(kInstructionCodeLength - kNextHandlerId));
 
     Register instr_table = x4;
     __ Ldr(

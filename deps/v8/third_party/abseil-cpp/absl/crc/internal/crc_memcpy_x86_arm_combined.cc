@@ -423,6 +423,7 @@ CrcMemcpy::ArchSpecificEngines CrcMemcpy::GetArchSpecificEngines() {
     case CpuType::kArmNeoverseV1:
     case CpuType::kArmNeoverseV2:
     case CpuType::kNvidiaGrace:
+    case CpuType::kNvidiaVera:
       return {
           /*.temporal=*/new AcceleratedCrcMemcpyEngine<3, 0>(),
           /*.non_temporal=*/new CrcNonTemporalMemcpyEngine(),

@@ -17,17 +17,17 @@ general debugging approach for tracked issues.
 
 ## Core Principles (Inherited & Specialized)
 
-1. **Strict Orchestration**: The main agent acts purely as a dispatcher.
-   Delegate technical tasks.
-2. **Eager Parallelism**: Initialize Heavy Infrastructure, Conceptual Triage,
-   and Static Research in parallel.
-3. **Issue Association**: When an issue ID is known, use it to label tests and
+1. **Flexible Execution**: Investigate directly or delegate subtasks to
+   subagents as you judge best for the issue; if waiting on subagents or
+   background jobs, wait reactively for completion notifications instead of
+   polling output directories.
+2. **Issue Association**: When an issue ID is known, use it to label tests and
    commits.
-4. **Handling Inaccessible URLs & Missing Info**:
+3. **Handling Inaccessible URLs & Missing Info**:
    - If a URL cannot be accessed directly (e.g., due to authentication), or if
      the intake phase detects that critical attachments (repro script, flags,
-     etc.) cannot be accessed or are redacted, the Orchestrator **MUST** stop
-     immediately and ask the user to provide them manually.
+     etc.) cannot be accessed or are redacted, stop immediately and ask the user
+     to provide them manually.
    - Avoid opening a browser to access the page if it is inaccessible through
      tools.
    - Use separate, sequential interactive prompts (e.g., via `ask_question` or
@@ -40,37 +40,25 @@ general debugging approach for tracked issues.
    - Store the test source in the workspace (e.g.,
      `scratch/regress-<issue_id>.js`) to avoid modifying the user's environment
      directly.
-5. **Worktree Isolation**: If you debug with a repository in use (e.g., with
+4. **Worktree Isolation**: If you debug with a repository in use (e.g., with
    unrelated changes) or debug multiple issues at once you MUST create and
    switch to an isolated git worktree using
    `agents/scripts/create_worktree.sh <issue_id>` BEFORE running any builds or
    tests, to avoid clobbering the main workspace or rebuilding unnecessarily.
-6. **Cross-Pollination & Communication**: The Orchestrator MUST actively relay
-   relevant discoveries and hypotheses between subagents working on overlapping
-   or related tasks to avoid duplicate work and find matching patterns.
 
 ## Workflow
 
-### 1. Triage & Parallel Track Initialization
+### 1. Worktree Setup & Initial Triage
 
 - Analyze the request and extract the Issue ID if available.
-- **Worktree Setup**: If an issue ID is identified, immediately create and
-  switch to a separate git worktree using
-  `agents/scripts/create_worktree.sh <issue_id>` to isolate the investigation.
-- **Eager Delegation (MANDATORY)**: The Orchestrator MUST proactively spawn
-  subagents to handle all of the following tracks in PARALLEL:
-  - **Track A: Heavy Infrastructure**: Spawn a subagent to build `d8` and
-    prepare GDB/rr in the worktree.
-  - **Track B: Conceptual Triage**: Spawn a subagent to analyze the reproducing
-    JS source.
-  - **Track C: Static Research**: Spawn a subagent to search for related code
-    and spec text, and understand affected areas super deeply.
+- **Worktree Setup**: If an issue ID is identified, create and switch to a
+  separate git worktree using `agents/scripts/create_worktree.sh <issue_id>` to
+  isolate the investigation.
+- **Initial Triage**: Kick off any needed `gm.py` build asynchronously and begin
+  inspecting the reproducing JS source, stack trace, and relevant C++ code
+  directly or with subagents as you judge best.
 
-### 2. Work Branching
-
-- Spawn subagents for independent dimensions (e.g., Spec vs. Runtime).
-
-### 3. Investigation & Escalation
+### 2. Investigation & Escalation
 
 - **Reproduction Verification (MANDATORY)**: Before launching GDB or doing any
   deep debugging, you MUST first execute the reproduction script normally
@@ -79,11 +67,11 @@ general debugging approach for tracked issues.
 - Use GDB to inspect crash state.
 - Escalate unfamiliar concepts immediately.
 
-### 4. Synthesis
+### 3. Synthesis
 
 - Combine findings to locate the root cause.
 
-### 5. Fix & Verify
+### 4. Fix & Verify
 
 - Propose a fix following V8 Best Practices.
 - **Create a Regression Test**: Design and implement a clean, semantic
@@ -94,19 +82,27 @@ general debugging approach for tracked issues.
   - *Skepticism Prompt*: "Is this fix too hasty? Does it accidentally disable a
     valid optimization path? Am I fixing a symptom (crashing line) rather than
     the root cause (invariant violation)?"
-- **Deep Reasoning**: If the root cause isn't fully understood, spawn a subagent
-  to reason deeper about why the failing line exists and what invariant it's
-  protecting.
+- **Root-Cause Verification**: Trace upstream in the relevant C++ code and
+  verify why the failing line exists and what invariant it protects.
+- **Check & Update Documentation (`docs/`)**: Search `docs/`
+  (`git --no-pager grep` across `docs/`) to check whether the bug fix or newly
+  uncovered invariant changes, expands, or corrects any V8 architecture, data
+  structure, pipeline pass, bytecode/IR node, flag, or cross-tier contract
+  documented in `docs/` (or whether any `docs/` file read during triage had
+  stale symbols or invariants). Update the relevant `.md` file(s) in `docs/` as
+  part of the fix (keep `docs/security/triaging.md` unchanged unless explicitly
+  requested by the user).
 - **Verify**: Confirm with tests and `d8` flags. Run tests on both debug and
   release builds if possible to ensure no assertions are violated and
   performance is not regressed.
 
-### 6. Interactive Review
+### 5. Interactive Review
 
 Before committing or uploading, you MUST present the proposed solution to the
 user for review.
 
-- **Present the Diff**: Show the exact code changes proposed.
+- **Present the Diff**: Show the exact code changes proposed (and any
+  accompanying `docs/` updates).
 - **Present the Test**: Show the working regression test file and where it will
   be placed. A bug fix must **always** be accompanied by a working regression
   test. Proposing a fix without a reproducer is strictly forbidden unless the
@@ -119,7 +115,7 @@ user for review.
 - **Ask for Approval**: Explicitly ask the user if you should proceed with
   committing and uploading.
 
-### 7. Commit & Upload (Specialized)
+### 6. Commit & Upload (Specialized)
 
 Once the fix is approved by the user:
 
@@ -157,6 +153,8 @@ Once the fix is approved by the user:
 
 - **Finalization and Upload**:
 
+  - Verify that any affected `.md` files in `docs/` have been updated to match
+    the code changes.
   - Run `git cl format` to ensure style compliance.
   - Create the commit locally.
   - Follow git-cl rules to upload the change list (CL) to Gerrit.

@@ -14,10 +14,11 @@
 #ifndef LLVM_LIBC_SRC___SUPPORT_MATH_EXP2_DOUBLE_EVAL_H
 #define LLVM_LIBC_SRC___SUPPORT_MATH_EXP2_DOUBLE_EVAL_H
 
+#include "src/__support/CPP/bit.h"
 #include "src/__support/FPUtil/FPBits.h"
 #include "src/__support/FPUtil/double_double.h"
+#include "src/__support/FPUtil/fp_bitwise.h"
 #include "src/__support/FPUtil/multiply_add.h"
-#include "src/__support/FPUtil/nearest_integer.h"
 #include "src/__support/common.h"
 #include "src/__support/macros/attributes.h"
 #include "src/__support/macros/config.h"
@@ -63,27 +64,33 @@ LIBC_ALWAYS_INLINE double exp2(double x) {
   // Range reduction:
   // Let x = k * 2^-N + dx
   // in which:
-  //   k = round(x * 2^N)
-  //   hi = k >> N
+  //   k   = round(x * 2^N)
+  //   hi  = k >> N
   //   idx = k & (2^N - 1)
   // then:
   //   2^x = 2^hi * 2^(idx / 2^N) * 2^dx.
+  //
+  // Using ROUND_BIAS, ROUND_SHIFT, and ROUND_MASK (see exp_utils.h), we compute
+  // k_biased = fma(x, EXP_SCALE, ROUND_BIAS) and extract in parallel:
+  //   kd  = (k_biased & ROUND_MASK) - ROUND_SHIFT
+  //   hi  = (int32_t)(k_bits >> 19) >> (13 + N)
+  //   idx = (k_bits >> 32) & (2^N - 1).
+  double k_biased = fputil::multiply_add(x, EXP_SCALE, ROUND_BIAS);
+  double kd = fputil::fp_and(k_biased, ROUND_MASK) - ROUND_SHIFT;
+  uint64_t k_bits = cpp::bit_cast<uint64_t>(k_biased);
 
-  double kd = fputil::nearest_integer(x * EXP_SCALE);
-  int k = static_cast<int>(kd);
+  int hi = static_cast<int32_t>(k_bits >> 19) >> (13 + EXP_N_BITS);
+  unsigned idx = static_cast<unsigned>(k_bits >> 32) & EXP_MASK;
 
-  int hi = k >> EXP_N_BITS;
-  unsigned idx = static_cast<unsigned>(k & EXP_MASK);
-
-  double dx = fputil::multiply_add(kd, -EXP_SCALE_INV, x); // exact
+  double dx = fputil::sub_multiply(x, kd, EXP_SCALE_INV); // exact
 
 #ifdef LIBC_MATH_HAS_SKIP_ACCURATE_PASS
-  double u = dx * LOG_2.hi;
+  double u = dx * LOG_2_DD.hi;
   return exp2_eval(x, u, hi, idx, /*is_exp2=*/true);
 #else // !LIBC_MATH_HAS_SKIP_ACCURATE_PASS
 #ifdef LIBC_TARGET_CPU_HAS_FMA_DOUBLE
-  DoubleDouble u = fputil::exact_mult(dx, LOG_2.hi);
-  u.lo = fputil::multiply_add(dx, LOG_2.lo, u.lo);
+  DoubleDouble u = fputil::exact_mult(dx, LOG_2_DD.hi);
+  u.lo = fputil::multiply_add(dx, LOG_2_DD.lo, u.lo);
 #else  // !LIBC_TARGET_CPU_HAS_FMA_DOUBLE
   // Without FMA, we use fixed-point splitting to avoid Veltkamp's splitting:
   // Let:

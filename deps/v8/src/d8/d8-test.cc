@@ -8,6 +8,7 @@
 #include "include/v8-function.h"
 #include "include/v8-template.h"
 #include "src/api/api-inl.h"
+#include "src/objects/js-array-buffer-inl.h"
 
 // This file exposes a d8.test.fast_c_api object, which adds testing facility
 // for writing mjsunit tests that exercise fast API calls.
@@ -108,7 +109,10 @@ class FastCApiObject {
           "Invalid parameter, destination array is too small.");
       return;
     }
-    uint8_t* memory = reinterpret_cast<uint8_t*>(array->GetBuffer()->Data());
+    i::DisallowGarbageCollection no_gc;
+    i::Tagged<i::JSTypedArray> i_array =
+        i::Cast<i::JSTypedArray>(*Utils::OpenDirectHandle(*array));
+    uint8_t* memory = reinterpret_cast<uint8_t*>(i_array->DataPtr());
     memcpy(memory, source.data, source.length);
   }
 
@@ -810,8 +814,9 @@ class FastCApiObject {
       if (upper_bound > internal::kMaxSafeInteger) {
         upper_bound = static_cast<IntegerT>(internal::kMaxSafeInteger);
       }
-      CHECK(!std::isnan(real_arg));
-      if (real_arg < static_cast<double>(lower_bound)) {
+      if (std::isnan(real_arg)) {
+        CHECK_EQ(0, checked_arg);
+      } else if (real_arg < static_cast<double>(lower_bound)) {
         CHECK_EQ(lower_bound, checked_arg);
       } else if (real_arg > static_cast<double>(upper_bound)) {
         CHECK_EQ(upper_bound, checked_arg);
@@ -1815,6 +1820,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             signature, 1, ConstructorBehavior::kThrow,
             SideEffectType::kHasSideEffect, &add_32bit_int_c_func));
 
+    START_ALLOW_USE_DEPRECATED()
     static CFunction add_all_annotate_c_func = CFunction::Make(
         FastCApiObject::AddAllAnnotateFastCallback<
             v8::CTypeInfo::Flags::kEnforceRangeBit>
@@ -1888,6 +1894,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             isolate, FastCApiObject::EnforceRangeCompareSlowCallback<uint64_t>,
             Local<Value>(), signature, 1, ConstructorBehavior::kThrow,
             SideEffectType::kHasSideEffect, &enforce_range_compare_u64_c_func));
+    END_ALLOW_USE_DEPRECATED()
 
     // Testing clamp annotation.
 
@@ -1953,6 +1960,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
 
     // Testing restricted float annotation.
 
+    START_ALLOW_USE_DEPRECATED()
     static CFunction check_restricted_float32_c_func =
         CFunctionBuilder()
             .Fn(FastCApiObject::CheckRestrictedFloat32FastCallback)
@@ -1976,6 +1984,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             .Patch(FastCApiObject::CheckRestrictedFloat64Patch)
 #endif  // V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
             .Build();
+    END_ALLOW_USE_DEPRECATED()
     api_obj_ctor->PrototypeTemplate()->Set(
         isolate, "check_restricted_float64",
         FunctionTemplate::New(
@@ -2102,6 +2111,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
                               Local<Value>(), signature, 1,
                               ConstructorBehavior::kThrow));
 
+    START_ALLOW_USE_DEPRECATED()
     static CFunction add_all_32bit_int_5args_enforce_range_c_func =
         CFunctionBuilder()
             .Fn(FastCApiObject::AddAll32BitIntFastCallback_5Args)
@@ -2111,6 +2121,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             .Patch(FastCApiObject::AddAll32BitIntFastCallback_5ArgsPatch)
 #endif  // V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
             .Build();
+    END_ALLOW_USE_DEPRECATED()
     api_obj_ctor->PrototypeTemplate()->Set(
         isolate, "add_all_5args_enforce_range",
         FunctionTemplate::New(
@@ -2146,7 +2157,7 @@ namespace {
 v8::Intercepted D8InterceptCallback(Local<Name> property,
                                     const PropertyCallbackInfo<Value>& info) {
   Isolate* isolate = info.GetIsolate();
-  Local<Value> data = info.DataV2().As<Value>();
+  Local<Value> data = info.Data().As<Value>();
   if (!data->IsFunction()) {
     isolate->ThrowError("Interceptor callback must be a function");
     return v8::Intercepted::kYes;

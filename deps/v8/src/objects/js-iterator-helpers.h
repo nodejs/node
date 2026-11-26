@@ -24,6 +24,9 @@ enum class JSIteratorHelperState {
 
 enum class JSIteratorZipHelperMode { kShortest, kLongest, kStrict };
 
+enum class JSIteratorWindowsHelperMode { kOnlyFull, kAllowPartial };
+
+#ifdef OBJECT_PRINT
 V8_EXPORT_PRIVATE const char* JSIteratorHelperStateToString(
     JSIteratorHelperState state);
 
@@ -35,6 +38,13 @@ V8_EXPORT_PRIVATE const char* JSIteratorZipHelperModeToString(
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                            JSIteratorZipHelperMode mode);
+
+V8_EXPORT_PRIVATE const char* JSIteratorWindowsHelperModeToString(
+    JSIteratorWindowsHelperMode mode);
+
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           JSIteratorWindowsHelperMode mode);
+#endif  // OBJECT_PRINT
 
 // Iterator helpers are iterators that transform an underlying iterator in some
 // way. They are specified as spec generators. That is, the spec defines the
@@ -81,7 +91,6 @@ V8_OBJECT class JSIteratorHelper : public JSObject {
   DECL_VERIFIER(JSIteratorHelper)
 
  public:
-  // SmiTagged<JSIteratorHelperState>.
   TaggedMember<Smi> state_ V8_TQ_TYPE(SmiTagged<JSIteratorHelperState>);
 } V8_OBJECT_END;
 
@@ -253,7 +262,6 @@ V8_OBJECT class JSIteratorZipHelper : public JSIteratorHelper {
 
  public:
   TaggedMember<FixedArray> underlying_iterators_;
-  // SmiTagged<JSIteratorZipHelperMode>.
   TaggedMember<Smi> mode_ V8_TQ_TYPE(SmiTagged<JSIteratorZipHelperMode>);
   TaggedMember<Smi> active_count_;
   TaggedMember<FixedArray> padding_;
@@ -270,6 +278,47 @@ V8_OBJECT class JSIteratorZipKeyedHelper final : public JSIteratorZipHelper {
 
  public:
   TaggedMember<FixedArray> keys_;
+} V8_OBJECT_END;
+
+V8_OBJECT class JSIteratorChunksHelper final : public JSIteratorHelperSimple {
+ public:
+  inline Tagged<Smi> chunk_size() const;
+  inline void set_chunk_size(Tagged<Smi> value);
+
+  DECL_PRINTER(JSIteratorChunksHelper)
+  DECL_VERIFIER(JSIteratorChunksHelper)
+
+ public:
+  TaggedMember<Smi> chunk_size_;
+} V8_OBJECT_END;
+
+V8_OBJECT class JSIteratorWindowsHelper final : public JSIteratorHelperSimple {
+ public:
+  inline Tagged<Smi> window_size() const;
+  inline void set_window_size(Tagged<Smi> value);
+
+  inline JSIteratorWindowsHelperMode mode() const;
+  inline void set_mode(JSIteratorWindowsHelperMode value);
+
+  inline Tagged<FixedArray> buffer() const;
+  inline void set_buffer(Tagged<FixedArray> value,
+                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<Smi> element_count() const;
+  inline void set_element_count(Tagged<Smi> value);
+
+  inline Tagged<Smi> start_index() const;
+  inline void set_start_index(Tagged<Smi> value);
+
+  DECL_PRINTER(JSIteratorWindowsHelper)
+  DECL_VERIFIER(JSIteratorWindowsHelper)
+
+ public:
+  TaggedMember<Smi> window_size_;
+  TaggedMember<Smi> mode_ V8_TQ_TYPE(SmiTagged<JSIteratorWindowsHelperMode>);
+  TaggedMember<FixedArray> buffer_;
+  TaggedMember<Smi> element_count_;
+  TaggedMember<Smi> start_index_;
 } V8_OBJECT_END;
 
 }  // namespace internal

@@ -1,0 +1,11 @@
+Test debug evaluation for functions without local context, but with nested catch contexts.
+--- Test f with breakpoint on line 6 ---
+Evaluated i in catch block: 1
+--- Test f1 with setVariableValue ---
+Evaluated i before set: 1
+Scope i property value: 1
+Executed f1 without exception: true
+--- Test f2 with setVariableValue ---
+Evaluated i before set: 1
+Scope i property value: 1
+Executed f2 without exception: true

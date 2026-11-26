@@ -346,14 +346,14 @@ ABSL_ATTRIBUTE_ALWAYS_INLINE inline void BlockShuffle(absl::uint128* state) {
 // per 16 bytes (vs. 10 for AES-CTR). Computing eight round functions in
 // parallel hides the 7-cycle AESNI latency on HSW. Note that the Feistel
 // XORs are 'free' (included in the second AES instruction).
-ABSL_ATTRIBUTE_ALWAYS_INLINE inline const absl::uint128* FeistelRound(
+ABSL_ATTRIBUTE_ALWAYS_INLINE inline const uint8_t* FeistelRound(
     absl::uint128* ABSL_RANDOM_INTERNAL_RESTRICT state,
-    const absl::uint128* ABSL_RANDOM_INTERNAL_RESTRICT keys) {
+    const uint8_t* ABSL_RANDOM_INTERNAL_RESTRICT keys) {
   for (size_t branch = 0; branch < RandenTraits::kFeistelBlocks; branch += 4) {
     const Vector128 s0 = Vector128Load(state + branch);
     const Vector128 s1 = Vector128Load(state + branch + 1);
     const Vector128 f0 = AesRound(s0, Vector128Load(keys));
-    keys++;
+    keys += sizeof(Vector128);
     const Vector128 o1 = AesRound(f0, s1);
     Vector128Store(o1, state + branch + 1);
 
@@ -361,7 +361,7 @@ ABSL_ATTRIBUTE_ALWAYS_INLINE inline const absl::uint128* FeistelRound(
     const Vector128 s2 = Vector128Load(state + branch + 2);
     const Vector128 s3 = Vector128Load(state + branch + 3);
     const Vector128 f2 = AesRound(s2, Vector128Load(keys));
-    keys++;
+    keys += sizeof(Vector128);
     const Vector128 o3 = AesRound(f2, s3);
     Vector128Store(o3, state + branch + 3);
   }
@@ -373,8 +373,7 @@ ABSL_ATTRIBUTE_ALWAYS_INLINE inline const absl::uint128* FeistelRound(
 // 2^64 queries if the round function is a PRF. This is similar to the b=8 case
 // of Simpira v2, but more efficient than its generic construction for b=16.
 ABSL_ATTRIBUTE_ALWAYS_INLINE inline void Permute(
-    absl::uint128* state,
-    const absl::uint128* ABSL_RANDOM_INTERNAL_RESTRICT keys) {
+    absl::uint128* state, const uint8_t* ABSL_RANDOM_INTERNAL_RESTRICT keys) {
   for (size_t round = 0; round < RandenTraits::kFeistelRounds; ++round) {
     keys = FeistelRound(state, keys);
     BlockShuffle(state);
@@ -414,30 +413,38 @@ const void* RandenSlow::GetKeys() {
 }
 
 void RandenSlow::Absorb(const void* seed_void, void* state_void) {
-  auto* state =
-      reinterpret_cast<uint64_t * ABSL_RANDOM_INTERNAL_RESTRICT>(state_void);
-  const auto* seed =
-      reinterpret_cast<const uint64_t * ABSL_RANDOM_INTERNAL_RESTRICT>(
-          seed_void);
+  uint8_t* ABSL_RANDOM_INTERNAL_RESTRICT state_bytes =
+      static_cast<uint8_t*>(state_void);
+  const uint8_t* ABSL_RANDOM_INTERNAL_RESTRICT seed_bytes =
+      static_cast<const uint8_t*>(seed_void);
 
-  constexpr size_t kCapacityBlocks =
-      RandenTraits::kCapacityBytes / sizeof(uint64_t);
-  static_assert(
-      kCapacityBlocks * sizeof(uint64_t) == RandenTraits::kCapacityBytes,
-      "Not i*V");
+  static_assert(RandenTraits::kCapacityBytes % sizeof(uint64_t) == 0,
+                "kCapacityBytes must be a multiple of 8");
+  static_assert(RandenTraits::kStateBytes % sizeof(uint64_t) == 0,
+                "kStateBytes must be a multiple of 8");
 
-  for (size_t i = kCapacityBlocks;
-       i < RandenTraits::kStateBytes / sizeof(uint64_t); ++i) {
-    state[i] ^= seed[i - kCapacityBlocks];
+  for (size_t offset = RandenTraits::kCapacityBytes;
+       offset < RandenTraits::kStateBytes; offset += sizeof(uint64_t)) {
+    uint64_t s;
+    uint64_t k;
+    std::memcpy(&s, state_bytes + offset, sizeof(s));
+    std::memcpy(&k, seed_bytes + (offset - RandenTraits::kCapacityBytes),
+                sizeof(k));
+    s ^= k;
+    std::memcpy(state_bytes + offset, &s, sizeof(s));
   }
 }
 
 void RandenSlow::Generate(const void* keys_void, void* state_void) {
   static_assert(RandenTraits::kCapacityBytes == sizeof(absl::uint128),
                 "Capacity mismatch");
+  static_assert(RandenTraits::kFeistelBlocks * sizeof(absl::uint128) ==
+                    RandenTraits::kStateBytes,
+                "State size mismatch");
 
-  auto* state = reinterpret_cast<absl::uint128*>(state_void);
-  const auto* keys = reinterpret_cast<const absl::uint128*>(keys_void);
+  alignas(16) absl::uint128 state[RandenTraits::kFeistelBlocks];
+  std::memcpy(state, state_void, sizeof(state));
+  const auto* keys = static_cast<const uint8_t*>(keys_void);
 
   const absl::uint128 prev_inner = state[0];
 
@@ -448,7 +455,8 @@ void RandenSlow::Generate(const void* keys_void, void* state_void) {
   SwapEndian(state);
 
   // Ensure backtracking resistance.
-  *state ^= prev_inner;
+  state[0] ^= prev_inner;
+  std::memcpy(state_void, state, sizeof(state));
 }
 
 }  // namespace random_internal

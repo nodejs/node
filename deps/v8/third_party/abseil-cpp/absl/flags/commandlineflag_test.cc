@@ -16,7 +16,9 @@
 #include "absl/flags/commandlineflag.h"
 
 #include <memory>
+#include <optional>
 #include <string>
+#include <vector>
 
 #include "gtest/gtest.h"
 #include "absl/flags/config.h"
@@ -37,6 +39,21 @@ ABSL_RETIRED_FLAG(bool, bool_retired_flag, false, "bool_retired_flag help");
 // These are only used to test default values.
 ABSL_FLAG(int, int_flag2, 201, "");
 ABSL_FLAG(std::string, string_flag2, "dflt", "");
+
+using CustomIntAlias = int;
+using CustomStringListAlias = std::vector<std::string>;
+
+struct CustomFlagUDT {};
+bool AbslParseFlag(absl::string_view, CustomFlagUDT*, std::string*) {
+  return true;
+}
+std::string AbslUnparseFlag(const CustomFlagUDT&) { return ""; }
+
+ABSL_FLAG(CustomIntAlias, int_alias_flag, 7, "");
+ABSL_FLAG(CustomStringListAlias, string_list_alias_flag, {}, "");
+ABSL_FLAG(std::vector<std::string>, string_vec_flag, {}, "");
+ABSL_FLAG(std::optional<int>, optional_int_flag, std::nullopt, "");
+ABSL_FLAG(CustomFlagUDT, custom_udt_flag, {}, "");
 
 namespace {
 
@@ -231,6 +248,69 @@ TEST_F(CommandLineFlagTest, TestParseFromIfDefault) {
       err));
   EXPECT_EQ(absl::GetFlag(FLAGS_int_flag), 201);
   // EXPECT_EQ(err, "ERROR: int_flag is already set to 201");
+}
+
+void MakeEmptyString(void* dst) { new (dst) std::string(); }
+
+constexpr flags::FlagHelpArg kCompatHelpArg{flags::FlagHelpMsg("help"),
+                                            flags::FlagHelpKind::kLiteral};
+constexpr flags::FlagDefaultArg kCompatStringDefaultArg{
+    flags::FlagDefaultSrc(&MakeEmptyString), flags::FlagDefaultKind::kGenFunc};
+constexpr absl::Flag<std::string> kCompat4ArgFlag{"compat4", "file",
+                                                  kCompatHelpArg,
+                                                  kCompatStringDefaultArg};
+constexpr absl::Flag<std::string> kCompat5ArgCommonFlag{
+    "compat5_common", "std::string", "file", kCompatHelpArg,
+    kCompatStringDefaultArg};
+constexpr absl::Flag<std::string> kCompat5ArgCustomFlag{
+    "compat5_custom", "UnlistedStringAlias", "file", kCompatHelpArg,
+    kCompatStringDefaultArg};
+
+TEST_F(CommandLineFlagTest, TestTypeName) {
+  EXPECT_EQ(flags::PrivateHandleAccessor::TypeName(
+                *absl::FindCommandLineFlag("int_flag")),
+            "int");
+  EXPECT_EQ(flags::PrivateHandleAccessor::TypeName(
+                *absl::FindCommandLineFlag("string_flag")),
+            "std::string");
+  EXPECT_EQ(flags::PrivateHandleAccessor::TypeName(
+                *absl::FindCommandLineFlag("string_vec_flag")),
+            "std::vector<std::string>");
+  EXPECT_EQ(flags::PrivateHandleAccessor::TypeName(
+                *absl::FindCommandLineFlag("optional_int_flag")),
+            "std::optional<int>");
+  EXPECT_EQ(flags::PrivateHandleAccessor::TypeName(
+                *absl::FindCommandLineFlag("int_alias_flag")),
+            "CustomIntAlias");
+  EXPECT_EQ(flags::PrivateHandleAccessor::TypeName(
+                *absl::FindCommandLineFlag("string_list_alias_flag")),
+            "CustomStringListAlias");
+  EXPECT_EQ(flags::PrivateHandleAccessor::TypeName(
+                *absl::FindCommandLineFlag("custom_udt_flag")),
+            "CustomFlagUDT");
+
+  EXPECT_EQ(flags::PrivateHandleAccessor::TypeName(
+                absl::GetFlagReflectionHandle(kCompat4ArgFlag)),
+            "");
+  EXPECT_EQ(flags::PrivateHandleAccessor::TypeName(
+                absl::GetFlagReflectionHandle(kCompat5ArgCommonFlag)),
+            "std::string");
+  EXPECT_EQ(flags::PrivateHandleAccessor::TypeName(
+                absl::GetFlagReflectionHandle(kCompat5ArgCustomFlag)),
+            "");
+}
+
+TEST(CommandLineFlagStrippedTest, TestStrippedTypeName) {
+#if ABSL_FLAGS_STRIP_NAMES
+  EXPECT_EQ(absl::GetFlagReflectionHandle(FLAGS_int_flag).Name(), "");
+  EXPECT_EQ(flags::PrivateHandleAccessor::TypeName(
+                absl::GetFlagReflectionHandle(FLAGS_int_flag)),
+            "");
+  EXPECT_EQ(absl::GetFlagReflectionHandle(FLAGS_custom_udt_flag).Name(), "");
+  EXPECT_EQ(flags::PrivateHandleAccessor::TypeName(
+                absl::GetFlagReflectionHandle(FLAGS_custom_udt_flag)),
+            "");
+#endif
 }
 
 }  // namespace

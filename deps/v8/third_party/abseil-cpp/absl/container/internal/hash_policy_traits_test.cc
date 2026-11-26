@@ -121,7 +121,7 @@ TEST(HashTest, PolicyNoHashFn_get_hash_slot_fn) {
 
   Hash hasher;
   Slot value = 7;
-  auto* fn = hash_policy_traits<PolicyNoHashFn>::get_hash_slot_fn<
+  constexpr auto* fn = hash_policy_traits<PolicyNoHashFn>::get_hash_slot_fn<
       Hash, /*kIsAbsl=*/false, /*kSeedShift=*/6>();
   EXPECT_NE(fn, nullptr);
   EXPECT_EQ(fn(&hasher, &value, 100),
@@ -136,7 +136,7 @@ TEST(HashTest, PolicyCustomHashFn_get_hash_slot_fn) {
 
   Hash hasher;
   Slot value = 7;
-  auto* fn = hash_policy_traits<PolicyCustomHashFn>::get_hash_slot_fn<
+  constexpr auto* fn = hash_policy_traits<PolicyCustomHashFn>::get_hash_slot_fn<
       Hash, /*kIsAbsl=*/false, /*kSeedShift=*/6>();
   EXPECT_EQ(fn,
             (PolicyCustomHashFn::get_hash_slot_fn<Hash, /*kIsAbsl=*/false,

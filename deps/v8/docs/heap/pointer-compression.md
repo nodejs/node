@@ -1,89 +1,105 @@
 # Pointer Compression in V8
 
-Pointer compression is a technique used in V8 to reduce the memory footprint of the heap on 64-bit architectures. It achieves this by representing 64-bit pointers as 32-bit offsets from a base address, effectively cutting the size of pointer fields in half.
+Pointer compression (`V8_COMPRESS_POINTERS`) reduces the size of tagged pointers on 64-bit architectures from 64 bits (`8` bytes) to 32 bits (`4` bytes, `Tagged_t`). Because tagged fields make up the majority of V8 heap memory, pointer compression saves roughly 30% to 40% of total heap memory and significantly improves CPU cache utilization and memory bandwidth.
 
-## How it Works
+---
 
-When pointer compression is enabled, V8 allocates a large contiguous region of virtual memory called a **Cage** (typically 4GB).
+## 1. Core Concept: 4GB Cage Alignment
 
-### Cage Types
+On a 64-bit architecture, pointer compression reserves a contiguous **4GB (`2^32` bytes) virtual address cage** aligned to a 4GB boundary (`kPtrComprCageBaseAlignment = 4GB`):
 
-V8 supports two main configurations for the pointer compression cage:
-*   **Isolate Cage**: Each isolate has its own 4GB cage. The base address is unique per isolate.
-*   **Shared Cage (Process-wide)**: A single cage is shared across all isolates in a process. This is required for the **V8 Sandbox** (where the cage effectively serves as the sandbox boundary). This mode simplifies sharing of read-only objects and improves performance by avoiding cage base reloads.
-
-### Compression
-
-To compress a 64-bit pointer to a 32-bit value:
-1.  The pointer is verified to be within the designated cage.
-2.  The pointer is truncated to its lower 32 bits.
-
-```cpp
-// Conceptually
-Tagged_t CompressObject(Address tagged) {
-  return static_cast<Tagged_t>(tagged);
-}
+```
+64-bit Full Address:
++----------------------------------+----------------------------------+
+|    Upper 32 bits (Cage Base)     |   Lower 32 bits (Tagged_t)       |
++----------------------------------+----------------------------------+
+|<--- Identical for all objects -->|<--- Stored in heap fields ------>|
+      in the same 4GB cage
 ```
 
-### Decompression
+Because the cage base is aligned to `4GB`, the lower 32 bits of the cage base address are all `0`.
+* **Compression (`CompressObject`)**: Truncates a 64-bit `Address` to its lower 32 bits (`static_cast<Tagged_t>(address)`).
+* **Decompression (`DecompressTagged`)**: Zero-extends the 32-bit `Tagged_t` to 64 bits and adds the 64-bit cage base (`base + static_cast<Address>(static_cast<uint32_t>(raw_value))`).
+  * For **Smis** (which are 31-bit signed integers with LSB `0` under pointer compression), decompression either sign-extends the 32-bit Smi or leaves the upper 32 bits as the cage base when the Smi is only inspected as a 32-bit value.
 
-To decompress a 32-bit value back to a full 64-bit pointer:
-1.  The 32-bit value is zero-extended to 64 bits.
-2.  The zero-extended value is added to the 64-bit **Cage Base** address.
+### Dedicated Cage Base Registers
+In JIT-compiled code and builtins, the main pointer compression cage base is kept permanently in a dedicated register (`kPtrComprCageBaseRegister`) so decompression requires no memory loads:
+* **x64 (`src/codegen/x64/register-x64.h`)**: `r14` (`kPtrComprCageBaseRegister`), alongside `r13` (`kRootRegister`).
+* **ARM64 (`src/codegen/arm64/register-arm64.h`)**: `x28` (`kPtrComprCageBaseRegister`), alongside `x26` (`kRootRegister`).
 
-*Note on Smis*: In their uncompressed representation on 64-bit architectures with pointer compression, Smis explicitly have their top 32 bits undefined (neither guaranteed to be zero nor sign-extended). Operations on Smis *must* truncate to the lower 32 bits and ignore these top bits. This allows decompression to be identical whether the tagged pointer is a Smi or a HeapObject reference (since both just need the lower 32 bits added to the cage base).
+On x64, decompressing and loading a field from a compressed pointer can be folded into a single indexed addressing mode: `movl rax, [r14 + rbx*1 + offset - 1]`.
 
-```cpp
-// Conceptually
-Address DecompressTagged(Tagged_t raw_value) {
-  Address cage_base = base(); // Get the current cage base
-  return cage_base + static_cast<Address>(raw_value);
-}
-```
+---
 
-## Cages
+## 2. Multiple Compression Schemes (`src/common/ptr-compr.h`)
 
-V8 uses different cages for different types of objects to optimize memory layout and security.
+Modern V8 uses separate pointer compression schemes for different memory regions to enforce [V8 Sandbox](../sandbox/architecture.md) isolation and support executable code ranges:
 
-### Main Cage
-Used for most JavaScript objects and heap metadata. The base address is typically stored in a dedicated register (`r14` on x64, `x28` on arm64) for fast access during execution. In C++ code, it is accessed via a global variable (if shared cage is enabled) or thread-local storage.
+### 1. `V8HeapCompressionScheme` (Main Cage)
+* Used for all standard in-sandbox heap spaces (`NewSpace`, `OldSpace`, `SharedSpace`, `ReadOnlySpace`).
+* When `V8_ENABLE_SANDBOX` is enabled, the 4GB main pointer compression cage is placed at the start of the 1TB V8 Sandbox reservation (`IsolateGroup::GetPtrComprCageBase()`).
+* Standard `TaggedMember<T>` fields use `V8HeapCompressionScheme` by default.
 
-### Trusted Cage
-When the V8 Sandbox is enabled, trusted objects are placed in a separate trusted cage outside the sandbox to prevent them from being corrupted by untrusted code.
+### 2. `TrustedSpaceCompressionScheme` (`TrustedCage`)
+* When the V8 Sandbox is enabled (`V8_ENABLE_SANDBOX`), security-sensitive V8 metadata (`TrustedObject`s such as `BytecodeArray`, `Code`, `TrustedFixedArray`, `ProtectedFixedArray`, and Wasm internal structures) must reside **outside** the sandbox so an attacker with arbitrary in-sandbox write cannot corrupt them.
+* These objects are allocated in `TrustedSpace` and `SharedTrustedSpace` inside a separate 4GB virtual memory reservation called the **`TrustedCage`** (`IsolateGroup::GetTrustedPtrComprCage()`).
+* Pointers between trusted objects (`ProtectedTaggedMember<T>`, stored in `TrustedObject`s) are 32-bit compressed offsets compressed and decompressed using `TrustedSpaceCompressionScheme::base()`. Because both the pointer and the target live in `TrustedCage`, they cannot be forged from inside the sandbox.
 
--   **Trusted Objects**: These are objects that are trusted to not have been modified in a malicious way. Examples include `BytecodeArray` and `Code`.
--   **Exposed Trusted Objects**: Some trusted objects need to be referenced from untrusted objects inside the sandbox. These inherit from `ExposedTrustedObject` and are referenced via **indirect pointers** (indices into a pointer table) to guarantee memory safety. Both `Code` and `BytecodeArray` are exposed trusted objects.
--   **Protected Pointers**: Pointers between objects within the trusted cage can be direct compressed pointers, as they cannot be modified by an attacker in the sandbox.
+### 3. `ExternalCodeCompressionScheme` (`V8_EXTERNAL_CODE_SPACE`)
+Executable machine code (`InstructionStream` objects in `CodeSpace` and `CodeLargeObjectSpace`) is often allocated in a separate `CodeRange` outside the main 4GB data cage (or near the binary's `.text` section to allow fast PC-relative `call`/`jmp` instructions).
 
-### External Code Space
-When `V8_EXTERNAL_CODE_SPACE` is enabled, the executable instructions of code objects are placed in a separate cage, specifically in `InstructionStream` objects. This allows the code range to be allocated closer to the executable text section of the process, which is sometimes required by operating systems or for performance (shorter jump distances).
+Unlike the data cage and trusted cage, **the external code range does not need to be 4GB-aligned**. Instead, `ExternalCodeCompressionScheme` only requires that the code range does not cross a 4GB boundary (`kMinExpectedOSPageSize` alignment):
 
-The `Code` object itself (which contains metadata) lives in the Trusted Cage (or Main Cage if sandbox is disabled), while the `InstructionStream` object (which contains the actual machine code) lives in the External Code Space.
+1. **`PrepareCageBaseAddress(code_range_base)`**: Rounds `code_range_base` **down** to the nearest 4GB boundary:
+   ```cpp
+   base = RoundDown<kPtrComprCageBaseAlignment>(code_range_base);
+   ```
+2. **Constraint**: As long as the entire `CodeRange` (typically 128MB to 512MB) fits inside a single `[N * 4GB, (N + 1) * 4GB)` window, every `InstructionStream` in that range shares the same upper 32 bits (`base`).
+3. **Smi Disambiguation**: If `code_range_base` happens to land directly on a 4GB boundary (`Lower32(code_range_base) == 0`), an offset of `0` with bit 0 = `0` could collide with `Smi::zero()`. To ensure `DecompressTagged` can still distinguish Smis from `InstructionStream` pointers, V8 reserves a small redzone at the start of the 4GB window so valid `InstructionStream` offsets are never zero.
 
-This cage has a slightly more complex decompression scheme to allow it to cross 4GB boundaries. Instead of just adding the 32-bit truncated value to the cage base, it computes the difference between the truncated value and the truncated cage base. If the difference is negative, it adds 4GB to the result. This ensures that the decompressed address is always within the correct 4GB window relative to the cage base.
+---
 
-```cpp
-// Conceptually
-Address DecompressExternalCode(Tagged_t raw_value) {
-  Address cage_base = ExternalCodeCompressionScheme::base();
-  uint32_t compressed_value = static_cast<uint32_t>(raw_value);
-  uint32_t compressed_base = static_cast<uint32_t>(cage_base);
-  
-  intptr_t diff = static_cast<intptr_t>(compressed_value) - static_cast<intptr_t>(compressed_base);
-  if (diff < 0) {
-    diff += 4LL * 1024 * 1024 * 1024; // Add 4GB
-  }
-  return cage_base + diff;
-}
-```
+## 3. Contiguous Compressed Read-Only Space (`CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL`)
 
-## Interaction with Pointer Tagging
+Frequently, V8 and the garbage collector need to check whether a `HeapObject` resides in `ReadOnlySpace` (`HeapLayout::InReadOnlySpace(obj)`):
+* Write barriers and GC marking skip read-only objects because they are immortal and immutable.
+* Under the V8 Sandbox, reading the `MemoryChunk` flags of an in-sandbox page to check `READ_ONLY_HEAP` would both incur a memory load and trust an in-sandbox header.
 
-Pointer compression works orthogonally to pointer tagging. The 32-bit compressed value still contains the tag bits in its least significant bits:
--   **Smi**: Least significant bit is `0`.
--   **HeapObject**: Least significant bit is `1`.
+When `CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL` is enabled (`src/common/globals.h`, `src/heap/memory-chunk-inl.h`), V8 eliminates the `MemoryChunk` load entirely using virtual address layout geometry:
 
-Decompression preserves these tags because adding the cage base (which is aligned to the cage size, typically at least 4GB, so its lower 32 bits are zero) does not affect the lower bits where the tags reside.
+1. **Bottom-of-Cage Reservation**:
+   * All `ReadOnlySpace` pages are allocated exclusively within the first **`kContiguousReadOnlyReservationSize`** bytes at offset `0` of the main pointer compression cage (`V8_CONTIGUOUS_COMPRESSED_RO_SPACE_SIZE_MB * MB`, a power of two such as `8MB`).
+   * All mutable spaces (`NewSpace`, `OldSpace`, `SharedSpace`) are allocated at offsets `>= kContiguousReadOnlyReservationSize`.
+   * Crucially, V8 also reserves an inaccessible **red zone** of size `kContiguousReadOnlyReservationSize` at offset `0` of every other cage (`TrustedCage` and the `ExternalCodeCompressionScheme` window).
+2. **Single-Instruction Bitmask Check**:
+   * V8 defines the compile-time mask (`src/common/globals.h`):
+     ```cpp
+     constexpr uintptr_t kContiguousReadOnlySpaceMask =
+         (kPtrComprCageBaseAlignment - 1) ^
+         (kContiguousReadOnlyReservationSize - 1);
+     // For a 4GB cage and 8MB RO space: 0x00000000'ff800000
+     ```
+   * Any object in `ReadOnlySpace` has bits `[23..31]` equal to `0`. Because all other cages have an unmapped red zone in their first `8MB`, **no non-read-only object in any cage can ever have those bits all zero**.
+   * `MemoryChunk::InReadOnlySpace()` (`src/heap/memory-chunk-inl.h`) simply executes:
+     ```cpp
+     return (reinterpret_cast<uintptr_t>(this) & kContiguousReadOnlySpaceMask) == 0;
+     ```
+   * Furthermore, `FastInReadOnlySpaceOrSmallSmi(Tagged_t obj)` checks `((obj & kContiguousReadOnlySpaceMask) == 0)` on a raw 32-bit compressed value: in a single `test` instruction, it returns `true` for every object in `ReadOnlySpace` as well as every non-negative Smi up to `2^22 - 1`, allowing GC marking and write barriers to fast-path both cases simultaneously.
 
-## See Also
--   [Pointer Tagging](pointer-tagging.md) for details on pointer tagging.
+---
+
+## 4. Isolate Groups (`V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES` vs. Shared Cage)
+
+An **`IsolateGroup`** (`src/init/isolate-group.h`) owns the pointer compression cages (`main` cage, `TrustedCage`, and `metadata_pointer_table`):
+* **`V8_COMPRESS_POINTERS_IN_SHARED_CAGE`**: All `Isolate`s in the process belong to a single default `IsolateGroup` and share the same 4GB pointer compression cage (and 1TB sandbox). This allows `SharedReadOnlySpace` and `SharedSpace` objects to be referenced directly by any `Isolate`, and enables `V8_STATIC_ROOTS_BOOL` (where read-only root offsets are compile-time constants).
+* **`V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES`**: Embedders can create multiple independent `IsolateGroup`s within a single process, each with its own 4GB pointer compression cage (`IsolateGroup::current()`).
+
+---
+
+## 5. Summary of Compression Schemes
+
+| Compression Scheme | Target Space(s) | Base Alignment | Field Wrapper | Sandbox Location |
+| :--- | :--- | :--- | :--- | :--- |
+| **`V8HeapCompressionScheme`** | `NewSpace`, `OldSpace`, `SharedSpace`, `ReadOnlySpace` | 4GB (`kPtrComprCageBaseAlignment`) | `TaggedMember<T>` | Inside Sandbox (4GB cage at start of 1TB sandbox) |
+| **`TrustedSpaceCompressionScheme`** | `TrustedSpace`, `SharedTrustedSpace` | 4GB (`kPtrComprCageBaseAlignment`) | `ProtectedTaggedMember<T>` | Outside Sandbox (`TrustedCage`) |
+| **`ExternalCodeCompressionScheme`** | `CodeSpace`, `CodeLargeObjectSpace` | Within a single 4GB window (`PrepareCageBaseAddress`) | Instruction stream slots | Outside Sandbox (`CodeRange`) |

@@ -1,97 +1,109 @@
-# TurboFan: V8's Optimizing Compiler
+# TurboFan & The Top-Level Optimizing Pipeline
 
-TurboFan is V8's top-tier optimizing compiler. It is responsible for generating the most efficient machine code possible for hot functions, utilizing all available type information and aggressive optimization techniques.
+TurboFan (`src/compiler/`) is V8's top-tier optimizing compiler, responsible for generating peak-performance machine code for hot JavaScript and WebAssembly functions.
 
-## Architecture
+Over the past several years, V8's top-tier compilation architecture has evolved from a pure **Sea-of-Nodes (SoN)** pipeline into a hybrid pipeline centered around **Turboshaft** (a cache-friendly Control-Flow Graph IR) and **Turbolev** (which uses Maglev's fast graph builder and mid-tier passes as the frontend for Turboshaft).
 
-TurboFan has historically used a **"Sea of Nodes"** Intermediate Representation (IR). V8 has transitioned to a new IR framework called **Turboshaft**, which is now enabled by default for JavaScript. The current pipeline often uses a hybrid approach, starting with Sea of Nodes and lowering to Turboshaft for later phases.
+---
 
-### Sea of Nodes IR
-In the Sea of Nodes representation, there is no strict control flow graph (CFG) during the early and middle optimization phases. Instead:
-*   **Nodes** represent operations (e.g., additions, loads, constants).
-*   **Edges** represent data flow, effect flow (ordering of operations with side effects), and control flow.
-*   This representation allows the compiler to freely reorder operations as long as data and effect dependencies are respected, enabling powerful optimizations like code motion and redundant load elimination.
+## 1. Conceptual Overview: The Modern Top-Tier Pipeline
 
-### Turboshaft
-Turboshaft is the next-generation IR for V8. It uses a more structured control flow graph with basic blocks and linear sequences of operations within blocks. This makes certain optimizations easier to implement and reason about compared to the Sea of Nodes.
+Today, when a JavaScript function tiers up to TurboFan (`Pipeline::GenerateCode` in `src/compiler/pipeline.cc`), V8 has two frontend paths that both converge into the **Turboshaft** backend:
 
-## The Compilation Pipeline
+```
+                        [ Ignition Bytecode + FeedbackVector ]
+                                         |
+                    +--------------------+--------------------+
+                    |                                         |
+     Default: Turbolev (--turbolev)            Legacy: Sea-of-Nodes (--no-turbolev)
+     ==============================            ====================================
+     1. TurbolevFrontendPipeline:              1. JSGraphBuilder (BytecodeGraphBuilder)
+        - MaglevGraphBuilderPhase              2. Inlining & Early SoN Reducers
+        - InlinerPhase                            (Typer, TypedLowering, EscapeAnalysis,
+        - LoopPeelerPhase                          SimplifiedLowering)
+        - TruncationPhase                      3. ComputeScheduledGraph()
+        - PrePhiUntagging & PhiUntagging          (Schedule + Sea-of-Nodes Graph)
+        - RangeAnalysis & PostOptimizer                       |
+        - EscapeAnalysisPhase                                 v
+        - PostHocPhase & DeadNodeSweeping      4. BuildGraphPhase
+                    |                             (Schedule -> Turboshaft CFG)
+                    v                                         |
+     2. TurbolevGraphBuildingPhase                            |
+        (Maglev CFG -> Turboshaft CFG)                        |
+                    |                                         |
+                    +--------------------+--------------------+
+                                         |
+                                         v
+                    [ Turboshaft CFG Pipeline (Mandatory) ]
+                    =======================================
+                    - MachineLoweringPhase / FastApiCallLowering
+                    - LoopUnrollingPhase / StoreStoreEliminationPhase
+                    - OptimizePhase (Structural & Value Reducers)
+                    - TypedOptimizations / DecompressionOptimization
+                    - InstructionSelectionPhase (InstructionSelector)
+                    - Register Allocation & Code Assembly
+```
 
-The compilation process is managed by the `Pipeline` class (defined in `src/compiler/pipeline.h`) and `turboshaft::Pipeline` (defined in `src/compiler/turboshaft/pipelines.h`). It consists of several phases, often spanning both IRs:
+### Critical Architectural Realities
 
-1.  **Graph Building**: The initial graph is built from Ignition bytecode or from Maglev IR in the Sea of Nodes representation.
-2.  **Sea of Nodes Optimizations**: The graph goes through a series of optimization phases in the Sea of Nodes IR, including:
-    *   **Inlining**: Replacing function calls with the body of the called function.
-    *   **Escape Analysis**: Determining if objects allocated in the function escape to the heap.
-    *   **Simplified Lowering**: Lowering high-level JavaScript operations to simpler machine-level operations based on type feedback.
-    *   **Loop Peeling**: Peeling loops to enable further optimizations.
-3.  **Turboshaft Conversion**: The optimized Sea of Nodes graph is converted to the Turboshaft IR.
-4.  **Turboshaft Optimizations**: Further optimizations are performed in Turboshaft, such as:
-    *   **Machine Lowering**: Lowering to machine-level operations.
-    *   **Load Elimination**: Removing redundant loads.
-    *   **Loop Unrolling**: Unrolling loops for better performance.
-5.  **Instruction Selection**: Mapping the IR nodes to specific machine instructions for the target architecture.
-6.  **Register Allocation**: Assigning physical registers to virtual registers.
-7.  **Code Generation**: Emitting the final machine code.
+1. **Turbolev Does NOT Use Sea of Nodes**:
+   When `--turbolev` is active, V8 does **not** convert Maglev IR into a Sea-of-Nodes graph. Instead, `TurbolevFrontendPipeline` (`src/compiler/turboshaft/turbolev-frontend-pipeline.cc`) builds and optimizes a Maglev CFG directly, and `TurbolevGraphBuildingPhase` (`src/compiler/turboshaft/turbolev-graph-builder.cc`) translates the Maglev CFG directly into a Turboshaft CFG, bypassing Sea of Nodes completely.
+2. **Turboshaft Is Mandatory for Top-Tier Compilation**:
+   `--no-turboshaft` implies `--no-turbofan` in V8's flag definitions (`src/flags/flag-definitions.h`). The backend (`InstructionSelector` in `src/compiler/backend/instruction-selector.cc`) operates **exclusively** on Turboshaft `Graph`s (`OpIndex` and `Block`); the legacy Sea-of-Nodes instruction selector path has been removed.
+3. **Sea of Nodes Is Legacy Frontend Only**:
+   Sea of Nodes (`src/compiler/turbofan-graph.h`, `src/compiler/node.h`) is now used only when `--no-turbolev` is passed (or for specific internal/testing pipelines), and only for early frontend phases up to `PipelineImpl::ComputeScheduledGraph()`, where it is immediately lowered into Turboshaft via `turboshaft::BuildGraphPhase`.
 
-## Deoptimization
+---
 
-TurboFan generates highly specialized code based on optimistic assumptions (e.g., assuming a specific hidden class). To ensure correctness, it inserts **checks** before specialized operations.
+## 2. Entry Points in `src/compiler/pipeline.cc`
 
-If a check fails at runtime (e.g., a function receives an object with a Map it hasn't seen before), the code cannot continue. TurboFan triggers a **Deoptimization (Deopt)**.
+Top-tier compilation jobs (`TurbofanCompilationJob` in `src/compiler/pipeline.cc`) follow a three-stage lifecycle managed by `PipelineImpl`:
 
-*   The current state of the optimized frame is translated back into an unoptimized frame compatible with Ignition or Sparkplug.
-*   Execution resumes in the unoptimized tier.
-*   The `FeedbackVector` is updated to reflect the new reality, so that a future re-optimization can take it into account.
+1. **`PrepareJobImpl(Isolate*)` (Main Thread)**:
+   Initializes the `JSHeapBroker`, pins root handles, records compilation dependencies, and configures `PipelineData` (`src/compiler/turboshaft/phase.h`).
+2. **`ExecuteJobImpl(RuntimeCallStats*, LocalIsolate*)` (Background Thread)**:
+   Dispatches based on `v8_flags.turbolev`:
+   * **Turbolev Path (`PipelineImpl::CreateGraphWithMaglev()`)**:
+     Runs `turboshaft::TurbolevFrontendPipeline` (producing an optimized `maglev::Graph*`), then runs `turboshaft::TurbolevGraphBuildingPhase` to populate `data->graph()` (the Turboshaft `Graph`), followed by `OptimizeTurboshaftGraph()` and `AssembleCode()`.
+   * **Sea-of-Nodes Path (`PipelineImpl::CreateGraph()`)**:
+     Runs the Sea-of-Nodes phases (`GraphBuilderPhase`, `InliningPhase`, `TyperPhase`, `TypedLoweringPhase`, `LoopPeelingPhase`, `LoadEliminationPhase`, `EscapeAnalysisPhase`, `SimplifiedLoweringPhase`), calls `ComputeScheduledGraph()` (`SchedulePhase`), converts the scheduled SoN graph to Turboshaft via `turboshaft::BuildGraphPhase`, and then runs the shared Turboshaft optimization and backend phases.
+3. **`FinalizeJobImpl(Isolate*)` (Main Thread)**:
+   Validates and commits `CompilationDependencies` (`deps->Commit(code)`) and installs the generated `Code` object.
 
-## External Resources
+---
 
-### Articles and blog posts
+## 3. Legacy Sea-of-Nodes Frontend Concepts (`--no-turbolev`)
 
-- [A tale of TurboFan](https://benediktmeurer.de/2017/03/01/v8-behind-the-scenes-february-edition)
-- [Ignition + TurboFan and ES2015](https://benediktmeurer.de/2016/11/25/v8-behind-the-scenes-november-edition)
-- [An introduction to speculative optimization in V8](https://ponyfoo.com/articles/an-introduction-to-speculative-optimization-in-v8)
-- [Sea of Nodes](https://darksi.de/d.sea-of-nodes/) (External blog post)
-- [High-level overview of TurboFan](/blog/turbofan-jit) (V8 blog post)
+When investigating or maintaining the legacy Sea-of-Nodes frontend (`src/compiler/`), several core data structures and invariants apply. (For why V8 migrated away from Sea of Nodes to CFG IRs, see [Why CFG (`why-cfg.md`)](../why-cfg.md).)
 
-### Talks
+### Value, Effect, and Control Edges (`src/compiler/node.h`)
+In a Sea-of-Nodes `TFGraph`, basic blocks are not explicit containers. Every operation is a `Node*` connected by three distinct kinds of directed edges in a single unified graph:
+* **Value Edges**: Data dependencies (e.g., the two numeric operands of `SpeculativeSafeIntegerAdd`).
+* **Effect Edges**: Ordering constraints for operations that read or write mutable state (heap loads, stores, calls, checks). Effect edges form an explicit effect chain (`EffectPhi` at control merges) so pure value nodes can float freely while stateful operations cannot be reordered across interfering side effects.
+* **Control Edges**: Execution dependencies (`Start`, `Branch`, `IfTrue`, `IfFalse`, `Merge`, `Loop`, `End`).
 
-- [CodeStubAssembler: Redux](https://docs.google.com/presentation/d/1u6bsgRBqyVY3RddMfF1ZaJ1hWmqHZiVMuPRw_iKpHlY)
-- [An overview of the TurboFan compiler](https://docs.google.com/presentation/d/1H1lLsbclvzyOF3IUR05ZUaZcqDxo7_-8f4yJoxdMooU/edit)
-- [TurboFan IR](https://docs.google.com/presentation/d/1Z9iIHojKDrXvZ27gRX51UxHD-bKf1QcPzSijntpMJBM)
-- [TurboFan’s JIT Design](https://docs.google.com/presentation/d/1sOEF4MlF7LeO7uq-uThJSulJlTh--wgLeaVibsbb3tc)
-- [Fast arithmetic for dynamic languages](https://docs.google.com/a/google.com/presentation/d/1wZVIqJMODGFYggueQySdiA3tUYuHNMcyp_PndgXsO1Y)
-- [Deoptimization in V8](https://docs.google.com/presentation/d/1Z6oCocRASCfTqGq1GCo1jbULDGS-w-nzxkbVF7Up0u0)
-- [TurboFan: a new code generation architecture for V8](https://docs.google.com/presentation/d/1_eLlVzcj94_G4r9j9d_Lj5HRKFnq6jgpuPJtnmIBs88) ([video](https://www.youtube.com/watch?v=M1FBosB5tjM))
-- [An internship on laziness](https://docs.google.com/presentation/d/1AVu1wiz6Deyz1MDlhzOWZDRn6g_iFkcqsGce1F23i-M) (+ [blog post](/blog/lazy-unlinking))
+### Key Sea-of-Nodes Frontend Phases
+1. **`BytecodeGraphBuilder` (`src/compiler/bytecode-graph-builder.cc`)**:
+   Walks the `BytecodeArray`, maintaining an `Environment` mapping Ignition registers and the accumulator to `Node*` values, alongside the current `effect` and `control` nodes, emitting `JS*` operators (`JSCall`, `JSLoadNamed`, `JSAdd`).
+2. **`JSTypedLowering` & `JSInliningHeuristic` (`src/compiler/js-inlining-heuristic.cc`)**:
+   Uses `JSHeapBroker` feedback (`JSCallReducer`, `JSNativeContextSpecialization`) to inline callees and lower generic `JS*` nodes into `Simplified` operators (`CheckMaps`, `LoadField`, `SpeculativeNumberAdd`).
+3. **`TyperPhase` (`src/compiler/turbofan-typer.cc`)**:
+   Computes lattice `Type` bounds (ranges, heap constants, NaN/MinusZero flags) for every `Node*`.
+4. **`LoadElimination` & `EscapeAnalysis` (`src/compiler/load-elimination.cc`, `turbofan-escape-analysis.cc`)**:
+   Eliminates redundant field/element loads along the effect chain and scalar-replaces non-escaping allocations (`Allocate` -> `FinishRegion`) into virtual state attached to `FrameState` nodes.
+5. **`SimplifiedLoweringPhase` (`src/compiler/simplified-lowering.cc`)**:
+   Runs a three-stage representation selection pass (`PropagatePhase` backward, `RetypePhase` forward, `LowerPhase` forward) using `RepresentationChanger` to convert `Simplified` nodes into `Machine` operators (`Int32Add`, `Float64Add`, `ChangeInt32ToFloat64`).
+6. **`ComputeScheduledGraph()` (`src/compiler/scheduler.cc`)**:
+   Runs `Scheduler::ComputeSchedule`, which places floating Sea-of-Nodes operations into explicit basic blocks (`Schedule`) using dominance, post-dominance, and loop nesting analysis, preparing the graph for `turboshaft::BuildGraphPhase`.
 
-### Design documents
+---
 
-These are design documents that are mostly concerned with TurboFan internals.
+## 4. Related Compiler Documentation
 
-- [Function context specialization](https://docs.google.com/document/d/1CJbBtqzKmQxM1Mo4xU0ENA7KXqb1YzI6HQU8qESZ9Ic)
-- [Rest parameters and arguments exotic objects optimization plan](https://docs.google.com/document/d/1DvDx3Xursn1ViV5k4rT4KB8HBfBb2GdUy3wzNfJWcKM)
-- [TurboFan developer tools integration](https://docs.google.com/document/d/1zl0IA7dbPffvPPkaCmLVPttq4BYIfAe2Qy8sapkYgRE)
-- [TurboFan inlining](https://docs.google.com/document/d/1l-oZOW3uU4kSAHccaMuUMl_RCwuQC526s0hcNVeAM1E)
-- [TurboFan inlining heuristics](https://docs.google.com/document/d/1VoYBhpDhJC4VlqMXCKvae-8IGuheBGxy32EOgC2LnT8)
-- [TurboFan redundant bounds and overflow check elimination](https://docs.google.com/document/d/1R7-BIUnIKFzqki0jR4SfEZb3XmLafa04DLDrqhxgZ9U)
-- [Lazy deoptimization without code patching](https://docs.google.com/document/d/1ELgd71B6iBaU6UmZ_lvwxf_OrYYnv0e4nuzZpK05-pg)
-- [Register allocator](https://docs.google.com/document/d/1aeUugkWCF1biPB4tTZ2KT3mmRSDV785yWZhwzlJe5xY)
-- [Projection nodes in TurboFan](https://docs.google.com/document/d/1C9P8T98P1T_r2ymuUFz2jFWLUL7gbb6FnAaRjabuOMY/edit)
-
-### Related design documents
-
-These are design documents that also affect TurboFan in a significant way.
-
-- [Computed property names (re)design document](https://docs.google.com/document/d/1eH1R6_C3lRrLtXKw0jNqAsqJ3cBecrqqvfRzLpfq7VE)
-- [ES2015 and beyond performance plan](https://docs.google.com/document/d/1EA9EbfnydAmmU_lM8R_uEMQ-U_v4l9zulePSBkeYWmY)
-- [Iterator builtins design document](https://docs.google.com/document/d/13z1fvRVpe_oEroplXEEX0a3WK94fhXorHjcOMsDmR-8)
-- [Making ES2015 classes fast](https://docs.google.com/document/d/1iCdbXuGVV8BK750wmP32eF4sCrnZ8y3Qlz0JiaLh9j8)
-- [RegExp builtins (re)design document](https://docs.google.com/document/d/1MuqFjsfaRPL2ZqzVoeMRqtcAmcJSwmHljTbRIctVVUk)
-- [Spread call performance](https://docs.google.com/document/d/1DWPizOSKqHhSJ7bdEI0HIVnner84xToEKUYqgXm3g30)
-
-## See Also
--   [Ignition](../../interpreter/interpreter-ignition.md)
--   [Sparkplug](../sparkplug/compiler-sparkplug.md)
--   [Maglev](../maglev/compiler-maglev.md)
--   [Hidden Classes and Inline Caches](../../runtime/hidden-classes-and-ics.md)
+* [Why CFG (`why-cfg.md`)](../why-cfg.md): Detailed comparison of Sea of Nodes vs. CFG IRs in Maglev and Turboshaft.
+* [Concurrency & Background Compilation (`concurrency-and-background-compilation.md`)](../concurrency-and-background-compilation.md): `JSHeapBroker`, `RefSerializationKind`, `TryMakeRef`, and `CompilationDependencies`.
+* [Maglev Compiler (`../maglev/compiler-maglev.md`)](../maglev/compiler-maglev.md): Maglev's CFG IR, `KnownNodeAspects`, and optimization passes (also shared with Turbolev).
+* [Turboshaft Architecture (`../turboshaft/compiler-turboshaft.md`)](../turboshaft/compiler-turboshaft.md): `TurbolevFrontendPipeline`, Turboshaft phases, and `InstructionSelector`.
+* [Turboshaft IR (`../turboshaft/compiler-turboshaft-ir.md`)](../turboshaft/compiler-turboshaft-ir.md): `OperationBuffer`, `OpIndex`, `V<T>`, and `THROWING_OP_BOILERPLATE`.
+* [Turboshaft Reducers (`../turboshaft/compiler-turboshaft-reducers.md`)](../turboshaft/compiler-turboshaft-reducers.md): Reducer stacks, `Assembler`, and control-flow macros.
+* [Turboshaft Copying Approach (`../turboshaft/compiler-turboshaft-copying-approach.md`)](../turboshaft/compiler-turboshaft-copying-approach.md): `GraphVisitor`, `SnapshotTable`, `VariableReducer`, and block cloning.

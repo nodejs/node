@@ -531,6 +531,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final
 
   void EmitIdentity(turboshaft::OpIndex node);
   void EmitIdentity(turboshaft::OpIndex node, turboshaft::OpIndex input);
+  bool CanEmitIdentityForTaggedBitcast(turboshaft::OpIndex node);
 
   // ===========================================================================
   // ============== Architecture-independent CPU feature methods. ==============
@@ -787,7 +788,10 @@ class V8_EXPORT_PRIVATE InstructionSelector final
       return load_->result_rep;
     }
     bool is_trapping() const { return kind().with_trap_handler; }
-    bool is_atomic() const { return kind().is_atomic; }
+    bool is_atomic() const { return kind().is_atomic(); }
+    std::optional<AtomicMemoryOrder> memory_order() const {
+      return kind().memory_order();
+    }
     bool has_shared_base() const { return kind().shared_base; }
 
     turboshaft::OpIndex base() const {
@@ -900,7 +904,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final
       return op_->kind.with_trap_handler ? MemoryAccessKind::kTrapping
                                          : MemoryAccessKind::kNormal;
     }
-    bool is_atomic() const { return op_->kind.is_atomic; }
+    bool is_atomic() const { return op_->kind.is_atomic(); }
 
     turboshaft::OpIndex base() const { return op_->base(); }
     turboshaft::OptionalOpIndex index() const { return op_->index(); }
@@ -946,7 +950,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final
         : node_(node) {
       op128_ = &graph->Get(node).Cast<turboshaft::Simd128ShuffleOp>();
       // Initialize input mapping.
-      for (int i = 0; i < op128_->input_count; ++i) {
+      for (int i = 0; i < turboshaft::Simd128ShuffleOp::input_count; ++i) {
         input_mapping_.push_back(i);
       }
     }
@@ -1003,11 +1007,21 @@ class V8_EXPORT_PRIVATE InstructionSelector final
 
   void MarkAsTableSwitchTarget(const turboshaft::Block* block);
 
-  void TryRename(InstructionOperand* op);
+  bool TryRename(InstructionOperand* op);
   int GetRename(int virtual_register);
   void SetRename(turboshaft::OpIndex node, turboshaft::OpIndex rename);
   void UpdateRenames(Instruction* instruction);
   void UpdateRenamesInPhi(PhiInstruction* phi);
+  // Converts constant-renamed FrameState inputs (including outer frames) into
+  // ImmediateOperands.
+  void UpdateDeoptFrameStateConstantInputs(Instruction* instruction,
+                                           FrameStateDescriptor* descriptor,
+                                           size_t* input_index);
+  // Converts constant-renamed inputs in {values} (including nested objects)
+  // into ImmediateOperands.
+  void UpdateDeoptStateValueConstantInputs(Instruction* instruction,
+                                           StateValueList* values,
+                                           size_t* input_index);
 
   // Inform the instruction selection that {node} was just defined.
   void MarkAsDefined(turboshaft::OpIndex node);
@@ -1229,7 +1243,6 @@ class V8_EXPORT_PRIVATE InstructionSelector final
   DECLARE_GENERATOR_T(Float64Mul)
   DECLARE_GENERATOR_T(Float64Mod)
   DECLARE_GENERATOR_T(Float64Pow)
-  DECLARE_GENERATOR_T(BitcastWord32ToWord64)
   DECLARE_GENERATOR_T(BitcastFloat32ToInt32)
   DECLARE_GENERATOR_T(BitcastFloat64ToInt64)
   DECLARE_GENERATOR_T(BitcastInt32ToFloat32)
@@ -1586,6 +1599,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final
   BitVector used_;
   IntVector effect_level_;
   int current_effect_level_;
+  bool seen_call_in_block_ = false;
   IntVector virtual_registers_;
   IntVector virtual_register_rename_;
   InstructionScheduler* scheduler_;

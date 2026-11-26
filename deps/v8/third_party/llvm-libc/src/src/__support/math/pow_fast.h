@@ -16,6 +16,7 @@
 
 #include "src/__support/FPUtil/FPBits.h"
 #include "src/__support/FPUtil/double_double.h"
+#include "src/__support/FPUtil/except_value_utils.h"
 #include "src/__support/FPUtil/multiply_add.h"
 #include "src/__support/FPUtil/nearest_integer.h"
 #include "src/__support/common.h"
@@ -31,6 +32,7 @@ namespace LIBC_NAMESPACE_DECL {
 namespace math {
 
 LIBC_INLINE double pow(double x, double y) {
+  using namespace common_constants_internal;
   using namespace pow_internal;
   using FPBits = fputil::FPBits<double>;
 
@@ -109,7 +111,7 @@ LIBC_INLINE double pow(double x, double y) {
 
   // Perform exact range reduction.
 #ifdef LIBC_TARGET_CPU_HAS_FMA_DOUBLE
-  double dx = fputil::multiply_add(RD[idx_x], m_x.get_val(), -1.0); // Exact
+  double dx = fputil::multiply_sub(RD[idx_x], m_x.get_val(), 1.0); // Exact
 #else
   double c = FPBits(m_x.uintval() & 0x3fff'e000'0000'0000).get_val();
   double dx =
@@ -238,12 +240,12 @@ LIBC_INLINE double pow(double x, double y) {
   if (LIBC_UNLIKELY(FPBits(y6_log2_x.hi).abs().get_val() >= UPPER_EXP_BOUND)) {
     if (FPBits(y6_log2_x.hi).sign() == Sign::POS) {
       if (y6_log2_x.hi > 1024.0 * SCALE)
-        return set_overflow(is_neg);
+        return fputil::set_overflow<double>(is_neg ? Sign::NEG : Sign::POS);
       scale = 0x1.0p600;
       y6_log2_x.hi -= 600.0 * SCALE;
     } else {
       if (y6_log2_x.hi < -1076.0 * SCALE)
-        return set_underflow(is_neg);
+        return fputil::set_underflow<double>(is_neg ? Sign::NEG : Sign::POS);
       scale = 0x1.0p-600;
       y6_log2_x.hi += 600.0 * SCALE;
     }

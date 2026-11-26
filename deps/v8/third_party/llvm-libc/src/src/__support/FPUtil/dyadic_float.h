@@ -9,13 +9,13 @@
 #ifndef LLVM_LIBC_SRC___SUPPORT_FPUTIL_DYADIC_FLOAT_H
 #define LLVM_LIBC_SRC___SUPPORT_FPUTIL_DYADIC_FLOAT_H
 
-#include "FEnvImpl.h"
-#include "FPBits.h"
 #include "hdr/errno_macros.h"
 #include "hdr/fenv_macros.h"
-#include "multiply_add.h"
-#include "rounding_mode.h"
 #include "src/__support/CPP/type_traits.h"
+#include "src/__support/FPUtil/FEnvImpl.h"
+#include "src/__support/FPUtil/FPBits.h"
+#include "src/__support/FPUtil/multiply_add.h"
+#include "src/__support/FPUtil/rounding_mode.h"
 #include "src/__support/big_int.h"
 #include "src/__support/macros/attributes.h"
 #include "src/__support/macros/config.h"
@@ -206,6 +206,17 @@ template <size_t Bits> struct DyadicFloat {
     int unbiased_exp = get_unbiased_exponent();
 
     if (unbiased_exp + DstRep::EXP_BIAS >= DstRep::MAX_BIASED_EXPONENT) {
+      if (!cpp::is_constant_evaluated()) {
+#if !(defined(LIBC_MATH_HAS_NO_EXCEPT) &&                                      \
+      defined(LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY))
+        if constexpr (ShouldSignalExceptions && internal::HAS_HW_FPU<ExceptT>) {
+          set_errno_if_required(ERANGE);
+          ExceptT r = internal::OVERFLOW_FACTOR<ExceptT> *
+                      internal::OVERFLOW_VAL<ExceptT>[sign.is_neg()];
+          return FPBits<ExceptT>(r).uintval();
+        }
+#endif
+      }
       if constexpr (ShouldSignalExceptions) {
         set_errno_if_required(ERANGE);
         raise_overflow_except_if_required<ExceptT>();
@@ -339,20 +350,32 @@ template <size_t Bits> struct DyadicFloat {
 
     if (LIBC_UNLIKELY(exp_hi > 2 * FPBits<T>::EXP_BIAS)) {
       // Results overflow.
-      T d_hi =
-          FPBits<T>::create_value(sign, 2 * FPBits<T>::EXP_BIAS, IMPLICIT_MASK)
-              .get_val();
-      // volatile prevents constant propagation that would result in infinity
-      // always being returned no matter the current rounding mode.
-      volatile T two = static_cast<T>(2.0);
-      T r = two * d_hi;
+      if (cpp::is_constant_evaluated())
+        return FPBits<T>::inf(sign).get_val();
 
-      // TODO: Whether rounding down the absolute value to max_normal should
-      // also raise FE_OVERFLOW and set ERANGE is debatable.
-      if (ShouldSignalExceptions && FPBits<T>(r).is_inf())
+      if constexpr (ShouldSignalExceptions)
         set_errno_if_required(ERANGE);
 
-      return r;
+#if defined(LIBC_MATH_HAS_NO_EXCEPT) &&                                        \
+    defined(LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY)
+      return FPBits<T>::inf(sign).get_val();
+#else
+      if constexpr (ShouldSignalExceptions && internal::HAS_HW_FPU<T>) {
+        return internal::OVERFLOW_FACTOR<T> *
+               internal::OVERFLOW_VAL<T>[sign.is_neg()];
+      } else {
+        if constexpr (ShouldSignalExceptions)
+          raise_overflow_except_if_required<T>();
+#ifndef LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
+        int rounding = quick_get_round();
+        if (rounding == FE_TOWARDZERO ||
+            (rounding == FE_DOWNWARD && sign.is_pos()) ||
+            (rounding == FE_UPWARD && sign.is_neg()))
+          return FPBits<T>::max_normal(sign).get_val();
+#endif // !LIBC_MATH_HAS_ASSUME_ROUND_NEAREST_ONLY
+        return FPBits<T>::inf(sign).get_val();
+      }
+#endif
     }
 
     bool denorm = false;
@@ -384,7 +407,7 @@ template <size_t Bits> struct DyadicFloat {
     bool sticky_bit = !(mantissa & sticky_mask).is_zero();
     int round_and_sticky = int(round_bit) * 2 + int(sticky_bit);
 
-    T d_lo;
+    T d_lo{};
 
     if (LIBC_UNLIKELY(exp_lo <= 0)) {
       // d_lo is denormal, but the output is normal.
@@ -731,6 +754,20 @@ LIBC_INLINE constexpr DyadicFloat<Bits>
 multiply_add(const DyadicFloat<Bits> &a, const DyadicFloat<Bits> &b,
              const DyadicFloat<Bits> &c) {
   return quick_add(c, quick_mul(a, b));
+}
+
+template <size_t Bits>
+LIBC_INLINE constexpr DyadicFloat<Bits>
+multiply_sub(const DyadicFloat<Bits> &a, const DyadicFloat<Bits> &b,
+             const DyadicFloat<Bits> &c) {
+  return quick_sub(quick_mul(a, b), c);
+}
+
+template <size_t Bits>
+LIBC_INLINE constexpr DyadicFloat<Bits>
+sub_multiply(const DyadicFloat<Bits> &a, const DyadicFloat<Bits> &b,
+             const DyadicFloat<Bits> &c) {
+  return quick_sub(a, quick_mul(b, c));
 }
 
 // Simple exponentiation implementation for printf. Only handles positive

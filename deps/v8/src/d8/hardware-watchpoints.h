@@ -6,17 +6,20 @@
 #define V8_D8_HARDWARE_WATCHPOINTS_H_
 
 #include "include/v8config.h"
-
-#if defined(V8_ENABLE_MEMORY_CORRUPTION_API) && defined(V8_OS_LINUX) && \
-    V8_TARGET_ARCH_X64
-#define V8_ENABLE_HARDWARE_WATCHPOINT_SUPPORT
-#endif
+#include "src/sandbox/testing.h"
 
 namespace v8 {
 
 template <typename T>
 class FunctionCallbackInfo;
 class Value;
+
+// Hardware watchpoints currently only support the main thread (where
+// `SetupForHardwareWatchpoints` is called): `ptrace` attaches only to the main
+// thread, debug registers are per-thread, and watchpoint state is not
+// synchronized across threads.
+// TODO(475709934): Support hardware watchpoints on other threads (e.g. via
+// PTRACE_O_TRACECLONE and per-thread or synchronized watchpoint state).
 
 // Call this early in the process (beginning of the main function) to set up the
 // process for hardware watchpoints for in-sandbox memory manipulation.
@@ -25,10 +28,12 @@ class Value;
 // (the "d8 process").
 void SetupForHardwareWatchpoints(bool enable_tracing);
 
-// Call this on exit to remove all hardware watchpoints.
+// Call this to remove all hardware watchpoints (e.g. after script execution or
+// on exit). No-op when called from non-main threads.
 void ResetAllHardwareWatchpoints();
 
-// This callback will be called from d8 to set a new watchpoint.
+// This callback will be called from d8 to set a new watchpoint. Only supported
+// on the main thread (throws a TypeError on other threads).
 void SetHardwareWatchpointCallback(const v8::FunctionCallbackInfo<v8::Value>&);
 
 }  // namespace v8

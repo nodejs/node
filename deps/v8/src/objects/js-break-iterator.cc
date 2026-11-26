@@ -50,7 +50,7 @@ MaybeDirectHandle<JSV8BreakIterator> JSV8BreakIterator::New(
   Intl::MatcherOption matcher = maybe_locale_matcher.FromJust();
 
   Intl::ResolvedLocale r;
-  if (!Intl::ResolveLocale(isolate, JSV8BreakIterator::GetAvailableLocales(),
+  if (!Intl::ResolveLocale(isolate, JSV8BreakIterator::GetAvailableLocales,
                            requested_locales, matcher, {})
            .To(&r)) {
     THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError));

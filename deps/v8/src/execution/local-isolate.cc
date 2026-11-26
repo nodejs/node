@@ -4,9 +4,9 @@
 
 #include "src/execution/local-isolate.h"
 
+#include "src/base/thread-id.h"
 #include "src/bigint/bigint.h"
 #include "src/execution/isolate.h"
-#include "src/execution/thread-id.h"
 #include "src/handles/handles-inl.h"
 #include "src/logging/local-logger.h"
 #include "src/logging/runtime-call-stats-scope.h"
@@ -20,7 +20,7 @@ LocalIsolate::LocalIsolate(Isolate* isolate, ThreadKind kind,
       heap_(isolate->heap(), kind, nullptr, stack_start),
       isolate_(isolate),
       logger_(new LocalLogger(isolate)),
-      thread_id_(ThreadId::Current()),
+      thread_id_(base::ThreadId::Current()),
       stack_limit_(kind == ThreadKind::kMain
                        ? isolate->stack_guard()->real_climit()
                        : GetCurrentStackPosition() - v8_flags.stack_size * KB)

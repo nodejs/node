@@ -1,0 +1,45 @@
+Tests debug-evaluate variable resolution with shadowed context variables and blocklist reuse.
+Test f1
+frames x: ["ReferenceError",2,1]
+this: [object global]
+y: y
+a: a
+z: ReferenceError
+after f1 a: A
+Test f2
+frames x: ["ReferenceError",2,1]
+this: [object global]
+y: y
+a: a
+z: ReferenceError
+after f2 a: A
+Test f3
+f3 x: ReferenceError
+Test f4
+f4 b: 2
+f4 c: 3
+f4 a: ReferenceError
+Test f5
+f5 a: ReferenceError
+Test test_scopes_shadowing
+scope 0: x=inner_x_stack, y=outer_y
+scope 1: x=middle_x, y=outer_y
+scope 2: x=outer_x, y=outer_y
+Test f6 break_position=1 and 2
+f6 a: 2
+f6 a: ReferenceError
+Test f7 break_position=1 and 2
+f7 a: ReferenceError
+f7 a: 1
+Test test_outer_shadow
+outer_shadow x: ReferenceError
+outer_shadow closure_y: closure_y
+Test test_outer_shadow_with_inner_context
+outer_shadow x: ReferenceError
+outer_shadow closure_y: closure_y
+Test test_inner_block_isolation break_position=1
+scope 0: a=ReferenceError, c=ReferenceError, b=21
+scope 1: a=ReferenceError, c=ReferenceError, b=21
+scope 2: a=ReferenceError, c=global_c, b=21
+Test test_inner_block_isolation break_position=2
+scope 0: a=ReferenceError, c=global_c, b=21

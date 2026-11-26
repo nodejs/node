@@ -101,11 +101,11 @@ int RegExpMacroAssembler::CaseInsensitiveCompareUnicode(Address byte_offset1,
 #ifdef V8_INTL_SUPPORT
   // Canonicalize (ECMA-262 22.2.2.9.2) applies the simple case folding of
   // each code point separately.
-  const int32_t length = static_cast<int32_t>(byte_length >> 1);
+  const size_t length = byte_length / 2;
   const char16_t* str1 = reinterpret_cast<const char16_t*>(byte_offset1);
   const char16_t* str2 = reinterpret_cast<const char16_t*>(byte_offset2);
-  int32_t i1 = 0;
-  int32_t i2 = 0;
+  size_t i1 = 0;
+  size_t i2 = 0;
   while (i1 < length) {
     UChar32 c1, c2;
     U16_NEXT(str1, i1, length, c1);

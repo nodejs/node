@@ -1,0 +1,10 @@
+specific_include_rules = {
+  "gtest_main_chromium\\.cc": [
+    "+base",
+    "+testing",
+  ],
+  "test_data_chromium\\.cc": [
+    "+base",
+  ],
+}
+new_usages_require_review = True

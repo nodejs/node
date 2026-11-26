@@ -86,6 +86,75 @@ inline std::ostream& operator<<(std::ostream& os, RegType reg) {
     return reg.is_valid() ? Names[reg.code()] : "invalid";                     \
   }
 
+// Static register clobber and control-flow analysis annotations for Assembler
+// and MacroAssembler operations (checked by experimental/regmole).
+#if defined(__clang__) && defined(V8_ENABLE_REGMOLE)
+// Parameter register role annotations:
+// - V8_REG_IN: read on entry, preserved on exit (default for Register/Operand).
+// - V8_REG_OUT: not read on entry, holds valid output on exit.
+// - V8_REG_INOUT: read on entry, holds valid output on exit.
+// - V8_REG_SCRATCH: not read on entry, clobbered on exit.
+// - V8_REG_IN_CLOBBER: read on entry, clobbered on exit.
+// - V8_REG_RDONLY: read on entry, must not be modified or clobbered in body.
+#define V8_REG_IN __attribute__((annotate("v8_reg_in")))
+#define V8_REG_OUT __attribute__((annotate("v8_reg_out")))
+#define V8_REG_INOUT __attribute__((annotate("v8_reg_inout")))
+#define V8_REG_SCRATCH __attribute__((annotate("v8_reg_scratch")))
+#define V8_REG_IN_CLOBBER __attribute__((annotate("v8_reg_in_clobber")))
+#define V8_REG_RDONLY __attribute__((annotate("v8_reg_rdonly")))
+
+// Function-level implicit physical register annotations
+// (V8_REG_CLOBBERS_IF takes a parameter comparison such as `low != 0`):
+#define V8_REG_IMPLICIT_IN(...) \
+  __attribute__((annotate("v8_reg_implicit_in", __VA_ARGS__)))
+#define V8_REG_IMPLICIT_OUT(...) \
+  __attribute__((annotate("v8_reg_implicit_out", __VA_ARGS__)))
+#define V8_REG_IMPLICIT_INOUT(...) \
+  __attribute__((annotate("v8_reg_implicit_inout", __VA_ARGS__)))
+#define V8_REG_CLOBBERS(...) \
+  __attribute__((annotate("v8_reg_clobbers", __VA_ARGS__)))
+#define V8_REG_CLOBBERS_IF(cond, ...) \
+  __attribute__((annotate("v8_reg_clobbers_if", #cond, __VA_ARGS__)))
+#define V8_REG_CLOBBERS_CALLER_SAVED \
+  __attribute__((annotate("v8_reg_clobbers_caller_saved")))
+
+// Generated control-flow and special instruction annotations:
+// - V8_ASM_BIND: marks a Label* parameter that binds a branch target.
+// - V8_ASM_BRANCH: marks a Label* parameter that is branched to.
+// - V8_ASM_NO_FALLTHROUGH: marks an unconditional control transfer (jmp, ret,
+//   TailCall, Abort, Trap) where sequential assembly execution does not
+//   fall through to the next instruction.
+// - V8_ASM_ZEROING_IF_SAME: marks a 2-operand instruction (xor, sub, pxor)
+//   that becomes a pure write (V8_REG_OUT) when dst == src.
+// - V8_ASM_PUSH / V8_ASM_POP: marks LIFO stack save/restore operations.
+#define V8_ASM_BIND __attribute__((annotate("v8_asm_bind")))
+#define V8_ASM_BRANCH __attribute__((annotate("v8_asm_branch")))
+#define V8_ASM_NO_FALLTHROUGH __attribute__((annotate("v8_asm_no_fallthrough")))
+#define V8_ASM_ZEROING_IF_SAME \
+  __attribute__((annotate("v8_asm_zeroing_if_same")))
+#define V8_ASM_PUSH __attribute__((annotate("v8_asm_push")))
+#define V8_ASM_POP __attribute__((annotate("v8_asm_pop")))
+#else
+#define V8_REG_IN
+#define V8_REG_OUT
+#define V8_REG_INOUT
+#define V8_REG_SCRATCH
+#define V8_REG_IN_CLOBBER
+#define V8_REG_RDONLY
+#define V8_REG_IMPLICIT_IN(...)
+#define V8_REG_IMPLICIT_OUT(...)
+#define V8_REG_IMPLICIT_INOUT(...)
+#define V8_REG_CLOBBERS(...)
+#define V8_REG_CLOBBERS_IF(cond, ...)
+#define V8_REG_CLOBBERS_CALLER_SAVED
+#define V8_ASM_BIND
+#define V8_ASM_BRANCH
+#define V8_ASM_NO_FALLTHROUGH
+#define V8_ASM_ZEROING_IF_SAME
+#define V8_ASM_PUSH
+#define V8_ASM_POP
+#endif
+
 }  // namespace internal
 }  // namespace v8
 

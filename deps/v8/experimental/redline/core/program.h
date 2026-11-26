@@ -53,7 +53,7 @@ class Program {
   static std::shared_ptr<Program> Parse(std::string_view source,
                                         Lineage lineage, std::string* error);
 
-  const fast::Tree& tree() const { return *tree_; }
+  const fast::Tree& tree() const;
   const std::string& source() const { return source_; }
   uint64_t hash() const { return hash_; }
   size_t node_count() const { return node_count_; }
@@ -62,7 +62,21 @@ class Program {
   const fast::ScopeAnalysis& scopes() const;
 
   // A fresh mutable copy of the tree, for mutation.
-  std::unique_ptr<fast::Tree> CopyTree() const { return tree_->Copy(); }
+  std::unique_ptr<fast::Tree> CopyTree() const;
+  // Drops the parsed tree and scope analysis to save memory while keeping
+  // `source_` and metadata. The next `tree()`, `scopes()` or `CopyTree()` call
+  // parses `source_` again. The caller must ensure no reader holds a reference
+  // from `tree()` or `scopes()`.
+  void ReleaseTree() const;
+  bool has_tree() const {
+    return tree_ptr_.load(std::memory_order_acquire) != nullptr;
+  }
+
+  // The d8 flags that the program asks for. An imported test gives its
+  // `// Flags:` set. A mutant gets the merged flags of its parents
+  // (MergeProgramFlags in engine/d8_flags.h). The worker sets them before it
+  // publishes the program.
+  std::vector<std::string> flags;
 
   // --- corpus bookkeeping (written once by the coordinator) ---
   uint32_t id = 0;
@@ -93,13 +107,17 @@ class Program {
 
  private:
   Program() = default;
-  std::unique_ptr<fast::Tree> tree_;
+  const fast::Tree& EnsureTree() const;
+
+  mutable std::mutex tree_mutex_;
+  mutable std::unique_ptr<fast::Tree> tree_;
+  mutable std::atomic<const fast::Tree*> tree_ptr_{nullptr};
   std::string source_;
   uint64_t hash_ = 0;
   size_t node_count_ = 0;
   Lineage lineage_;
-  mutable std::once_flag scopes_once_;
   mutable std::unique_ptr<fast::ScopeAnalysis> scopes_;
+  mutable std::atomic<const fast::ScopeAnalysis*> scopes_ptr_{nullptr};
 };
 
 using ProgramPtr = std::shared_ptr<const Program>;

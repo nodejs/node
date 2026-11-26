@@ -2830,6 +2830,16 @@ void MacroAssembler::CheckPageFlag(Register object, int mask, Condition cc,
   b(cc, condition_met);
 }
 
+void MacroAssembler::JumpIfMarking(Label* is_marking) {
+  DCHECK(root_array_available());
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  ldrb(scratch,
+       MemOperand(kRootRegister, IsolateData::is_marking_flag_offset()));
+  cmp(scratch, Operand(0));
+  b(ne, is_marking);
+}
+
 Register GetRegisterThatIsNotOneOf(Register reg1, Register reg2, Register reg3,
                                    Register reg4, Register reg5,
                                    Register reg6) {

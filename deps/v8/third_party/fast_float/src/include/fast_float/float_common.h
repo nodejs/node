@@ -17,8 +17,8 @@
 #include "constexpr_feature_detect.h"
 
 #define FASTFLOAT_VERSION_MAJOR 8
-#define FASTFLOAT_VERSION_MINOR 3
-#define FASTFLOAT_VERSION_PATCH 2
+#define FASTFLOAT_VERSION_MINOR 4
+#define FASTFLOAT_VERSION_PATCH 0
 
 #define FASTFLOAT_STRINGIZE_IMPL(x) #x
 #define FASTFLOAT_STRINGIZE(x) FASTFLOAT_STRINGIZE_IMPL(x)
@@ -226,6 +226,23 @@ using parse_options = parse_options_t<char>;
 #define fastfloat_never_inline __attribute__((noinline))
 #else
 #define fastfloat_never_inline
+#endif
+
+// C++26 (P2795R5) and -ftrivial-auto-var-init zero-fill local variables that
+// have no initializer. FASTFLOAT_INDETERMINATE opts a local out of that. Use
+// it only on buffers that the code writes before it reads them.
+#if defined(__has_cpp_attribute) && __cplusplus > 202302L
+#if __has_cpp_attribute(indeterminate)
+#define FASTFLOAT_INDETERMINATE [[indeterminate]]
+#endif
+#endif
+#if !defined(FASTFLOAT_INDETERMINATE) && defined(__has_attribute)
+#if __has_attribute(uninitialized)
+#define FASTFLOAT_INDETERMINATE __attribute__((uninitialized))
+#endif
+#endif
+#ifndef FASTFLOAT_INDETERMINATE
+#define FASTFLOAT_INDETERMINATE
 #endif
 
 // fastfloat_really_inline under clang only, a no-op elsewhere. Clang declines

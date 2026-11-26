@@ -51,6 +51,7 @@ class Block {
   }
   size_t id() const { return id_; }
   bool IsDeferred() const { return is_deferred_; }
+  void SetDeferred(bool is_deferred) { is_deferred_ = is_deferred; }
 
   void MergeInputDefinitions(const Stack<DefinitionLocation>& input_definitions,
                              Worklist<Block*>* worklist) {

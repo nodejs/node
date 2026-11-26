@@ -9,7 +9,7 @@
 #include <sstream>
 
 #include "src/base/logging.h"
-#include "src/common/synchronization-point-support.h"
+#include "src/base/synchronization-point-support.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/pipeline-statistics.h"
 #include "src/flags/flags.h"
@@ -464,6 +464,11 @@ std::optional<maglev::Graph*> TurbolevFrontendPipeline::Run() {
   if (V8_UNLIKELY(v8_flags.print_turbolev_inline_functions)) {
     PrintInliningTreeDebugInfo();
   }
+#if defined(V8_FUZZILLI) || defined(V8_REDLINE)
+  if (v8_flags.fuzzilli_enable_optimized_code_coverage) {
+    graph_->ExtractOptimizedCodeCoverage();
+  }
+#endif
   return graph_;
 }
 

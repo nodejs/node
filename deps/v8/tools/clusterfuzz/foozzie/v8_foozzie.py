@@ -181,9 +181,6 @@ DISALLOWED_FLAGS = [
     # Bails out when sorting, leading to differences in sorted output.
     '--multi-mapped-mock-allocator',
 
-    # TODO(https://crbug.com/1393020): Changes the global object.
-    '--harmony-struct',
-
     # Cuts off stdout earlier in some situations and might alter the behavior
     # of neutered runtime functions.
     '--sandbox-testing',

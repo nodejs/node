@@ -56,6 +56,8 @@ V8_OBJECT class PropertyCell : public HeapObject {
                          DirectHandle<Object> new_value);
   // For protectors:
   void InvalidateProtector(Isolate* isolate);
+  // Fuzzing only: marks an invalidated protector cell valid again for REPRL.
+  void ResetProtectorForReprl();
 
   static PropertyCellType InitialType(Isolate* isolate, Tagged<Object> value);
 
@@ -74,6 +76,14 @@ V8_OBJECT class PropertyCell : public HeapObject {
       InternalIndex entry, DirectHandle<Object> value, PropertyDetails details);
 
   void ClearAndInvalidate(Isolate* isolate);
+
+  // If {original_details} and {original_value} describe an AccessorPair whose
+  // getter is an API function template with a cached property name, invalidates
+  // and replaces the cached property cell in {dictionary} if present and
+  // configured as a data property.
+  static void InvalidateCachedPropertyIfNeeded(
+      Isolate* isolate, DirectHandle<GlobalDictionary> dictionary,
+      PropertyDetails original_details, DirectHandle<Object> original_value);
   static Handle<PropertyCell> InvalidateAndReplaceEntry(
       Isolate* isolate, DirectHandle<GlobalDictionary> dictionary,
       InternalIndex entry, PropertyDetails new_details,

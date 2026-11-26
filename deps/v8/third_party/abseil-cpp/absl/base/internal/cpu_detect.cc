@@ -35,6 +35,21 @@
 
 #if defined(_WIN32) || defined(_WIN64)
 #include <intrin.h>
+#if defined(__aarch64__) || defined(_M_ARM64)
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+#ifndef PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE
+#define PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE 30
+#endif
+#ifndef PF_ARM_V8_CRC32_INSTRUCTIONS_AVAILABLE
+#define PF_ARM_V8_CRC32_INSTRUCTIONS_AVAILABLE 31
+#endif
+#ifndef PF_ARM_SHA3_INSTRUCTIONS_AVAILABLE
+#define PF_ARM_SHA3_INSTRUCTIONS_AVAILABLE 64
+#endif
+#endif  // defined(__aarch64__) || defined(_M_ARM64)
 #endif
 
 #if defined(__x86_64__) || defined(_M_X64)
@@ -242,6 +257,23 @@ CpuType GetAmdCpuType() {
   }
 }
 
+// Reads extended control register 0 (XCR0). The caller must verify via CPUID
+// that the CPU and OS support OSXSAVE before calling this function.
+uint64_t ReadXcr0() {
+#if defined(_MSC_VER)
+  return _xgetbv(0);
+#elif defined(__GNUC__) || defined(__clang__)
+  uint32_t eax = 0;
+  uint32_t edx = 0;
+  // Use the raw opcode for xgetbv (0F 01 D0) so this compiles without -mxsave
+  // and on assemblers that do not recognize the xgetbv mnemonic.
+  __asm__ volatile(".byte 0x0f, 0x01, 0xd0" : "=a"(eax), "=d"(edx) : "c"(0));
+  return (static_cast<uint64_t>(edx) << 32) | eax;
+#else
+  return 0;
+#endif
+}
+
 }  // namespace
 
 CpuType GetCpuType() {
@@ -256,6 +288,31 @@ CpuType GetCpuType() {
 }
 
 bool SupportsArmCRC32PMULL() { return false; }
+
+bool SupportsArmSHA3() { return false; }
+
+bool SupportsAvx2() {
+  // Query CPUID and XCR0 directly instead of using __builtin_cpu_supports(),
+  // which pulls in a static initializer (__cpu_indicator_init) from the
+  // compiler runtime.
+  int cpu_info[4];
+  __cpuid(cpu_info, 0);
+  if (cpu_info[0] < 7) {
+    return false;
+  }
+  __cpuid(cpu_info, 1);
+  constexpr int kOsxsaveAndAvx = (1 << 27) | (1 << 28);
+  if ((cpu_info[2] & kOsxsaveAndAvx) != kOsxsaveAndAvx) {
+    return false;
+  }
+  // Check that the OS saves both XMM (bit 1) and YMM (bit 2) state.
+  constexpr uint64_t kXmmAndYmmState = 0x6;
+  if ((ReadXcr0() & kXmmAndYmmState) != kXmmAndYmmState) {
+    return false;
+  }
+  __cpuidex(cpu_info, 7, 0);
+  return (cpu_info[1] & (1 << 5)) != 0;
+}
 
 bool SupportsBmi2() {
   int cpu_info[4];
@@ -316,6 +373,14 @@ CpuType GetCpuType() {
             return CpuType::kUnknown;
         }
         break;
+      case 0x4e:
+        switch (part_number) {
+          case 0x010:
+            return CpuType::kNvidiaVera;
+          default:
+            return CpuType::kUnknown;
+        }
+        break;
       case 0xc0:
         switch (part_number) {
           case 0xac3:
@@ -333,12 +398,26 @@ CpuType GetCpuType() {
 
 bool SupportsArmCRC32PMULL() {
 #if defined(HWCAP_CRC32) && defined(HWCAP_PMULL)
-  uint64_t hwcaps = getauxval(AT_HWCAP);
-  return (hwcaps & HWCAP_CRC32) && (hwcaps & HWCAP_PMULL);
+  static const bool supported = []() {
+    uint64_t hwcaps = getauxval(AT_HWCAP);
+    return (hwcaps & HWCAP_CRC32) && (hwcaps & HWCAP_PMULL);
+  }();
+  return supported;
 #else
   return false;
 #endif
 }
+
+bool SupportsArmSHA3() {
+#if defined(HWCAP_SHA3)
+  static const bool supported = (getauxval(AT_HWCAP) & HWCAP_SHA3) != 0;
+  return supported;
+#else
+  return false;
+#endif
+}
+
+bool SupportsAvx2() { return false; }
 
 bool SupportsBmi2() { return false; }
 
@@ -388,6 +467,42 @@ bool SupportsArmCRC32PMULL() {
   return supported;
 }
 
+bool SupportsArmSHA3() {
+  static const bool supported = []() {
+#if defined(CAP_BIT_FEAT_SHA3)
+    const std::optional<uint64_t> caps =
+        ReadSysctlByName<uint64_t>("hw.optional.arm.caps");
+    if (caps.has_value()) {
+      return (*caps & (uint64_t{1} << CAP_BIT_FEAT_SHA3)) != 0;
+    }
+#endif
+    const std::optional<int> feat_sha3 =
+        ReadSysctlByName<int>("hw.optional.armv8_2_sha3");
+    return feat_sha3.value_or(0) != 0;
+  }();
+  return supported;
+}
+
+bool SupportsAvx2() { return false; }
+
+bool SupportsBmi2() { return false; }
+
+#elif (defined(__aarch64__) || defined(_M_ARM64)) && \
+    (defined(_WIN32) || defined(_WIN64))
+
+CpuType GetCpuType() { return CpuType::kUnknown; }
+
+bool SupportsArmCRC32PMULL() {
+  return IsProcessorFeaturePresent(PF_ARM_V8_CRC32_INSTRUCTIONS_AVAILABLE) &&
+         IsProcessorFeaturePresent(PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE);
+}
+
+bool SupportsArmSHA3() {
+  return IsProcessorFeaturePresent(PF_ARM_SHA3_INSTRUCTIONS_AVAILABLE);
+}
+
+bool SupportsAvx2() { return false; }
+
 bool SupportsBmi2() { return false; }
 
 #else
@@ -395,6 +510,10 @@ bool SupportsBmi2() { return false; }
 CpuType GetCpuType() { return CpuType::kUnknown; }
 
 bool SupportsArmCRC32PMULL() { return false; }
+
+bool SupportsArmSHA3() { return false; }
+
+bool SupportsAvx2() { return false; }
 
 bool SupportsBmi2() { return false; }
 

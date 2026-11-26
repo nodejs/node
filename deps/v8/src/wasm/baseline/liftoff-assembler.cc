@@ -285,6 +285,8 @@ int GetSafepointIndexForStackSlot(const VarState& slot) {
   // kFixedFrameSizeAboveFp - kSystemPointerSize) - (fp - slot.offset())' =
   // 'slot.offset() + kFixedFrameSizeAboveFp - kSystemPointerSize'.
   // Concretely, the index of the first stack slot is '4'.
+  DCHECK(is_reference(slot.kind()));
+  DCHECK_EQ(0, slot.offset() % kSystemPointerSize);
   return (slot.offset() + StandardFrameConstants::kFixedFrameSizeAboveFp -
           kSystemPointerSize) /
          kSystemPointerSize;
@@ -314,19 +316,50 @@ void LiftoffAssembler::CacheState::GetTaggedSlotsForOOLCode(
   }
 }
 
-void LiftoffAssembler::CacheState::DefineSafepoint(
-    SafepointTableBuilder::Safepoint& safepoint) {
+void LiftoffAssembler::RecordTaggedLocalSlots() {
+  DCHECK_EQ(num_locals_, cache_state_.stack_height());
+  DCHECK(tagged_locals_slots_.IsEmpty());
   // Go in reversed order to set the higher bits first; this avoids cost for
   // growing the underlying bitvector.
-  for (const auto& slot : base::Reversed(stack_state)) {
+  for (const VarState& slot : base::Reversed(cache_state_.stack_state)) {
     if (is_reference(slot.kind())) {
-      // TODO(v8:14422): References that are not on the stack now will get lost
-      // at the moment. Once v8:14422 is resolved, this `continue` should be
-      // revisited and potentially updated to a DCHECK.
-      if (!slot.is_stack()) continue;
+      tagged_locals_slots_.Add(GetSafepointIndexForStackSlot(slot), zone());
+    }
+  }
+}
+
+void LiftoffAssembler::DropLocals() {
+  if (num_locals_ > kInlineLocalKinds) {
+    base::Free(more_local_kinds_);
+  }
+  num_locals_ = 0;
+  tagged_locals_slots_.Clear();
+}
+
+void LiftoffAssembler::DefineSafepoint(
+    SafepointTableBuilder::Safepoint& safepoint) {
+  DCHECK_LE(num_locals_, cache_state_.stack_state.size());
+#ifdef ENABLE_SLOW_DCHECKS
+  for (uint32_t i = 0; i < num_locals_; ++i) {
+    const VarState& slot = cache_state_.stack_state[i];
+    if (is_reference(slot.kind())) {
+      DCHECK(slot.is_stack());
+      DCHECK(
+          tagged_locals_slots_.Contains(GetSafepointIndexForStackSlot(slot)));
+    }
+  }
+#endif
+  // Go in reversed order to set the higher bits first; this avoids cost for
+  // growing the underlying bitvector.
+  base::Vector<const VarState> operand_slots =
+      base::VectorOf(cache_state_.stack_state).SubVectorFrom(num_locals_);
+  for (const VarState& slot : base::Reversed(operand_slots)) {
+    if (is_reference(slot.kind())) {
+      DCHECK(slot.is_stack());
       safepoint.DefineTaggedStackSlot(GetSafepointIndexForStackSlot(slot));
     }
   }
+  safepoint.DefineTaggedStackSlots(tagged_locals_slots_);
 }
 
 void LiftoffAssembler::CacheState::DefineSafepointWithCalleeSavedRegisters(
@@ -643,13 +676,17 @@ void LiftoffAssembler::SpillLocals() {
 }
 
 void LiftoffAssembler::SpillAllRegisters() {
-  for (VarState& slot : cache_state_.stack_state) {
-    if (!slot.is_reg()) continue;
-    Spill(slot.offset(), slot.reg(), slot.kind());
-    slot.MakeStack();
-  }
   cache_state_.ClearAllCacheRegisters();
-  cache_state_.reset_used_registers();
+  if (cache_state_.used_registers.is_empty()) return;
+  // Iterate backwards, spilling register slots until all registers are free.
+  for (VarState* slot = cache_state_.stack_state.end() - 1;; --slot) {
+    DCHECK_LE(cache_state_.stack_state.begin(), slot);
+    if (!slot->is_reg()) continue;
+    Spill(slot->offset(), slot->reg(), slot->kind());
+    cache_state_.dec_used(slot->reg());
+    slot->MakeStack();
+    if (cache_state_.used_registers.is_empty()) break;
+  }
 }
 
 void LiftoffAssembler::ClearRegister(
@@ -747,14 +784,11 @@ void LiftoffAssembler::PrepareBuiltinCall(
   SpillAllRegisters();
   int param_slots = static_cast<int>(call_descriptor->ParameterSlotCount());
   if (param_slots > 0) {
-    RecordPushedCallArgs(param_slots);
+    RecordPushedCallArgs(AddArgumentPaddingSlots(param_slots));
     stack_slots.Construct(param_slots);
   }
   // Execute the stack transfers before filling the instance register.
   parallel_move.Execute();
-
-  // Reset register use counters.
-  cache_state_.reset_used_registers();
 }
 
 void LiftoffAssembler::PrepareCall(const ValueKindSig* sig,
@@ -813,18 +847,7 @@ void LiftoffAssembler::PrepareCall(const ValueKindSig* sig,
   DropValues(num_params);
 
   // Spill all remaining cache slots.
-  cache_state_.ClearAllCacheRegisters();
-  // Iterate backwards, spilling register slots until all registers are free.
-  if (!cache_state_.used_registers.is_empty()) {
-    for (auto* slot = cache_state_.stack_state.end() - 1;; --slot) {
-      DCHECK_LE(cache_state_.stack_state.begin(), slot);
-      if (!slot->is_reg()) continue;
-      Spill(slot->offset(), slot->reg(), slot->kind());
-      cache_state_.dec_used(slot->reg());
-      slot->MakeStack();
-      if (cache_state_.used_registers.is_empty()) break;
-    }
-  }
+  SpillAllRegisters();
   // All slots are either spilled on the stack, or hold constants now.
   DCHECK(std::all_of(
       cache_state_.stack_state.begin(), cache_state_.stack_state.end(),

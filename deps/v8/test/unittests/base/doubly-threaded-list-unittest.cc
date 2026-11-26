@@ -49,14 +49,14 @@ TEST_F(DoublyThreadedListTest, BasicTest) {
   EXPECT_EQ(*e4.prev_, &e4);
 
   // Removing front
-  list.Remove(&e4);
+  DoublyThreadedList<Elem*, DoublyThreadedListTraits<Elem*>>::Remove(&e4);
   EXPECT_EQ(**(list.begin()), e3);
   EXPECT_EQ(*e3.prev_, &e3);
   EXPECT_EQ(e4.next_, nullptr);
   EXPECT_EQ(e4.prev_, nullptr);
 
   // Removing middle
-  list.Remove(&e2);
+  DoublyThreadedList<Elem*, DoublyThreadedListTraits<Elem*>>::Remove(&e2);
   EXPECT_EQ(*e3.next_, e1);
   EXPECT_EQ(e2.prev_, nullptr);
   EXPECT_EQ(e2.next_, nullptr);
@@ -64,14 +64,14 @@ TEST_F(DoublyThreadedListTest, BasicTest) {
   EXPECT_EQ(*e1.prev_, &e1);
 
   // Removing back
-  list.Remove(&e1);
+  DoublyThreadedList<Elem*, DoublyThreadedListTraits<Elem*>>::Remove(&e1);
   EXPECT_EQ(e3.next_, nullptr);
   EXPECT_EQ(e1.prev_, nullptr);
   EXPECT_EQ(e1.next_, nullptr);
   EXPECT_EQ(**(list.begin()), e3);
 
   // Removing only item
-  list.Remove(&e3);
+  DoublyThreadedList<Elem*, DoublyThreadedListTraits<Elem*>>::Remove(&e3);
   EXPECT_EQ(e3.prev_, nullptr);
   EXPECT_EQ(e3.next_, nullptr);
   EXPECT_TRUE(list.empty());

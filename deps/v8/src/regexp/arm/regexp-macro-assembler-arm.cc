@@ -281,7 +281,7 @@ void RegExpMacroAssemblerARM::CheckNotBackReferenceIgnoreCase(
 
     __ bind(&loop_check);
     __ cmp(r0, r1);
-    __ b(lt, &loop);
+    __ b(lo, &loop);
     __ jmp(&success);
 
     __ bind(&fail);
@@ -397,7 +397,7 @@ void RegExpMacroAssemblerARM::CheckNotBackReference(int start_reg,
   __ cmp(r3, r4);
   BranchOrBacktrack(ne, on_no_match);
   __ cmp(r0, r1);
-  __ b(lt, &loop);
+  __ b(lo, &loop);
 
   // Move current character position to position after match.
   __ sub(current_input_offset(), r2, end_of_input_address());

@@ -143,42 +143,6 @@ void TaggedMember<T, CompressionScheme>::Release_Store(HeapObject* host,
 }
 
 template <typename T, typename CompressionScheme>
-Tagged<T> TaggedMember<T, CompressionScheme>::SeqCst_Load() const {
-  return Tagged<T>(
-      tagged_to_full(AsAtomicTagged::SeqCst_Load(this->ptr_location())));
-}
-
-template <typename T, typename CompressionScheme>
-void TaggedMember<T, CompressionScheme>::SeqCst_Store(HeapObject* host,
-                                                      Tagged<T> value,
-                                                      WriteBarrierMode mode) {
-  SeqCst_Store_no_write_barrier(value);
-  WriteBarrier(host, value, mode);
-}
-
-template <typename T, typename CompressionScheme>
-Tagged<T> TaggedMember<T, CompressionScheme>::SeqCst_Swap(
-    HeapObject* host, Tagged<T> value, WriteBarrierMode mode) {
-  Tagged<T> old_value(tagged_to_full(AsAtomicTagged::SeqCst_Swap(
-      this->ptr_location(), full_to_tagged(value.ptr()))));
-  WriteBarrier(host, value, mode);
-  return old_value;
-}
-
-template <typename T, typename CompressionScheme>
-Tagged<T> TaggedMember<T, CompressionScheme>::SeqCst_CompareAndSwap(
-    HeapObject* host, Tagged<T> expected_value, Tagged<T> value,
-    WriteBarrierMode mode) {
-  Tagged<T> old_value(tagged_to_full(AsAtomicTagged::SeqCst_CompareAndSwap(
-      this->ptr_location(), full_to_tagged(expected_value.ptr()),
-      full_to_tagged(value.ptr()))));
-  if (old_value == expected_value) {
-    WriteBarrier(host, value, mode);
-  }
-  return old_value;
-}
-
-template <typename T, typename CompressionScheme>
 void TaggedMember<T, CompressionScheme>::store_no_write_barrier(
     Tagged<T> value) {
 #ifdef V8_ATOMIC_OBJECT_FIELD_WRITES
@@ -200,13 +164,6 @@ void TaggedMember<T, CompressionScheme>::Release_Store_no_write_barrier(
     Tagged<T> value) {
   AsAtomicTagged::Release_Store(this->ptr_location(),
                                 full_to_tagged(value.ptr()));
-}
-
-template <typename T, typename CompressionScheme>
-void TaggedMember<T, CompressionScheme>::SeqCst_Store_no_write_barrier(
-    Tagged<T> value) {
-  AsAtomicTagged::SeqCst_Store(this->ptr_location(),
-                               full_to_tagged(value.ptr()));
 }
 
 template <typename T, typename CompressionScheme>
@@ -232,6 +189,16 @@ void TaggedMember<T, CompressionScheme>::WriteBarrier(HeapObject* host,
     }
   }
 #endif
+}
+
+template <typename Group>
+SmiBitFieldMember<Group>::SmiBitFieldMember(Group value) {
+  store(value);
+}
+
+template <typename Group>
+SmiBitFieldMember<Group>::SmiBitFieldMember(Group value, RelaxedStoreTag) {
+  Relaxed_Store(value);
 }
 
 template <typename Group>
@@ -455,50 +422,6 @@ TaggedField<T, kFieldOffset, CompressionScheme>::SeqCst_Load(
   AtomicTagged_t value = AsAtomicTagged::SeqCst_Load(location(host, offset));
   DCHECK_NE(kFieldOffset + offset, offsetof(HeapObject, map_));
   return PtrType(tagged_to_full(value));
-}
-
-// static
-template <typename T, int kFieldOffset, typename CompressionScheme>
-void TaggedField<T, kFieldOffset, CompressionScheme>::SeqCst_Store(
-    Tagged<HeapObject> host, PtrType value) {
-  Address ptr = value.ptr();
-  DCHECK_NE(kFieldOffset, offsetof(HeapObject, map_));
-  AsAtomicTagged::SeqCst_Store(location(host), full_to_tagged(ptr));
-}
-
-// static
-template <typename T, int kFieldOffset, typename CompressionScheme>
-void TaggedField<T, kFieldOffset, CompressionScheme>::SeqCst_Store(
-    Tagged<HeapObject> host, int offset, PtrType value) {
-  Address ptr = value.ptr();
-  DCHECK_NE(kFieldOffset + offset, offsetof(HeapObject, map_));
-  AsAtomicTagged::SeqCst_Store(location(host, offset), full_to_tagged(ptr));
-}
-
-// static
-template <typename T, int kFieldOffset, typename CompressionScheme>
-typename TaggedField<T, kFieldOffset, CompressionScheme>::PtrType
-TaggedField<T, kFieldOffset, CompressionScheme>::SeqCst_Swap(
-    Tagged<HeapObject> host, int offset, PtrType value) {
-  Address ptr = value.ptr();
-  DCHECK_NE(kFieldOffset + offset, offsetof(HeapObject, map_));
-  AtomicTagged_t old_value =
-      AsAtomicTagged::SeqCst_Swap(location(host, offset), full_to_tagged(ptr));
-  return PtrType(tagged_to_full(old_value));
-}
-
-// static
-template <typename T, int kFieldOffset, typename CompressionScheme>
-typename TaggedField<T, kFieldOffset, CompressionScheme>::PtrType
-TaggedField<T, kFieldOffset, CompressionScheme>::SeqCst_CompareAndSwap(
-    Tagged<HeapObject> host, int offset, PtrType old, PtrType value) {
-  Address ptr = value.ptr();
-  Address old_ptr = old.ptr();
-  DCHECK_NE(kFieldOffset + offset, offsetof(HeapObject, map_));
-  AtomicTagged_t old_value = AsAtomicTagged::SeqCst_CompareAndSwap(
-      location(host, offset), full_to_tagged(old_ptr), full_to_tagged(ptr));
-  return TaggedField<T, kFieldOffset, CompressionScheme>::PtrType(
-      tagged_to_full(old_value));
 }
 
 JSDispatchHandle JSDispatchHandleMember::Relaxed_Load() const {

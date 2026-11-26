@@ -490,17 +490,16 @@ transitioning macro PerformPromiseThenImpl(
       microtask = NewPromiseFulfillReactionJobTask(
           handlerContext, reactionsOrResult, onFulfilled,
           resultPromiseOrCapability);
-    } else
-      deferred {
-        dcheck(promise.Status() == PromisePromiseState::kRejected);
-        handlerContext = ExtractHandlerContext(onRejected, onFulfilled);
-        microtask = NewPromiseRejectReactionJobTask(
-            handlerContext, reactionsOrResult, onRejected,
-            resultPromiseOrCapability);
-        if (!promise.HasHandler()) {
-          runtime::PromiseRevokeReject(promise);
-        }
+    } else deferred {
+      dcheck(promise.Status() == PromisePromiseState::kRejected);
+      handlerContext = ExtractHandlerContext(onRejected, onFulfilled);
+      microtask = NewPromiseRejectReactionJobTask(
+          handlerContext, reactionsOrResult, onRejected,
+          resultPromiseOrCapability);
+      if (!promise.HasHandler()) {
+        runtime::PromiseRevokeReject(promise);
       }
+    }
     EnqueueMicrotask(handlerContext, microtask);
   }
   promise.SetHasHandler();
@@ -568,10 +567,10 @@ transitioning javascript builtin PromiseGetCapabilitiesExecutor(
   const context = %RawDownCast<PromiseCapabilitiesExecutorContext>(context);
   const capability: PromiseCapability =
       *ContextSlot(context, FunctionContextSlot::kCapabilitySlot);
-  if (capability.resolve != Undefined || capability.reject != Undefined)
-    deferred {
-      ThrowTypeError(kPromiseExecutorAlreadyInvoked);
-    }
+  if (capability.resolve != Undefined ||
+      capability.reject != Undefined) deferred {
+    ThrowTypeError(kPromiseExecutorAlreadyInvoked);
+  }
 
   capability.resolve = resolve;
   capability.reject = reject;
@@ -622,10 +621,9 @@ transitioning macro CallResolve(
   // instead it is used as a special marker for the fast path.
   if (resolve == Undefined) {
     return PromiseResolve(constructor, value);
-  } else
-    deferred {
-      return Call(context, UnsafeCast<Callable>(resolve), constructor, value);
-    }
+  } else deferred {
+    return Call(context, UnsafeCast<Callable>(resolve), constructor, value);
+  }
 }
 
 transitioning javascript builtin PromiseConstructorLazyDeoptContinuation(

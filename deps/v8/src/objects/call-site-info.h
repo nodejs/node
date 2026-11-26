@@ -8,6 +8,7 @@
 #include <optional>
 
 #include "src/base/bit-field.h"
+#include "src/objects/bit-field-group.h"
 #include "src/objects/objects-body-descriptors.h"
 #include "src/objects/struct.h"
 #include "src/sandbox/trusted-pointer.h"
@@ -23,30 +24,48 @@ class StructBodyDescriptor;
 
 V8_OBJECT class CallSiteInfo : public Struct {
  public:
-  using IsWasmBit = base::BitField<bool, 0, 1, uint32_t>;
-  using IsStrictBit = IsWasmBit::Next<bool, 1>;
-  using IsConstructorBit = IsStrictBit::Next<bool, 1>;
-  using IsAsyncBit = IsConstructorBit::Next<bool, 1>;
-  using IsBuiltinBit = IsAsyncBit::Next<bool, 1>;
-  using IsSourcePositionComputedBit = IsBuiltinBit::Next<bool, 1>;
-  using IsDeferredBaselineFrameBit = IsSourcePositionComputedBit::Next<bool, 1>;
+  struct Flags : BitFieldGroup<Flags, uint32_t> {
+    using BitFieldGroup::BitFieldGroup;
+
+    using IsWasmBit = First<bool, 1>;
+    using IsStrictBit = IsWasmBit::Next<bool, 1>;
+    using IsConstructorBit = IsStrictBit::Next<bool, 1>;
+    using IsAsyncBit = IsConstructorBit::Next<bool, 1>;
+    using IsBuiltinBit = IsAsyncBit::Next<bool, 1>;
+    using IsSourcePositionComputedBit = IsBuiltinBit::Next<bool, 1>;
+    using IsDeferredBaselineFrameBit =
+        IsSourcePositionComputedBit::Next<bool, 1>;
 #if V8_ENABLE_DRUMBRAKE
-  using IsWasmInterpretedFrameBit = IsDeferredBaselineFrameBit::Next<bool, 1>;
+    using IsWasmInterpretedFrameBit = IsDeferredBaselineFrameBit::Next<bool, 1>;
 #endif
-  enum Flag : uint32_t {
-    kNone = 0,
-    kIsWasm = IsWasmBit::kMask,
-    kIsStrict = IsStrictBit::kMask,
-    kIsConstructor = IsConstructorBit::kMask,
-    kIsAsync = IsAsyncBit::kMask,
-    kIsBuiltin = IsBuiltinBit::kMask,
-    kIsSourcePositionComputed = IsSourcePositionComputedBit::kMask,
-    kIsDeferredBaselineFrame = IsDeferredBaselineFrameBit::kMask,
+
+    BIT_FIELD_GROUP_ACCESSORS(is_wasm, IsWasmBit)
+    BIT_FIELD_GROUP_ACCESSORS(is_strict, IsStrictBit)
+    BIT_FIELD_GROUP_ACCESSORS(is_constructor, IsConstructorBit)
+    BIT_FIELD_GROUP_ACCESSORS(is_async, IsAsyncBit)
+    BIT_FIELD_GROUP_ACCESSORS(is_builtin, IsBuiltinBit)
+    BIT_FIELD_GROUP_ACCESSORS(is_source_position_computed,
+                              IsSourcePositionComputedBit)
+    BIT_FIELD_GROUP_ACCESSORS(is_deferred_baseline_frame,
+                              IsDeferredBaselineFrameBit)
 #if V8_ENABLE_DRUMBRAKE
-    kIsWasmInterpretedFrame = IsWasmInterpretedFrameBit::kMask,
+    BIT_FIELD_GROUP_ACCESSORS(is_wasm_interpreted_frame,
+                              IsWasmInterpretedFrameBit)
 #endif
   };
-  using Flags = base::Flags<Flag>;
+  enum Flag : uint32_t {
+    kNone = 0,
+    kIsWasm = Flags::IsWasmBit::kMask,
+    kIsStrict = Flags::IsStrictBit::kMask,
+    kIsConstructor = Flags::IsConstructorBit::kMask,
+    kIsAsync = Flags::IsAsyncBit::kMask,
+    kIsBuiltin = Flags::IsBuiltinBit::kMask,
+    kIsSourcePositionComputed = Flags::IsSourcePositionComputedBit::kMask,
+    kIsDeferredBaselineFrame = Flags::IsDeferredBaselineFrameBit::kMask,
+#if V8_ENABLE_DRUMBRAKE
+    kIsWasmInterpretedFrame = Flags::IsWasmInterpretedFrameBit::kMask,
+#endif
+  };
 #if V8_ENABLE_DRUMBRAKE
   static constexpr int kFlagCount = 8;
 #else
@@ -90,8 +109,8 @@ V8_OBJECT class CallSiteInfo : public Struct {
   inline void set_code_offset_or_source_position(
       int value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline int flags() const;
-  inline void set_flags(int value);
+  inline Flags flags() const;
+  inline void set_flags(Flags value);
 
   // Dispatched behavior.
   DECL_VERIFIER(CallSiteInfo)
@@ -134,7 +153,7 @@ V8_OBJECT class CallSiteInfo : public Struct {
   Tagged<Object> GetScriptSource() const;
   Tagged<Object> GetScriptSourceMappingURL() const;
 
-  static Handle<PrimitiveHeapObject> GetEvalOrigin(
+  static MaybeDirectHandle<PrimitiveHeapObject> GetEvalOrigin(
       DirectHandle<CallSiteInfo> info);
   V8_EXPORT_PRIVATE static DirectHandle<PrimitiveHeapObject> GetFunctionName(
       DirectHandle<CallSiteInfo> info);
@@ -183,7 +202,7 @@ V8_OBJECT class CallSiteInfo : public Struct {
   const TaggedMember<JSAny> receiver_or_instance_;
   const TaggedMember<Union<JSFunction, Smi>> function_;
   TaggedMember<Smi> code_offset_or_source_position_;
-  TaggedMember<Smi> flags_ V8_TQ_TYPE(SmiTagged<CallSiteInfoFlags>);
+  SmiBitFieldMember<Flags> flags_;
 } V8_OBJECT_END;
 
 template <>
@@ -200,7 +219,8 @@ void SerializeCallSiteInfo(Isolate* isolate, DirectHandle<CallSiteInfo> frame,
                            IncrementalStringBuilder* builder);
 V8_EXPORT_PRIVATE
 MaybeDirectHandle<String> SerializeCallSiteInfo(
-    Isolate* isolate, DirectHandle<CallSiteInfo> frame);
+    Isolate* isolate, DirectHandle<CallSiteInfo> frame,
+    ShouldThrow should_throw = kThrowOnError);
 
 }  // namespace v8::internal
 

@@ -36,13 +36,12 @@ TEST_F(WasmImportWrapperCacheTest, CacheHit) {
   FlagScope<bool> cleanup_immediately(&v8_flags.stress_wasm_code_gc, true);
   Isolate* isolate = i_isolate();
   auto module = NewModule(isolate);
-  TestSignatures sigs;
 
-  auto kind = ImportCallKind::kJSFunction;
-  auto sig = sigs.i_i();
+  auto kind = ImportCallKind::kJSFunctionUndefinedReceiver;
+  auto sig = TestSignatures::i_i();
   CanonicalTypeIndex type_index =
       GetTypeCanonicalizer()->AddRecursiveGroup(sig);
-  int expected_arity = static_cast<int>(sig->parameter_count());
+  uint16_t expected_arity = static_cast<uint16_t>(sig->parameter_count());
   auto* canonical_sig =
       GetTypeCanonicalizer()->LookupFunctionSignature(type_index);
   {
@@ -70,18 +69,17 @@ TEST_F(WasmImportWrapperCacheTest, CacheHit) {
 TEST_F(WasmImportWrapperCacheTest, CacheMissSig) {
   Isolate* isolate = i_isolate();
   auto module = NewModule(isolate);
-  TestSignatures sigs;
   WasmCodeRefScope wasm_code_ref_scope;
 
-  auto kind = ImportCallKind::kJSFunction;
-  auto* sig1 = sigs.i_i();
-  int expected_arity1 = static_cast<int>(sig1->parameter_count());
+  auto kind = ImportCallKind::kJSFunctionUndefinedReceiver;
+  auto* sig1 = TestSignatures::i_i();
+  uint16_t expected_arity1 = static_cast<uint16_t>(sig1->parameter_count());
   CanonicalTypeIndex type_index1 =
       GetTypeCanonicalizer()->AddRecursiveGroup(sig1);
   auto* canonical_sig1 =
       GetTypeCanonicalizer()->LookupFunctionSignature(type_index1);
-  auto sig2 = sigs.i_ii();
-  int expected_arity2 = static_cast<int>(sig2->parameter_count());
+  auto sig2 = TestSignatures::i_ii();
+  uint16_t expected_arity2 = static_cast<uint16_t>(sig2->parameter_count());
   CanonicalTypeIndex type_index2 =
       GetTypeCanonicalizer()->AddRecursiveGroup(sig2);
   auto* canonical_sig2 =
@@ -100,13 +98,12 @@ TEST_F(WasmImportWrapperCacheTest, CacheMissSig) {
 TEST_F(WasmImportWrapperCacheTest, CacheMissKind) {
   Isolate* isolate = i_isolate();
   auto module = NewModule(isolate);
-  TestSignatures sigs;
   WasmCodeRefScope wasm_code_ref_scope;
 
-  auto kind1 = ImportCallKind::kJSFunction;
+  auto kind1 = ImportCallKind::kJSFunctionUndefinedReceiver;
   auto kind2 = ImportCallKind::kUseCallBuiltin;
-  auto sig = sigs.i_i();
-  int expected_arity = static_cast<int>(sig->parameter_count());
+  auto sig = TestSignatures::i_i();
+  uint16_t expected_arity = static_cast<uint16_t>(sig->parameter_count());
   CanonicalTypeIndex type_index =
       GetTypeCanonicalizer()->AddRecursiveGroup(sig);
   auto* canonical_sig =
@@ -125,18 +122,17 @@ TEST_F(WasmImportWrapperCacheTest, CacheMissKind) {
 TEST_F(WasmImportWrapperCacheTest, CacheHitMissSig) {
   Isolate* isolate = i_isolate();
   auto module = NewModule(isolate);
-  TestSignatures sigs;
   WasmCodeRefScope wasm_code_ref_scope;
 
-  auto kind = ImportCallKind::kJSFunction;
-  auto sig1 = sigs.i_i();
-  int expected_arity1 = static_cast<int>(sig1->parameter_count());
+  auto kind = ImportCallKind::kJSFunctionUndefinedReceiver;
+  auto sig1 = TestSignatures::i_i();
+  uint16_t expected_arity1 = static_cast<uint16_t>(sig1->parameter_count());
   CanonicalTypeIndex type_index1 =
       GetTypeCanonicalizer()->AddRecursiveGroup(sig1);
   auto* canonical_sig1 =
       GetTypeCanonicalizer()->LookupFunctionSignature(type_index1);
-  auto sig2 = sigs.i_ii();
-  int expected_arity2 = static_cast<int>(sig2->parameter_count());
+  auto sig2 = TestSignatures::i_ii();
+  uint16_t expected_arity2 = static_cast<uint16_t>(sig2->parameter_count());
   CanonicalTypeIndex type_index2 =
       GetTypeCanonicalizer()->AddRecursiveGroup(sig2);
   auto* canonical_sig2 =

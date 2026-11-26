@@ -11,8 +11,8 @@
 
 #include "src/__support/CPP/bit.h"
 #include "src/__support/FPUtil/FPBits.h"
-#include "src/__support/FPUtil/PolyEval.h"
 #include "src/__support/FPUtil/multiply_add.h"
+#include "src/__support/FPUtil/polyeval.h"
 #include "src/__support/big_int.h"
 #include "src/__support/frac128.h"
 #include "src/__support/macros/config.h"

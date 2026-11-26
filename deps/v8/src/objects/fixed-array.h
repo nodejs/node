@@ -131,7 +131,6 @@ class TaggedArrayBase : public Super {
   inline Tagged<ElementT> get(uint32_t index) const;
   inline Tagged<ElementT> get(uint32_t index, RelaxedLoadTag) const;
   inline Tagged<ElementT> get(uint32_t index, AcquireLoadTag) const;
-  inline Tagged<ElementT> get(uint32_t index, SeqCstAccessTag) const;
 
   inline void set(uint32_t index, Tagged<ElementT> value,
                   WriteBarrierMode mode = kDefaultMode);
@@ -148,18 +147,6 @@ class TaggedArrayBase : public Super {
   template <typename T = ElementT,
             typename = std::enable_if<kSupportsSmiElements<T>>>
   inline void set(uint32_t index, Tagged<Smi> value, ReleaseStoreTag);
-  inline void set(uint32_t index, Tagged<ElementT> value, SeqCstAccessTag,
-                  WriteBarrierMode mode = kDefaultMode);
-  template <typename T = ElementT,
-            typename = std::enable_if<kSupportsSmiElements<T>>>
-  inline void set(uint32_t index, Tagged<Smi> value, SeqCstAccessTag);
-
-  inline Tagged<ElementT> swap(uint32_t index, Tagged<ElementT> value,
-                               SeqCstAccessTag,
-                               WriteBarrierMode mode = kDefaultMode);
-  inline Tagged<ElementT> compare_and_swap(
-      uint32_t index, Tagged<ElementT> expected, Tagged<ElementT> value,
-      SeqCstAccessTag, WriteBarrierMode mode = kDefaultMode);
 
   // Move vs. Copy behaves like memmove vs. memcpy: for Move, the memory
   // regions may overlap, for Copy they must not overlap.

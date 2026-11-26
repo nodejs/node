@@ -254,7 +254,7 @@ FieldAccess AccessBuilder::ForJSExternalObjectValue() {
   return access;
 }
 
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
 // static
 FieldAccess AccessBuilder::ForJSExternalObjectPointerHandle() {
   FieldAccess access = {kTaggedBase,
@@ -437,16 +437,6 @@ FieldAccess AccessBuilder::ForJSGeneratorObjectResumeMode() {
       Handle<Name>(),      OptionalMapRef(),
       Type::SignedSmall(), MachineType::TaggedSigned(),
       kNoWriteBarrier,     "JSGeneratorObjectResumeMode"};
-  return access;
-}
-
-// static
-FieldAccess AccessBuilder::ForJSGeneratorObjectYieldedValue() {
-  FieldAccess access = {
-      kTaggedBase,       offsetof(JSGeneratorObject, yielded_value_),
-      Handle<Name>(),    OptionalMapRef(),
-      Type::Any(),       MachineType::AnyTagged(),
-      kFullWriteBarrier, "JSGeneratorObjectYieldedValue"};
   return access;
 }
 
@@ -1066,7 +1056,8 @@ FieldAccess AccessBuilder::ForSlicedStringOffset() {
                         Handle<Name>(),      OptionalMapRef(),
                         Type::SignedSmall(), MachineType::TaggedSigned(),
                         kNoWriteBarrier,     "SlicedStringOffset"};
-  access.is_immutable = true;
+  // Not immutable since String::MakeThin can mutate in-place.
+  access.is_immutable = false;
   return access;
 }
 
@@ -1076,7 +1067,8 @@ FieldAccess AccessBuilder::ForSlicedStringParent() {
                         Handle<Name>(),       OptionalMapRef(),
                         Type::String(),       MachineType::TaggedPointer(),
                         kPointerWriteBarrier, "SlicedStringParent"};
-  access.is_immutable = true;
+  // Not immutable since String::MakeThin can mutate in-place.
+  access.is_immutable = false;
   return access;
 }
 

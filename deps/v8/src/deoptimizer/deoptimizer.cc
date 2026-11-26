@@ -32,6 +32,7 @@
 #include "src/objects/js-function-inl.h"
 #include "src/objects/oddball.h"
 #include "src/snapshot/embedded/embedded-data.h"
+#include "src/tracing/trace-event.h"
 #include "src/utils/utils.h"
 #if V8_ENABLE_MAGLEV
 #include "src/maglev/maglev-concurrent-dispatcher.h"
@@ -523,12 +524,31 @@ void Deoptimizer::DeoptimizeFunction(Tagged<JSFunction> function,
 }
 
 // static
-void Deoptimizer::DeoptimizeAllOptimizedCodeWithFunction(
-    Isolate* isolate, DirectHandle<SharedFunctionInfo> function) {
-  RCS_SCOPE(isolate, RuntimeCallCounterId::kDeoptimizeCode);
-  TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
-  TRACE_EVENT("v8", "V8.DeoptimizeAllOptimizedCodeWithFunction");
+void Deoptimizer::DeoptimizeTopmostFrame(Isolate* isolate) {
+  DisallowGarbageCollection no_gc;
+  DCHECK(!isolate->heap()->IsInGC());
+  // If the top frame is optimized, deoptimize it. A debugger pause or
+  // interrupt that re-allows JS can modify heap state (like detaching or
+  // moving typed arrays). We must deoptimize the execution stack to
+  // discard any load-eliminated values (like backing store pointers or
+  // array lengths) that could be invalidated. We only need to deoptimize
+  // the topmost frame because any caller frames are at a call site, which
+  // acts as a memory serialization barrier, forcing them to reload all
+  // heap state upon return anyway.
+  JavaScriptStackFrameIterator it(isolate);
+  if (!it.done()) {
+    JavaScriptFrame* frame = it.frame();
+    if (frame->is_optimized()) {
+      DeoptimizeFunction(frame->function(), LazyDeoptimizeReason::kDebugger,
+                         frame->LookupCode());
+    }
+  }
+}
 
+namespace {
+template <typename Predicate>
+void DeoptimizeAllOptimizedCodeSatisfying(Isolate* isolate,
+                                          Predicate&& should_deopt) {
   // Wait for ongoing compilation jobs to complete and finalize them. If we
   // aborted ongoing jobs, we would risk aborting unrelated jobs, and if we're
   // e.g. stepping a lot, this could lead to abort loops.
@@ -544,12 +564,12 @@ void Deoptimizer::DeoptimizeAllOptimizedCodeWithFunction(
 #endif  // V8_ENABLE_MAGLEV
   }
 
-  // Mark all code that inlines this function, then deoptimize.
+  // Mark all matching code for deoptimization, then deoptimize.
   bool any_marked = false;
   {
     DeoptimizableCodeIterator it(isolate);
     for (Tagged<Code> code = it.Next(); !code.is_null(); code = it.Next()) {
-      if (code->Inlines(*function)) {
+      if (should_deopt(code)) {
         code->SetMarkedForDeoptimization(isolate,
                                          LazyDeoptimizeReason::kDebugger);
         any_marked = true;
@@ -557,9 +577,36 @@ void Deoptimizer::DeoptimizeAllOptimizedCodeWithFunction(
     }
   }
   if (any_marked) {
-    DeoptimizeMarkedCode(isolate);
+    Deoptimizer::DeoptimizeMarkedCode(isolate);
   }
 }
+}  // namespace
+
+// static
+void Deoptimizer::DeoptimizeAllOptimizedCodeWithFunction(
+    Isolate* isolate, DirectHandle<SharedFunctionInfo> function) {
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kDeoptimizeCode);
+  TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
+  TRACE_EVENT("v8", "V8.DeoptimizeAllOptimizedCodeWithFunction");
+
+  DeoptimizeAllOptimizedCodeSatisfying(
+      isolate, [&](Tagged<Code> code) { return code->Inlines(*function); });
+}
+
+#if V8_ENABLE_WEBASSEMBLY
+// static
+void Deoptimizer::DeoptimizeAllOptimizedCodeWithWasmFunction(
+    Isolate* isolate, const wasm::NativeModule* native_module, int func_index) {
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kDeoptimizeCode);
+  TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
+  TRACE_EVENT("v8", "V8.DeoptimizeAllOptimizedCodeWithWasmFunction");
+
+  DeoptimizeAllOptimizedCodeSatisfying(
+      isolate, [native_module, func_index](Tagged<Code> code) {
+        return code->InlinesWasmFunction(native_module, func_index);
+      });
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 #define DEOPTIMIZATION_HELPER_BUILTINS(V)                                    \
   V(Builtin::kInterpreterEnterAtBytecode,                                    \
@@ -792,10 +839,12 @@ Deoptimizer::Deoptimizer(Isolate* isolate, Tagged<JSFunction> function,
 }
 
 DirectHandle<JSFunction> Deoptimizer::function() const {
+  DCHECK(!function_.is_null());
   return DirectHandle<JSFunction>(function_, isolate());
 }
 
 DirectHandle<Code> Deoptimizer::compiled_code() const {
+  if (!compiled_code_handle_.is_null()) return compiled_code_handle_;
   return DirectHandle<Code>(compiled_code_, isolate());
 }
 
@@ -876,6 +925,8 @@ const char* CodeValidityToString(Deoptimizer::CodeValidity code_validity) {
       return "invalidated";
     case Deoptimizer::CodeValidity::kInvalidatedOsr:
       return "invalidated-osr";
+    case Deoptimizer::CodeValidity::kUnaffectedOsr:
+      return "unaffected-osr";
     case Deoptimizer::CodeValidity::kUnknown:
       return "unknown";
   }
@@ -1349,7 +1400,7 @@ FrameDescription* Deoptimizer::DoComputeWasmLiftoffFrame(
   output_frame->SetFrameSlot(frame_type_offset,
                              StackFrame::TypeToMarker(StackFrame::WASM));
   // Fill feedback vector stack slot.
-  // Instead of storing the actual feedback vector, we simply store the declared
+  // Instead of storing the actual feedback vector, we simply store the defined
   // function index of the wasm function. This is done because the feedback
   // vector may not exist yet (in case of multiple instantiations of the same
   // wasm module) and heap allocations during a deoptimization aren't allowed.
@@ -1357,7 +1408,7 @@ FrameDescription* Deoptimizer::DoComputeWasmLiftoffFrame(
   // feedback vector object in the runtime function WasmLiftoffDeoptFinish.
   uint32_t feedback_offset =
       base_offset - WasmLiftoffFrameConstants::kFeedbackVectorOffset;
-  uint32_t fct_feedback_index = wasm::declared_function_index(
+  uint32_t fct_feedback_index = wasm::defined_function_index(
       native_module->module(), frame.wasm_function_index());
   output_frame->SetFrameSlot(feedback_offset,
                              Smi::FromInt(fct_feedback_index).ptr());
@@ -1509,14 +1560,14 @@ void Deoptimizer::DoComputeOutputFramesWasmImpl() {
   }
 
   // Reset tiering budget of the function that triggered the deopt.
-  int declared_func_index =
-      wasm::declared_function_index(native_module->module(), code->index());
+  int defined_func_index =
+      wasm::defined_function_index(native_module->module(), code->index());
   {
     // We're running under a DisallowSandboxAccess scope, which also removes
     // write access into the sandbox.
     AllowSandboxAccess sandbox_access_for_write(
         "Writing in-sandbox tiering budget. Not reading any untrusted data.");
-    wasm_trusted_instance->tiering_budget_array()[declared_func_index].store(
+    wasm_trusted_instance->tiering_budget_array()[defined_func_index].store(
         v8_flags.wasm_tiering_budget, std::memory_order_relaxed);
   }
 
@@ -1879,12 +1930,15 @@ void Deoptimizer::DoComputeOutputFrames() {
             // TODO(olivf): We should also check if this osr code is actually
             // the active one.
             code_validity_ = CodeValidity::kInvalidatedOsr;
+          } else {
+            code_validity_ = CodeValidity::kUnaffectedOsr;
           }
         }
       }
 
       // Only invalidated code affects tiering decisions.
-      if (code_validity_ != CodeValidity::kUnaffected) {
+      if (code_validity_ == CodeValidity::kInvalidated ||
+          code_validity_ == CodeValidity::kInvalidatedOsr) {
         if (v8_flags.profile_guided_optimization &&
             function_->shared()->cached_tiering_decision() !=
                 CachedTieringDecision::kDelayMaglev) {
@@ -1906,7 +1960,9 @@ void Deoptimizer::DoComputeOutputFrames() {
         function_->SetTieringInProgress(isolate_, false);
         function_->SetInterruptBudget(isolate_, BudgetModification::kReset,
                                       CodeKind::INTERPRETED_FUNCTION);
-        function_->feedback_vector()->set_was_once_deoptimized();
+        function_->feedback_vector()->set_invocation_count_before_stable(
+            FeedbackVector::kInvocationCountBeforeStableDeoptSentinel,
+            kRelaxedStore);
 
         isolate()->counters()->deopts()->Increment();
       } else {
@@ -3157,6 +3213,12 @@ void Deoptimizer::DoComputeBuiltinContinuation(
 }
 
 void Deoptimizer::MaterializeHeapObjects() {
+  // Materialization can cause a GC. Clear the raw heap pointers, keeping a
+  // handle to the Code.
+  compiled_code_handle_ = handle(compiled_code_, isolate());
+  compiled_code_ = {};
+  function_ = {};
+
   translated_state_.Prepare(static_cast<Address>(stack_fp_));
   if (v8_flags.deopt_every_n_times > 0) {
     // Doing a GC here will find problems with the deoptimized frames.
@@ -3203,7 +3265,7 @@ void Deoptimizer::ProcessDeoptReason(DeoptimizeReason reason) {
     FILE* file = trace_scope()->file();
     PrintF(file, "Feedback updated from deoptimization at ");
     OFStream outstr(file);
-    GetDeoptInfo().position.Print(outstr, compiled_code_);
+    GetDeoptInfo().position.Print(outstr, *compiled_code());
     PrintF(file, ", %s\n",
            DeoptimizeReasonToString(GetDeoptInfo().deopt_reason));
   }

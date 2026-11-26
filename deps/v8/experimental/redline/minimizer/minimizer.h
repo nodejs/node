@@ -32,18 +32,38 @@ struct MinimizerOptions {
   uint64_t max_time_ms = 30000;
   // Passes over all reducers (a pass that changes nothing ends early).
   int max_rounds = 3;
-  // Adaptive budget: a program's test budget is max_tests scaled down so
-  // that about target_time_ms are spent (each probe costs one execution
-  // of a program about as slow as the original), but never below
-  // min_tests. 0 disables the scaling.
-  uint64_t target_time_ms = 6000;
-  int min_tests = 40;
+  // Adaptive budget: the minimizer caps tests to about `target_time_ms` /
+  // execution time, never below `min_tests`. 0 disables scaling so raw
+  // `MinimizerOptions` and crash minimization stay uncapped.
+  uint64_t target_time_ms = 0;
+  int min_tests = 16;
+  // The part of the remaining test budget that the `expressions` reducer
+  // can use each time that it starts, from 0 to 1. 1 sets no limit and
+  // disables early stopping. Most tests of this reducer keep no reduction.
+  double expressions_share = 1.0;
+  // Run time of the original program in microseconds, set by `ForProgram`.
+  // The minimizer uses this estimate until probes measure the real time.
+  uint64_t initial_exec_time_us = 0;
 
-  // The test budget for a program that executes in exec_time_us.
+  // The test budget for a program that executes in `exec_time_us`.
   int TestsFor(uint64_t exec_time_us) const;
-  // These options with max_tests replaced by TestsFor(exec_time_us).
+  // These options with `initial_exec_time_us` set to `exec_time_us`.
   MinimizerOptions ForProgram(uint64_t exec_time_us) const;
 };
+
+// Why a minimization stopped.
+enum class MinimizationStop {
+  kNone,        // the minimizer did not run
+  kFixedPoint,  // a round of all reducers kept no more reductions
+  kBudget,      // the minimizer used up the test budget or the time budget
+  kRounds,      // the minimizer ran max_rounds rounds
+  kStopped,     // the caller stopped the minimization (the minimizer does
+                // not set this value)
+};
+
+// The name of `stop` for reports and events: "skipped", "fixed_point",
+// "budget", "rounds" or "stopped".
+const char* MinimizationStopName(MinimizationStop stop);
 
 struct MinimizationResult {
   int tests = 0;            // oracle calls
@@ -53,6 +73,7 @@ struct MinimizationResult {
   size_t nodes_after = 0;
   uint64_t time_us = 0;
   bool budget_exhausted = false;
+  MinimizationStop stop = MinimizationStop::kNone;
 };
 
 class Reducer;
@@ -70,6 +91,13 @@ class MinimizationHelper {
   // Returns false without testing once the budget is exhausted.
   bool Test();
   bool BudgetExhausted() const;
+  // The tests that remain in the adaptive test budget.
+  int TestsLeft() const;
+  // The current test cap after adaptive execution-time scaling.
+  int EffectiveMaxTests() const;
+  // The current execution time estimate in microseconds for budget scaling.
+  uint64_t EstimatedExecTimeUs() const;
+  const MinimizerOptions& options() const { return options_; }
   void set_reducer(Reducer* reducer) { reducer_ = reducer; }
   const MinimizationResult& result() const { return result_; }
   MinimizationResult* mutable_result() { return &result_; }
@@ -82,6 +110,9 @@ class MinimizationHelper {
   Reducer* reducer_ = nullptr;
   MinimizationResult result_;
   uint64_t start_us_;
+  uint64_t total_probe_time_us_ = 0;
+  uint64_t last_kept_probe_time_us_ = 0;
+  int kept_probes_ = 0;
 };
 
 // One minimization strategy (statement removal, block unwrapping, ...).
@@ -107,8 +138,12 @@ class Minimizer {
 
   // Every reducer (the components), in registration order.
   static std::vector<std::unique_ptr<Reducer>> CreateDefaultReducers();
-  // The reducers Minimize() runs when no order is configured, in order.
+  // The reducers Minimize() runs when no order is configured, in order:
+  // `dataflow` first, `truncate` not.
   static const std::vector<std::string_view>& DefaultOrder();
+  // The reducers of a crash minimization without a configured order
+  // (crash_minimizer.reducers), in order: all reducers, `dataflow` first.
+  static const std::vector<std::string_view>& CrashOrder();
 
   const MinimizerOptions& options() const { return options_; }
   const std::vector<std::unique_ptr<Reducer>>& reducers() const {

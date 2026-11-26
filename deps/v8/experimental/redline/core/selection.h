@@ -46,6 +46,7 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <unordered_set>
 #include <vector>
 
 #include "experimental/redline/base/json.h"
@@ -81,6 +82,22 @@ struct SelectionOutcome {
   Kind kind = Kind::kNoop;
   bool interesting = false;  // new deterministic edges
   uint64_t time_us = 0;
+};
+
+// Changes the weights of one pick, for the swarm testing of one worker
+// (core/swarm.h). Candidate i with weight w > 0 gets weight w * factor[i].
+// Factor 0 removes the candidate. Candidate i with weight 0 gets weight
+// enable[i]. A list that is too short does not change the weight.
+struct WeightMask {
+  std::vector<double> factor;
+  std::vector<double> enable;
+
+  double Apply(size_t i, double weight) const {
+    if (weight > 0) {
+      return i < factor.size() ? weight * factor[i] : weight;
+    }
+    return i < enable.size() ? enable[i] : weight;
+  }
 };
 
 // The configured strategy of one selection point.
@@ -140,6 +157,21 @@ class Selector {
   // Picks one candidate for which `eligible` is true, or kNoChoice.
   virtual size_t Pick(const Candidates& candidates, Random& rng,
                       const Filter& eligible) = 0;
+  // Picks like Pick() with the weights that `mask` changes (swarm testing).
+  // The strategies with weights override it. This default only removes the
+  // candidates with factor 0.
+  virtual size_t PickMasked(const Candidates& candidates, Random& rng,
+                            const Filter& eligible, const WeightMask& mask) {
+    std::unordered_set<const T*> removed;
+    for (size_t i = 0; i < candidates.size(); i++) {
+      if (mask.Apply(i, 1.0) <= 0) {
+        removed.insert(candidates[i]);
+      }
+    }
+    return Pick(candidates, rng, [&](const T& c) {
+      return removed.count(&c) == 0 && eligible(c);
+    });
+  }
   // Picks a candidate to go with `anchor` (the splice partner); an anchor
   // past the end means "exclude nothing". The default picks like Pick()
   // but never `anchor`.
@@ -182,6 +214,17 @@ class Selector {
   // The effective parameters, for the `start` event.
   virtual JsonObject Params() const = 0;
 };
+
+// Pick() if `mask` is nullptr, else PickMasked().
+template <typename T>
+size_t PickWithMask(Selector<T>& selector,
+                    const typename Selector<T>::Candidates& candidates,
+                    Random& rng, const typename Selector<T>::Filter& eligible,
+                    const WeightMask* mask) {
+  return mask == nullptr
+             ? selector.Pick(candidates, rng, eligible)
+             : selector.PickMasked(candidates, rng, eligible, *mask);
+}
 
 // Name -> factory. One registry per candidate type; the built-in strategies
 // are registered by RegisterBuiltinSelectors<T>() (defined next to the

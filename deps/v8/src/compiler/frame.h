@@ -90,6 +90,10 @@ class CallDescriptor;
 //
 class V8_EXPORT_PRIVATE Frame : public ZoneObject {
  public:
+  // Upper bound for the total frame slot count of optimized JS code. See
+  // turboshaft::Pipeline::AllocateRegisters.
+  static constexpr int kMaxOptimizedJSFrameSlots = 4 * KB / kSystemPointerSize;
+
   explicit Frame(int fixed_frame_size_in_slots, Zone* zone);
   Frame(const Frame&) = delete;
   Frame& operator=(const Frame&) = delete;

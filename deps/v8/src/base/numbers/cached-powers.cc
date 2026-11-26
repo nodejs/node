@@ -77,8 +77,6 @@ static const int kCachedPowersOffset = 348;  // -1 * the first decimal_exponent.
 static const double kD_1_LOG2_10 = 0.30102999566398114;  //  1 / lg(10)
 // Difference between the decimal exponents in the table above.
 const int PowersOfTenCache::kDecimalExponentDistance = 8;
-const int PowersOfTenCache::kMinDecimalExponent = -348;
-const int PowersOfTenCache::kMaxDecimalExponent = 340;
 
 void PowersOfTenCache::GetCachedPowerForBinaryExponentRange(
     int min_exponent, int max_exponent, DiyFp* power, int* decimal_exponent) {
@@ -94,20 +92,6 @@ void PowersOfTenCache::GetCachedPowerForBinaryExponentRange(
   DCHECK(cached_power.binary_exponent <= max_exponent);
   *decimal_exponent = cached_power.decimal_exponent;
   *power = DiyFp(cached_power.significand, cached_power.binary_exponent);
-}
-
-void PowersOfTenCache::GetCachedPowerForDecimalExponent(int requested_exponent,
-                                                        DiyFp* power,
-                                                        int* found_exponent) {
-  DCHECK_LE(kMinDecimalExponent, requested_exponent);
-  DCHECK(requested_exponent < kMaxDecimalExponent + kDecimalExponentDistance);
-  int index =
-      (requested_exponent + kCachedPowersOffset) / kDecimalExponentDistance;
-  CachedPower cached_power = kCachedPowers[index];
-  *power = DiyFp(cached_power.significand, cached_power.binary_exponent);
-  *found_exponent = cached_power.decimal_exponent;
-  DCHECK(*found_exponent <= requested_exponent);
-  DCHECK(requested_exponent < *found_exponent + kDecimalExponentDistance);
 }
 
 }  // namespace base

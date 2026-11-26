@@ -26,7 +26,8 @@ class ExperimentalRegExp final : public AllStatic {
   static void Initialize(Isolate* isolate, DirectHandle<JSRegExp> re,
                          DirectHandle<String> original_source,
                          DirectHandle<String> escaped_source, Flags flags,
-                         int capture_count);
+                         int capture_count,
+                         ZoneVector<Capture*>* named_captures);
   static bool IsCompiled(DirectHandle<IrRegExpData> re_data, Isolate* isolate);
   V8_WARN_UNUSED_RESULT
   static bool Compile(Isolate* isolate, DirectHandle<IrRegExpData> re_data);

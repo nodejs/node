@@ -7,7 +7,8 @@
 Supports:
 - Downloading reproducer scripts (.js or .wasm)
 - Fetching issue metadata (minimized d8 flags, job type, regression range, crash stack)
-- Automatic cookie jar detection (~/.config/clusterfuzz/cookies.txt)
+- Optional OAuth Bearer token authentication via --oauth-token-cmd / CLUSTERFUZZ_OAUTH_TOKEN_CMD
+- Automatic cookie jar fallback (~/.config/clusterfuzz/cookies.txt)
 """
 
 from __future__ import annotations
@@ -18,29 +19,47 @@ import json
 import os
 from pathlib import Path
 import re
+import shlex
 import subprocess
 import sys
 import tempfile
-from urllib.error import HTTPError, URLError
+from urllib.error import HTTPError
 import urllib.parse
 import urllib.request
 
 CLUSTERFUZZ_DOMAIN = "clusterfuzz.com"
 DOWNLOAD_URL_FMT = "https://clusterfuzz.com/download?testcase_id={id}"
+OAUTH_DOWNLOAD_URL_FMT = (
+    "https://clusterfuzz.com/testcase-detail/download-testcase?id={id}")
 REFRESH_URL = "https://clusterfuzz.com/testcase-detail/refresh"
+OAUTH_TOKEN_CMD_ENV = "CLUSTERFUZZ_OAUTH_TOKEN_CMD"
+USER_AGENT = "Mozilla/5.0 (v8-clusterfuzz-helper/1.0)"
 
 COOKIE_EXTENSION_URL = (
     "https://chromewebstore.google.com/detail/cclelndahbckbenkjhflpdbgdldlbecc")
 
 
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+  """Prevents urllib from automatically forwarding headers across redirects."""
+
+  def redirect_request(self, req, fp, code, msg, headers, newurl):
+    return None
+
+
 def print_missing_cookies_help() -> None:
-  """Prints instructions for exporting cookies.txt using the Chrome extension."""
+  """Prints instructions for authenticating with clusterfuzz.com."""
   msg = f"""
 ================================================================================
-AUTHENTICATION REQUIRED: Missing or expired cookies for {CLUSTERFUZZ_DOMAIN}
+AUTHENTICATION REQUIRED: Unable to authenticate with {CLUSTERFUZZ_DOMAIN}
 ================================================================================
-ClusterFuzz returned a login page or required authentication.
+ClusterFuzz returned a login page or rejected authentication/access.
 To authenticate command-line downloads:
+Option A (OAuth Bearer token command):
+  Set {OAUTH_TOKEN_CMD_ENV} or pass --oauth-token-cmd to a command that prints
+  an OAuth access token (plain text or JSON {{"token": "..."}}), and confirm
+  your account has access to the bug or testcase on {CLUSTERFUZZ_DOMAIN}.
+
+Option B (Browser cookies.txt):
 1. Log in to https://clusterfuzz.com in Chrome with your @google.com or @chromium.org account.
 2. Export your cookies for clusterfuzz.com in Netscape format.
    Recommended extension: 'Get cookies.txt LOCALLY'
@@ -64,6 +83,72 @@ def find_cookies_file(specified: str | None = None) -> Path | None:
   default_path = Path.home() / ".config" / "clusterfuzz" / "cookies.txt"
   if default_path.exists():
     return default_path
+  return None
+
+
+def get_oauth_access_token(token_cmd: str | None = None) -> str | None:
+  """Fetches an OAuth Bearer token by running a configured token command."""
+  cmd_str = (token_cmd if token_cmd is not None else os.environ.get(
+      OAUTH_TOKEN_CMD_ENV, "")).strip()
+  if not cmd_str:
+    return None
+
+  try:
+    argv = shlex.split(cmd_str)
+  except ValueError as e:
+    print(f"Note: Invalid OAuth token command: {e}", file=sys.stderr)
+    return None
+  if not argv:
+    return None
+
+  try:
+    res = subprocess.run(
+        argv,
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+  except (OSError, subprocess.SubprocessError) as e:
+    print(f"Note: OAuth token command {argv[0]!r} failed: {e}", file=sys.stderr)
+    return None
+
+  if res.returncode != 0:
+    stderr_lines = res.stderr.strip().splitlines()
+    detail = stderr_lines[-1] if stderr_lines else f"exit code {res.returncode}"
+    print(
+        f"Note: OAuth token command {argv[0]!r} failed: {detail}",
+        file=sys.stderr,
+    )
+    return None
+
+  out = res.stdout.strip()
+  if not out:
+    return None
+
+  if out.startswith("{"):
+    try:
+      parsed = json.loads(out)
+    except ValueError:
+      print(
+          f"Note: Could not parse JSON output from {argv[0]!r}.",
+          file=sys.stderr,
+      )
+      return None
+    if isinstance(parsed, dict):
+      token = parsed.get("token") or parsed.get("access_token")
+      if isinstance(token, str):
+        stripped = token.strip()
+        if stripped and not any(ch.isspace() for ch in stripped):
+          return stripped
+    return None
+
+  if not any(ch.isspace() for ch in out):
+    return out
+  print(
+      f"Note: Unexpected whitespace in output from OAuth token command {argv[0]!r}.",
+      file=sys.stderr,
+  )
   return None
 
 
@@ -123,6 +208,77 @@ def is_html_login_response(content: bytes) -> bool:
   return False
 
 
+def _extract_http_error_detail(body: bytes) -> str:
+  """Extracts a concise error summary from a ClusterFuzz HTTP error body."""
+  text = body.decode("utf-8", errors="replace").strip()
+  text = re.sub(r"^\)]}'\s*", "", text)
+  try:
+    parsed = json.loads(text)
+    if isinstance(parsed, dict):
+      err_type = parsed.get("type", "")
+      msg = parsed.get("message") or parsed.get("error") or ""
+      if err_type and msg:
+        return f"{err_type}: {msg}"
+      if msg:
+        return str(msg)
+      if err_type:
+        return str(err_type)
+  except ValueError:
+    pass
+  return text[:200]
+
+
+def download_with_oauth(testcase_id: str,
+                        access_token: str,
+                        timeout: int = 30) -> bytes:
+  """Downloads via ClusterFuzz's OAuth endpoint without leaking auth on redirects."""
+  url = OAUTH_DOWNLOAD_URL_FMT.format(id=testcase_id)
+  opener = urllib.request.build_opener(_NoRedirect)
+  req = urllib.request.Request(
+      url,
+      headers={
+          "Authorization": f"Bearer {access_token}",
+          "User-Agent": USER_AGENT,
+      },
+  )
+  try:
+    with opener.open(req, timeout=timeout) as resp:
+      content = resp.read()
+      if is_html_login_response(content):
+        raise PermissionError(
+            "Authentication required: ClusterFuzz returned login HTML")
+      return content
+  except HTTPError as e:
+    if e.code in (301, 302, 303, 307, 308):
+      location = e.headers.get("Location", "") if e.headers else ""
+      if not location:
+        raise RuntimeError(
+            f"ClusterFuzz redirect ({e.code}) missing Location header")
+      redirect_url = urllib.parse.urljoin(url, location)
+      parsed = urllib.parse.urlparse(redirect_url)
+      if parsed.scheme not in ("http", "https"):
+        raise RuntimeError(f"Refusing unsafe redirect URL: {redirect_url}")
+      hostname = (parsed.hostname or "").lower()
+      if ("/login" in parsed.path or hostname == "accounts.google.com" or
+          hostname.endswith(".accounts.google.com")):
+        raise PermissionError(
+            "ClusterFuzz redirected to login; OAuth credentials rejected")
+      # Follow the signed storage URL redirect without forwarding Authorization.
+      follow_req = urllib.request.Request(
+          redirect_url,
+          headers={"User-Agent": USER_AGENT},
+      )
+      with urllib.request.urlopen(follow_req, timeout=timeout) as resp:
+        return resp.read()
+
+    detail = _extract_http_error_detail(e.read())
+    if e.code in (401, 403):
+      raise PermissionError(
+          f"ClusterFuzz OAuth download failed (HTTP {e.code}): {detail}")
+    raise RuntimeError(
+        f"ClusterFuzz OAuth download failed (HTTP {e.code}): {detail}")
+
+
 def download_curl(url: str, cookies_file: Path | None) -> bytes:
   """Downloads via curl, leveraging Netscape cookie jar if available."""
   cmd = ["curl", "-s", "-L"]
@@ -152,14 +308,29 @@ def download_urllib(url: str, cookies_file: Path | None) -> bytes:
   opener = urllib.request.build_opener(*handlers)
   req = urllib.request.Request(
       url,
-      headers={"User-Agent": "Mozilla/5.0 (v8-clusterfuzz-helper/1.0)"},
+      headers={"User-Agent": USER_AGENT},
   )
   with opener.open(req, timeout=30) as resp:
     return resp.read()
 
 
-def download_testcase(url: str, cookies_file: Path | None) -> bytes:
-  """Downloads from ClusterFuzz with fallback between urllib and curl."""
+def download_testcase(url: str,
+                      cookies_file: Path | None,
+                      access_token: str | None = None,
+                      testcase_id: str | None = None) -> bytes:
+  """Downloads from ClusterFuzz via OAuth (preferred) or cookies/unauthenticated."""
+  if access_token:
+    tc_id = testcase_id or parse_target(url)[0]
+    try:
+      return download_with_oauth(tc_id, access_token)
+    except PermissionError as e:
+      if not cookies_file:
+        raise
+      print(
+          f"Note: OAuth download failed ({e}); falling back to cookies.",
+          file=sys.stderr,
+      )
+
   # Prefer curl when cookies are present for maximum compatibility with Netscape cookie files
   if cookies_file:
     return download_curl(url, cookies_file)
@@ -183,10 +354,14 @@ def parse_metadata_response(raw_output: bytes) -> dict:
     raise RuntimeError(f"Failed to parse JSON response: {e}")
 
   if isinstance(data, dict):
-    if data.get("status") == 401 or data.get("type") == "UnauthorizedError":
+    if (data.get("status") in (401, 403) or
+        data.get("type") in ("UnauthorizedError", "AccessDeniedError")):
+      err_type = data.get("type") or "AuthError"
+      msg = data.get("message") or ""
+      suffix = f": {msg}" if msg else ""
       raise PermissionError(
-          "Authentication required: ClusterFuzz returned UnauthorizedError (401)"
-      )
+          f"Authentication/access error: ClusterFuzz returned {err_type} "
+          f"({data.get('status', 'unknown')}){suffix}")
     if "error" in data:
       raise RuntimeError(f"ClusterFuzz error: {data['error']}")
     if "testcase" not in data and "crash_type" not in data:
@@ -195,9 +370,52 @@ def parse_metadata_response(raw_output: bytes) -> dict:
   return data
 
 
+def fetch_metadata_with_oauth(testcase_id: str,
+                              access_token: str,
+                              timeout: int = 30) -> dict:
+  """Queries /testcase-detail/refresh using an OAuth Bearer token."""
+  opener = urllib.request.build_opener(_NoRedirect)
+  body = json.dumps({"testcaseId": testcase_id}).encode("utf-8")
+  req = urllib.request.Request(
+      REFRESH_URL,
+      data=body,
+      headers={
+          "Authorization": f"Bearer {access_token}",
+          "Content-Type": "application/json",
+          "User-Agent": USER_AGENT,
+      },
+  )
+  try:
+    with opener.open(req, timeout=timeout) as resp:
+      return parse_metadata_response(resp.read())
+  except HTTPError as e:
+    if e.code in (301, 302, 303, 307, 308):
+      raise PermissionError(
+          f"ClusterFuzz redirected metadata request (HTTP {e.code}); "
+          "OAuth credentials rejected")
+    detail = _extract_http_error_detail(e.read())
+    if e.code in (401, 403):
+      raise PermissionError(
+          f"ClusterFuzz OAuth metadata fetch failed (HTTP {e.code}): {detail}")
+    raise RuntimeError(
+        f"ClusterFuzz OAuth metadata fetch failed (HTTP {e.code}): {detail}")
+
+
 def fetch_testcase_metadata(testcase_id: str,
-                            cookies_file: Path | None) -> dict:
+                            cookies_file: Path | None,
+                            access_token: str | None = None) -> dict:
   """Queries the testcase-detail/refresh JSON endpoint to fetch report metadata."""
+  if access_token:
+    try:
+      return fetch_metadata_with_oauth(testcase_id, access_token)
+    except PermissionError as e:
+      if not cookies_file:
+        raise
+      print(
+          f"Note: OAuth metadata fetch failed ({e}); falling back to cookies.",
+          file=sys.stderr,
+      )
+
   cmd = [
       "curl",
       "-s",
@@ -297,7 +515,19 @@ def main() -> int:
   parser.add_argument(
       "-c",
       "--cookies-file",
-      help="Path to Netscape cookies.txt file for clusterfuzz.com",
+      help="Path to Netscape cookies.txt file for clusterfuzz.com (disables OAuth)",
+  )
+  parser.add_argument(
+      "--oauth-token-cmd",
+      help=(
+          "Command whose stdout provides an OAuth Bearer token (plain text or "
+          "JSON with 'token'/'access_token'). Defaults to "
+          f"${OAUTH_TOKEN_CMD_ENV}."),
+  )
+  parser.add_argument(
+      "--no-oauth",
+      action="store_true",
+      help=f"Disable OAuth authentication even if {OAUTH_TOKEN_CMD_ENV} is set",
   )
   parser.add_argument(
       "--info",
@@ -320,10 +550,16 @@ def main() -> int:
     print(f"Error: {e}", file=sys.stderr)
     return 1
 
+  # Prefer OAuth when configured unless disabled or --cookies-file was passed.
+  access_token: str | None = None
+  if not args.cookies_file and not args.no_oauth:
+    access_token = get_oauth_access_token(args.oauth_token_cmd)
+
   # Handle --info / --metadata mode
   if args.show_info or args.save_metadata:
     try:
-      metadata = fetch_testcase_metadata(testcase_id, cookies_file)
+      metadata = fetch_testcase_metadata(
+          testcase_id, cookies_file, access_token=access_token)
       if args.show_info:
         display_metadata(metadata)
       if args.save_metadata:
@@ -332,25 +568,35 @@ def main() -> int:
         meta_path.write_text(json.dumps(metadata, indent=2))
         print(f"Saved full metadata report to: {meta_path}")
       return 0
-    except PermissionError:
+    except PermissionError as e:
+      print(f"Error fetching metadata: {e}", file=sys.stderr)
       print_missing_cookies_help()
       return 1
     except Exception as e:
       print(f"Error fetching metadata: {e}", file=sys.stderr)
-      if not cookies_file:
+      if not access_token and not cookies_file:
         print_missing_cookies_help()
       return 1
 
   # Download mode
   output_path = args.output
-  print(f"Fetching testcase from: {url}")
-  if cookies_file:
+  effective_url = (
+      OAUTH_DOWNLOAD_URL_FMT.format(id=testcase_id) if access_token else url)
+  print(f"Fetching testcase from: {effective_url}")
+  if access_token:
+    print("Using auth:             OAuth Bearer token")
+    if cookies_file:
+      print(f"Fallback cookies file:  {cookies_file}")
+  elif cookies_file:
     print(f"Using cookies file:     {cookies_file}")
   else:
-    print("Notice: No cookies.txt found. Attempting unauthenticated download.")
+    print(
+        "Notice: No OAuth token or cookies.txt found. Attempting unauthenticated download."
+    )
 
   try:
-    content = download_testcase(url, cookies_file)
+    content = download_testcase(
+        url, cookies_file, access_token=access_token, testcase_id=testcase_id)
 
     if not content:
       print("Warning: Received empty test case content.", file=sys.stderr)
@@ -387,9 +633,13 @@ def main() -> int:
       print(f"  out/x64.release/wami --mjsunit {out_file} > repro.js")
     return 0
 
+  except PermissionError as e:
+    print(f"Error fetching testcase: {e}", file=sys.stderr)
+    print_missing_cookies_help()
+    return 1
   except Exception as e:
     print(f"Error fetching testcase: {e}", file=sys.stderr)
-    if not cookies_file:
+    if not access_token and not cookies_file:
       print_missing_cookies_help()
     return 1
 

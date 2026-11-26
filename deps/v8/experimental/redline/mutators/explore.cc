@@ -12,6 +12,7 @@
 #include "experimental/redline/base/json_parser.h"
 #include "experimental/redline/base/log.h"
 #include "experimental/redline/core/ast_builder.h"
+#include "experimental/redline/core/tunable.h"
 #include "experimental/redline/fast/printer.h"
 #include "experimental/redline/generators/codegen.h"
 
@@ -23,7 +24,7 @@ using namespace fast;  // NOLINT(build/namespaces)
 // The runtime side. Everything the helper needs from the builtins is
 // captured up front because the program under test may have replaced them.
 // Actions are reported as "EXPLORE_ACTION: <json>" lines on the fuzzout
-// channel (fuzzilli('FUZZILLI_PRINT', ...)); failures as "EXPLORE_FAILURE:
+// channel (redline('REDLINE_PRINT', ...)). Failures: "EXPLORE_FAILURE:
 // <id>". Argument descriptors: {"a": i} the i-th probe argument, {"n": "7"}
 // a number, {"s": "x"} a string, {"bi": "7"} a bigint, {"b": true},
 // {"u": 1} undefined, {"f": 1} a fresh identity-like callback.
@@ -42,7 +43,8 @@ const char kExploreRuntime[] = R"js(const __redline_explore = (function() {
   const MathFloor = Math.floor;
   const SymbolIterator = Symbol.iterator;
   const StringCharCodeAt = String.prototype.charCodeAt;
-  const emit = typeof fuzzilli === 'function' ? function(s) { fuzzilli('FUZZILLI_PRINT', s); }
+  const emit = typeof redline === 'function' ? function(s) { redline('REDLINE_PRINT', s); }
+             : typeof fuzzilli === 'function' ? function(s) { fuzzilli('FUZZILLI_PRINT', s); }
                                               : function(s) {};
   function push(a, v) { ReflectApply(ArrayPush, a, [v]); }
 
@@ -359,7 +361,12 @@ const char kExploreRuntime[] = R"js(const __redline_explore = (function() {
           emit('EXPLORE_ACTION: ' + JSONStringify(action));
         }
       } else if (action !== null) {
-        try { perform(action, v); } catch (e) {}
+        // An action that throws on a later visit (a later loop iteration)
+        // would throw in the final program too.
+        try { perform(action, v); } catch (e) {
+          results[id] = null;
+          emit('EXPLORE_FAILURE: ' + id);
+        }
       }
     } catch (e) {
       try { emit('EXPLORE_ERROR: ' + id + ' ' + e); } catch (e2) {}
@@ -373,7 +380,18 @@ try { %NeverOptimizeFunction(__redline_explore); } catch (e) {}
 
 namespace {
 
-constexpr int kMaxProbes = 3;
+REDLINE_TUNABLE(kExploreMaxProbes, "mutators.Explore.max_probes", 10, 1, 32,
+                "most variables explored per application");
+REDLINE_TUNABLE(kExploreMaxLoopProbes, "mutators.Explore.max_loop_probes", 4, 0,
+                32, "most probes in loop bodies per application");
+REDLINE_TUNABLE(kExploreUntypedChance, "mutators.Explore.untyped_chance", 0.5,
+                0, 1,
+                "probability that a variable of unknown, object, class or "
+                "function type is explored at its definition");
+REDLINE_TUNABLE(kExploreTypedChance, "mutators.Explore.typed_chance", 0.25, 0,
+                1,
+                "probability that a variable of another type is explored at "
+                "its definition");
 
 bool IsBoring(const Variable& v) {
   // Exploring `arguments`/`undefined`-like names makes little sense.
@@ -399,6 +417,24 @@ double ExploreWeight(const Variable& v) {
     case JsType::kArrayBuffer:
     case JsType::kDate:
     case JsType::kError:
+    case JsType::kDataView:
+    case JsType::kSharedArrayBuffer:
+    case JsType::kWeakMap:
+    case JsType::kWeakSet:
+    case JsType::kWeakRef:
+    case JsType::kFinalizationRegistry:
+    case JsType::kIterator:
+    case JsType::kDisposableStack:
+    case JsType::kAsyncDisposableStack:
+    case JsType::kTemporalInstant:
+    case JsType::kTemporalDuration:
+    case JsType::kTemporalPlainDate:
+    case JsType::kTemporalPlainTime:
+    case JsType::kTemporalPlainDateTime:
+    case JsType::kTemporalPlainYearMonth:
+    case JsType::kTemporalPlainMonthDay:
+    case JsType::kTemporalZonedDateTime:
+    case JsType::kIntlLocale:
       return 2;
     default:
       return 1;
@@ -517,10 +553,12 @@ bool OpFromText(const std::string& text, Op* out, Op first, Op last) {
 }
 
 Expression* Access(Tree* t, Expression* object, const std::string& name) {
-  if (IsIdentifierName(name)) {
-    return mk::Member(t, object, name);
+  // Property names come from Object.getOwnPropertyNames. A string key
+  // "Symbol.x" must not become the well-known symbol.
+  if (name.starts_with("Symbol.")) {
+    return mk::Index(t, object, mk::Str(t, name));
   }
-  return mk::Index(t, object, mk::Str(t, name));
+  return RuntimeAssistedMutator::MemberAccess(t, object, name);
 }
 
 // Builds the statements for `action` on `probe.variable`; empty if the
@@ -707,45 +745,248 @@ int ExploreMutator::Apply(Builder& builder,
   return ApplyExploreActions(builder, probes, fuzzout, detail);
 }
 
+namespace {
+
+// The functions that the program gives to `new Worker(...)`: function
+// arguments, and the declarations of the functions that an argument names.
+std::vector<const Node*> WorkerFunctions(Builder& b) {
+  const Node* focus = b.focus_subtree();
+  b.SetFocusSubtree(nullptr);
+  std::vector<const Node*> out;
+  for (Node* n : b.Collect([](Node* n) {
+         auto* e = n->As<NewExpression>();
+         auto* callee = e != nullptr ? e->callee->As<Identifier>() : nullptr;
+         return callee != nullptr && callee->name == "Worker";
+       })) {
+    for (Expression* argument : n->Cast<NewExpression>()->arguments) {
+      if (AsFunctionData(argument) != nullptr) {
+        out.push_back(argument);
+      } else if (auto* id = argument->As<Identifier>()) {
+        // A function declaration, or a variable with a function as its
+        // initial value. A parameter does not count: its declaration is
+        // the function that has the parameter.
+        Binding* binding = b.scopes().BindingOf(id);
+        Node* declaration =
+            binding != nullptr && binding->kind != BindingKind::kParameter
+                ? binding->declaration
+                : nullptr;
+        if (auto* declarator = declaration != nullptr
+                                   ? declaration->As<VariableDeclarator>()
+                                   : nullptr;
+            declarator != nullptr && declarator->init != nullptr) {
+          declaration = declarator->init;
+        }
+        if (declaration != nullptr && AsFunctionData(declaration) != nullptr) {
+          out.push_back(declaration);
+        }
+      }
+    }
+  }
+  b.SetFocusSubtree(focus);
+  return out;
+}
+
+bool HasAncestorIn(Builder& b, Node* node,
+                   const std::vector<const Node*>& roots) {
+  for (Node* n = node; n != nullptr; n = b.ParentOf(n)) {
+    if (std::find(roots.begin(), roots.end(), n) != roots.end()) {
+      return true;
+    }
+  }
+  return false;
+}
+
+size_t LeadingDirectiveCount(const std::vector<Statement*>& list) {
+  size_t n = 0;
+  while (n < list.size() && list[n]->Is<ExpressionStatement>() &&
+         list[n]->Cast<ExpressionStatement>()->is_directive) {
+    n++;
+  }
+  return n;
+}
+
+// A canonical array index: "0", "1", ... up to 2^32 - 2.
+bool IsArrayIndex(const std::string& key) {
+  if (key.empty() || key.size() > 10 || (key[0] == '0' && key.size() > 1)) {
+    return false;
+  }
+  for (char c : key) {
+    if (c < '0' || c > '9') {
+      return false;
+    }
+  }
+  return strtoull(key.c_str(), nullptr, 10) <= 4294967294ull;
+}
+
+}  // namespace
+
+// static
+std::vector<RuntimeAssistedMutator::DefinitionSite>
+RuntimeAssistedMutator::DefinitionSites(Builder& b) {
+  std::vector<DefinitionSite> sites;
+  const Node* focus = b.focus_subtree();
+  const std::vector<const Node*> workers = WorkerFunctions(b);
+  // The slot of each statement (in the focus subtree).
+  std::unordered_map<const Statement*, Builder::Slot> slots;
+  for (const Builder::Slot& slot : b.StatementSlots()) {
+    slots[slot.statement()] = slot;
+  }
+  for (Binding* binding : b.scopes().bindings()) {
+    if (binding->identifier == nullptr) {
+      continue;
+    }
+    Builder::Slot slot;
+    switch (binding->kind) {
+      case BindingKind::kVar:
+      case BindingKind::kLet:
+      case BindingKind::kConst:
+      case BindingKind::kFunction:
+      case BindingKind::kClass: {
+        // After the declaring statement. A declaration in a loop head has
+        // no slot.
+        auto it = slots.find(b.EnclosingStatement(binding->identifier));
+        if (it != slots.end()) {
+          slot = it->second;
+          slot.index++;
+        }
+        break;
+      }
+      case BindingKind::kParameter: {
+        FunctionData* fn =
+            AsFunctionData(b.EnclosingFunction(binding->identifier));
+        if (fn != nullptr && fn->body != nullptr) {
+          slot = {&fn->body->body, LeadingDirectiveCount(fn->body->body),
+                  fn->body};
+        }
+        break;
+      }
+      default:
+        break;
+    }
+    if (!slot.valid() ||
+        (focus != nullptr && !HasAncestorIn(b, slot.owner, {focus})) ||
+        (!workers.empty() && HasAncestorIn(b, slot.owner, workers))) {
+      continue;
+    }
+    DefinitionSite site;
+    site.slot = slot;
+    site.variable = {binding->name, b.GuessType(binding), binding,
+                     binding->is_constant()};
+    site.in_loop = b.ContextAtSlot(slot).in_loop;
+    sites.push_back(site);
+  }
+  return sites;
+}
+
+// static
+std::vector<size_t> RuntimeAssistedMutator::PickSites(
+    Random& r, const std::vector<DefinitionSite>& sites,
+    const std::vector<double>& chances, int max_probes, int max_loop_probes) {
+  std::vector<size_t> order(sites.size());
+  for (size_t i = 0; i < order.size(); i++) {
+    order[i] = i;
+  }
+  for (size_t i = order.size(); i > 1; i--) {
+    std::swap(order[i - 1], order[r.Index(i)]);
+  }
+  std::vector<size_t> picked;
+  int in_loops = 0;
+  auto allowed = [&](size_t i) {
+    return chances[i] > 0 && (!sites[i].in_loop || in_loops < max_loop_probes);
+  };
+  for (size_t i : order) {
+    if (static_cast<int>(picked.size()) >= max_probes) {
+      break;
+    }
+    if (allowed(i) && r.Chance(chances[i])) {
+      picked.push_back(i);
+      in_loops += sites[i].in_loop ? 1 : 0;
+    }
+  }
+  for (size_t i = 0; picked.empty() && i < order.size(); i++) {
+    if (allowed(order[i])) {
+      picked.push_back(order[i]);
+    }
+  }
+  return picked;
+}
+
+// static
+void RuntimeAssistedMutator::RemoveWorkerNodes(Builder& b,
+                                               std::vector<Node*>* nodes) {
+  const std::vector<const Node*> workers = WorkerFunctions(b);
+  if (workers.empty()) {
+    return;
+  }
+  std::erase_if(*nodes,
+                [&](Node* node) { return HasAncestorIn(b, node, workers); });
+}
+
+// static
+void RuntimeAssistedMutator::InsertProbes(
+    Builder& b, std::vector<std::pair<Builder::Slot, Statement*>>* insertions) {
+  // Different lists do not interfere.
+  std::stable_sort(insertions->begin(), insertions->end(),
+                   [](const auto& x, const auto& y) {
+                     return x.first.index > y.first.index;
+                   });
+  for (auto& [slot, statement] : *insertions) {
+    b.Insert(slot, statement);
+  }
+}
+
+// static
+Expression* RuntimeAssistedMutator::KeyLiteral(Tree* t,
+                                               const std::string& key) {
+  if (key.starts_with("Symbol.")) {
+    return mk::Member(t, mk::Id(t, "Symbol"), key.substr(7));
+  }
+  if (IsArrayIndex(key)) {
+    return mk::Num(t, static_cast<double>(strtoull(key.c_str(), nullptr, 10)));
+  }
+  return mk::Str(t, key);
+}
+
+// static
+Expression* RuntimeAssistedMutator::MemberAccess(Tree* t, Expression* object,
+                                                 const std::string& key) {
+  if (!key.starts_with("Symbol.") && IsIdentifierName(key)) {
+    return mk::Member(t, object, key);
+  }
+  return mk::Index(t, object, KeyLiteral(t, key));
+}
+
 bool ExploreMutator::Mutate(Builder& b, MutationContext& ctx) {
   Random& r = b.rng();
   ctx.probes.clear();
-  std::vector<Builder::Slot> slots = b.InsertionSlots();
-  if (slots.empty()) {
+  // After Fuzzilli's ExplorationMutator: a part of the variables, at their
+  // definitions, so that each probe sees the value before its uses.
+  std::vector<DefinitionSite> sites = DefinitionSites(b);
+  std::vector<double> chances;
+  chances.reserve(sites.size());
+  for (const DefinitionSite& site : sites) {
+    chances.push_back(IsBoring(site.variable) ? 0.0
+                      : ExploreWeight(site.variable) >= 4
+                          ? kExploreUntypedChance()
+                          : kExploreTypedChance());
+  }
+  std::vector<size_t> picked =
+      PickSites(r, sites, chances, kExploreMaxProbes.AsInt(),
+                kExploreMaxLoopProbes.AsInt());
+  if (picked.empty()) {
     return false;
   }
-  int wanted = 1 + r.SmallCount(kMaxProbes - 1);
   const uint32_t seed = static_cast<uint32_t>(r.Next());
+  const unsigned first_id = static_cast<unsigned>(r.Next() % 100000);
   std::vector<std::pair<Builder::Slot, Statement*>> insertions;
-  std::vector<std::string> explored;
-  for (int attempt = 0;
-       attempt < 4 * wanted && static_cast<int>(ctx.probes.size()) < wanted;
-       attempt++) {
-    const Builder::Slot& slot = slots[r.Index(slots.size())];
-    Builder::Context syntax = b.ContextAtSlot(slot);
-    if (syntax.in_class_field) {
-      continue;
-    }
-    std::vector<Variable> visible = b.VisibleAtSlot(slot);
-    std::vector<const Variable*> candidates;
-    std::vector<double> weights;
-    for (const Variable& v : visible) {
-      if (IsBoring(v)) {
-        continue;
-      }
-      if (std::find(explored.begin(), explored.end(), std::string(v.name)) !=
-          explored.end()) {
-        continue;
-      }
-      candidates.push_back(&v);
-      weights.push_back(ExploreWeight(v));
-    }
-    if (candidates.empty()) {
-      continue;
-    }
-    const Variable& target = *candidates[r.Weighted(weights)];
+  for (size_t index : picked) {
+    const DefinitionSite& site = sites[index];
+    const Variable& target = site.variable;
+    Builder::Context syntax = b.ContextAtSlot(site.slot);
+    std::vector<Variable> visible = b.VisibleAtSlot(site.slot);
     ExploreProbe probe;
-    probe.id = StringPrintf("e%u", static_cast<unsigned>(r.Next() % 100000));
+    probe.id = StringPrintf(
+        "e%u", first_id + static_cast<unsigned>(ctx.probes.size()));
     probe.variable = std::string(target.name);
     probe.can_await = syntax.in_async && !syntax.in_static_block;
     // Up to 4 other visible variables plus a literal or two as arguments.
@@ -756,12 +997,12 @@ bool ExploreMutator::Mutate(Builder& b, MutationContext& ctx) {
       }
     }
     for (int i = 0; i < 4 && !others.empty(); i++) {
-      size_t index = r.Index(others.size());
+      size_t other = r.Index(others.size());
       ExploreArg arg;
       arg.kind = ExploreArg::Kind::kVariable;
-      arg.text = std::string(others[index]->name);
+      arg.text = std::string(others[other]->name);
       probe.args.push_back(arg);
-      others.erase(others.begin() + static_cast<std::ptrdiff_t>(index));
+      others.erase(others.begin() + static_cast<std::ptrdiff_t>(other));
     }
     {
       ExploreArg arg;
@@ -782,24 +1023,12 @@ bool ExploreMutator::Mutate(Builder& b, MutationContext& ctx) {
       arg.text = std::string(strings[r.Index(strings.size())]);
       probe.args.push_back(arg);
     }
-    Statement* statement =
-        MakeExploreProbe(b.tree(), probe, !target.is_constant, seed);
-    insertions.emplace_back(slot, statement);
-    explored.push_back(probe.variable);
+    insertions.emplace_back(
+        site.slot,
+        MakeExploreProbe(b.tree(), probe, !target.is_constant, seed));
     ctx.probes.push_back(std::move(probe));
   }
-  if (ctx.probes.empty()) {
-    return false;
-  }
-  // Insert back to front within each list so that earlier slot indices stay
-  // valid; different lists do not interfere.
-  std::stable_sort(insertions.begin(), insertions.end(),
-                   [](const auto& x, const auto& y) {
-                     return x.first.index > y.first.index;
-                   });
-  for (auto& [slot, statement] : insertions) {
-    b.Insert(slot, statement);
-  }
+  InsertProbes(b, &insertions);
   ctx.detail = "probing";
   for (const ExploreProbe& p : ctx.probes) {
     ctx.detail += " " + p.variable;
@@ -810,6 +1039,7 @@ bool ExploreMutator::Mutate(Builder& b, MutationContext& ctx) {
 int ApplyExploreActions(Builder& b, const std::vector<ExploreProbe>& probes,
                         const std::string& fuzzout, std::string* detail) {
   std::unordered_map<std::string, Action> actions;
+  std::vector<std::string> failed;
   size_t start = 0;
   while (start < fuzzout.size()) {
     size_t nl = fuzzout.find('\n', start);
@@ -819,6 +1049,11 @@ int ApplyExploreActions(Builder& b, const std::vector<ExploreProbe>& probes,
     std::string_view line(fuzzout.data() + start, nl - start);
     start = nl + 1;
     constexpr std::string_view kAction = "EXPLORE_ACTION: ";
+    constexpr std::string_view kFailure = "EXPLORE_FAILURE: ";
+    if (line.starts_with(kFailure)) {
+      failed.emplace_back(line.substr(kFailure.size()));
+      continue;
+    }
     if (!line.starts_with(kAction)) {
       continue;
     }
@@ -832,6 +1067,10 @@ int ApplyExploreActions(Builder& b, const std::vector<ExploreProbe>& probes,
     if (ParseAction(json, &action)) {
       actions[action.id] = std::move(action);
     }
+  }
+  // An action that failed on a later visit of its probe is not applied.
+  for (const std::string& id : failed) {
+    actions.erase(id);
   }
   int applied = 0;
   std::string description;

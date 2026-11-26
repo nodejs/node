@@ -299,9 +299,13 @@ enum class CheckBoundsFlag : uint8_t {
   kConvertStringAndMinusZero = 1 << 0,  // instead of deopting on such inputs
   kAbortOnOutOfBounds = 1 << 1,         // instead of deopting if input is OOB
   kAllow64BitBounds = 1 << 2,           // the bounds may exceed 32 bit range
+  // Deopt with kSpeculativeBoundsCheckFailed instead of kOutOfBounds.
+  kSpeculativeBoundsCheck = 1 << 3,
 };
 using CheckBoundsFlags = base::Flags<CheckBoundsFlag>;
 DEFINE_OPERATORS_FOR_FLAGS(CheckBoundsFlags)
+
+std::ostream& operator<<(std::ostream&, CheckBoundsFlags);
 
 class CheckBoundsParameters final {
  public:
@@ -1075,6 +1079,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* ChangeTaggedToUint32();
   const Operator* ChangeTaggedToFloat64();
   const Operator* ChangeTaggedToTaggedSigned();
+  const Operator* ChangeTaggedToTaggedPointer();
   const Operator* ChangeSmiOrHoleToFloat64();
   const Operator* ChangeNumberOrHoleToFloat64();
   const Operator* ChangeInt31ToTaggedSigned();
@@ -1221,8 +1226,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* ArgumentsLength();
   const Operator* RestLength(int formal_parameter_count);
 
-  const Operator* NewDoubleElements(AllocationType);
-  const Operator* NewSmiOrObjectElements(AllocationType);
+  const Operator* NewDoubleElements();
+  const Operator* NewSmiOrObjectElements();
 
   // new-arguments-elements arguments-length
   const Operator* NewArgumentsElements(CreateArgumentsType type,

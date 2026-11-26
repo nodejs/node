@@ -206,8 +206,13 @@ TEST_F(WasmSimdTest, SingleExtMulI8Dot) {
     test.Run<InstructionSelectionNormalizationReducer>();
     test.Run<DeadCodeEliminationReducer>();
 
+#ifdef V8_TARGET_ARCH_ARM64
     ASSERT_EQ(test.CountOp(Opcode::kSimd128Unary), 1u);
     ASSERT_EQ(test.CountOp(Opcode::kSimd128Binop), 1u);
+#else
+    ASSERT_EQ(test.CountOp(Opcode::kSimd128Unary), 2u);
+    ASSERT_EQ(test.CountOp(Opcode::kSimd128Binop), 1u);
+#endif
   }
 }
 

@@ -1972,7 +1972,9 @@ void Simulator::VisitUnallocated(Instruction* instr) {
 void Simulator::VisitPCRelAddressing(Instruction* instr) {
   switch (instr->Mask(PCRelAddressingMask)) {
     case ADR:
-      set_reg(instr->Rd(), instr->ImmPCOffsetTarget());
+      // Unlike a branch, adr may target any byte.
+      set_reg(instr->Rd(), instr->InstructionAtOffset(instr->ImmPCOffset(),
+                                                      Instruction::NO_CHECK));
       break;
     case ADRP:  // Not implemented in the assembler.
       UNIMPLEMENTED();
@@ -2874,23 +2876,21 @@ void Simulator::CompareAndSwapHelper(const Instruction* instr) {
   // associated with that location, even if the compare subsequently fails.
   local_monitor_.NotifyLoad();
 
-  T data = MemoryRead<T>(address);
+  if (is_release) {
+    GlobalMonitor::SimulatorMutex lock_guard(global_monitor_);
+    local_monitor_.NotifyStore();
+    global_monitor_->NotifyStore_Locked(&global_monitor_processor_);
+    // Approximate store-release by issuing a full barrier before the store.
+    std::atomic_thread_fence(std::memory_order_seq_cst);
+  }
+
+  T data = SimMemory::RelaxedCompareAndSwap(address, comparevalue, newvalue);
   if (is_acquire) {
     // Approximate load-acquire by issuing a full barrier after the load.
     std::atomic_thread_fence(std::memory_order_seq_cst);
   }
 
   if (data == comparevalue) {
-    GlobalMonitor::SimulatorMutex lock_guard(global_monitor_);
-
-    if (is_release) {
-      local_monitor_.NotifyStore();
-      global_monitor_->NotifyStore_Locked(&global_monitor_processor_);
-      // Approximate store-release by issuing a full barrier before the store.
-      std::atomic_thread_fence(std::memory_order_seq_cst);
-    }
-
-    MemoryWrite<T>(address, newvalue);
     LogWrite(address, rt, GetPrintRegisterFormatForSize(element_size));
   }
 
@@ -2985,42 +2985,6 @@ void Simulator::AtomicMemorySimpleHelper(const Instruction* instr) {
 
   T value = reg<T>(rs);
 
-  T data = MemoryRead<T>(address);
-
-  if (is_acquire) {
-    // Approximate load-acquire by issuing a full barrier after the load.
-    std::atomic_thread_fence(std::memory_order_seq_cst);
-  }
-
-  T result = 0;
-  switch (instr->Mask(AtomicMemorySimpleOpMask)) {
-    case LDADDOp:
-      result = data + value;
-      break;
-    case LDCLROp:
-      DCHECK(!std::numeric_limits<T>::is_signed);
-      result = data & ~value;
-      break;
-    case LDEOROp:
-      DCHECK(!std::numeric_limits<T>::is_signed);
-      result = data ^ value;
-      break;
-    case LDSETOp:
-      DCHECK(!std::numeric_limits<T>::is_signed);
-      result = data | value;
-      break;
-
-    // Signed/Unsigned difference is done via the templated type T.
-    case LDSMAXOp:
-    case LDUMAXOp:
-      result = (data > value) ? data : value;
-      break;
-    case LDSMINOp:
-    case LDUMINOp:
-      result = (data > value) ? value : data;
-      break;
-  }
-
   if (is_release) {
     GlobalMonitor::SimulatorMutex lock_guard(global_monitor_);
     local_monitor_.NotifyStore();
@@ -3029,7 +2993,36 @@ void Simulator::AtomicMemorySimpleHelper(const Instruction* instr) {
     std::atomic_thread_fence(std::memory_order_seq_cst);
   }
 
-  MemoryWrite<T>(address, result);
+  T data = SimMemory::RelaxedAtomicUpdate<T>(address, [&](T old) -> T {
+    switch (instr->Mask(AtomicMemorySimpleOpMask)) {
+      case LDADDOp:
+        return old + value;
+      case LDCLROp:
+        DCHECK(!std::numeric_limits<T>::is_signed);
+        return old & ~value;
+      case LDEOROp:
+        DCHECK(!std::numeric_limits<T>::is_signed);
+        return old ^ value;
+      case LDSETOp:
+        DCHECK(!std::numeric_limits<T>::is_signed);
+        return old | value;
+
+      // Signed/Unsigned difference is done via the templated type T.
+      case LDSMAXOp:
+      case LDUMAXOp:
+        return (old > value) ? old : value;
+      case LDSMINOp:
+      case LDUMINOp:
+        return (old > value) ? value : old;
+    }
+    UNREACHABLE();
+  });
+
+  if (is_acquire) {
+    // Approximate load-acquire by issuing a full barrier after the load.
+    std::atomic_thread_fence(std::memory_order_seq_cst);
+  }
+
   set_reg<T>(rt, data);
 
   PrintRegisterFormat format = GetPrintRegisterFormatForSize(element_size);
@@ -3054,11 +3047,7 @@ void Simulator::AtomicMemorySwapHelper(const Instruction* instr) {
 
   local_monitor_.NotifyLoad();
 
-  T data = MemoryRead<T>(address);
-  if (is_acquire) {
-    // Approximate load-acquire by issuing a full barrier after the load.
-    std::atomic_thread_fence(std::memory_order_seq_cst);
-  }
+  T value = reg<T>(rs);
 
   if (is_release) {
     GlobalMonitor::SimulatorMutex lock_guard(global_monitor_);
@@ -3067,7 +3056,13 @@ void Simulator::AtomicMemorySwapHelper(const Instruction* instr) {
     // Approximate store-release by issuing a full barrier before the store.
     std::atomic_thread_fence(std::memory_order_seq_cst);
   }
-  MemoryWrite<T>(address, reg<T>(rs));
+
+  T data =
+      SimMemory::RelaxedAtomicUpdate<T>(address, [value](T) { return value; });
+  if (is_acquire) {
+    // Approximate load-acquire by issuing a full barrier after the load.
+    std::atomic_thread_fence(std::memory_order_seq_cst);
+  }
 
   set_reg<T>(rt, data);
 
@@ -4706,7 +4701,7 @@ void Simulator::VisitNEON2RegMisc(Instruction* instr) {
         uadalp(vf_lp, rd, rn);
         break;
       case NEON_RBIT_NOT:
-        vf = nfd.GetVectorFormat(nfd.LogicalFormatMap());
+        vf = nfd.GetVectorFormat(NEONFormatDecoder::LogicalFormatMap());
         switch (instr->FPType()) {
           case 0:
             not_(vf, rd, rn);
@@ -4720,10 +4715,10 @@ void Simulator::VisitNEON2RegMisc(Instruction* instr) {
         break;
     }
   } else {
-    VectorFormat fpf = nfd.GetVectorFormat(instr->Mask(NEON2RegMiscHPFixed) ==
-                                                   NEON2RegMiscHPFixed
-                                               ? nfd.FPHPFormatMap()
-                                               : nfd.FPFormatMap());
+    VectorFormat fpf = nfd.GetVectorFormat(
+        instr->Mask(NEON2RegMiscHPFixed) == NEON2RegMiscHPFixed
+            ? NEONFormatDecoder::FPHPFormatMap()
+            : NEONFormatDecoder::FPFormatMap());
     FPRounding fpcr_rounding = static_cast<FPRounding>(fpcr().RMode());
     bool inexact_exception = false;
 
@@ -4865,7 +4860,8 @@ void Simulator::VisitNEON2RegMisc(Instruction* instr) {
               sqxtun(vf, rd, rn);
               return;
             case NEON_SHLL:
-              vf = nfd.GetVectorFormat(nfd.LongIntegerFormatMap());
+              vf = nfd.GetVectorFormat(
+                  NEONFormatDecoder::LongIntegerFormatMap());
               if (instr->Mask(NEON_Q)) {
                 shll2(vf, rd, rn);
               } else {
@@ -4973,7 +4969,8 @@ void Simulator::VisitNEON3Same(Instruction* instr) {
   SimVRegister& rm = vreg(instr->Rm());
 
   if (instr->Mask(NEON3SameLogicalFMask) == NEON3SameLogicalFixed) {
-    VectorFormat vf = nfd.GetVectorFormat(nfd.LogicalFormatMap());
+    VectorFormat vf =
+        nfd.GetVectorFormat(NEONFormatDecoder::LogicalFormatMap());
     switch (instr->Mask(NEON3SameLogicalMask)) {
       case NEON_AND:
         and_(vf, rd, rn, rm);
@@ -5003,7 +5000,7 @@ void Simulator::VisitNEON3Same(Instruction* instr) {
         UNIMPLEMENTED();
     }
   } else if (instr->Mask(NEON3SameFPFMask) == NEON3SameFPFixed) {
-    VectorFormat vf = nfd.GetVectorFormat(nfd.FPFormatMap());
+    VectorFormat vf = nfd.GetVectorFormat(NEONFormatDecoder::FPFormatMap());
     VisitNEON3SameFP(instr->Mask(NEON3SameFPMask), vf, rd, rn, rm);
   } else {
     VectorFormat vf = nfd.GetVectorFormat();
@@ -5154,7 +5151,7 @@ void Simulator::VisitNEON3SameHP(Instruction* instr) {
   SimVRegister& rd = vreg(instr->Rd());
   SimVRegister& rn = vreg(instr->Rn());
   SimVRegister& rm = vreg(instr->Rm());
-  VectorFormat vf = nfd.GetVectorFormat(nfd.FPHPFormatMap());
+  VectorFormat vf = nfd.GetVectorFormat(NEONFormatDecoder::FPHPFormatMap());
   VisitNEON3SameFP(instr->Mask(NEON3SameFPMask) | NEON3SameHPMask, vf, rd, rn,
                    rm);
 }
@@ -5162,7 +5159,8 @@ void Simulator::VisitNEON3SameHP(Instruction* instr) {
 void Simulator::VisitNEON3Different(Instruction* instr) {
   NEONFormatDecoder nfd(instr);
   VectorFormat vf = nfd.GetVectorFormat();
-  VectorFormat vf_l = nfd.GetVectorFormat(nfd.LongIntegerFormatMap());
+  VectorFormat vf_l =
+      nfd.GetVectorFormat(NEONFormatDecoder::LongIntegerFormatMap());
 
   SimVRegister& rd = vreg(instr->Rd());
   SimVRegister& rn = vreg(instr->Rn());
@@ -5370,7 +5368,7 @@ void Simulator::VisitNEONAcrossLanes(Instruction* instr) {
 
   // The input operand's VectorFormat is passed for these instructions.
   if (instr->Mask(NEONAcrossLanesFPFMask) == NEONAcrossLanesFPFixed) {
-    VectorFormat vf = nfd.GetVectorFormat(nfd.FPFormatMap());
+    VectorFormat vf = nfd.GetVectorFormat(NEONFormatDecoder::FPFormatMap());
 
     switch (instr->Mask(NEONAcrossLanesFPMask)) {
       case NEON_FMAXV:
@@ -5422,7 +5420,8 @@ void Simulator::VisitNEONAcrossLanes(Instruction* instr) {
 void Simulator::VisitNEONByIndexedElement(Instruction* instr) {
   NEONFormatDecoder nfd(instr);
   VectorFormat vf_r = nfd.GetVectorFormat();
-  VectorFormat vf = nfd.GetVectorFormat(nfd.LongIntegerFormatMap());
+  VectorFormat vf =
+      nfd.GetVectorFormat(NEONFormatDecoder::LongIntegerFormatMap());
 
   SimVRegister& rd = vreg(instr->Rd());
   SimVRegister& rn = vreg(instr->Rn());
@@ -5526,7 +5525,7 @@ void Simulator::VisitNEONByIndexedElement(Instruction* instr) {
         index = (index << 1) | instr->NEONL();
       }
 
-      vf = nfd.GetVectorFormat(nfd.FPFormatMap());
+      vf = nfd.GetVectorFormat(NEONFormatDecoder::FPFormatMap());
 
       switch (instr->Mask(NEONByIndexedElementFPMask)) {
         case NEON_FMUL_byelement:
@@ -6158,7 +6157,8 @@ void Simulator::VisitNEONScalar2RegMisc(Instruction* instr) {
         UNIMPLEMENTED();
     }
   } else {
-    VectorFormat fpf = nfd.GetVectorFormat(nfd.FPScalarFormatMap());
+    VectorFormat fpf =
+        nfd.GetVectorFormat(NEONFormatDecoder::FPScalarFormatMap());
     FPRounding fpcr_rounding = static_cast<FPRounding>(fpcr().RMode());
 
     // These instructions all use a one bit size field, except SQXTUN, SQXTN
@@ -6279,7 +6279,7 @@ void Simulator::VisitNEONScalar3Same(Instruction* instr) {
   SimVRegister& rm = vreg(instr->Rm());
 
   if (instr->Mask(NEONScalar3SameFPFMask) == NEONScalar3SameFPFixed) {
-    vf = nfd.GetVectorFormat(nfd.FPScalarFormatMap());
+    vf = nfd.GetVectorFormat(NEONFormatDecoder::FPScalarFormatMap());
     switch (instr->Mask(NEONScalar3SameFPMask)) {
       case NEON_FMULX_scalar:
         fmulx(vf, rd, rn, rm);
@@ -6388,7 +6388,7 @@ void Simulator::VisitNEONScalar3Same(Instruction* instr) {
 void Simulator::VisitNEONScalarByIndexedElement(Instruction* instr) {
   NEONFormatDecoder nfd(instr, NEONFormatDecoder::LongScalarFormatMap());
   VectorFormat vf = nfd.GetVectorFormat();
-  VectorFormat vf_r = nfd.GetVectorFormat(nfd.ScalarFormatMap());
+  VectorFormat vf_r = nfd.GetVectorFormat(NEONFormatDecoder::ScalarFormatMap());
 
   SimVRegister& rd = vreg(instr->Rd());
   SimVRegister& rn = vreg(instr->Rn());
@@ -6420,7 +6420,7 @@ void Simulator::VisitNEONScalarByIndexedElement(Instruction* instr) {
       vf = vf_r;
       break;
     default:
-      vf = nfd.GetVectorFormat(nfd.FPScalarFormatMap());
+      vf = nfd.GetVectorFormat(NEONFormatDecoder::FPScalarFormatMap());
       index = instr->NEONH();
       if ((instr->FPType() & 1) == 0) {
         index = (index << 1) | instr->NEONL();

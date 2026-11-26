@@ -1,0 +1,8 @@
+Tests that evaluateOnCallFrame only writes back changed local variables
+
+Running test: testShadowedEvalArgumentsNotClobbered
+Eval 1+1 result: 2
+Return value of arguments: 42
+
+Running test: testMutatedLocalsWrittenBack
+Mutation result: [20,true,true]

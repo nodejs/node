@@ -100,14 +100,24 @@ void AddToDescriptorArrayTemplate(
       SetAccessorPlaceholderIndices(*pair, value_kind, Cast<Smi>(*value));
       d = Descriptor::AccessorConstant(name, pair, DONT_ENUM);
     }
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+    if (descriptor_array_template->number_of_descriptors() ==
+        DescriptorArray::kMaxElementsForLinearSearch) {
+      DescriptorArray::EnsureLookupTable(isolate, descriptor_array_template);
+    }
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
     descriptor_array_template->Append(&d);
 
   } else {
     // Entry found, update it.
+#ifndef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
     int sorted_index = descriptor_array_template->GetDetails(entry).pointer();
+#endif  // !V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
     if (value_kind == ClassBoilerplate::kData) {
       Descriptor d = Descriptor::DataConstant(name, value, DONT_ENUM);
+#ifndef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
       d.SetSortedKeyIndex(sorted_index);
+#endif  // !V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
       descriptor_array_template->Set(entry, &d);
     } else {
       DCHECK(value_kind == ClassBoilerplate::kGetter ||
@@ -122,7 +132,9 @@ void AddToDescriptorArrayTemplate(
         DirectHandle<AccessorPair> new_pair =
             isolate->factory()->NewAccessorPair();
         Descriptor d = Descriptor::AccessorConstant(name, new_pair, DONT_ENUM);
+#ifndef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
         d.SetSortedKeyIndex(sorted_index);
+#endif  // !V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
         descriptor_array_template->Set(entry, &d);
         pair = *new_pair;
       }
@@ -558,6 +570,12 @@ class ObjectDescriptor {
       Descriptor d = is_accessor
                          ? Descriptor::AccessorConstant(name, value, attribs)
                          : Descriptor::DataConstant(name, value, attribs);
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+      if (descriptor_array_template_->number_of_descriptors() ==
+          DescriptorArray::kMaxElementsForLinearSearch) {
+        DescriptorArray::EnsureLookupTable(isolate, descriptor_array_template_);
+      }
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
       descriptor_array_template_->Append(&d);
     }
   }
@@ -614,7 +632,11 @@ class ObjectDescriptor {
             next_enumeration_index_);
       }
     } else {
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+      DCHECK(descriptor_array_template_->VerifyLookupTable());
+#else
       DCHECK(descriptor_array_template_->IsSortedNoDuplicates());
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
     }
   }
 

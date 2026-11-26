@@ -35,24 +35,21 @@ struct LoopEffects;
 class InterpreterFrameState {
  public:
   InterpreterFrameState(const MaglevCompilationUnit& info,
-                        KnownNodeAspects* known_node_aspects)
-      : frame_(info), known_node_aspects_(known_node_aspects) {
+                        KnownNodeAspects::Ptr known_node_aspects)
+      : frame_(info), known_node_aspects_(std::move(known_node_aspects)) {
     frame_[interpreter::Register::virtual_accumulator()] = nullptr;
   }
 
-  explicit InterpreterFrameState(const MaglevCompilationUnit& info)
-      : InterpreterFrameState(
-            info, info.zone()->New<KnownNodeAspects>(info.zone())) {}
-
   void CopyFrom(const MaglevCompilationUnit& info,
                 MergePointInterpreterFrameState& state,
-                bool preserve_known_node_aspects = false, Zone* zone = nullptr);
+                bool preserve_known_node_aspects = false);
 
   void set_accumulator(ValueNode* value) {
     // Conversions should be stored in known_node_aspects/NodeInfo.
     frame_[interpreter::Register::virtual_accumulator()] = value->Unwrap();
   }
   ValueNode* accumulator() const {
+    DCHECK_NOT_NULL(frame_[interpreter::Register::virtual_accumulator()]);
     DCHECK(
         !frame_[interpreter::Register::virtual_accumulator()]->is_conversion());
     return frame_[interpreter::Register::virtual_accumulator()];
@@ -73,35 +70,30 @@ class InterpreterFrameState {
                        reg == interpreter::Register::function_closure() ||
                        reg == interpreter::Register::virtual_accumulator() ||
                        reg.ToParameterIndex() >= 0);
+    DCHECK_NOT_NULL(frame_[reg]);
     DCHECK(!frame_[reg]->is_conversion());
     return frame_[reg];
   }
 
   const RegisterFrameArray<ValueNode*>& frame() const { return frame_; }
 
-  KnownNodeAspects* known_node_aspects() { return known_node_aspects_; }
+  KnownNodeAspects* known_node_aspects() { return known_node_aspects_.get(); }
   const KnownNodeAspects* known_node_aspects() const {
-    return known_node_aspects_;
+    return known_node_aspects_.get();
   }
 
-  void set_known_node_aspects(KnownNodeAspects* known_node_aspects) {
+  void set_known_node_aspects(KnownNodeAspects::Ptr known_node_aspects) {
     DCHECK_NOT_NULL(known_node_aspects);
-    known_node_aspects_ = known_node_aspects;
+    known_node_aspects_ = std::move(known_node_aspects);
   }
 
-  void clear_known_node_aspects() { known_node_aspects_ = nullptr; }
-
-  void add_object(VirtualObject* vobject) {
-    known_node_aspects_->virtual_objects().Add(vobject);
-  }
-  const VirtualObjectList& virtual_objects() const {
-    DCHECK_NOT_NULL(known_node_aspects_);
-    return known_node_aspects_->virtual_objects();
+  KnownNodeAspects::Ptr TakeKnownNodeAspects() {
+    return std::move(known_node_aspects_);
   }
 
  private:
   RegisterFrameArray<ValueNode*> frame_;
-  KnownNodeAspects* known_node_aspects_;
+  KnownNodeAspects::Ptr known_node_aspects_;
 };
 
 class CompactInterpreterFrameState {
@@ -361,11 +353,7 @@ class MergePointInterpreterFrameState {
     DCHECK_LE(predecessors_so_far_, predecessor_count_);
   }
 
-  void clear_is_loop() {
-    bitfield_ =
-        kBasicBlockTypeBits::update(bitfield_, BasicBlockType::kDefault);
-    bitfield_ = kIsResumableLoopBit::update(bitfield_, false);
-  }
+  inline void clear_is_loop();
 
   // Merges a dead loop framestate (e.g. one where the block containing the
   // JumpLoop has been early terminated with a deopt).
@@ -391,36 +379,33 @@ class MergePointInterpreterFrameState {
 
   // Returns and clears the known node aspects on this state. Expects to only
   // ever be called once, when starting a basic block with this state.
-  KnownNodeAspects* TakeKnownNodeAspects() {
+  KnownNodeAspects::Ptr TakeKnownNodeAspects() {
     DCHECK_NOT_NULL(known_node_aspects_);
-    return std::exchange(known_node_aspects_, nullptr);
+    return std::move(known_node_aspects_);
   }
 
-  KnownNodeAspects* CloneKnownNodeAspects(Zone* zone) {
-    return known_node_aspects_->Clone(zone);
+  KnownNodeAspects::Ptr CloneKnownNodeAspects() {
+    return known_node_aspects_->Clone();
   }
 
-  void ClearKnownNodeAspects() { known_node_aspects_ = nullptr; }
+  void ClearKnownNodeAspects() { known_node_aspects_.reset(); }
 
   void MergeNodeAspects(Zone* zone,
                         const KnownNodeAspects& known_node_aspects) {
     if (!known_node_aspects_) {
-      known_node_aspects_ = known_node_aspects.Clone(zone);
+      known_node_aspects_ = known_node_aspects.Clone();
     } else {
       known_node_aspects_->Merge(known_node_aspects, zone);
     }
   }
 
-  // Adopts or merges `known_node_aspects`, and nulls it out to guarantee
-  // it is not reused by the caller.
-  void MergeNodeAspects(Zone* zone, KnownNodeAspects** known_node_aspects) {
+  void MergeNodeAspects(Zone* zone, KnownNodeAspects::Ptr known_node_aspects) {
     DCHECK_NOT_NULL(known_node_aspects);
-    KnownNodeAspects* source = std::exchange(*known_node_aspects, nullptr);
-    DCHECK_NOT_NULL(source);
     if (!known_node_aspects_) {
-      known_node_aspects_ = source;
+      known_node_aspects_ = std::move(known_node_aspects);
     } else {
-      known_node_aspects_->Merge(*source, zone);
+      DCHECK_NE(known_node_aspects.get(), known_node_aspects_.get());
+      known_node_aspects_->Merge(*known_node_aspects, zone);
     }
   }
 
@@ -465,9 +450,6 @@ class MergePointInterpreterFrameState {
     DCHECK_LT(i, predecessors_so_far_);
     predecessors_[i] = val;
   }
-
-  void PrintVirtualObjects(const MaglevCompilationInfo* info,
-                           VirtualObjectList from_ifs);
 
   bool is_loop() const {
     return basic_block_type() == BasicBlockType::kLoopHeader;
@@ -582,19 +564,6 @@ class MergePointInterpreterFrameState {
 
   V8_EXPORT_PRIVATE void ReducePhiPredecessorCount(unsigned num);
 
-  void MergeVirtualObjects(Graph* graph, bool is_tracing,
-                           const MaglevCompilationUnit& compilation_unit,
-                           const KnownNodeAspects& unmerged_aspects);
-
-  void MergeVirtualObject(Graph* graph, bool is_tracing,
-                          const VirtualObjectList unmerged_vos,
-                          const KnownNodeAspects& unmerged_aspects,
-                          VirtualObject* merged, VirtualObject* unmerged);
-
-  std::optional<ValueNode*> MergeVirtualObjectValue(
-      Graph* graph, const KnownNodeAspects& unmerged_aspects, ValueNode* merged,
-      ValueNode* unmerged);
-
   ValueNode* NewLoopPhi(Zone* zone, interpreter::Register reg);
 
   ValueNode* NewExceptionPhi(Zone* zone, interpreter::Register reg) {
@@ -619,7 +588,7 @@ class MergePointInterpreterFrameState {
   Phi::List phis_;
   CompactInterpreterFrameState frame_state_;
 
-  KnownNodeAspects* known_node_aspects_ = nullptr;
+  KnownNodeAspects::Ptr known_node_aspects_ = nullptr;
   ContextScopeInfo context_scope_info_;
 
   union {
@@ -676,8 +645,10 @@ class LoopMergePointInterpreterFrameState final
 
   KnownNodeAspects* backedge_known_node_aspects() const {
     DCHECK_NOT_NULL(backedge_known_node_aspects_);
-    return backedge_known_node_aspects_;
+    return backedge_known_node_aspects_.get();
   }
+
+  void ClearBackedgeKnownNodeAspects() { backedge_known_node_aspects_.reset(); }
 
  private:
   template <typename T, typename... Args>
@@ -694,7 +665,7 @@ class LoopMergePointInterpreterFrameState final
 
   const LoopEffects* loop_effects_ = nullptr;
   // The KNA from the backedge (end of the loop).
-  KnownNodeAspects* backedge_known_node_aspects_ = nullptr;
+  KnownNodeAspects::Ptr backedge_known_node_aspects_ = nullptr;
   uint32_t loop_header_effect_epoch_ = KnownNodeAspects::kEffectEpochOverflow;
   // The deopt frame for the backedge, in case we want to insert a deopting
   // conversion during phi untagging. It is set when visiting the JumpLoop.
@@ -713,6 +684,15 @@ MergePointInterpreterFrameState::AsLoopHeader() const {
   return static_cast<const LoopMergePointInterpreterFrameState*>(this);
 }
 
+inline void MergePointInterpreterFrameState::clear_is_loop() {
+  if (is_loop()) {
+    AsLoopHeader()->ClearBackedgeKnownNodeAspects();
+    ClearKnownNodeAspects();
+  }
+  bitfield_ = kBasicBlockTypeBits::update(bitfield_, BasicBlockType::kDefault);
+  bitfield_ = kIsResumableLoopBit::update(bitfield_, false);
+}
+
 #if V8_HOST_ARCH_64_BIT
 // These asserts only exist to avoid accidentally bloating the merge states;
 // the sizes can be increased if more fields are actually needed.
@@ -727,7 +707,6 @@ struct LoopEffects {
         loop_header(loop_header),
 #endif
         context_slot_written(zone),
-        objects_written(zone),
         keys_cleared(zone),
         allocations(zone) {
   }
@@ -735,7 +714,6 @@ struct LoopEffects {
   int loop_header;
 #endif
   ZoneSet<KnownNodeAspects::LoadedContextSlotsKey> context_slot_written;
-  ZoneSet<ValueNode*> objects_written;
   ZoneSet<PropertyKey> keys_cleared;
   ZoneSet<InlinedAllocation*> allocations;
   bool unstable_aspects_cleared = false;
@@ -758,8 +736,6 @@ struct LoopEffects {
     }
     context_slot_written.insert(other->context_slot_written.begin(),
                                 other->context_slot_written.end());
-    objects_written.insert(other->objects_written.begin(),
-                           other->objects_written.end());
     keys_cleared.insert(other->keys_cleared.begin(), other->keys_cleared.end());
     allocations.insert(other->allocations.begin(), other->allocations.end());
   }

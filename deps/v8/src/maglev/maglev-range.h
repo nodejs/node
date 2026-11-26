@@ -34,8 +34,8 @@ inline constexpr bool IsSafeInteger(double value) {
 
 class Range {
  public:
-  static const int64_t kInfMin = INT64_MIN;
-  static const int64_t kInfMax = INT64_MAX;
+  static constexpr int64_t kInfMin = INT64_MIN;
+  static constexpr int64_t kInfMax = INT64_MAX;
 
   constexpr Range(int64_t min, int64_t max) : min_(min), max_(max) {
     if (!is_empty()) {

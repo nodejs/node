@@ -39,16 +39,19 @@ namespace internal {
 template <unsigned ORDER> struct Endian {
   static constexpr const bool IS_LITTLE = ORDER == __ORDER_LITTLE_ENDIAN__;
   static constexpr const bool IS_BIG = ORDER == __ORDER_BIG_ENDIAN__;
-  template <typename T> LIBC_INLINE static T to_big_endian(T value);
-  template <typename T> LIBC_INLINE static T to_little_endian(T value);
+  template <typename T> LIBC_INLINE static constexpr T to_big_endian(T value);
+  template <typename T>
+  LIBC_INLINE static constexpr T to_little_endian(T value);
 
   // Converting "to" and "from" a given endianness is actually the same
   // operation, but we provide dedicated functions to let the user express their
   // intent clearly.
-  template <typename T> LIBC_INLINE static T from_big_endian(T value) {
+  template <typename T>
+  LIBC_INLINE static constexpr T from_big_endian(T value) {
     return to_big_endian(value);
   }
-  template <typename T> LIBC_INLINE static T from_little_endian(T value) {
+  template <typename T>
+  LIBC_INLINE static constexpr T from_little_endian(T value) {
     return to_little_endian(value);
   }
 };
@@ -56,49 +59,49 @@ template <unsigned ORDER> struct Endian {
 // Little Endian specializations
 template <>
 template <>
-LIBC_INLINE uint8_t
+LIBC_INLINE constexpr uint8_t
 Endian<__ORDER_LITTLE_ENDIAN__>::to_big_endian<uint8_t>(uint8_t v) {
   return v;
 }
 template <>
 template <>
-LIBC_INLINE uint8_t
+LIBC_INLINE constexpr uint8_t
 Endian<__ORDER_LITTLE_ENDIAN__>::to_little_endian<uint8_t>(uint8_t v) {
   return v;
 }
 template <>
 template <>
-LIBC_INLINE uint16_t
+LIBC_INLINE constexpr uint16_t
 Endian<__ORDER_LITTLE_ENDIAN__>::to_big_endian<uint16_t>(uint16_t v) {
   return cpp::byteswap(v);
 }
 template <>
 template <>
-LIBC_INLINE uint16_t
+LIBC_INLINE constexpr uint16_t
 Endian<__ORDER_LITTLE_ENDIAN__>::to_little_endian<uint16_t>(uint16_t v) {
   return v;
 }
 template <>
 template <>
-LIBC_INLINE uint32_t
+LIBC_INLINE constexpr uint32_t
 Endian<__ORDER_LITTLE_ENDIAN__>::to_big_endian<uint32_t>(uint32_t v) {
   return cpp::byteswap(v);
 }
 template <>
 template <>
-LIBC_INLINE uint32_t
+LIBC_INLINE constexpr uint32_t
 Endian<__ORDER_LITTLE_ENDIAN__>::to_little_endian<uint32_t>(uint32_t v) {
   return v;
 }
 template <>
 template <>
-LIBC_INLINE uint64_t
+LIBC_INLINE constexpr uint64_t
 Endian<__ORDER_LITTLE_ENDIAN__>::to_big_endian<uint64_t>(uint64_t v) {
   return cpp::byteswap(v);
 }
 template <>
 template <>
-LIBC_INLINE uint64_t
+LIBC_INLINE constexpr uint64_t
 Endian<__ORDER_LITTLE_ENDIAN__>::to_little_endian<uint64_t>(uint64_t v) {
   return v;
 }
@@ -106,49 +109,49 @@ Endian<__ORDER_LITTLE_ENDIAN__>::to_little_endian<uint64_t>(uint64_t v) {
 // Big Endian specializations
 template <>
 template <>
-LIBC_INLINE uint8_t
+LIBC_INLINE constexpr uint8_t
 Endian<__ORDER_BIG_ENDIAN__>::to_big_endian<uint8_t>(uint8_t v) {
   return v;
 }
 template <>
 template <>
-LIBC_INLINE uint8_t
+LIBC_INLINE constexpr uint8_t
 Endian<__ORDER_BIG_ENDIAN__>::to_little_endian<uint8_t>(uint8_t v) {
   return v;
 }
 template <>
 template <>
-LIBC_INLINE uint16_t
+LIBC_INLINE constexpr uint16_t
 Endian<__ORDER_BIG_ENDIAN__>::to_big_endian<uint16_t>(uint16_t v) {
   return v;
 }
 template <>
 template <>
-LIBC_INLINE uint16_t
+LIBC_INLINE constexpr uint16_t
 Endian<__ORDER_BIG_ENDIAN__>::to_little_endian<uint16_t>(uint16_t v) {
   return cpp::byteswap(v);
 }
 template <>
 template <>
-LIBC_INLINE uint32_t
+LIBC_INLINE constexpr uint32_t
 Endian<__ORDER_BIG_ENDIAN__>::to_big_endian<uint32_t>(uint32_t v) {
   return v;
 }
 template <>
 template <>
-LIBC_INLINE uint32_t
+LIBC_INLINE constexpr uint32_t
 Endian<__ORDER_BIG_ENDIAN__>::to_little_endian<uint32_t>(uint32_t v) {
   return cpp::byteswap(v);
 }
 template <>
 template <>
-LIBC_INLINE uint64_t
+LIBC_INLINE constexpr uint64_t
 Endian<__ORDER_BIG_ENDIAN__>::to_big_endian<uint64_t>(uint64_t v) {
   return v;
 }
 template <>
 template <>
-LIBC_INLINE uint64_t
+LIBC_INLINE constexpr uint64_t
 Endian<__ORDER_BIG_ENDIAN__>::to_little_endian<uint64_t>(uint64_t v) {
   return cpp::byteswap(v);
 }

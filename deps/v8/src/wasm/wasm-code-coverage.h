@@ -59,25 +59,25 @@ class WasmFunctionCoverageData {
 
 class WasmModuleCoverageData {
  public:
-  explicit WasmModuleCoverageData(uint32_t declared_function_count) {
+  explicit WasmModuleCoverageData(uint32_t defined_function_count) {
     function_data_ =
         base::UniqueArray<std::unique_ptr<WasmFunctionCoverageData>>::New(
-            declared_function_count);
+            defined_function_count);
   }
 
   WasmFunctionCoverageData* InstallCoverageData(
-      int declared_function_index,
+      int defined_function_index,
       base::Vector<const WasmCodeRange> code_ranges) {
     base::MutexGuard guard{&mutex_};
 
-    if (!function_data_[declared_function_index]) {
-      function_data_[declared_function_index] =
+    if (!function_data_[defined_function_index]) {
+      function_data_[defined_function_index] =
           std::make_unique<WasmFunctionCoverageData>(code_ranges);
     } else {
-      DCHECK_EQ(function_data_[declared_function_index]->code_ranges(),
+      DCHECK_EQ(function_data_[defined_function_index]->code_ranges(),
                 code_ranges);
     }
-    return function_data_[declared_function_index].get();
+    return function_data_[defined_function_index].get();
   }
 
   size_t function_count() const { return function_data_.size(); }

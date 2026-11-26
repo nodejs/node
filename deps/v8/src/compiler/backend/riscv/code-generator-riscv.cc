@@ -629,9 +629,9 @@ void RecordTrapInfoIfNeeded(Zone* zone, CodeGenerator* codegen,
 #define ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(load_linked, store_conditional)       \
   do {                                                                         \
     Label exchange;                                                            \
+    __ AddWord(i.TempRegister(0), i.InputRegister(0), i.InputOperand(1));      \
     __ sync();                                                                 \
     __ bind(&exchange);                                                        \
-    __ AddWord(i.TempRegister(0), i.InputRegister(0), i.InputOperand(1));      \
     __ load_linked(i.OutputRegister(0), MemOperand(i.TempRegister(0), 0),      \
                    trapper);                                                   \
     __ Move(i.TempRegister(1), i.InputRegister(2));                            \
@@ -667,12 +667,18 @@ void RecordTrapInfoIfNeeded(Zone* zone, CodeGenerator* codegen,
     __ sync();                                                                 \
   } while (0)
 
+// The base operand is USED_AT_START, so a temporary may be assigned its
+// register. Compute the address before sign-extending the expected value
+// (expect_value must be TempRegister(1) when sign_extend_expected is true).
 #define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(                              \
-    load_linked, store_conditional, expect_value)                              \
+    load_linked, store_conditional, expect_value, sign_extend_expected)        \
   do {                                                                         \
     Label compareExchange;                                                     \
     Label exit;                                                                \
     __ AddWord(i.TempRegister(0), i.InputRegister(0), i.InputOperand(1));      \
+    if (sign_extend_expected) {                                                \
+      __ SignExtendWord(expect_value, i.InputRegister(2));                     \
+    }                                                                          \
     __ sync();                                                                 \
     __ bind(&compareExchange);                                                 \
     __ load_linked(i.OutputRegister(0), MemOperand(i.TempRegister(0), 0),      \
@@ -775,10 +781,12 @@ void CodeGenerator::AssembleArchSelect(Instruction* instr,
   size_t output_index = instr->OutputCount() - 1;
   MachineRepresentation output_rep =
       LocationOperand::cast(instr->OutputAt(output_index))->representation();
-  MachineRepresentation input_rep =
-      LocationOperand::cast(instr->InputAt(0))->representation();
-  if (input_rep != MachineRepresentation::kFloat32 &&
-      input_rep != MachineRepresentation::kFloat64) {
+  // The kind of condition is determined by the opcode of the compare that
+  // produced it, not by the shape of the operands: input 0 is an
+  // ImmediateOperand when the selector folded a zero constant into the
+  // comparison, and casting that to LocationOperand is not valid.
+  if (instr->arch_opcode() != kRiscvCmpS &&
+      instr->arch_opcode() != kRiscvCmpD) {
     Condition cc = FlagsConditionToConditionCmp(condition);
     Register left = i.InputRegister(0);
     Operand right = i.InputOperand(1);
@@ -1220,9 +1228,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchBinarySearchSwitch:
       AssembleArchBinarySearchSwitch(instr);
       break;
-    case kArchTableSwitch:
+    case kArchTableSwitch: {
+      UseScratchRegisterScope temps(masm());
+      temps.Include(kScratchReg);
       AssembleArchTableSwitch(instr);
       break;
+    }
     case kArchAbortCSADcheck:
       DCHECK(i.InputRegister(0) == a0);
       {
@@ -1334,11 +1345,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
 
       if (v8_flags.verify_write_barriers) {
-        auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(
-            this, object, value, kScratchReg);
-        __ MaybeJumpIfReadOnlyOrSmallSmi(value, ool->exit());
-        __ JumpIfNotSmi(value, ool->entry());
-        __ bind(ool->exit());
+        if (CheckSmiField::decode(instr->opcode())) {
+          __ And(kScratchReg, value, Operand(kSmiTagMask));
+          __ Check(eq, AbortReason::kTaggedSignedNotSmi, kScratchReg,
+                   Operand(zero_reg));
+        } else {
+          auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(
+              this, object, value, kScratchReg);
+          __ MaybeJumpIfReadOnlyOrSmallSmi(value, ool->exit());
+          __ JumpIfNotSmi(value, ool->entry());
+          __ bind(ool->exit());
+        }
       }
 
       __ AddWord(kScratchReg, object, offset);
@@ -1381,11 +1398,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register value = i.InputRegister(2);
 
       if (v8_flags.verify_write_barriers) {
-        auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(
-            this, object, value, kScratchReg);
-        __ MaybeJumpIfReadOnlyOrSmallSmi(value, ool->exit());
-        __ JumpIfNotSmi(value, ool->entry());
-        __ bind(ool->exit());
+        if (CheckSmiField::decode(instr->opcode())) {
+          __ And(kScratchReg, value, Operand(kSmiTagMask));
+          __ Check(eq, AbortReason::kTaggedSignedNotSmi, kScratchReg,
+                   Operand(zero_reg));
+        } else {
+          auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(
+              this, object, value, kScratchReg);
+          __ MaybeJumpIfReadOnlyOrSmallSmi(value, ool->exit());
+          __ JumpIfNotSmi(value, ool->entry());
+          __ bind(ool->exit());
+        }
       }
 
       __ AddWord(kScratchReg, object, offset);
@@ -1548,6 +1571,22 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ AddWord(i.OutputRegister(), i.InputOrZeroRegister(0),
                  i.InputOperand(1));
       break;
+    case kRiscvAdd64_3: {
+      Register out_low = i.OutputRegister(0);
+      UseScratchRegisterScope temps(masm());
+      Register scratch = temps.Acquire();
+      __ AddWord(scratch, i.InputRegister(0), i.InputOperand(1));
+      if (instr->OutputCount() > 1) {
+        Register high = i.OutputRegister(1);
+        __ Sltu(high, scratch, i.InputRegister(0));
+        __ AddWord(out_low, scratch, i.InputOperand(2));
+        __ Sltu(scratch, out_low, scratch);
+        __ AddWord(high, high, scratch);
+      } else {
+        __ AddWord(out_low, scratch, i.InputOperand(2));
+      }
+      break;
+    }
     case kRiscvSub64:
       __ Sub64(i.OutputRegister(), i.InputOrZeroRegister(0), i.InputOperand(1));
       break;
@@ -2274,7 +2313,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
 #if V8_TARGET_ARCH_RISCV64
     case kRiscvLwu:
-      __ Lwu(i.OutputRegister(), i.MemoryOperand(), trapper);
+      if (AddressingModeField::decode(instr->opcode()) != kMode_None) {
+        __ Lwu(i.OutputRegister(), i.MemoryOperand(), trapper);
+      } else {
+        DCHECK(instr->InputAt(0)->IsStackSlot() ||
+               instr->InputAt(0)->IsFPStackSlot());
+        __ Lwu(i.OutputRegister(), i.ToMemOperand(instr->InputAt(0)));
+      }
       break;
     case kRiscvLd:
       __ Ld(i.OutputRegister(), i.MemoryOperand(), trapper);
@@ -2337,7 +2382,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           __ vl(i.OutputSimd128Register(), src, 0, E8);
         }
       } else {
-        __ LoadWord(i.OutputRegister(0), MemOperand(fp, offset));
+        if (Is32BitOperand(instr->OutputAt(0))) {
+          // Like AssembleMove, use a sign-extending load for 32-bit slots so
+          // that the register keeps the riscv64 sign-extension invariant.
+          __ Lw(i.OutputRegister(0), MemOperand(fp, offset));
+        } else {
+          __ LoadWord(i.OutputRegister(0), MemOperand(fp, offset));
+        }
       }
       break;
     }
@@ -2617,10 +2668,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       switch (AtomicWidthField::decode(opcode)) {
         case AtomicWidth::kWord32:
 #if V8_TARGET_ARCH_RISCV64
-          __ SignExtendWord(i.TempRegister(1), i.InputRegister(2));
-          ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(Ll, Sc, i.TempRegister(1));
+          // Sign-extending the expected value into TempRegister(1) is done
+          // inside the macro, after the address has been computed, because
+          // the base operand is USED_AT_START and may alias that temporary.
+          ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(Ll, Sc, i.TempRegister(1),
+                                                   true);
 #else
-          ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(Ll, Sc, i.InputRegister(2));
+          ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(Ll, Sc, i.InputRegister(2),
+                                                   false);
 #endif
           break;
 #if V8_TARGET_ARCH_RISCV64
@@ -2691,7 +2746,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kRiscvWord64AtomicCompareExchangeUint64:
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(Lld, Scd, i.InputRegister(2));
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(Lld, Scd, i.InputRegister(2),
+                                               false);
       break;
 #define ATOMIC_BINOP_CASE(op, inst32, inst64, amoinst32, amoinst64)           \
   case kAtomic##op##Int8:                                                     \
@@ -2749,7 +2805,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #undef ATOMIC_BINOP_CASE
 #elif V8_TARGET_ARCH_RISCV32
     case kAtomicCompareExchangeWithWriteBarrier: {
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(Ll, Sc, i.InputRegister(2));
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(Ll, Sc, i.InputRegister(2),
+                                               false);
       if (v8_flags.disable_write_barriers) break;
 
       // Emit the write barrier.
@@ -2815,8 +2872,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvLoadDecompressTagged: {
       CHECK(instr->HasOutput());
       Register result = i.OutputRegister();
-      MemOperand operand = i.MemoryOperand();
-      __ DecompressTagged(result, operand, trapper);
+      if (AddressingModeField::decode(instr->opcode()) != kMode_None) {
+        MemOperand operand = i.MemoryOperand();
+        __ DecompressTagged(result, operand, trapper);
+      } else if (instr->InputAt(0)->IsRegister()) {
+        __ DecompressTagged(result, i.InputRegister(0));
+      } else {
+        __ DecompressTagged(result, i.ToMemOperand(instr->InputAt(0)));
+      }
       break;
     }
     case kRiscvLoadDecodeSandboxedPointer: {
@@ -2848,7 +2911,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ AtomicStoreTaggedField(i.InputOrZeroRegister(0), mem, trapper);
       break;
     }
-    case kRiscvLoadDecompressTrapping: {
+    case kRiscvLoadDecompressProtected: {
       __ DecompressProtected(i.OutputRegister(), i.MemoryOperand(), trapper);
       break;
     }
@@ -2884,7 +2947,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           __ SubWord(tag, tag, static_cast<int32_t>(tag_range.first));
           Label done;
           __ Branch(
-              &done, le, tag,
+              &done, ule, tag,
               Operand(static_cast<int32_t>(tag_range.last - tag_range.first)));
           __ li(destination, 0);
           __ bind(&done);
@@ -3105,9 +3168,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvI8x16ShrU: {
       __ VU.SetSimd128(E8);
       if (instr->InputAt(1)->IsRegister()) {
-        __ andi(kScratchReg, i.InputRegister(1), 8 - 1);
         __ vsrl_vx(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                   kScratchReg);
+                   i.InputRegister(1));
       } else {
         __ vsrl_vi(i.OutputSimd128Register(), i.InputSimd128Register(0),
                    i.InputInt5(1) % 8);
@@ -3117,9 +3179,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvI16x8ShrU: {
       __ VU.SetSimd128(E16);
       if (instr->InputAt(1)->IsRegister()) {
-        __ andi(kScratchReg, i.InputRegister(1), 16 - 1);
         __ vsrl_vx(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                   kScratchReg);
+                   i.InputRegister(1));
       } else {
         __ vsrl_vi(i.OutputSimd128Register(), i.InputSimd128Register(0),
                    i.InputInt5(1) % 16);
@@ -5388,9 +5449,18 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
   Register input = i.InputRegister(0);
   size_t const case_count = instr->InputCount() - 2;
 
-  __ Branch(GetLabel(i.InputRpo(1)), Ugreater_equal, input,
+  // The switch input is a 32-bit value whose upper 32 bits are not guaranteed
+  // to be sign-extended on riscv64, but both the range check and the jump
+  // table index below are performed on full 64-bit registers. Normalise it
+  // once into kScratchReg, as AssembleArchBinarySearchSwitch does. A dedicated
+  // register is used because GenerateSwitchTable acquires from the scratch
+  // register pool itself.
+  UseScratchRegisterScope temps(masm());
+  Register scratch = temps.Acquire();
+  __ SignExtendWord(scratch, input);
+  __ Branch(GetLabel(i.InputRpo(1)), Ugreater_equal, scratch,
             Operand(case_count));
-  __ GenerateSwitchTable(input, case_count, [&i, this](size_t index) {
+  __ GenerateSwitchTable(scratch, case_count, [&i, this](size_t index) {
     return GetLabel(i.InputRpo(index + 2));
   });
 }
@@ -5728,20 +5798,24 @@ void CodeGenerator::MoveToTempLocation(InstructionOperand* source,
   // resolve the move cycle. Re-include them immediately afterwards as they
   // might be needed for the move to the temp location.
   temps.Exclude(move_cycle_.scratch_regs);
-  if (!IsFloatingPoint(rep)) {
-    if (temps.CanAcquire()) {
-      Register scratch = move_cycle_.temps->Acquire();
-      move_cycle_.scratch_reg.emplace(scratch);
+  if (IsFloatingPoint(rep)) {
+    if (!move_cycle_.scratch_fp_regs.has(kScratchDoubleReg)) {
+      move_cycle_.scratch_fp_reg.emplace(kScratchDoubleReg);
     }
+  } else if (temps.CanAcquire()) {
+    Register scratch = move_cycle_.temps->Acquire();
+    move_cycle_.scratch_reg.emplace(scratch);
   }
 
   temps.Include(move_cycle_.scratch_regs);
 
   if (move_cycle_.scratch_reg.has_value()) {
-    // A scratch register is available for this rep.
-    // auto& scratch_reg = *move_cycle_.scratch_reg;
     AllocatedOperand scratch(LocationOperand::REGISTER, rep,
                              move_cycle_.scratch_reg->code());
+    AssembleMove(source, &scratch);
+  } else if (move_cycle_.scratch_fp_reg.has_value()) {
+    AllocatedOperand scratch(LocationOperand::REGISTER, rep,
+                             move_cycle_.scratch_fp_reg->code());
     AssembleMove(source, &scratch);
   } else {
     // The scratch registers are blocked by pending moves. Use the stack
@@ -5753,9 +5827,12 @@ void CodeGenerator::MoveToTempLocation(InstructionOperand* source,
 void CodeGenerator::MoveTempLocationTo(InstructionOperand* dest,
                                        MachineRepresentation rep) {
   if (move_cycle_.scratch_reg.has_value()) {
-    // auto& scratch_reg = *move_cycle_.scratch_reg;
     AllocatedOperand scratch(LocationOperand::REGISTER, rep,
                              move_cycle_.scratch_reg->code());
+    AssembleMove(&scratch, dest);
+  } else if (move_cycle_.scratch_fp_reg.has_value()) {
+    AllocatedOperand scratch(LocationOperand::REGISTER, rep,
+                             move_cycle_.scratch_fp_reg->code());
     AssembleMove(&scratch, dest);
   } else {
     Pop(dest, rep);
@@ -5772,6 +5849,8 @@ void CodeGenerator::SetPendingMove(MoveOperands* move) {
   if (src->IsConstant() && dst->IsFPLocationOperand()) {
     Register temp = temps.Acquire();
     move_cycle_.scratch_regs.set(temp);
+  } else if (src->IsFPStackSlot() && dst->IsFPStackSlot()) {
+    move_cycle_.scratch_fp_regs.set(kScratchDoubleReg);
   } else if (src->IsAnyStackSlot() || dst->IsAnyStackSlot()) {
     RiscvOperandConverter g(this, nullptr);
     bool src_need_scratch = false;
@@ -5796,13 +5875,6 @@ void CodeGenerator::SetPendingMove(MoveOperands* move) {
 }
 
 namespace {
-bool Is32BitOperand(InstructionOperand* operand) {
-  DCHECK(operand->IsStackSlot() || operand->IsRegister());
-  MachineRepresentation mr = LocationOperand::cast(operand)->representation();
-  return mr == MachineRepresentation::kWord32 ||
-         mr == MachineRepresentation::kCompressed ||
-         mr == MachineRepresentation::kCompressedPointer;
-}
 
 // When we need only 32 bits, move only 32 bits, otherwise the destination
 // register' upper 32 bits may contain dirty data.
@@ -5916,7 +5988,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       DoubleRegister dst = destination->IsFPRegister()
                                ? g.ToDoubleRegister(destination)
                                : kScratchDoubleReg;
-      __ LoadFPRImmediate(dst, src.ToFloat64().AsUint64());
+      __ LoadFPRImmediate(dst, Float64(src.ToFloat64()));
       if (destination->IsFPStackSlot()) {
         __ StoreDouble(dst, g.ToMemOperand(destination));
       }
@@ -6053,7 +6125,14 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
         Register temp = kScratchReg;
         Register src = g.ToRegister(source);
         __ mv(temp, src);
-        __ LoadWord(src, dst);
+        // Like AssembleMove, never load a 32-bit stack slot into a Word32
+        // register with a 64-bit load: the register must keep the riscv64
+        // sign-extension invariant even if the slot's upper half is dirty.
+        if (Use32BitMove(source, destination)) {
+          __ Lw(src, dst);
+        } else {
+          __ LoadWord(src, dst);
+        }
         __ StoreWord(temp, dst);
       } else {
         MemOperand dst = g.ToMemOperand(destination);

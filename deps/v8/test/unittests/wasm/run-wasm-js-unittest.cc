@@ -104,13 +104,12 @@ WASM_COMPILED_EXEC_TEST(Run_I32Popcount_jswrapped) {
 }
 
 WASM_COMPILED_EXEC_TEST(Run_CallJS_Add_jswrapped) {
-  TestSignatures sigs;
   HandleScope scope(WasmExecutionTestBase::InitIsolateOnce());
   const char* source = "(function(a) { return a + 99; })";
   DirectHandle<JSFunction> js_function =
       Cast<JSFunction>(v8::Utils::OpenDirectHandle(
           *v8::Local<v8::Function>::Cast(CompileRun(source))));
-  ManuallyImportedJSFunction import = {sigs.i_i(), js_function};
+  ManuallyImportedJSFunction import = {TestSignatures::i_i(), js_function};
   WasmRunner<int, int> r(execution_tier, &import);
   uint32_t js_index = 0;
   r.Build({WASM_CALL_FUNCTION(js_index, WASM_LOCAL_GET(0))});
@@ -487,14 +486,13 @@ WASM_COMPILED_EXEC_TEST(Run_JSSelectAlign_10) {
 void RunPickerTest(TestExecutionTier tier, bool indirect) {
   Isolate* isolate = WasmExecutionTestBase::InitIsolateOnce();
   HandleScope scope(isolate);
-  TestSignatures sigs;
 
   const char* source = "(function(a,b,c) { if(c)return a; return b; })";
   DirectHandle<JSFunction> js_function =
       Cast<JSFunction>(v8::Utils::OpenDirectHandle(
           *v8::Local<v8::Function>::Cast(CompileRun(source))));
 
-  ManuallyImportedJSFunction import = {sigs.i_iii(), js_function};
+  ManuallyImportedJSFunction import = {TestSignatures::i_iii(), js_function};
 
   WasmRunner<int32_t, int32_t> r(tier, &import);
 
@@ -502,10 +500,11 @@ void RunPickerTest(TestExecutionTier tier, bool indirect) {
   const int32_t left = -2;
   const int32_t right = 3;
 
-  WasmFunctionCompiler& rc_fn = r.NewFunction(sigs.i_i(), "rc");
+  WasmFunctionCompiler& rc_fn = r.NewFunction(TestSignatures::i_i(), "rc");
 
   if (indirect) {
-    ModuleTypeIndex sig_index = r.builder().AddSignature(sigs.i_iii());
+    ModuleTypeIndex sig_index =
+        r.builder().AddSignature(TestSignatures::i_iii());
     uint16_t indirect_function_table[] = {static_cast<uint16_t>(js_index)};
 
     r.builder().AddIndirectFunctionTable(indirect_function_table,

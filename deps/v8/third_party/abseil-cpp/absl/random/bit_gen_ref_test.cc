@@ -114,13 +114,13 @@ struct MinStdRand {
   // Implicit conversions allow passing MinStdRand to functions taking
   // absl::BitGenRef as well as explicitly constructing an absl::BitGenRef from
   // a MinStdRand.
-  operator absl::BitGenRef() const {
+  operator absl::BitGenRef() {
     conversion_count++;
     return absl::BitGenRef(minstd_gen);
   }
 
   std::minstd_rand minstd_gen;
-  mutable int conversion_count = 0;
+  int conversion_count = 0;
 };
 
 TEST(BitGenRefTest, IsConvertibleTest) {
@@ -143,6 +143,44 @@ TEST(BitGenRefTest, IsConvertibleTest) {
     EXPECT_EQ(minstd.conversion_count, 1);
     EXPECT_GE(result, 1);
   }
+}
+
+// Generating a variate mutates the generator, so binding to a const generator
+// is disallowed.
+static_assert(std::is_constructible_v<absl::BitGenRef, absl::BitGen&>);
+static_assert(std::is_constructible_v<absl::BitGenRef, absl::BitGen&&>);
+static_assert(!std::is_constructible_v<absl::BitGenRef, const absl::BitGen&>);
+static_assert(!std::is_constructible_v<absl::BitGenRef, const absl::BitGen&&>);
+static_assert(!std::is_constructible_v<absl::BitGenRef, const std::mt19937&>);
+
+// A URBG whose conversion operator is lvalue-only, which prevents binding an
+// absl::BitGenRef to a temporary.
+struct LvalueOnlyConversion {
+  using result_type = absl::BitGen::result_type;
+  static constexpr result_type(min)() { return (absl::BitGen::min)(); }
+  static constexpr result_type(max)() { return (absl::BitGen::max)(); }
+  result_type operator()() { return 0; }
+
+  operator absl::BitGenRef() & {
+    conversion_count++;
+    return absl::BitGenRef(minstd_gen);
+  }
+
+  std::minstd_rand minstd_gen;
+  int conversion_count = 0;
+};
+
+static_assert(std::is_convertible_v<LvalueOnlyConversion&, absl::BitGenRef>);
+static_assert(!std::is_convertible_v<LvalueOnlyConversion, absl::BitGenRef>);
+
+TEST(BitGenRefTest, LvalueOnlyConversionIsUsed) {
+  // The conversion operator, rather than the URBG interface, is used.
+  LvalueOnlyConversion gen;
+  absl::BitGenRef gen_ref(gen);
+  EXPECT_EQ(gen.conversion_count, 1);
+  FnTest(gen);
+  EXPECT_EQ(gen.conversion_count, 2);
+  (void)gen_ref;
 }
 
 }  // namespace

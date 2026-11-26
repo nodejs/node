@@ -282,6 +282,53 @@ function doTest () {
   basicTest();
   exceptions();
 
+  (function asyncGeneratorAwait() {
+    function test(gen, verify) {
+      d8.promise.setHooks(initHook, beforeHook, afterHook, resolveHook);
+      gen().next();
+      %PerformMicrotaskCheckpoint();
+      d8.promise.setHooks();
+      verify();
+    }
+    function verifySingleAwait() {
+      assertNextEvent('init', [ 1 ]);
+      assertNextEvent('init', [ 2 ]);
+      assertNextEvent('resolve', [ 2 ]);
+      assertNextEvent('init', [ 3, 2 ]);
+      assertNextEvent('before', [ 3 ]);
+      assertNextEvent('resolve', [ 1 ]);
+      assertNextEvent('resolve', [ 3 ]);
+      assertNextEvent('after', [ 3 ]);
+      assertEmptyLog();
+    }
+    test(async function*() {
+      await Promise.resolve();
+    }, verifySingleAwait);
+    test(async function*() {
+      try { await Promise.reject(); } catch {}
+    }, verifySingleAwait);
+    test(async function*() {
+      await Promise.resolve();
+      await Promise.resolve();
+    }, () => {
+      assertNextEvent('init', [ 1 ]);
+      assertNextEvent('init', [ 2 ]);
+      assertNextEvent('resolve', [ 2 ]);
+      assertNextEvent('init', [ 3, 2 ]);
+      assertNextEvent('before', [ 3 ]);
+      assertNextEvent('init', [ 4 ]);
+      assertNextEvent('resolve', [ 4 ]);
+      assertNextEvent('init', [ 5, 4 ]);
+      assertNextEvent('resolve', [ 3 ]);
+      assertNextEvent('after', [ 3 ]);
+      assertNextEvent('before', [ 5 ]);
+      assertNextEvent('resolve', [ 1 ]);
+      assertNextEvent('resolve', [ 5 ]);
+      assertNextEvent('after', [ 5 ]);
+      assertEmptyLog();
+    });
+  })();
+
   (function regress1126309() {
     function __f_16(test) {
       test();

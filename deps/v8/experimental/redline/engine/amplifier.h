@@ -55,7 +55,12 @@ struct AmplifyResult {
   std::string args;   // extra d8 flags that reproduce it, with --stress-runs=K
   int hits = 0;       // crashes with the same signature, best candidate
   int processes = 0;  // processes run for the best candidate
+  // The bar of the amplify step: min_hits of planned_processes processes
+  // make a crash amplified.
+  int min_hits = 0;
+  int planned_processes = 0;
   int total_processes = 0;  // all processes of the search
+  uint64_t run_timeout_us = 0;  // the time limit of one process
   double time_sec = 0;
   std::string note;  // one line: what was tried
   // Set if the step changed the program: its statements wrapped in
@@ -81,6 +86,40 @@ std::unique_ptr<AmplifyStrategy> CreateAmplifyStrategy(std::string_view name,
                                                        const JsonValue& params,
                                                        std::string* error);
 
+// The counts of a rate check: the runs that ran, and the runs that crashed
+// with the signature. A count is complete if it ran all planned runs.
+struct RateCount {
+  int runs = 0;
+  int hits = 0;
+};
+
+// The decision of the rate check of NAME.repro.js.
+struct RateDecision {
+  bool keep = false;       // Redline writes NAME.repro.js
+  bool all_flags = false;  // ... with all flags of the test
+  RateCount rate;          // the count that the report gives
+  std::string note;        // the result in words
+};
+
+// Decides the rate check of an amplified crash (DESIGN.md 5.6). `kept` is
+// the count with the
+// flags that the flag search kept. `all` is the count with all flags of the
+// test, if Redline ran it (only after `kept` was complete and below the
+// bar). NAME.repro.js stays only after a complete count that reaches
+// `min_hits` of `planned` runs. Flags that failed a complete count never
+// stay. `stop_cause` tells why a count stopped early, for the note.
+RateDecision DecideAmplifiedRate(
+    int min_hits, int planned, RateCount kept, const RateCount* all,
+    const std::string& stop_cause = "the check stopped");
+
+// Decides the rate check of a crash that reproduces alone (DESIGN.md 5.6).
+// `kept`, `all` and `stop_cause` are as for DecideAmplifiedRate. The bar is
+// all `planned` runs. NAME.repro.js always stays. The kept flags stay only
+// after a complete count at the bar. Else `all_flags` is true.
+RateDecision DecideReproducibleRate(int planned, RateCount kept,
+                                    const RateCount* all,
+                                    const std::string& stop_cause);
+
 // Name, parameters and documentation of every strategy, for --help-config.
 struct AmplifyStrategyInfo {
   std::string_view name;
@@ -97,6 +136,21 @@ int StressRunsFor(uint64_t exec_time_us, double loop_time_sec, int max_loops);
 // prologue stays in front), so that an uncaught exception does not end a
 // --stress-runs loop. Empty if the program does not parse or is empty.
 std::string WrapInTry(const std::string& program);
+
+// The d8 flags that reproduce an amplified crash in a plain d8 process.
+// These are `base` (the flags of the target) without --stress-runs and
+// --random-seed, then the flags of `amplify_args` (AmplifyResult::args). The
+// amplify step gives each process a new random seed. Without --random-seed, d8
+// also uses a new random seed in each process.
+std::vector<std::string> AmplifiedFlags(const std::vector<std::string>& base,
+                                        const std::string& amplify_args);
+
+// The processes of one test of an amplified crash. This is the smallest
+// number of processes that all miss the crash with a probability of 5% or
+// less. The crash rate is (hits + 1) / (processes + 2). For a few
+// processes, this estimate stays below 1 when all processes crashed. The
+// result is between 1 and 10.
+int AmplifiedRuns(int hits, int processes);
 
 }  // namespace redline
 

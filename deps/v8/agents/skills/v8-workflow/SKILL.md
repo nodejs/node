@@ -47,7 +47,22 @@ development:
 - **Output Directory**: Use standard V8 output directories (e.g.,
   `out/x64.debug`).
 
-## 4. Available Tools
+## 4. Pre-Commit & Documentation Sync Verification
+
+Before committing or uploading any changes from your branch or worktree, verify
+the following:
+
+- **Documentation Sync (`docs/`)**: Check whether your changes modify V8
+  architecture, data structures, object layouts, pipeline passes, bytecodes/IR
+  nodes, flags, or cross-tier invariants (or invalidate/expand any concept
+  documented in `docs/`). Search `docs/` (`git --no-pager grep` across `docs/`)
+  and update all affected `.md` files in the same CL (keep
+  `docs/security/triaging.md` unchanged unless explicitly requested by the
+  user).
+- **Formatting & Tests**: Run `git cl format` and verify that the regression
+  test and relevant test suites pass on your build configuration.
+
+## 5. Available Tools
 
 - **[create_worktree.sh](../../scripts/create_worktree.sh)**: Automates task
   isolation and setup. Automatically detects whether the repository is in a

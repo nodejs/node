@@ -270,7 +270,24 @@ class V8_EXPORT ValueDeserializer {
     virtual const SharedValueConveyor* GetSharedValueConveyor(Isolate* isolate);
   };
 
+  /**
+   * Constructs a ValueDeserializer over a serialized buffer.
+   *
+   * \param isolate The Isolate in which deserialized values will be created.
+   * \param data Pointer to the serialized wire bytes. The caller retains
+   *   ownership of `data`, which must remain valid and unmodified for the
+   *   lifetime of this ValueDeserializer. When `V8_ENABLE_SANDBOX` is enabled,
+   *   `data` must reside outside the sandbox address space to preserve sandbox
+   *   security guarantees against concurrent in-sandbox mutation.
+   * \param size Size of `data` in bytes.
+   */
   ValueDeserializer(Isolate* isolate, const uint8_t* data, size_t size);
+  /**
+   * \copydoc ValueDeserializer(Isolate*, const uint8_t*, size_t)
+   *
+   * \param delegate Delegate handling host objects, transfers, and shared
+   *   values.
+   */
   ValueDeserializer(Isolate* isolate, const uint8_t* data, size_t size,
                     Delegate* delegate);
   ~ValueDeserializer();

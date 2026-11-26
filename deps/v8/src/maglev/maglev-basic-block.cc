@@ -35,9 +35,21 @@ void BasicBlock::TruncateAt(Node* node) {
   nodes_.resize(it - nodes_.begin());
 }
 
+bool BasicBlock::TryRemoveFromEnd(Node* node, size_t max_lookback) {
+  DCHECK(!is_dead());
+  DCHECK_NOT_NULL(node);
+  auto begin = nodes_.end() - std::min(nodes_.size(), max_lookback);
+  auto it = std::find(begin, nodes_.end(), node);
+  if (it == nodes_.end()) return false;
+  node->set_owner(nullptr);
+  nodes_.erase(it);
+  return true;
+}
+
 void BasicBlock::OverwriteControlWithAbort(AbortReason reason) {
   ControlNode* control = reset_control_node();
   RemovePredecessorFollowing(control);
+  control->ClearInputs();
   control->OverwriteWith<Abort>(reason);
   set_deferred(true);
   set_control_node(control);

@@ -83,7 +83,7 @@ extern class ConsString extends String {
 @doNotGenerateCast
 @cppObjectLayoutDefinition
 extern class ExternalString extends String {
-  resource: ExternalPointer;
+  resource: CppHeapPointer;
   // WARNING: This field is missing for uncached external strings.
   resource_data: ExternalPointer;
 }
@@ -401,6 +401,55 @@ macro AbstractStringIndexOf(
       subject, subjectLen, search, searchLen, fromIndex);
 }
 
+// Up to these limits, searching inline is faster than calling into C++, even
+// where the C++ search can skip ahead with memchr.
+const kInlineStringIndexOfMaxCandidates: constexpr int31 = 16;
+const kInlineStringIndexOfMaxSearchLength: constexpr int31 = 32;
+
+macro UseInlineStringIndexOf<A: type, B: type>(searchLength: intptr):
+    bool {
+  return searchLength <= kInlineStringIndexOfMaxSearchLength;
+}
+UseInlineStringIndexOf<char8, char8>(searchLength: intptr): bool {
+  // SearchOneByteInOneByteString uses memchr for single characters.
+  return searchLength > 1 &&
+      searchLength <= kInlineStringIndexOfMaxSearchLength;
+}
+
+macro InlineStringIndexOf<A: type, B: type>(
+    string: ConstSlice<A>, searchStr: ConstSlice<B>,
+    fromIndex: intptr): intptr {
+  const searchLength = searchStr.length;
+  // The caller checked the lengths stored in the strings, which under memory
+  // corruption can differ from the slice lengths. Together with the loop
+  // condition, these checks keep all accesses below within the slices.
+  sbxcheck(searchLength > 0);
+  sbxcheck(fromIndex >= 0);
+  const lastOffset = searchLength - 1;
+  const searchFirst = searchStr.UncheckedAtIndex(0);
+  const searchLast = searchStr.UncheckedAtIndex(lastOffset);
+  const first = *searchFirst;
+  const last = *searchLast;
+  const lastCandidate = string.length - searchLength;
+  // This reference can be out-of-bounds if there are no candidates. But in
+  // this case, it will never be accessed.
+  let candidate = string.UncheckedAtIndex(fromIndex);
+  for (let i: intptr = fromIndex; i <= lastCandidate; i++) {
+    if (*candidate == first &&
+        *unsafe::AddOffset(candidate, lastOffset) == last) {
+      let a = unsafe::AddOffset(candidate, 1);
+      let b = unsafe::AddOffset(searchFirst, 1);
+      while (b.offset < searchLast.offset && *a == *b) {
+        a = unsafe::AddOffset(a, 1);
+        b = unsafe::AddOffset(b, 1);
+      }
+      if (b.offset >= searchLast.offset) return i;
+    }
+    candidate = unsafe::AddOffset(candidate, 1);
+  }
+  return -1;
+}
+
 struct AbstractStringIndexOfFunctor {
   fromIndex: Smi;
 }
@@ -409,10 +458,15 @@ struct AbstractStringIndexOfFunctor {
 macro Call<A: type, B: type>(
     self: AbstractStringIndexOfFunctor, string: ConstSlice<A>,
     searchStr: ConstSlice<B>): Smi {
+  const fromIndex = Convert<intptr>(self.fromIndex);
+  const candidates = string.length - searchStr.length - fromIndex + 1;
+  if (candidates <= kInlineStringIndexOfMaxCandidates &&
+      UseInlineStringIndexOf<A, B>(searchStr.length)) {
+    return Convert<Smi>(InlineStringIndexOf(string, searchStr, fromIndex));
+  }
   return Convert<Smi>(AbstractStringIndexOf(
       string.GCUnsafeStartPointer(), string.length,
-      searchStr.GCUnsafeStartPointer(), searchStr.length,
-      Convert<intptr>(self.fromIndex)));
+      searchStr.GCUnsafeStartPointer(), searchStr.length, fromIndex));
 }
 
 macro AbstractStringIndexOf(

@@ -57,11 +57,11 @@ extern "C" ssize_t __llvm_libc_stdio_read(void *cookie, char *buf, size_t size);
 extern "C" ssize_t __llvm_libc_stdio_write(void *cookie, const char *buf,
                                            size_t size);
 
-// Return the resulting absolute file position on success. On failure, return a
+// Update the `offset` to indicate the new stream offset. On failure, return a
 // negative errno value.
-extern "C" off_t __llvm_libc_stdio_seek(void *cookie, off_t offset, int whence);
+extern "C" int __llvm_libc_stdio_seek(void *cookie, off_t *offset, int whence);
 
-// Return 0 on success or EOF on failure, matching fclose.
+// Return 0 on success or EOF on failure.
 extern "C" int __llvm_libc_stdio_close(void *cookie);
 
 void write_to_stderr(cpp::string_view msg);

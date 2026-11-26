@@ -21,6 +21,11 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
+inline void RedirectCodeToUnwindHandler(const uint8_t*& code) {
+  // Resume execution from s2s_Unwind, which unwinds the Wasm stack frames
+  code = reinterpret_cast<uint8_t*>(&s_unwind_code);
+}
+
 inline Address WasmInterpreterRuntime::EffectiveAddress(uint32_t memory_index,
                                                         uint64_t index) const {
   DirectHandle<WasmTrustedInstanceData> trusted_data =
@@ -230,7 +235,18 @@ inline bool WasmInterpreterRuntime::WasmStackCheck(
       isolate_->TerminateExecution();
       return false;
     }
-    isolate_->stack_guard()->HandleInterrupts();
+    // {HandleInterrupts} can return the exception-hole sentinel (e.g. a
+    // termination request racing with the check above). The pending exception
+    // already represents the failure, so no trap is published, but we still
+    // unwind because termination cannot be caught by Wasm.
+    if (V8_UNLIKELY(
+            IsExceptionHole(isolate_->stack_guard()->HandleInterrupts()))) {
+      SealHandleScope shs(isolate_);
+      current_frame_.current_function_ = nullptr;
+      current_thread_->Unwinding();
+      RedirectCodeToUnwindHandler(code);
+      return false;
+    }
   }
 
   if (V8_UNLIKELY(v8_flags.drumbrake_fuzzer_timeout &&
@@ -239,6 +255,10 @@ inline bool WasmInterpreterRuntime::WasmStackCheck(
                           v8_flags.drumbrake_fuzzer_timeout_limit_ms))) {
     SealHandleScope shs(isolate_);
     current_frame_.current_function_ = nullptr;
+    // Record that this run was stopped by the fuzzer timeout (not a real trap)
+    // so a differential fuzzer can skip its non-comparable result instead of
+    // guessing from the elapsed wall-clock time.
+    set_had_fuzzer_timeout();
     SetTrap(MessageTemplate::kWasmTrapUnreachable, code);
     return false;
   }

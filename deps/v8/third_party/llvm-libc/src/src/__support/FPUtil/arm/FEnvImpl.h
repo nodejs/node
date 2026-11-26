@@ -12,6 +12,7 @@
 #include "hdr/fenv_macros.h"
 #include "hdr/stdint_proxy.h"
 #include "hdr/types/fenv_t.h"
+#include "src/__support/CPP/type_traits.h"
 #include "src/__support/FPUtil/FPBits.h"
 #include "src/__support/macros/attributes.h" // For LIBC_INLINE
 #include "src/__support/macros/config.h"
@@ -187,21 +188,26 @@ LIBC_INLINE int raise_except(int excepts) {
   return result;
 }
 
-LIBC_INLINE int get_round() {
-  uint32_t mode = (FEnv::get_fpscr() >> FEnv::RoundingControlBitPosition) & 0x3;
-  switch (mode) {
-  case FEnv::TONEAREST:
+LIBC_INLINE LIBC_CONSTEXPR_DEFAULT int get_round() {
+  if (cpp::is_constant_evaluated()) {
     return FE_TONEAREST;
-  case FEnv::DOWNWARD:
-    return FE_DOWNWARD;
-  case FEnv::UPWARD:
-    return FE_UPWARD;
-  case FEnv::TOWARDZERO:
-    return FE_TOWARDZERO;
-  default:
-    return -1; // Error value.
+  } else {
+    uint32_t mode =
+        (FEnv::get_fpscr() >> FEnv::RoundingControlBitPosition) & 0x3;
+    switch (mode) {
+    case FEnv::TONEAREST:
+      return FE_TONEAREST;
+    case FEnv::DOWNWARD:
+      return FE_DOWNWARD;
+    case FEnv::UPWARD:
+      return FE_UPWARD;
+    case FEnv::TOWARDZERO:
+      return FE_TOWARDZERO;
+    default:
+      return -1; // Error value.
+    }
+    return 0;
   }
-  return 0;
 }
 
 LIBC_INLINE int set_round(int mode) {

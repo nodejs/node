@@ -302,14 +302,25 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
     }
   };
 
+  enum class ImportEncoding : uint8_t {
+    kRegular,
+    kCompactByModule,
+    kCompactByModuleAndType,
+  };
+
   // Building methods.
   uint32_t AddImport(std::string_view name, const FunctionSig* sig,
-                     std::string_view module = {}, bool force_new_sig = false);
+                     std::string_view module = {}, bool force_new_sig = false,
+                     ImportEncoding encoding = ImportEncoding::kRegular);
+  uint32_t AddImport(std::string_view name, ModuleTypeIndex sig_index,
+                     std::string_view module = {},
+                     ImportEncoding encoding = ImportEncoding::kRegular);
   WasmFunctionBuilder* AddFunction(const FunctionSig* sig = nullptr);
   WasmFunctionBuilder* AddFunction(ModuleTypeIndex sig_index);
   uint32_t AddGlobal(ValueType type, bool mutability, WasmInitExpr init);
   uint32_t AddGlobalImport(std::string_view name, ValueType type,
-                           bool mutability, std::string_view module = {});
+                           bool mutability, std::string_view module = {},
+                           ImportEncoding encoding = ImportEncoding::kRegular);
   void AddDataSegment(const uint8_t* data, uint32_t size, uint32_t dest);
   void AddPassiveDataSegment(const uint8_t* data, uint32_t size);
   // Add an element segment to this {WasmModuleBuilder}. {segment}'s enties
@@ -452,7 +463,7 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   int NumImportedFunctions() {
     return base::checked_cast<int>(function_imports_.size());
   }
-  int NumDeclaredFunctions() {
+  int NumDefinedFunctions() {
     return base::checked_cast<int>(functions_.size());
   }
 
@@ -475,10 +486,13 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   }
 
  private:
+  class ImportWriter;
+
   struct WasmFunctionImport {
     std::string_view module;
     std::string_view name;
     ModuleTypeIndex sig_index;
+    ImportEncoding encoding = ImportEncoding::kRegular;
   };
 
   struct WasmGlobalImport {
@@ -487,6 +501,7 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
     // TODO(manoskouk): Extend to full value type.
     ValueTypeCode type_code;
     bool mutability;
+    ImportEncoding encoding = ImportEncoding::kRegular;
   };
 
   struct WasmExport {

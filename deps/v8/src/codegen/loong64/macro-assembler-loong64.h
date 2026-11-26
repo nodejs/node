@@ -12,6 +12,7 @@
 #include <optional>
 
 #include "src/codegen/assembler.h"
+#include "src/codegen/atomic-memory-order.h"
 #include "src/codegen/bailout-reason.h"
 #include "src/codegen/loong64/assembler-loong64.h"
 #include "src/common/globals.h"
@@ -92,7 +93,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void InitializeRootRegister() {
     ExternalReference isolate_root = ExternalReference::isolate_root(isolate());
     li(kRootRegister, Operand(isolate_root));
-    // TODO(loong64_dev): Initialize kDoubleRegZero for use by cctest.
+    // TODO(loong64_dev): Initialize kDoubleRegZero for use by unittests.
     movgr2fr_d(kDoubleRegZero, zero_reg);
 #ifdef V8_COMPRESS_POINTERS
     LoadRootRelative(kPtrComprCageBaseRegister,
@@ -524,12 +525,14 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   inline void PushAll(DoubleRegList registers,
                       int stack_slot_size = kDoubleSize) {
     DCHECK_EQ(stack_slot_size, kDoubleSize);
+    if (registers.is_empty()) return;
     MultiPushFPU(registers);
   }
 
   inline void PopAll(DoubleRegList registers,
                      int stack_slot_size = kDoubleSize) {
     DCHECK_EQ(stack_slot_size, kDoubleSize);
+    if (registers.is_empty()) return;
     MultiPopFPU(registers);
   }
 
@@ -956,6 +959,18 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // LSX
   void Vst(VRegister vd, const MemOperand& vj, int* trap_pc = NULL);
   void Vld(VRegister vd, const MemOperand& vj, int* trap_pc = NULL);
+  void Vldrepl_b(VRegister vd, const MemOperand& src, int* trap_pc = NULL);
+  void Vldrepl_h(VRegister vd, const MemOperand& src, int* trap_pc = NULL);
+  void Vldrepl_w(VRegister vd, const MemOperand& src, int* trap_pc = NULL);
+  void Vldrepl_d(VRegister vd, const MemOperand& src, int* trap_pc = NULL);
+  void Vstelm_b(VRegister vd, const MemOperand& dst, uint8_t laneidx,
+                int* trap_pc = NULL);
+  void Vstelm_h(VRegister vd, const MemOperand& dst, uint8_t laneidx,
+                int* trap_pc = NULL);
+  void Vstelm_w(VRegister vd, const MemOperand& dst, uint8_t laneidx,
+                int* trap_pc = NULL);
+  void Vstelm_d(VRegister vd, const MemOperand& dst, uint8_t laneidx,
+                int* trap_pc = NULL);
   void Vmove(VRegister dst, VRegister src);
   void LoadSplat(LSXSize, VRegister dst, MemOperand src, int* trap_pc = NULL);
   void ExtAddPairwise(LSXDataType type, VRegister dst, VRegister src);
@@ -1047,8 +1062,12 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void StoreTaggedField(Register src, const MemOperand& dst,
                         int* trap_pc = NULL);
 
-  void AtomicStoreTaggedField(Register dst, const MemOperand& src,
+  void AtomicStoreTaggedField(Register src, const MemOperand& dst,
                               int* trap_pc = NULL);
+  // Order-aware variant: seq_cst becomes an ordered atomic swap, acq_rel a
+  // plain store with a leading release barrier.
+  void AtomicStoreTaggedField(Register src, const MemOperand& dst,
+                              AtomicMemoryOrder order, int* trap_pc = NULL);
 
   void DecompressTaggedSigned(Register dst, const MemOperand& src,
                               int* trap_pc = NULL);
@@ -1502,6 +1521,17 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   // Push a fixed frame, consisting of ra, fp.
   void PushCommonFrame(Register marker_reg = no_reg);
+
+  // Adjusts MemoryOperand for memory load/store.
+  void AdjustBaseAndOffset(MemOperand* src, UseScratchRegisterScope& temps);
+
+  // Adjusts MemOperand for VLDREPL.[BHWD].
+  void AdjustBaseAndOffsetVldrepl(MemOperand* src, LSXSize sz,
+                                  UseScratchRegisterScope& temps);
+
+  // Adjusts MemOperand for VSTELM.[BHWD].
+  void AdjustBaseAndOffsetVstelm(MemOperand* dst, LSXSize sz,
+                                 UseScratchRegisterScope& temps);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(MacroAssembler);
 };

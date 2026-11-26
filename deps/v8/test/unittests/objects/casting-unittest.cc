@@ -211,5 +211,76 @@ TEST_F(CastingTest, JSUnionPredicates) {
   check(*isolate()->factory()->NewJSObject(isolate()->object_function()));
 }
 
+TEST_F(CastingTest, SbxCastAndOutsideSandboxCast) {
+  IndirectHandle<TrustedByteArray> trusted =
+      isolate()->factory()->NewTrustedByteArray(4);
+  IndirectHandle<TrustedObject> as_trusted_obj = trusted;
+  IndirectHandle<HeapObject> as_heap_obj = trusted;
+  IndirectHandle<Object> as_obj = trusted;
+
+  EXPECT_EQ(*trusted, SbxCast<TrustedByteArray>(*as_trusted_obj));
+  EXPECT_EQ(*trusted, OutsideSandboxCast<TrustedByteArray>(*as_heap_obj));
+  EXPECT_EQ(*trusted, OutsideSandboxCast<TrustedByteArray>(*as_obj));
+
+  EXPECT_EQ(*trusted, *SbxCast<TrustedByteArray>(as_trusted_obj));
+  EXPECT_EQ(*trusted, *OutsideSandboxCast<TrustedByteArray>(as_heap_obj));
+  EXPECT_EQ(*trusted, *OutsideSandboxCast<TrustedByteArray>(as_obj));
+
+  DirectHandle<TrustedObject> direct_trusted_obj = as_trusted_obj;
+  EXPECT_EQ(*trusted, *SbxCast<TrustedByteArray>(direct_trusted_obj));
+  DirectHandle<HeapObject> direct_heap_obj = as_heap_obj;
+  EXPECT_EQ(*trusted, *OutsideSandboxCast<TrustedByteArray>(direct_heap_obj));
+
+  MaybeIndirectHandle<TrustedObject> maybe_indirect_trusted = as_trusted_obj;
+  EXPECT_EQ(
+      *trusted,
+      *SbxCast<TrustedByteArray>(maybe_indirect_trusted).ToHandleChecked());
+  MaybeIndirectHandle<HeapObject> maybe_indirect = as_heap_obj;
+  EXPECT_EQ(
+      *trusted,
+      *OutsideSandboxCast<TrustedByteArray>(maybe_indirect).ToHandleChecked());
+
+  MaybeDirectHandle<TrustedObject> maybe_direct_trusted = direct_trusted_obj;
+  EXPECT_EQ(*trusted,
+            *SbxCast<TrustedByteArray>(maybe_direct_trusted).ToHandleChecked());
+  MaybeDirectHandle<HeapObject> maybe_direct = direct_heap_obj;
+  EXPECT_EQ(
+      *trusted,
+      *OutsideSandboxCast<TrustedByteArray>(maybe_direct).ToHandleChecked());
+
+  IndirectHandle<TrustedObject> null_indirect_trusted;
+  EXPECT_TRUE(SbxCast<TrustedByteArray>(null_indirect_trusted).is_null());
+  DirectHandle<TrustedObject> null_direct_trusted;
+  EXPECT_TRUE(SbxCast<TrustedByteArray>(null_direct_trusted).is_null());
+  MaybeIndirectHandle<TrustedObject> null_maybe_indirect_trusted;
+  EXPECT_TRUE(SbxCast<TrustedByteArray>(null_maybe_indirect_trusted).is_null());
+  MaybeDirectHandle<TrustedObject> null_maybe_direct_trusted;
+  EXPECT_TRUE(SbxCast<TrustedByteArray>(null_maybe_direct_trusted).is_null());
+
+  IndirectHandle<HeapObject> null_indirect;
+  EXPECT_TRUE(OutsideSandboxCast<TrustedByteArray>(null_indirect).is_null());
+  DirectHandle<HeapObject> null_direct;
+  EXPECT_TRUE(OutsideSandboxCast<TrustedByteArray>(null_direct).is_null());
+  MaybeIndirectHandle<HeapObject> null_maybe_indirect;
+  EXPECT_TRUE(
+      OutsideSandboxCast<TrustedByteArray>(null_maybe_indirect).is_null());
+  MaybeDirectHandle<HeapObject> null_maybe_direct;
+  EXPECT_TRUE(
+      OutsideSandboxCast<TrustedByteArray>(null_maybe_direct).is_null());
+
+#ifdef V8_ENABLE_SANDBOX
+#if V8_LOGGING_LEVEL == 0
+  constexpr const char* kExpectedDeathRegex = "";
+#else
+  constexpr const char* kExpectedDeathRegex = "OutsideSandbox";
+#endif
+  IndirectHandle<HeapObject> in_sandbox = isolate()->factory()->NewByteArray(4);
+  ASSERT_DEATH_IF_SUPPORTED(OutsideSandboxCast<TrustedByteArray>(*in_sandbox),
+                            kExpectedDeathRegex);
+  ASSERT_DEATH_IF_SUPPORTED(OutsideSandboxCast<TrustedByteArray>(in_sandbox),
+                            kExpectedDeathRegex);
+#endif  // V8_ENABLE_SANDBOX
+}
+
 }  // namespace
 }  // namespace v8::internal

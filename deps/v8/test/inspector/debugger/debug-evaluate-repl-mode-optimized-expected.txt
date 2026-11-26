@@ -1,0 +1,7 @@
+Tests REPL mode evaluation with optimized functions.
+foo() optimized: 42
+foo() after let x = 21: 21
+foo() after x; let x;: undefined
+foo1() optimized: 42
+foo1() after const y = 21: 21
+z.a after const z = {a:21} and foo2(): 42

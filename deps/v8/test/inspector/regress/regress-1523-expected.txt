@@ -1,0 +1,11 @@
+Tests regress-1523.
+function test_and(x) {
+  #if (x && (bar === this.baz))
+    return 0;
+
+test_and(false) -> 1
+function test_or(x) {
+  #if (x || (bar === this.baz))
+    return 0;
+
+test_or(true) -> 0

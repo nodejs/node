@@ -29,18 +29,10 @@ V8_OBJECT class PropertyArray : public HeapObject {
   inline int Hash() const;
 
   inline Tagged<Object> get(int index) const;
-  inline Tagged<Object> get(int index, SeqCstAccessTag tag) const;
 
   inline void set(int index, Tagged<Object> value);
-  inline void set(int index, Tagged<Object> value, SeqCstAccessTag tag);
   // Setter with explicit barrier mode.
   inline void set(int index, Tagged<Object> value, WriteBarrierMode mode);
-
-  inline Tagged<Object> Swap(int index, Tagged<Object> value,
-                             SeqCstAccessTag tag);
-  inline Tagged<Object> CompareAndSwap(int index, Tagged<Object> expected,
-                                       Tagged<Object> value,
-                                       SeqCstAccessTag tag);
 
   // Signature must be in sync with FixedArray::CopyElements().
   inline static void CopyElements(Isolate* isolate, Tagged<PropertyArray> dst,

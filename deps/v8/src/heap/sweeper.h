@@ -18,7 +18,6 @@
 #include "src/flags/flags.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/memory-allocator.h"
-#include "src/heap/pretenuring-handler.h"
 #include "src/heap/slot-set.h"
 #include "src/tasks/cancelable-task.h"
 
@@ -340,42 +339,6 @@ class Sweeper {
   base::ConditionVariable promoted_pages_iteration_notification_variable_;
   std::atomic<bool> promoted_page_iteration_in_progress_{false};
 };
-
-template <typename ShouldYieldCallback>
-bool Sweeper::LocalSweeper::ContributeAndWaitForPromotedPagesIterationImpl(
-    ShouldYieldCallback should_yield_callback) {
-  if (!sweeper_->sweeping_in_progress()) return true;
-  if (!sweeper_->IsIteratingPromotedPages()) return true;
-  if (!ParallelIteratePromotedPagesImpl(should_yield_callback)) return false;
-  base::MutexGuard guard(
-      &sweeper_->promoted_pages_iteration_notification_mutex_);
-  // Check again that iteration is not yet finished.
-  if (!sweeper_->IsIteratingPromotedPages()) return true;
-  if (should_yield_callback()) {
-    TRACE_GC_NOTE(
-        "Sweeper::ContributeAndWaitForPromotedPagesIteration Preempted");
-    return false;
-  }
-  sweeper_->promoted_pages_iteration_notification_variable_.Wait(
-      &sweeper_->promoted_pages_iteration_notification_mutex_);
-  TRACE_GC_NOTE("Sweeper::ContributeAndWaitForPromotedPagesIteration Finished");
-  return true;
-}
-
-template <typename ShouldYieldCallback>
-bool Sweeper::LocalSweeper::ParallelIteratePromotedPagesImpl(
-    ShouldYieldCallback should_yield_callback) {
-  while (!should_yield_callback()) {
-    MutablePage* chunk = sweeper_->GetPromotedPageSafe();
-    if (chunk == nullptr) {
-      TRACE_GC_NOTE("Sweeper::ParallelIteratePromotedPages Finished");
-      return true;
-    }
-    ParallelIteratePromotedPage(chunk);
-  }
-  TRACE_GC_NOTE("Sweeper::ParallelIteratePromotedPages Preempted");
-  return false;
-}
 
 }  // namespace internal
 }  // namespace v8

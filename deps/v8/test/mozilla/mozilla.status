@@ -355,8 +355,9 @@
   'js1_5/Regress/regress-317476': [FAIL],
   'js1_5/Regress/regress-314401': [FAIL],
 
-  # d8 implements setTimeout, but not clearTimeout.
-  'js1_5/GC/regress-319980-01': [FAIL],
+  # Sets too long a timeout and uses strings in setTimeout, which d8 doesn't
+  # currently support.
+  'js1_5/GC/regress-319980-01': [SKIP],
 
   # Any local 'arguments' variable should not be allowed to shadow the value
   # returned via the indirect 'arguments' property accessor.

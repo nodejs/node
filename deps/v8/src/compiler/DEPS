@@ -2,14 +2,27 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+include_rules = [
+  # v8_compiler does not depend on :v8_tracing so that compiling compiler files
+  # does not wait on Perfetto protozero code generation (libperfetto). Delegate
+  # tracing to files compiled in v8_base_without_compiler instead.
+  "-src/tracing",
+]
+
 # Clients of these interfaces shouldn't depend on lots of compiler internals.
 # Do not include anything from src/compiler here!
 specific_include_rules = {
   "code-assembler.h": [
     "-src/compiler",
   ],
+  "pipeline-statistics.cc": [
+    "+src/tracing",
+  ],
   "pipeline.h": [
     "-src/compiler",
+  ],
+  "wasm-compiler-definitions.cc": [
+    "+src/tracing",
   ],
   "wasm-compiler.h": [
     "-src/compiler",

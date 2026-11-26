@@ -1,0 +1,10 @@
+add_header_library(
+  exp_exceptions
+  HDRS
+    exp_exceptions.h
+  DEPENDS
+    libc.hdr.fenv_macros
+    libc.src.__support.FPUtil.fp_bits
+    libc.src.__support.common
+    libc.src.__support.macros.config
+)

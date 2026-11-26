@@ -44,15 +44,18 @@ class HAMTTest;
  * in the new tree. If the new value is identical to the existing value,
  * the operation is a no-op and the existing structure is returned.
  *
- * HAMT merge_into(const HAMT& other, Func&& f) const
+ * HAMT merge_into(Zone* zone, const HAMT& other, Func&& f) const
  * - Time:  O(N) (worst case; subtrees shared by pointer are skipped)
  * - Space: O(C * log32 N), where C is the number of values changed by 'f'
  * - Description: Returns a new tree where values in 'this' are updated
  * using values from 'other' via the functor 'f'. This operation only
- * affects keys present in 'this' (intersection update).
+ * affects keys present in 'this' (left join).
  * - Note on sharing: Like insert, merging is copy-on-write. Only nodes on
  * the path to a changed value are copied. If 'f' changes no value, the
  * operation is a no-op and the existing structure is returned.
+ *
+ * HAMT intersect(Zone* zone, const HAMT& other, Func&& f) const
+ * - Description: Like merge_into, but drops keys absent from either tree.
  *
  * Data Structure Diagram:
  *
@@ -187,7 +190,20 @@ class HAMT {
     if (root_ == other.root_) return *this;
     if (root_.IsNull()) return *this;
     if (other.root_.IsNull()) return *this;
-    return HAMT(MergeIntoRec(zone, root_, other.root_, 0, f));
+    return HAMT(
+        MergeIntoRec<MergeMode::kLeftJoin>(zone, root_, other.root_, 0, f));
+  }
+
+  // Intersects 'this' and 'other'. Only keys present in both trees are kept,
+  // with their values combined via f(this_value, other_value). Shared subtrees
+  // are reused without calling 'f', so f(v, v) must be v.
+  template <typename Func>
+    requires std::is_invocable_r_v<Value, Func, Value, Value>
+  HAMT intersect(Zone* zone, const HAMT& other, Func&& f) const {
+    if (root_ == other.root_) return *this;
+    if (root_.IsNull() || other.root_.IsNull()) return HAMT();
+    return HAMT(
+        MergeIntoRec<MergeMode::kIntersect>(zone, root_, other.root_, 0, f));
   }
 
   /**
@@ -407,11 +423,10 @@ class HAMT {
     return Node(copy);
   }
 
-  const Value* FindHelper(Node node, const Key& key, Hash hash,
-                          int shift) const {
+  Leaf* FindLeafHelper(Node node, const Key& key, Hash hash, int shift) const {
     while (!node.IsNull()) {
       if (node.type() == kLeaf) {
-        return FindInCollisionList(node.AsLeaf(), key);
+        return FindLeafInCollisionList(node.AsLeaf(), key);
       }
       DCHECK_EQ(node.type(), kBranch);
       const Branch* branch = node.AsBranch();
@@ -424,99 +439,168 @@ class HAMT {
     return nullptr;
   }
 
-  Value* FindInCollisionList(Leaf* list, Key key) const {
+  const Value* FindHelper(Node node, const Key& key, Hash hash,
+                          int shift) const {
+    Leaf* leaf = FindLeafHelper(node, key, hash, shift);
+    return leaf ? &leaf->value : nullptr;
+  }
+
+  Leaf* FindLeafInCollisionList(Leaf* list, const Key& key) const {
     for (Leaf* cur = list; cur; cur = cur->next) {
       if (cur->key == key) {
-        return &cur->value;
+        return cur;
       }
     }
     return nullptr;
   }
 
-  // Merges list2 into list1, i.e. keys that are only in list2 are dropped.
-  // A leaf is only reallocated if its value, or the value of a leaf behind it
-  // in the chain, actually changes.
-  template <typename Func>
-  Leaf* MergeCollisionLists(Zone* zone, Leaf* list1, Leaf* list2,
-                            Func&& f) const {
-    if (list1 == nullptr) return nullptr;
-    Leaf* new_next = MergeCollisionLists(zone, list1->next, list2, f);
-    Value* value = FindInCollisionList(list2, list1->key);
-    Value merged = value ? f(list1->value, *value) : list1->value;
-    if (new_next == list1->next && merged == list1->value) {
-      return list1;
+  enum class MergeMode { kLeftJoin, kIntersect };
+
+  static bool HasSingleHash(const Leaf* leaf) {
+    for (const Leaf* c = leaf->next; c != nullptr; c = c->next) {
+      if (c->hash != leaf->hash) return false;
     }
-    return NewLeaf(zone, list1->key, merged, list1->hash, new_next);
+    return true;
   }
 
-  template <typename Func>
-  Branch* MergeIntoBranch(Zone* zone, Branch* branch, Leaf* leaf, int shift,
-                          Func&& f) const {
+  template <MergeMode kMode, typename Func>
+  Node MergeIntoBranch(Zone* zone, Branch* branch, Leaf* leaf, int shift,
+                       Func&& f) const {
     int bit = (leaf->hash >> shift) & kMask;
-    if (!branch->has_child_in_bit(bit)) return branch;
+    if (!branch->has_child_in_bit(bit)) {
+      return kMode == MergeMode::kLeftJoin ? Node(branch) : Node();
+    }
 
     int idx = branch->get_index(bit);
-    Node merged = MergeIntoRec(zone, branch->get_child(idx), Node(leaf),
-                               shift + kBits, f);
+    Node merged = MergeIntoRec<kMode>(zone, branch->get_child(idx), Node(leaf),
+                                      shift + kBits, f);
+    if constexpr (kMode == MergeMode::kIntersect) return merged;
 
-    if (branch->get_child(idx) == merged) return branch;
+    if (branch->get_child(idx) == merged) return Node(branch);
 
     Branch* new_branch = CloneBranch(zone, branch);
     new_branch->set_child(idx, merged);
-    return new_branch;
+    return Node(new_branch);
   }
 
-  // Merges the entries of branch into the collision chain list. Leaves are
-  // reused unless their value changes.
-  template <typename Func>
-  Leaf* MergeIntoLeaf(Zone* zone, Leaf* list, Branch* branch, int shift,
+  // Merges the entries of other into the collision chain list, dropping keys
+  // that are only in other. A leaf of list, or the matching leaf of other, is
+  // reused when its value and tail already match the result.
+  template <MergeMode kMode, typename Func>
+  Leaf* MergeIntoLeaf(Zone* zone, Leaf* list, Node other, int shift,
                       Func&& f) const {
     if (list == nullptr) return nullptr;
-    Leaf* new_next = MergeIntoLeaf(zone, list->next, branch, shift, f);
-    const Value* value = FindHelper(Node(branch), list->key, list->hash, shift);
-    Value merged = value ? f(list->value, *value) : list->value;
+    Leaf* new_next = MergeIntoLeaf<kMode>(zone, list->next, other, shift, f);
+    Leaf* found = FindLeafHelper(other, list->key, list->hash, shift);
+    if (kMode == MergeMode::kIntersect && !found) return new_next;
+    Value merged = found ? f(list->value, found->value) : list->value;
     if (new_next == list->next && merged == list->value) {
       return list;
+    }
+    if (found && new_next == found->next && merged == found->value) {
+      DCHECK_EQ(found->hash, list->hash);
+      return found;
     }
     return NewLeaf(zone, list->key, merged, list->hash, new_next);
   }
 
-  template <typename Func>
+  template <MergeMode kMode, typename Func>
   Node MergeIntoRec(Zone* zone, Node a, Node b, int shift, Func&& f) const {
     if (a == b) return a;  // Always return the left side!
-    if (a.IsNull() || b.IsNull()) return a;
+    if (a.IsNull() || b.IsNull())
+      return kMode == MergeMode::kLeftJoin ? a : Node();
 
-    if (a.type() == kLeaf && b.type() == kLeaf) {
-      return Node(MergeCollisionLists(zone, a.AsLeaf(), b.AsLeaf(), f));
-    }
     if (a.type() == kLeaf) {
-      return Node(MergeIntoLeaf(zone, a.AsLeaf(), b.AsBranch(), shift, f));
+      return Node(MergeIntoLeaf<kMode>(zone, a.AsLeaf(), b, shift, f));
     }
     if (b.type() == kLeaf) {
-      return Node(MergeIntoBranch(zone, a.AsBranch(), b.AsLeaf(), shift, f));
+      return MergeIntoBranch<kMode>(zone, a.AsBranch(), b.AsLeaf(), shift, f);
     }
 
     // Both are Branches.
     Branch* brA = a.AsBranch();
     Branch* brB = b.AsBranch();
-    Branch* res = nullptr;
-    for (uint32_t shared_bits = brA->bitmap & brB->bitmap; shared_bits != 0;
-         shared_bits &= shared_bits - 1) {
-      int bit = std::countr_zero(shared_bits);
-      int idx = brA->get_index(bit);
-      Node old_child = brA->get_child(idx);
-      Node child =
-          MergeIntoRec(zone, old_child, brB->get_child(brB->get_index(bit)),
-                       shift + kBits, f);
-      if (child == old_child) {
-        continue;
+    uint32_t shared_bits = brA->bitmap & brB->bitmap;
+    if constexpr (kMode == MergeMode::kLeftJoin) {
+      if (brA->bitmap == brB->bitmap) {
+        int count = brA->size();
+        Branch* res = nullptr;
+        bool same_as_a = true;
+        bool same_as_b = true;
+        for (int idx = 0; idx < count; ++idx) {
+          Node child_a = brA->get_child(idx);
+          Node child_b = brB->get_child(idx);
+          Node child =
+              MergeIntoRec<kMode>(zone, child_a, child_b, shift + kBits, f);
+          if (res != nullptr) {
+            res->set_child(idx, child);
+            continue;
+          }
+
+          bool next_same_as_a = same_as_a && (child == child_a);
+          bool next_same_as_b = same_as_b && (child == child_b);
+          if (next_same_as_a || next_same_as_b) {
+            same_as_a = next_same_as_a;
+            same_as_b = next_same_as_b;
+            continue;
+          }
+
+          res = NewBranch(zone, brA->bitmap, count);
+          if (idx > 0) {
+            const Branch* prefix = same_as_a ? brA : brB;
+            std::memcpy(res->children, prefix->children, idx * sizeof(Node));
+          }
+          res->set_child(idx, child);
+        }
+        if (res != nullptr) return Node(res);
+        return same_as_a ? a : b;
       }
-      if (res == nullptr) {
-        res = CloneBranch(zone, brA);
+
+      // Bitmaps are different. We only merge shared slots and clone brA lazily.
+      if (shared_bits == 0) return a;
+      Branch* res = nullptr;
+      for (uint32_t bits = shared_bits; bits != 0; bits &= bits - 1) {
+        int bit = std::countr_zero(bits);
+        int idx_a = brA->get_index(bit);
+        Node child_a = brA->get_child(idx_a);
+        Node child_b = brB->get_child(brB->get_index(bit));
+        Node child =
+            MergeIntoRec<kMode>(zone, child_a, child_b, shift + kBits, f);
+        if (child == child_a) continue;
+        if (res == nullptr) res = CloneBranch(zone, brA);
+        res->set_child(idx_a, child);
       }
-      res->set_child(idx, child);
+      return res == nullptr ? a : Node(res);
+    } else {
+      Node new_children[kWidth];
+      uint32_t new_bitmap = 0;
+      int new_count = 0;
+      bool same_as_a = (shared_bits == brA->bitmap);
+      bool same_as_b = (shared_bits == brB->bitmap);
+      for (uint32_t bits = shared_bits; bits != 0; bits &= bits - 1) {
+        int bit = std::countr_zero(bits);
+        Node child_a = brA->get_child(brA->get_index(bit));
+        Node child_b = brB->get_child(brB->get_index(bit));
+        Node child =
+            MergeIntoRec<kMode>(zone, child_a, child_b, shift + kBits, f);
+        same_as_a &= (child == child_a);
+        same_as_b &= (child == child_b);
+        if (!child.IsNull()) {
+          new_bitmap |= (1U << bit);
+          new_children[new_count++] = child;
+        }
+      }
+      if (new_count == 0) return Node();
+      if (same_as_a) return a;
+      if (same_as_b) return b;
+      if (new_count == 1 && new_children[0].type() == kLeaf &&
+          HasSingleHash(new_children[0].AsLeaf())) {
+        return new_children[0];
+      }
+      Branch* res = NewBranch(zone, new_bitmap, new_count);
+      std::memcpy(res->children, new_children, new_count * sizeof(Node));
+      return Node(res);
     }
-    return res == nullptr ? a : Node(res);
   }
 };
 

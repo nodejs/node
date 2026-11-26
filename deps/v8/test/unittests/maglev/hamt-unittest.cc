@@ -5,6 +5,7 @@
 #include "src/maglev/hamt.h"
 
 #include <algorithm>
+#include <vector>
 
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -37,6 +38,10 @@ class HAMTTest : public TestWithZone {
 
   bool SameRoot(const IntHAMT& a, const IntHAMT& b) const {
     return a.root_ == b.root_;
+  }
+
+  bool IsLeafRoot(const IntHAMT& a) const {
+    return !a.root_.IsNull() && a.root_.type() == IntHAMT::kLeaf;
   }
 };
 
@@ -272,6 +277,71 @@ TEST_F(HAMTTest, MergeIntoWithoutChangesDoesNotAllocateWithCollisions) {
   EXPECT_TRUE(SameRoot(result, hA));
 }
 
+TEST_F(HAMTTest, MergeIntoDominatedByOtherDoesNotAllocate) {
+  IntHAMT hA;
+  IntHAMT hB;
+  for (int i = 0; i < 200; i++) {
+    hA = hA.insert(zone(), i, i - 1);
+    hB = hB.insert(zone(), i, i);
+  }
+
+  size_t allocated_before = zone()->allocation_size();
+  auto max = [](int a, int b) { return std::max(a, b); };
+  IntHAMT result = hA.merge_into(zone(), hB, max);
+
+  EXPECT_EQ(zone()->allocation_size(), allocated_before);
+  EXPECT_TRUE(SameRoot(result, hB));
+  EXPECT_EQ(ToMap(result), ToMap(hB));
+}
+
+TEST_F(HAMTTest, MergeIntoDominatedByOtherWithSharedSubtreesDoesNotAllocate) {
+  IntHAMT hA;
+  for (int i = 0; i < 200; i++) hA = hA.insert(zone(), i, i);
+  IntHAMT hB = hA;
+  for (int i = 0; i < 200; i += 5) hB = hB.insert(zone(), i, i + 100);
+
+  size_t allocated_before = zone()->allocation_size();
+  auto max = [](int a, int b) { return std::max(a, b); };
+  IntHAMT result = hA.merge_into(zone(), hB, max);
+
+  EXPECT_EQ(zone()->allocation_size(), allocated_before);
+  EXPECT_TRUE(SameRoot(result, hB));
+  EXPECT_EQ(ToMap(result), ToMap(hB));
+}
+
+TEST_F(HAMTTest, MergeIntoDominatedByOtherDoesNotAllocateWithCollisions) {
+  IntHAMT hA;
+  IntHAMT hB;
+  for (int i = 0; i < 10; i++) {
+    hA = InsertWithHash(hA, i, i - 1, 0x1234);
+    hB = InsertWithHash(hB, i, i, 0x1234);
+  }
+
+  size_t allocated_before = zone()->allocation_size();
+  auto max = [](int a, int b) { return std::max(a, b); };
+  IntHAMT result = hA.merge_into(zone(), hB, max);
+
+  EXPECT_EQ(zone()->allocation_size(), allocated_before);
+  EXPECT_TRUE(SameRoot(result, hB));
+  EXPECT_EQ(ToMap(result), ToMap(hB));
+
+  // Colliding keys that only the other side has must not leak into the
+  // result, whether they sit at the head or at the tail of its chain.
+  IntHAMT extra_head;
+  extra_head = InsertWithHash(extra_head, 100, 999, 0x1234);
+  for (int i = 0; i < 10; i++) {
+    extra_head = InsertWithHash(extra_head, i, i, 0x1234);
+  }
+  result = hA.merge_into(zone(), extra_head, max);
+  EXPECT_EQ(ToMap(result), ToMap(hB));
+  EXPECT_EQ(FindWithHash(result, 100, 0x1234), nullptr);
+
+  IntHAMT extra_tail = InsertWithHash(hB, 200, 888, 0x1234);
+  result = hA.merge_into(zone(), extra_tail, max);
+  EXPECT_EQ(ToMap(result), ToMap(hB));
+  EXPECT_EQ(FindWithHash(result, 200, 0x1234), nullptr);
+}
+
 TEST_F(HAMTTest, MergeIntoWithOneChangeIsAPathCopy) {
   IntHAMT hA;
   IntHAMT hB;
@@ -365,6 +435,219 @@ TEST_F(HAMTMismatchedShapesTest, WithChanges) {
   EXPECT_EQ(ToMap(big), (std::map<int, int>{{1, 50}, {2, 5}, {3, 5}}));
 }
 
+TEST_F(HAMTTest, IntersectDropsNonSharedKeys) {
+  IntHAMT hA;
+  hA = hA.insert(zone(), 1, 10);  // In A, not B
+  hA = hA.insert(zone(), 2, 20);  // In A and B
+
+  IntHAMT hB;
+  hB = hB.insert(zone(), 2, 200);  // In A and B
+  hB = hB.insert(zone(), 3, 300);  // In B, not A
+
+  auto max = [](int a, int b) { return std::max(a, b); };
+
+  IntHAMT result_ab = hA.intersect(zone(), hB, max);
+  EXPECT_EQ(result_ab.find(1), nullptr);
+  ASSERT_NE(result_ab.find(2), nullptr);
+  EXPECT_EQ(*result_ab.find(2), 200);
+  EXPECT_EQ(result_ab.find(3), nullptr);
+
+  IntHAMT result_ba = hB.intersect(zone(), hA, max);
+  EXPECT_EQ(ToMap(result_ab), ToMap(result_ba));
+
+  // Disjoint and empty intersections produce an empty HAMT.
+  IntHAMT hC;
+  hC = hC.insert(zone(), 99, 990);
+  IntHAMT disjoint = hA.intersect(zone(), hC, max);
+  EXPECT_EQ(disjoint.begin(), disjoint.end());
+  IntHAMT empty_res = hA.intersect(zone(), IntHAMT{}, max);
+  EXPECT_EQ(empty_res.begin(), empty_res.end());
+}
+
+TEST_F(HAMTTest, IntersectWithoutChangesDoesNotAllocate) {
+  IntHAMT hA;
+  IntHAMT hB;
+  for (int i = 0; i < 200; i++) {
+    hA = hA.insert(zone(), i, i);
+    hB = hB.insert(zone(), i, i - 1);
+  }
+
+  size_t allocated_before = zone()->allocation_size();
+  auto max = [](int a, int b) { return std::max(a, b); };
+  IntHAMT result = hA.intersect(zone(), hB, max);
+
+  EXPECT_EQ(zone()->allocation_size(), allocated_before);
+  EXPECT_TRUE(SameRoot(result, hA));
+  EXPECT_EQ(ToMap(result), ToMap(hA));
+}
+
+TEST_F(HAMTTest, IntersectWithSubsetReturnsOtherWithoutAllocating) {
+  IntHAMT hB;
+  for (int i = 0; i < 200; i++) hB = hB.insert(zone(), i, i);
+  // hA only adds keys on top of hB, sharing all of hB's untouched subtrees.
+  IntHAMT hA = hB;
+  for (int i = 200; i < 260; i++) hA = hA.insert(zone(), i, i);
+
+  size_t allocated_before = zone()->allocation_size();
+  auto max = [](int a, int b) { return std::max(a, b); };
+  IntHAMT result = hA.intersect(zone(), hB, max);
+
+  EXPECT_EQ(zone()->allocation_size(), allocated_before);
+  EXPECT_TRUE(SameRoot(result, hB));
+  EXPECT_EQ(ToMap(result), ToMap(hB));
+}
+
+TEST_F(HAMTTest, IntersectDominatedByOtherDoesNotAllocate) {
+  IntHAMT hA;
+  IntHAMT hB;
+  for (int i = 0; i < 200; i++) {
+    hA = hA.insert(zone(), i, i - 1);
+    hB = hB.insert(zone(), i, i);
+  }
+
+  size_t allocated_before = zone()->allocation_size();
+  auto max = [](int a, int b) { return std::max(a, b); };
+  IntHAMT result = hA.intersect(zone(), hB, max);
+
+  EXPECT_EQ(zone()->allocation_size(), allocated_before);
+  EXPECT_TRUE(SameRoot(result, hB));
+  EXPECT_EQ(ToMap(result), ToMap(hB));
+
+  // Add extra keys to hA so hB is a strict subset with distinct leaves.
+  for (int i = 200; i < 260; i++) {
+    hA = hA.insert(zone(), i, i);
+  }
+  allocated_before = zone()->allocation_size();
+  result = hA.intersect(zone(), hB, max);
+
+  EXPECT_EQ(zone()->allocation_size(), allocated_before);
+  EXPECT_TRUE(SameRoot(result, hB));
+  EXPECT_EQ(ToMap(result), ToMap(hB));
+}
+
+TEST_F(HAMTTest, IntersectDominatedByOtherDoesNotAllocateWithCollisions) {
+  IntHAMT hA;
+  IntHAMT hB;
+  for (int i = 0; i < 10; i++) {
+    hA = InsertWithHash(hA, i, i - 1, 0x1234);
+    hB = InsertWithHash(hB, i, i, 0x1234);
+  }
+  for (int i = 10; i < 13; i++) {
+    hA = InsertWithHash(hA, i, i, 0x1234);
+  }
+
+  size_t allocated_before = zone()->allocation_size();
+  auto max = [](int a, int b) { return std::max(a, b); };
+  IntHAMT result = hA.intersect(zone(), hB, max);
+
+  EXPECT_EQ(zone()->allocation_size(), allocated_before);
+  EXPECT_TRUE(SameRoot(result, hB));
+  EXPECT_EQ(ToMap(result), ToMap(hB));
+}
+
+TEST_F(HAMTTest, IntersectCollisions) {
+  IntHAMT hA;
+  IntHAMT hB;
+  size_t kHash = 0x1234;
+  hA = InsertWithHash(hA, 1, 10, kHash);
+  hA = InsertWithHash(hA, 2, 20, kHash);
+  hB = InsertWithHash(hB, 2, 200, kHash);
+  hB = InsertWithHash(hB, 3, 300, kHash);
+
+  auto max = [](int a, int b) { return std::max(a, b); };
+  IntHAMT result = hA.intersect(zone(), hB, max);
+  EXPECT_EQ(FindWithHash(result, 1, kHash), nullptr);
+  ASSERT_NE(FindWithHash(result, 2, kHash), nullptr);
+  EXPECT_EQ(*FindWithHash(result, 2, kHash), 200);
+  EXPECT_EQ(FindWithHash(result, 3, kHash), nullptr);
+}
+
+TEST_F(HAMTTest, IntersectDeepBranchCollapsesToCanonicalLeaf) {
+  // Keys share Level 0 and Level 1 bits (0) and diverge at Level 2.
+  size_t hash1 = 0;
+  size_t hash2 = 1u << 10;
+  size_t hash3 = 2u << 10;
+
+  IntHAMT hA;
+  hA = InsertWithHash(hA, 1, 10, hash1);
+  hA = InsertWithHash(hA, 2, 20, hash2);
+
+  IntHAMT hB;
+  hB = InsertWithHash(hB, 1, 5, hash1);
+  hB = InsertWithHash(hB, 3, 30, hash3);
+
+  auto max = [](int a, int b) { return std::max(a, b); };
+  IntHAMT result = hA.intersect(zone(), hB, max);
+  EXPECT_TRUE(IsLeafRoot(result));
+  EXPECT_EQ(ToMap(result), (std::map<int, int>{{1, 10}}));
+
+  // Verify canonical tree invariants hold under further insertions.
+  result = InsertWithHash(result, 2, 200, hash2);
+  EXPECT_EQ(*FindWithHash(result, 1, hash1), 10);
+  EXPECT_EQ(*FindWithHash(result, 2, hash2), 200);
+
+  // Max-depth 60-bit prefix collision (differing only in bits 60..63) must NOT
+  // collapse its 12 Branch levels into a root Leaf.
+  if constexpr (sizeof(size_t) == 8) {
+    size_t hash_hi = size_t{1} << 60;
+    IntHAMT mA;
+    mA = InsertWithHash(mA, 1, 10, hash1);
+    mA = InsertWithHash(mA, 2, 20, hash_hi);
+    mA = InsertWithHash(mA, 3, 30, 1);
+    IntHAMT mB;
+    mB = InsertWithHash(mB, 1, 100, hash1);
+    mB = InsertWithHash(mB, 2, 20, hash_hi);
+    mB = InsertWithHash(mB, 4, 40, 2);
+
+    IntHAMT m_res = mA.intersect(zone(), mB, max);
+    EXPECT_FALSE(IsLeafRoot(m_res));
+    EXPECT_EQ(*FindWithHash(m_res, 1, hash1), 100);
+    EXPECT_EQ(*FindWithHash(m_res, 2, hash_hi), 20);
+  }
+}
+
+TEST_F(HAMTMismatchedShapesTest, IntersectMismatchedShapes) {
+  IntHAMT small = MakeSmall(10, 20);
+  IntHAMT big = MakeBig(5, 5, 5);
+
+  // Leaf(1) x Branch{1, 3}: all keys in {small} are in {big} and unchanged.
+  size_t allocated_before = zone()->allocation_size();
+  IntHAMT result = small.intersect(zone(), big, Max);
+  EXPECT_EQ(zone()->allocation_size(), allocated_before);
+  EXPECT_TRUE(SameRoot(result, small));
+
+  // Branch{1, 3} x Leaf(1): key 3 is dropped, leaving only keys 1 and 2.
+  result = big.intersect(zone(), small, Min);
+  EXPECT_EQ(ToMap(result), (std::map<int, int>{{1, 5}, {2, 5}}));
+  EXPECT_EQ(ToMap(big), (std::map<int, int>{{1, 5}, {2, 5}, {3, 5}}));
+}
+
+TEST_F(HAMTMismatchedShapesTest, OtherWinsReusesLeaves) {
+  IntHAMT small = MakeSmall(5, 5);
+  IntHAMT big = MakeBig(50, 20, 99);
+
+  // Big wins on key 1, where it holds a branch, and on key 2, where it holds a
+  // leaf, so both of its leaves are reused.
+  IntHAMT result = small.merge_into(zone(), big, Max);
+  EXPECT_EQ(ToMap(result), (std::map<int, int>{{1, 50}, {2, 20}}));
+  EXPECT_EQ(FindWithHash(result, 1, kHash1), FindWithHash(big, 1, kHash1));
+  EXPECT_EQ(FindWithHash(result, 2, kHash2), FindWithHash(big, 2, kHash2));
+
+  // Intersecting big with small when small wins on every shared key reuses
+  // small directly without allocating.
+  size_t allocated_before = zone()->allocation_size();
+  result = big.intersect(zone(), small, Min);
+  EXPECT_EQ(zone()->allocation_size(), allocated_before);
+  EXPECT_TRUE(SameRoot(result, small));
+  EXPECT_EQ(ToMap(result), ToMap(small));
+
+  // Intersecting small with big when big wins reuses the leaves of big.
+  result = small.intersect(zone(), big, Max);
+  EXPECT_EQ(ToMap(result), (std::map<int, int>{{1, 50}, {2, 20}}));
+  EXPECT_EQ(FindWithHash(result, 1, kHash1), FindWithHash(big, 1, kHash1));
+  EXPECT_EQ(FindWithHash(result, 2, kHash2), FindWithHash(big, 2, kHash2));
+}
+
 TEST_F(HAMTTest, IteratorTraversal) {
   IntHAMT hamt;
   hamt = hamt.insert(zone(), 10, 1);
@@ -397,6 +680,30 @@ TEST_F(HAMTTest, IteratorDeepStructure) {
     EXPECT_EQ((*it).first, (*it).second);
   }
   EXPECT_EQ(items_seen, kNumItems);
+}
+
+// Widening a chain of snapshots where the predecessor dominates the incoming
+// snapshot should reuse shared subtrees and allocate linearly.
+TEST_F(HAMTTest, LoopWideningChainScalesLinearly) {
+  auto max = [](int a, int b) { return std::max(a, b); };
+  auto measure = [&](int n, bool use_intersect) {
+    std::vector<IntHAMT> snap(n);
+    snap[0] = IntHAMT().insert(zone(), 0, 1);
+    for (int k = 1; k < n; k++) {
+      snap[k] = snap[k - 1].insert(zone(), k, 1);
+    }
+    size_t start = zone()->allocation_size();
+    IntHAMT cur = snap[0].insert(zone(), 0, 2);
+    for (int k = 1; k < n; k++) {
+      cur = use_intersect ? snap[k].intersect(zone(), cur, max)
+                          : snap[k].merge_into(zone(), cur, max);
+      cur = cur.insert(zone(), k, 2);
+    }
+    return zone()->allocation_size() - start;
+  };
+
+  EXPECT_LE(measure(200, false), 3 * measure(100, false));
+  EXPECT_LE(measure(200, true), 3 * measure(100, true));
 }
 
 }  // namespace maglev

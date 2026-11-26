@@ -143,6 +143,14 @@ MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
     return ProcessPhiResult::kNone;
   }
 
+  if (node->input_count() == 1) {
+    // Later passes unwrap single-input Phis to their input, so uses/deopt
+    // frames may already bypass this Phi while earlier uses still point to it.
+    // Keep it tagged so its representation cannot diverge from its input's.
+    EnsurePhiInputsTagged(node);
+    return ProcessPhiResult::kNone;
+  }
+
   TRACE_UNTAGGING("Considering for untagging: " << PrintNodeLabel(node));
 
   // {input_mask} represents the ValueRepresentation that {node} could have,
@@ -200,8 +208,7 @@ MaglevPhiRepresentationSelector::ProcessPhi(Phi* node) {
       DCHECK(input->is_tagged());
       // If we want to untag {node}, then we'll drop the conversion and use its
       // input instead.
-      ValueNode* unwrapped_conv_input =
-          input->input(0).node()->UnwrapIdentities();
+      ValueNode* unwrapped_conv_input = input->input(0).node()->UnwrapAliases();
       input_reprs.Add(
           unwrapped_conv_input->properties().value_representation());
       untagging_kinds[i] = UntaggingKind::kConversion;
@@ -494,8 +501,39 @@ void MaglevPhiRepresentationSelector::EnsurePhiInputsTagged(Phi* phi) {
       // Inputs of Phis that aren't Phi should always be tagged (except for the
       // phis untagged by this class, but {phi} isn't one of them).
       DCHECK(input->is_tagged());
+      TrySinkInputTaggingToEdgeSplitBlock(phi, i);
     }
   }
+}
+
+void MaglevPhiRepresentationSelector::TrySinkInputTaggingToEdgeSplitBlock(
+    Phi* phi, int input_index) {
+  BasicBlock* edge_split = phi->predecessor_at(input_index);
+  if (!edge_split->is_edge_split_block()) return;
+  DCHECK_NE(edge_split, reducer_.current_block());
+
+  ValueNode* tagging = phi->input_node(input_index);
+  // Sink non-deopting tagging conversions and ReturnedValue from non-eager
+  // inlining, leaving deopting conversions like CheckedSmiTag* in place so
+  // sinking cannot skip or reorder an eager deopt check.
+  if ((!tagging->is_conversion() || tagging->properties().can_deopt()) &&
+      !tagging->Is<ReturnedValue>()) {
+    return;
+  }
+  // If the tagging has other uses, it has to stay where it is, since sinking
+  // it makes it not dominate its uses anymore.
+  if (tagging->use_count() != 1) return;
+
+  // Only sink a tagging found near the end of the branching block, so it still
+  // dominates {phi} and never runs more often than before.
+  BasicBlock* branch_block = edge_split->predecessor();
+  if (!branch_block->TryRemoveFromEnd(tagging)) return;
+
+  TRACE_UNTAGGING("  Sinking tagging " << PrintNodeLabel(tagging)
+                                       << " of input " << input_index
+                                       << " to its edge-split block");
+  edge_split->nodes().push_back(tagging);
+  tagging->set_owner(edge_split);
 }
 
 namespace {
@@ -774,7 +812,7 @@ void MaglevPhiRepresentationSelector::UntagConversionInput(
   // Unwrapping the conversion.
   DCHECK_EQ(input->value_representation(), ValueRepresentation::kTagged);
   // Needs to insert a new conversion.
-  ValueNode* bypassed_input = input->input(0).node()->UnwrapIdentities();
+  ValueNode* bypassed_input = input->input(0).node()->UnwrapAliases();
   ValueRepresentation from_repr = bypassed_input->value_representation();
   ValueNode* new_input;
   if (from_repr == repr) {
@@ -1231,6 +1269,15 @@ ProcessResult MaglevPhiRepresentationSelector::UpdateUntaggingOfPhi(
       // {phi} is a HoleyFloat64 (and thus, it could be a hole), but the
       // original untagging did not allow holes.
       needed_conversion = Opcode::kCheckedHoleyFloat64ToFloat64;
+    }
+  }
+
+  if (old_untagging->Is<CheckedObjectToIndex>()) {
+    // Keep accepting -0, unlike the generic Float64 to Int32 conversions.
+    if (needed_conversion == Opcode::kCheckedFloat64ToInt32) {
+      needed_conversion = Opcode::kCheckedFloat64ToIndex;
+    } else if (needed_conversion == Opcode::kCheckedHoleyFloat64ToInt32) {
+      needed_conversion = Opcode::kCheckedHoleyFloat64ToIndex;
     }
   }
 

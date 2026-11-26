@@ -164,5 +164,50 @@ TEST_F(HeapObjectHeaderNameTest, LookupNameThroughGCInfo) {
   EXPECT_FALSE(class_with_name_tuple.name_was_hidden);
 }
 
+namespace {
+
+class ClassWithNameCheckedInCtor final
+    : public GarbageCollected<ClassWithNameCheckedInCtor>,
+      public NameProvider {
+ public:
+  explicit ClassWithNameCheckedInCtor(const char* name) : name_(name) {
+    const auto& header = HeapObjectHeader::FromObject(this);
+    EXPECT_TRUE(header.IsInConstruction());
+    const auto default_name = header.GetName();
+    EXPECT_STREQ(NameProvider::kHiddenName, default_name.value);
+    EXPECT_TRUE(default_name.name_was_hidden);
+    const auto hidden_name =
+        header.GetName(HeapObjectNameForUnnamedObject::kUseHiddenName);
+    EXPECT_STREQ(NameProvider::kHiddenName, hidden_name.value);
+    EXPECT_TRUE(hidden_name.name_was_hidden);
+    const auto class_name = header.GetName(
+        HeapObjectNameForUnnamedObject::kUseClassNameIfSupported);
+    EXPECT_STREQ("InConstructionObject", class_name.value);
+    EXPECT_FALSE(class_name.name_was_hidden);
+    constructed_ = true;
+  }
+
+  void Trace(Visitor*) const {}
+  const char* GetHumanReadableName() const final {
+    EXPECT_TRUE(constructed_);
+    return name_;
+  }
+
+ private:
+  const char* name_;
+  bool constructed_ = false;
+};
+
+}  // namespace
+
+TEST_F(HeapObjectHeaderNameTest, InConstructionObject) {
+  static constexpr const char kCustomName[] = "CustomName";
+  auto* object = MakeGarbageCollected<ClassWithNameCheckedInCtor>(
+      GetAllocationHandle(), kCustomName);
+  auto& header = HeapObjectHeader::FromObject(object);
+  EXPECT_FALSE(header.IsInConstruction());
+  EXPECT_STREQ(kCustomName, header.GetName().value);
+}
+
 }  // namespace internal
 }  // namespace cppgc

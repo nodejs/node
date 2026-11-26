@@ -15,6 +15,7 @@
 #include "src/builtins/builtins.h"
 #include "src/handles/global-handles-inl.h"
 #include "src/heap/heap-write-barrier.h"
+#include "src/logging/metrics.h"
 #include "src/objects/heap-object-field-inl.h"
 #include "src/snapshot/embedded/embedded-data-inl.h"
 #include "src/wasm/canonical-types.h"
@@ -270,7 +271,7 @@ WasmInterpreterThreadMap* WasmInterpreterThread::thread_interpreter_map_s =
 
 WasmInterpreterThread* WasmInterpreterThreadMap::GetCurrentInterpreterThread(
     Isolate* isolate) {
-  const int current_thread_id = ThreadId::Current().ToInteger();
+  const int current_thread_id = base::ThreadId::Current().ToInteger();
   // Key by both the OS thread id and the isolate: the same OS thread can run
   // wasm for different isolates over time (v8::Locker multiplexing), and each
   // isolate needs its own WasmInterpreterThread so that isolate_,
@@ -744,6 +745,10 @@ WasmInterpreter::WasmInterpreter(
     : zone_(isolate->allocator(), ZONE_NAME),
       module_bytes_(wire_bytes.start(), wire_bytes.end(), &zone_),
       codemap_(isolate, module, module_bytes_.data(), &zone_) {
+  // The interpreter replaces the process-wide trap handler landing pad, which
+  // is only valid when running in --wasm-jitless mode.
+  SBXCHECK(v8_flags.wasm_jitless);
+
   wasm_runtime_ = std::make_shared<WasmInterpreterRuntime>(
       module, isolate, trusted_data, &codemap_);
   module->SetWasmInterpreter(wasm_runtime_);
@@ -873,6 +878,14 @@ class HandlersBase {
     MUSTTAIL return HandlersBase::Trap(
         code, sp, wasm_runtime,
         static_cast<int>(MessageTemplate::kWasmTrapUnreachable), fp0);
+  }
+
+  INSTRUCTION_HANDLER_FUNC s2s_TrapMemOutOfBounds(
+      const uint8_t* code, uint32_t* sp, WasmInterpreterRuntime* wasm_runtime,
+      int64_t r0, double fp0) {
+    MUSTTAIL return HandlersBase::Trap(
+        code, sp, wasm_runtime,
+        static_cast<int>(MessageTemplate::kWasmTrapMemOutOfBounds), fp0);
   }
 
   INSTRUCTION_HANDLER_FUNC
@@ -1607,20 +1620,25 @@ class Handlers : public HandlersBase {
     uint8_t* memory_start = wasm_runtime->GetMemoryStart();
 
     MemOffsetT load_offset = Read<MemOffsetT>(code);
-    uint64_t load_index = r0;
+    uint64_t load_index = static_cast<MemIdx>(r0);
     uint64_t effective_load_index = load_offset + load_index;
 
     MemOffsetT store_offset = Read<MemOffsetT>(code);
     uint64_t store_index = pop<MemIdx>(sp, code, wasm_runtime);
     uint64_t effective_store_index = store_offset + store_index;
 
-    if (V8_UNLIKELY(
-            effective_load_index < load_index ||
-            !base::IsInBounds<uint64_t>(effective_load_index, sizeof(T),
-                                        wasm_runtime->GetMemorySize()) ||
-            effective_store_index < store_offset ||
-            !base::IsInBounds<uint64_t>(effective_store_index, sizeof(T),
-                                        wasm_runtime->GetMemorySize()))) {
+    const uint64_t memory_size = wasm_runtime->GetMemorySize();
+    const bool load_oob = effective_load_index < load_index ||
+                          !base::IsInBounds<uint64_t>(effective_load_index,
+                                                      sizeof(T), memory_size);
+
+    if (V8_UNLIKELY(load_oob || effective_store_index < store_offset ||
+                    !base::IsInBounds<uint64_t>(effective_store_index,
+                                                sizeof(T), memory_size))) {
+      if (load_oob) {
+        // Rewind past the store operands to select the load's trap PC.
+        code -= sizeof(MemOffsetT) + sizeof(slot_offset_t);
+      }
       TRAP(MessageTemplate::kWasmTrapMemOutOfBounds)
     }
 
@@ -1657,13 +1675,18 @@ class Handlers : public HandlersBase {
     uint64_t store_index = pop<MemIdx>(sp, code, wasm_runtime);
     uint64_t effective_store_index = store_offset + store_index;
 
-    if (V8_UNLIKELY(
-            effective_load_index < load_index ||
-            !base::IsInBounds<uint64_t>(effective_load_index, sizeof(T),
-                                        wasm_runtime->GetMemorySize()) ||
-            effective_store_index < store_offset ||
-            !base::IsInBounds<uint64_t>(effective_store_index, sizeof(T),
-                                        wasm_runtime->GetMemorySize()))) {
+    const uint64_t memory_size = wasm_runtime->GetMemorySize();
+    const bool load_oob = effective_load_index < load_index ||
+                          !base::IsInBounds<uint64_t>(effective_load_index,
+                                                      sizeof(T), memory_size);
+
+    if (V8_UNLIKELY(load_oob || effective_store_index < store_offset ||
+                    !base::IsInBounds<uint64_t>(effective_store_index,
+                                                sizeof(T), memory_size))) {
+      if (load_oob) {
+        // Rewind past the store operands to select the load's trap PC.
+        code -= sizeof(MemOffsetT) + sizeof(slot_offset_t);
+      }
       TRAP(MessageTemplate::kWasmTrapMemOutOfBounds)
     }
 
@@ -2501,8 +2524,9 @@ class Handlers : public HandlersBase {
   //////////////////////////////////////////////////////////////////////////////
   // Numeric conversion operators
 
-#define FOREACH_ADDITIONAL_CONVERT_UNOP(V) \
-  V(I32ConvertI64, int64_t, I64, r0, int32_t, I32, r0)
+#define FOREACH_ADDITIONAL_CONVERT_UNOP(V)             \
+  V(I32ConvertI64, int64_t, I64, r0, int32_t, I32, r0) \
+  V(F32ConvertF64, double, F64, fp0, float, F32, fp0)
 
   INSTRUCTION_HANDLER_FUNC r2r_I32ConvertI64(
       const uint8_t* code, uint32_t* sp, WasmInterpreterRuntime* wasm_runtime,
@@ -2530,6 +2554,32 @@ class Handlers : public HandlersBase {
     NextOp();
   }
 
+  INSTRUCTION_HANDLER_FUNC r2r_F32ConvertF64(
+      const uint8_t* code, uint32_t* sp, WasmInterpreterRuntime* wasm_runtime,
+      int64_t r0, double fp0) {
+    fp0 = DoubleToFloat32(fp0);
+    NextOp();
+  }
+  INSTRUCTION_HANDLER_FUNC r2s_F32ConvertF64(
+      const uint8_t* code, uint32_t* sp, WasmInterpreterRuntime* wasm_runtime,
+      int64_t r0, double fp0) {
+    push<float>(sp, code, wasm_runtime, DoubleToFloat32(fp0));
+    NextOp();
+  }
+  INSTRUCTION_HANDLER_FUNC s2r_F32ConvertF64(
+      const uint8_t* code, uint32_t* sp, WasmInterpreterRuntime* wasm_runtime,
+      int64_t r0, double fp0) {
+    fp0 = DoubleToFloat32(pop<double>(sp, code, wasm_runtime));
+    NextOp();
+  }
+  INSTRUCTION_HANDLER_FUNC s2s_F32ConvertF64(
+      const uint8_t* code, uint32_t* sp, WasmInterpreterRuntime* wasm_runtime,
+      int64_t r0, double fp0) {
+    push<float>(sp, code, wasm_runtime,
+                DoubleToFloat32(pop<double>(sp, code, wasm_runtime)));
+    NextOp();
+  }
+
 #define FOREACH_I64_CONVERT_FROM_FLOAT_UNOP(V)          \
   V(I64SConvertF32, float, F32, fp0, int64_t, I64, r0)  \
   V(I64SConvertF64, double, F64, fp0, int64_t, I64, r0) \
@@ -2549,7 +2599,6 @@ class Handlers : public HandlersBase {
   V(F32UConvertI32, uint32_t, I32, r0, float, F32, fp0)   \
   V(F32SConvertI64, int64_t, I64, r0, float, F32, fp0)    \
   V(F32UConvertI64, uint64_t, I64, r0, float, F32, fp0)   \
-  V(F32ConvertF64, double, F64, fp0, float, F32, fp0)     \
   V(F64SConvertI32, int32_t, I32, r0, double, F64, fp0)   \
   V(F64UConvertI32, uint32_t, I32, r0, double, F64, fp0)  \
   V(F64SConvertI64, int64_t, I64, r0, double, F64, fp0)   \
@@ -4377,7 +4426,7 @@ class Handlers : public HandlersBase {
     // Check bounds.
     if (V8_UNLIKELY(effective_index < index ||
                     !base::IsInBounds<uint64_t>(
-                        effective_index, sizeof(uint64_t),
+                        effective_index, sizeof(int32_t),
                         GetMemorySize<MultiMem>(wasm_runtime, memory_index)))) {
       TRAP(MessageTemplate::kWasmTrapMemOutOfBounds)
     }
@@ -4415,13 +4464,14 @@ class Handlers : public HandlersBase {
     // Check bounds.
     if (V8_UNLIKELY(effective_index < index ||
                     !base::IsInBounds<uint64_t>(
-                        effective_index, sizeof(uint64_t),
+                        effective_index, sizeof(int32_t),
                         GetMemorySize<MultiMem>(wasm_runtime, memory_index)))) {
       TRAP(MessageTemplate::kWasmTrapMemOutOfBounds)
     }
     // Check atomics wait allowed.
-    if (!wasm_runtime->AllowsAtomicsWait()) {
-      TRAP(MessageTemplate::kWasmTrapUnreachable)
+    if (!wasm_runtime->AllowsAtomicsWait(memory_index)) {
+      wasm_runtime->ThrowAtomicsWaitNotAllowed(code);
+      MUSTTAIL return s_unwind_func_addr(code, sp, wasm_runtime, 0, .0);
     }
 
     int32_t result = wasm_runtime->I32AtomicWait(effective_index, memory_index,
@@ -4457,8 +4507,9 @@ class Handlers : public HandlersBase {
       TRAP(MessageTemplate::kWasmTrapMemOutOfBounds)
     }
     // Check atomics wait allowed.
-    if (!wasm_runtime->AllowsAtomicsWait()) {
-      TRAP(MessageTemplate::kWasmTrapUnreachable)
+    if (!wasm_runtime->AllowsAtomicsWait(memory_index)) {
+      wasm_runtime->ThrowAtomicsWaitNotAllowed(code);
+      MUSTTAIL return s_unwind_func_addr(code, sp, wasm_runtime, 0, .0);
     }
 
     int32_t result = wasm_runtime->I64AtomicWait(effective_index, memory_index,
@@ -5245,7 +5296,7 @@ class Handlers : public HandlersBase {
                double, base::saturated_cast<int32_t>(a))
   CONVERT_CASE(I32x4RelaxedTruncF64x2UZero, float64x2, f64x2, int32x4, 2, 0,
                double, base::saturated_cast<uint32_t>(a))
-  CONVERT_CASE(F32x4DemoteF64x2Zero, float64x2, f64x2, float32x4, 2, 0, float,
+  CONVERT_CASE(F32x4DemoteF64x2Zero, float64x2, f64x2, float32x4, 2, 0, double,
                DoubleToFloat32(a))
   CONVERT_CASE(F64x2PromoteLowF32x4, float32x4, f32x4, float64x2, 2, 0, float,
                static_cast<double>(a))
@@ -5682,10 +5733,18 @@ class Handlers : public HandlersBase {
       DirectHandle<FixedArray> encoded_values =
           WasmInterpreterRuntime::GetExceptionValuesField(isolate,
                                                           exception_object);
+      const WasmTag& tag = wasm_runtime->GetWasmTag(tag_index);
+      // Bound the values array's length against the encoding this signature
+      // actually needs before writing into it below.
+      const uint32_t encoded_values_length =
+          static_cast<uint32_t>(encoded_values->length());
+      SBXCHECK_LE(
+          WasmExceptionPackage::GetEncodedSize(wasm_runtime->module(), &tag),
+          encoded_values_length);
 
       // Encode the exception values on the operand stack into the exception
       // package allocated above.
-      const WasmTagSig* sig = wasm_runtime->GetWasmTag(tag_index).sig;
+      const WasmTagSig* sig = tag.sig;
       uint32_t encoded_index = 0;
       for (size_t index = 0; index < sig->parameter_count(); index++) {
         switch (sig->GetParam(index).kind()) {
@@ -6249,7 +6308,7 @@ class Handlers : public HandlersBase {
     DCHECK(IsWasmStruct(*struct_obj));
     Address field_addr = (*struct_obj).ptr() + field_offset;
     StoreRefIntoMemory(
-        TrustedCast<HeapObject>(*struct_obj), field_addr,
+        Cast<HeapObject>(*struct_obj), field_addr,
         field_offset +
             kHeapObjectTag,  // field_offset is offset into tagged object.
         *ref, UPDATE_WRITE_BARRIER);
@@ -6333,7 +6392,7 @@ class Handlers : public HandlersBase {
       Address element_addr = array->ElementAddress(0);
       uint32_t element_offset = array->element_offset(0);
       for (uint32_t i = 0; i < elem_count; i++) {
-        StoreRefIntoMemory(TrustedCast<HeapObject>(*array), element_addr,
+        StoreRefIntoMemory(Cast<HeapObject>(*array), element_addr,
                            element_offset, *value, mode);
         element_addr += sizeof(Tagged_t);
         element_offset += sizeof(Tagged_t);
@@ -6406,7 +6465,7 @@ class Handlers : public HandlersBase {
                                           ? UPDATE_WRITE_BARRIER
                                           : SKIP_WRITE_BARRIER;
               WasmRef ref = pop<WasmRef>(sp, code, wasm_runtime);
-              StoreRefIntoMemory(TrustedCast<HeapObject>(*array), element_addr,
+              StoreRefIntoMemory(Cast<HeapObject>(*array), element_addr,
                                  element_offset, *ref, mode);
               break;
             }
@@ -6478,7 +6537,7 @@ class Handlers : public HandlersBase {
             WriteBarrierMode mode = array_new_result.needs_write_barrier
                                         ? UPDATE_WRITE_BARRIER
                                         : SKIP_WRITE_BARRIER;
-            StoreRefIntoMemory(TrustedCast<HeapObject>(*array), element_addr,
+            StoreRefIntoMemory(Cast<HeapObject>(*array), element_addr,
                                element_offset,
                                wasm_runtime->GetNullValue(element_type), mode);
             break;
@@ -6517,15 +6576,15 @@ class Handlers : public HandlersBase {
     if (V8_UNLIKELY(!Smi::IsValid(offset))) {
       TRAP(OutOfBoundsError)
     }
-    if (V8_UNLIKELY(length >= static_cast<uint32_t>(WasmArray::MaxLength(
-                                  wasm_runtime->GetArrayType(array_index))))) {
+    if (V8_UNLIKELY(length > static_cast<uint32_t>(WasmArray::MaxLength(
+                                 wasm_runtime->GetArrayType(array_index))))) {
       TRAP(MessageTemplate::kWasmTrapArrayTooLarge)
     }
 
     constexpr bool is_element =
         OutOfBoundsError == MessageTemplate::kWasmTrapElementSegmentOutOfBounds;
     WasmRef result = wasm_runtime->WasmArrayNewSegment(
-        is_element, array_index, data_index, offset, length);
+        code, is_element, array_index, data_index, offset, length);
     if (V8_UNLIKELY(result.is_null())) {
       MessageTemplate reason = WasmInterpreterThread::GetRuntimeLastWasmError(
           wasm_runtime->GetIsolate());
@@ -6567,7 +6626,12 @@ class Handlers : public HandlersBase {
     uint32_t size = pop<int32_t>(sp, code, wasm_runtime);
     uint32_t src_offset = pop<int32_t>(sp, code, wasm_runtime);
     uint32_t dest_offset = pop<int32_t>(sp, code, wasm_runtime);
-    if (V8_UNLIKELY(!Smi::IsValid(size)) || !Smi::IsValid(dest_offset)) {
+    WasmRef array = pop<WasmRef>(sp, code, wasm_runtime);
+    // The null check comes first, as in the spec.
+    if (V8_UNLIKELY(wasm_runtime->IsRefNull(array))) {
+      TRAP(MessageTemplate::kWasmTrapNullDereference)
+    }
+    if (V8_UNLIKELY(!Smi::IsValid(dest_offset))) {
       TRAP(MessageTemplate::kWasmTrapArrayOutOfBounds)
     }
     if (V8_UNLIKELY(!Smi::IsValid(src_offset))) {
@@ -6576,14 +6640,13 @@ class Handlers : public HandlersBase {
                     : MessageTemplate::kWasmTrapElementSegmentOutOfBounds;
       INLINED_TRAP(reason);
     }
-
-    WasmRef array = pop<WasmRef>(sp, code, wasm_runtime);
-    if (V8_UNLIKELY(wasm_runtime->IsRefNull(array))) {
-      TRAP(MessageTemplate::kWasmTrapNullDereference)
+    if (V8_UNLIKELY(!Smi::IsValid(size))) {
+      TRAP(MessageTemplate::kWasmTrapArrayOutOfBounds)
     }
 
-    bool ok = wasm_runtime->WasmArrayInitSegment(!init_data, data_index, array,
-                                                 dest_offset, src_offset, size);
+    bool ok = wasm_runtime->WasmArrayInitSegment(
+        code, /*is_element=*/!init_data, array_index, data_index, array,
+        dest_offset, src_offset, size);
     if (V8_UNLIKELY(!ok)) {
       MessageTemplate reason = WasmInterpreterThread::GetRuntimeLastWasmError(
           wasm_runtime->GetIsolate());
@@ -6609,7 +6672,7 @@ class Handlers : public HandlersBase {
     }
     DCHECK(IsWasmArray(*array_obj));
 
-    Tagged<WasmArray> array = TrustedCast<WasmArray>(*array_obj);
+    Tagged<WasmArray> array = Cast<WasmArray>(*array_obj);
     push<int32_t>(sp, code, wasm_runtime, array->length());
 
     NextOp();
@@ -6632,24 +6695,34 @@ class Handlers : public HandlersBase {
     uint32_t dest_offset = pop<int32_t>(sp, code, wasm_runtime);
     WasmRef dest_array = pop<WasmRef>(sp, code, wasm_runtime);
 
-    if (V8_UNLIKELY(!Smi::IsValid(size) || !Smi::IsValid(src_offset) ||
-                    !Smi::IsValid(dest_offset))) {
-      TRAP(MessageTemplate::kWasmTrapArrayOutOfBounds)
-    } else if (V8_UNLIKELY(wasm_runtime->IsRefNull(dest_array))) {
+    // Same order as the WasmArrayCopy builtin: destination null, destination
+    // bounds, source null, source bounds. The sums cannot wrap in 64 bits, and
+    // any non-Smi offset or size fails the bounds checks.
+    if (V8_UNLIKELY(wasm_runtime->IsRefNull(dest_array))) {
       TRAP(MessageTemplate::kWasmTrapNullDereference)
-    } else if (V8_UNLIKELY(dest_offset + size >
-                           TrustedCast<WasmArray>(*dest_array)->length())) {
+    }
+    // Reading the length requires a real WasmArray; the instance type lives in
+    // the sandbox, so evaluate it before SBXCHECK.
+    bool is_dest_wasm_array = IsWasmArray(*dest_array);
+    SBXCHECK(is_dest_wasm_array);
+    if (V8_UNLIKELY(static_cast<uint64_t>(dest_offset) + size >
+                    Cast<WasmArray>(*dest_array)->length())) {
       TRAP(MessageTemplate::kWasmTrapArrayOutOfBounds)
-    } else if (V8_UNLIKELY(wasm_runtime->IsRefNull(src_array))) {
+    }
+    if (V8_UNLIKELY(wasm_runtime->IsRefNull(src_array))) {
       TRAP(MessageTemplate::kWasmTrapNullDereference)
-    } else if (V8_UNLIKELY(src_offset + size >
-                           TrustedCast<WasmArray>(*src_array)->length())) {
+    }
+    bool is_src_wasm_array = IsWasmArray(*src_array);
+    SBXCHECK(is_src_wasm_array);
+    if (V8_UNLIKELY(static_cast<uint64_t>(src_offset) + size >
+                    Cast<WasmArray>(*src_array)->length())) {
       TRAP(MessageTemplate::kWasmTrapArrayOutOfBounds)
     }
 
     bool ok = true;
     if (size > 0) {
-      ok = wasm_runtime->WasmArrayCopy(dest_array, dest_offset, src_array,
+      ok = wasm_runtime->WasmArrayCopy(dest_array, dest_array_index,
+                                       dest_offset, src_array, src_array_index,
                                        src_offset, size);
     }
 
@@ -6673,7 +6746,7 @@ class Handlers : public HandlersBase {
     }
     DCHECK(IsWasmArray(*array_obj));
 
-    Tagged<WasmArray> array = TrustedCast<WasmArray>(*array_obj);
+    Tagged<WasmArray> array = Cast<WasmArray>(*array_obj);
     if (V8_UNLIKELY(index >= array->length())) {
       TRAP(MessageTemplate::kWasmTrapArrayOutOfBounds)
     }
@@ -6703,7 +6776,7 @@ class Handlers : public HandlersBase {
     }
     DCHECK(IsWasmArray(*array_obj));
 
-    Tagged<WasmArray> array = TrustedCast<WasmArray>(*array_obj);
+    Tagged<WasmArray> array = Cast<WasmArray>(*array_obj);
     if (V8_UNLIKELY(index >= array->length())) {
       TRAP(MessageTemplate::kWasmTrapArrayOutOfBounds)
     }
@@ -6728,7 +6801,7 @@ class Handlers : public HandlersBase {
     }
     DCHECK(IsWasmArray(*array_obj));
 
-    Tagged<WasmArray> array = TrustedCast<WasmArray>(*array_obj);
+    Tagged<WasmArray> array = Cast<WasmArray>(*array_obj);
     if (V8_UNLIKELY(index >= array->length())) {
       TRAP(MessageTemplate::kWasmTrapArrayOutOfBounds)
     }
@@ -6757,7 +6830,7 @@ class Handlers : public HandlersBase {
     }
     DCHECK(IsWasmArray(*array_obj));
 
-    Tagged<WasmArray> array = TrustedCast<WasmArray>(*array_obj);
+    Tagged<WasmArray> array = Cast<WasmArray>(*array_obj);
     if (V8_UNLIKELY(index >= array->length())) {
       TRAP(MessageTemplate::kWasmTrapArrayOutOfBounds)
     }
@@ -6784,15 +6857,20 @@ class Handlers : public HandlersBase {
     }
     DCHECK(IsWasmArray(*array_obj));
 
-    Tagged<WasmArray> array = TrustedCast<WasmArray>(*array_obj);
+    Tagged<WasmArray> array = Cast<WasmArray>(*array_obj);
     if (V8_UNLIKELY(static_cast<uint64_t>(offset) + size > array->length())) {
       TRAP(MessageTemplate::kWasmTrapArrayOutOfBounds)
     }
 
-    Address element_addr = array->ElementAddress(offset);
+    // Keep the accumulated offset as a wrapping uint32_t, like
+    // WasmArray::element_offset(), instead of growing {element_addr}
+    // unbounded across {size} iterations.
+    Address array_base =
+        array->ElementAddress(offset) - array->element_offset(offset);
+    uint32_t byte_offset = array->element_offset(offset);
     for (uint32_t i = 0; i < size; i++) {
-      base::WriteUnalignedValue<T>(element_addr, value);
-      element_addr += sizeof(T);
+      base::WriteUnalignedValue<T>(array_base + byte_offset, value);
+      byte_offset += sizeof(T);
     }
 
     NextOp();
@@ -6822,17 +6900,18 @@ class Handlers : public HandlersBase {
     }
     DCHECK(IsWasmArray(*array_obj));
 
-    Tagged<WasmArray> array = TrustedCast<WasmArray>(*array_obj);
+    Tagged<WasmArray> array = Cast<WasmArray>(*array_obj);
     if (V8_UNLIKELY(static_cast<uint64_t>(offset) + size > array->length())) {
       TRAP(MessageTemplate::kWasmTrapArrayOutOfBounds)
     }
 
-    Address element_addr = array->ElementAddress(offset);
+    // See the comment in s2s_ArrayFill.
+    Address array_base =
+        array->ElementAddress(offset) - array->element_offset(offset);
     uint32_t element_offset = array->element_offset(offset);
     for (uint32_t i = 0; i < size; i++) {
-      StoreRefIntoMemory(array, element_addr, element_offset, tagged_value,
-                         UPDATE_WRITE_BARRIER);
-      element_addr += kTaggedSize;
+      StoreRefIntoMemory(array, array_base + element_offset, element_offset,
+                         tagged_value, UPDATE_WRITE_BARRIER);
       element_offset += kTaggedSize;
     }
 
@@ -7323,7 +7402,8 @@ const WasmEHData::TryBlock* WasmEHData::GetTryBlock(
   const auto& try_it = try_blocks_.find(try_block_index);
   DCHECK_NE(try_it, try_blocks_.end());
   const WasmEHData::TryBlock* try_block = &try_it->second;
-  if (try_block->IsTryDelegate()) {
+  // A delegate can target another try ... delegate; follow the whole chain.
+  while (try_block != nullptr && try_block->IsTryDelegate()) {
     try_block = GetDelegateTryBlock(try_block);
   }
   return try_block;
@@ -7331,9 +7411,14 @@ const WasmEHData::TryBlock* WasmEHData::GetTryBlock(
 
 const WasmEHData::TryBlock* WasmEHData::GetParentTryBlock(
     const WasmEHData::TryBlock* try_block) const {
-  const auto& try_it =
-      try_blocks_.find(try_block->parent_or_matching_try_block);
-  return try_it != try_blocks_.end() ? &try_it->second : nullptr;
+  const auto& try_it = try_blocks_.find(try_block->ancestor_try_index);
+  if (try_it == try_blocks_.end()) return nullptr;
+  const WasmEHData::TryBlock* parent = &try_it->second;
+  // Skip enclosing try ... delegate blocks, which never catch.
+  while (parent != nullptr && parent->IsTryDelegate()) {
+    parent = GetDelegateTryBlock(parent);
+  }
+  return parent;
 }
 
 const WasmEHData::TryBlock* WasmEHData::GetDelegateTryBlock(
@@ -7929,10 +8014,8 @@ void WasmBytecodeGenerator::StoreBlockParamsIntoSlots(
 }
 
 void WasmBytecodeGenerator::StoreBlockParamsAndResultsIntoSlots(
-    uint32_t target_block_index, WasmOpcode opcode) {
-  bool is_branch = kExprBr == opcode || kExprBrIf == opcode ||
-                   kExprBrTable == opcode || kExprBrOnNull == opcode ||
-                   kExprBrOnNonNull == opcode || kExprBrOnCast == opcode;
+    uint32_t target_block_index, BlockTransferKind transfer_kind) {
+  bool is_branch = transfer_kind == BlockTransferKind::kBranch;
   const WasmBytecodeGenerator::BlockData& target_block_data =
       blocks_[target_block_index];
   bool is_target_loop_block = target_block_data.opcode_ == kExprLoop;
@@ -7962,10 +8045,7 @@ void WasmBytecodeGenerator::StoreBlockParamsAndResultsIntoSlots(
     }
   }
 
-  bool is_else = (kExprElse == opcode);
-  bool is_return = (kExprReturn == opcode);
-  bool is_catch = (kExprCatch == opcode || kExprCatchAll == opcode);
-  if (!is_branch && !is_return && !is_else && !is_catch) {
+  if (transfer_kind == BlockTransferKind::kBlockEnd) {
     uint32_t new_stack_height =
         target_block_data.stack_size_ - params_count + rets_count;
     DCHECK(new_stack_height <= stack_.size() ||
@@ -8112,7 +8192,21 @@ int32_t WasmBytecodeGenerator::EndBlock(WasmOpcode opcode) {
   bool is_try_catch =
       block_data.IsTry() || block_data.IsCatch() || block_data.IsCatchAll();
 
-  StoreBlockParamsAndResultsIntoSlots(current_block_index_, opcode);
+  BlockTransferKind transfer_kind;
+  switch (opcode) {
+    case kExprElse:
+    case kExprCatch:
+    case kExprCatchAll:
+      transfer_kind = BlockTransferKind::kResultsOnly;
+      break;
+    case kExprEnd:
+    case kExprDelegate:
+      transfer_kind = BlockTransferKind::kBlockEnd;
+      break;
+    default:
+      UNREACHABLE();
+  }
+  StoreBlockParamsAndResultsIntoSlots(current_block_index_, transfer_kind);
 
   block_data.end_code_offset_ = CurrentCodePos();
   if (opcode == kExprEnd && block_data.IsElse()) {
@@ -8139,7 +8233,7 @@ int32_t WasmBytecodeGenerator::EndBlock(WasmOpcode opcode) {
 
 void WasmBytecodeGenerator::Return() {
   if (current_block_index_ >= 0) {
-    StoreBlockParamsAndResultsIntoSlots(0, kExprReturn);
+    StoreBlockParamsAndResultsIntoSlots(0, BlockTransferKind::kResultsOnly);
   }
 
   START_EMIT_INSTR_HANDLER_WITH_ID(s2s_Return) {
@@ -8754,6 +8848,14 @@ void WasmBytecodeGenerator::DecodeNumericOp(WasmOpcode opcode,
             WasmOpcodes::OpcodeName(static_cast<WasmOpcode>(code->start[pc])));
       UNREACHABLE();
   }
+}
+
+bool WasmBytecodeGenerator::IsStaticallyOutOfBounds(
+    const WasmInstruction::Optional::MemoryAccess& memory_access,
+    uint64_t access_size) const {
+  return !base::IsInBounds<uint64_t>(
+      memory_access.offset, access_size,
+      module_->memories[memory_access.memory_index].max_memory_size);
 }
 
 void WasmBytecodeGenerator::DecodeAtomicOp(WasmOpcode opcode,
@@ -9819,7 +9921,8 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
     }
     case kExprBr: {
       int32_t target_branch_index = GetTargetBranch(instr.optional.depth);
-      StoreBlockParamsAndResultsIntoSlots(target_branch_index, kExprBr);
+      StoreBlockParamsAndResultsIntoSlots(target_branch_index,
+                                          BlockTransferKind::kBranch);
 
       EMIT_INSTR_HANDLER(s2s_Branch);
       EmitBranchOffset(instr.optional.depth);
@@ -9853,7 +9956,8 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
         const uint32_t if_false_code_offset = CurrentCodePos();
         Emit(&if_false_code_offset, sizeof(if_false_code_offset));
 
-        StoreBlockParamsAndResultsIntoSlots(target_branch_index, kExprBrIf);
+        StoreBlockParamsAndResultsIntoSlots(target_branch_index,
+                                            BlockTransferKind::kBranch);
 
         EMIT_INSTR_HANDLER(s2s_Branch);
         EmitBranchOffset(instr.optional.depth);
@@ -9899,7 +10003,8 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
         uint32_t stack_top = stack_.back();
         RefPop(false);  // Drop the null reference.
 
-        StoreBlockParamsAndResultsIntoSlots(target_branch_index, kExprBrIf);
+        StoreBlockParamsAndResultsIntoSlots(target_branch_index,
+                                            BlockTransferKind::kBranch);
 
         EMIT_INSTR_HANDLER(s2s_Branch);
         EmitBranchOffset(instr.optional.depth);
@@ -9938,7 +10043,8 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
         const uint32_t if_false_code_offset = CurrentCodePos();
         Emit(&if_false_code_offset, sizeof(if_false_code_offset));
 
-        StoreBlockParamsAndResultsIntoSlots(target_branch_index, kExprBrIf);
+        StoreBlockParamsAndResultsIntoSlots(target_branch_index,
+                                            BlockTransferKind::kBranch);
 
         EMIT_INSTR_HANDLER(s2s_Branch);
         EmitBranchOffset(instr.optional.depth);
@@ -9976,10 +10082,9 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
       // objects to data types.
       if (V8_UNLIKELY(
               TypeCheckAlwaysSucceeds(obj_type, target_type.heap_type()))) {
-        StoreBlockParamsAndResultsIntoSlots(target_branch_index, kExprBrOnCast);
         // The branch will still not be taken on null if not {null_succeeds}.
         if (obj_type.is_nullable() && !null_succeeds) {
-          EMIT_INSTR_HANDLER(s2s_BranchOnNonNull);
+          EMIT_INSTR_HANDLER(s2s_BranchOnNonNullWithParams);
           RefPop();  // pop condition
           EmitRefValueType(obj_type.raw_bit_field());
           // For the fallthrough path, null is possible, so push the original
@@ -9987,8 +10092,23 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
           // non-null in this case, which would be incorrect for the fallthrough
           // value.
           RefPush(obj_type);
+
+          // Emit copies and an explicit branch; at runtime the WithParams
+          // handler skips both on null, when the Wasm branch is not taken.
+          const uint32_t no_branch_code_offset = CurrentCodePos();
+          Emit(&no_branch_code_offset, sizeof(no_branch_code_offset));
+          StoreBlockParamsAndResultsIntoSlots(target_branch_index,
+                                              BlockTransferKind::kBranch);
+          EMIT_INSTR_HANDLER(s2s_Branch);
           EmitBranchOffset(br_on_cast_data.label_depth());
+
+          int32_t delta = CurrentCodePos() - no_branch_code_offset;
+          base::WriteUnalignedValue<uint32_t>(
+              reinterpret_cast<Address>(code_.data() + no_branch_code_offset),
+              delta);
         } else {
+          StoreBlockParamsAndResultsIntoSlots(target_branch_index,
+                                              BlockTransferKind::kBranch);
           EMIT_INSTR_HANDLER(s2s_Branch);
           EmitBranchOffset(br_on_cast_data.label_depth());
           SetUnreachableMode();
@@ -10008,7 +10128,8 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
         // Emit code offset to branch to if the condition is not true.
         const uint32_t no_branch_code_offset = CurrentCodePos();
         Emit(&no_branch_code_offset, sizeof(no_branch_code_offset));
-        StoreBlockParamsAndResultsIntoSlots(target_branch_index, kExprBrOnCast);
+        StoreBlockParamsAndResultsIntoSlots(target_branch_index,
+                                            BlockTransferKind::kBranch);
         EMIT_INSTR_HANDLER(s2s_Branch);
         EmitBranchOffset(br_on_cast_data.label_depth());
         // Patch the 'if-false' offset with the correct jump offset.
@@ -10037,7 +10158,8 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
       // only be cast to function types, and data objects to data types.
       if (V8_UNLIKELY(TypeCheckAlwaysFails(obj_type, target_type.heap_type(),
                                            null_succeeds))) {
-        StoreBlockParamsAndResultsIntoSlots(target_branch_index, kExprBrOnCast);
+        StoreBlockParamsAndResultsIntoSlots(target_branch_index,
+                                            BlockTransferKind::kBranch);
         EMIT_INSTR_HANDLER(s2s_Branch);
         EmitBranchOffset(br_on_cast_data.label_depth());
         SetUnreachableMode();
@@ -10045,13 +10167,24 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
                      obj_type, target_type.heap_type()))) {
         // The branch can still be taken on null.
         if (obj_type.is_nullable() && !null_succeeds) {
-          StoreBlockParamsAndResultsIntoSlots(target_branch_index,
-                                              kExprBrOnCast);
-          EMIT_INSTR_HANDLER(s2s_BranchOnNull);
+          EMIT_INSTR_HANDLER(s2s_BranchOnNullWithParams);
           RefPop();  // pop condition
           EmitRefValueType(obj_type.raw_bit_field());
           RefPush(target_type);  // re-push condition value with a new HeapType.
+
+          // Emit copies and an explicit branch; at runtime the WithParams
+          // handler skips both on non-null, when the Wasm branch is not taken.
+          const uint32_t no_branch_code_offset = CurrentCodePos();
+          Emit(&no_branch_code_offset, sizeof(no_branch_code_offset));
+          StoreBlockParamsAndResultsIntoSlots(target_branch_index,
+                                              BlockTransferKind::kBranch);
+          EMIT_INSTR_HANDLER(s2s_Branch);
           EmitBranchOffset(br_on_cast_data.label_depth());
+
+          int32_t delta = CurrentCodePos() - no_branch_code_offset;
+          base::WriteUnalignedValue<uint32_t>(
+              reinterpret_cast<Address>(code_.data() + no_branch_code_offset),
+              delta);
         } else {
           // Fallthrough.
         }
@@ -10067,7 +10200,8 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
         // Emit code offset to branch to if the condition is not true.
         const uint32_t no_branch_code_offset = CurrentCodePos();
         Emit(&no_branch_code_offset, sizeof(no_branch_code_offset));
-        StoreBlockParamsAndResultsIntoSlots(target_branch_index, kExprBrOnCast);
+        StoreBlockParamsAndResultsIntoSlots(target_branch_index,
+                                            BlockTransferKind::kBranch);
         EMIT_INSTR_HANDLER(s2s_Branch);
         EmitBranchOffset(br_on_cast_data.label_depth());
         // Patch the 'if-false' offset with the correct jump offset.
@@ -10121,7 +10255,8 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
             br_table_labels_[instr.optional.br_table.labels_index + i];
         int32_t target_branch_index = GetTargetBranch(label);
         uint32_t branch_code_start = CurrentCodePos();
-        StoreBlockParamsAndResultsIntoSlots(target_branch_index, kExprBrTable);
+        StoreBlockParamsAndResultsIntoSlots(target_branch_index,
+                                            BlockTransferKind::kBranch);
 
         EMIT_INSTR_HANDLER(s2s_Branch);
         EmitBranchTableOffset(label, CurrentCodePos());
@@ -12308,11 +12443,19 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
       bool is_memory64 =
           module_->memories[instr.optional.memory_access.memory_index]
               .is_memory64();
-      EMIT_MULTI_MEM64_INSTR_HANDLER_WITH_PC(s2s_AtomicNotify, is_memory64,
-                                             instr.pc);
+      const bool statically_oob =
+          IsStaticallyOutOfBounds(instr.optional.memory_access, 4);
+      if (statically_oob) {
+        EMIT_INSTR_HANDLER_WITH_PC(s2s_TrapMemOutOfBounds, instr.pc);
+      } else {
+        EMIT_MULTI_MEM64_INSTR_HANDLER_WITH_PC(s2s_AtomicNotify, is_memory64,
+                                               instr.pc);
+      }
       I32Pop();  // val
-      EmitMemoryOffset(instr.optional.memory_access.offset);
-      EmitMemoryIndex(instr.optional.memory_access.memory_index);
+      if (!statically_oob) {
+        EmitMemoryOffset(instr.optional.memory_access.offset);
+        EmitMemoryIndex(instr.optional.memory_access.memory_index);
+      }
       MemIndexPop(is_memory64);  // memory index
       I32Push();
       break;
@@ -12322,12 +12465,20 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
       bool is_memory64 =
           module_->memories[instr.optional.memory_access.memory_index]
               .is_memory64();
-      EMIT_MULTI_MEM64_INSTR_HANDLER_WITH_PC(s2s_I32AtomicWait, is_memory64,
-                                             instr.pc);
+      const bool statically_oob =
+          IsStaticallyOutOfBounds(instr.optional.memory_access, 4);
+      if (statically_oob) {
+        EMIT_INSTR_HANDLER_WITH_PC(s2s_TrapMemOutOfBounds, instr.pc);
+      } else {
+        EMIT_MULTI_MEM64_INSTR_HANDLER_WITH_PC(s2s_I32AtomicWait, is_memory64,
+                                               instr.pc);
+      }
       I64Pop();  // timeout
       I32Pop();  // val
-      EmitMemoryOffset(instr.optional.memory_access.offset);
-      EmitMemoryIndex(instr.optional.memory_access.memory_index);
+      if (!statically_oob) {
+        EmitMemoryOffset(instr.optional.memory_access.offset);
+        EmitMemoryIndex(instr.optional.memory_access.memory_index);
+      }
       MemIndexPop(is_memory64);  // memory index
       I32Push();
       break;
@@ -12337,12 +12488,20 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
       bool is_memory64 =
           module_->memories[instr.optional.memory_access.memory_index]
               .is_memory64();
-      EMIT_MULTI_MEM64_INSTR_HANDLER_WITH_PC(s2s_I64AtomicWait, is_memory64,
-                                             instr.pc);
+      const bool statically_oob =
+          IsStaticallyOutOfBounds(instr.optional.memory_access, 8);
+      if (statically_oob) {
+        EMIT_INSTR_HANDLER_WITH_PC(s2s_TrapMemOutOfBounds, instr.pc);
+      } else {
+        EMIT_MULTI_MEM64_INSTR_HANDLER_WITH_PC(s2s_I64AtomicWait, is_memory64,
+                                               instr.pc);
+      }
       I64Pop();  // timeout
       I64Pop();  // val
-      EmitMemoryOffset(instr.optional.memory_access.offset);
-      EmitMemoryIndex(instr.optional.memory_access.memory_index);
+      if (!statically_oob) {
+        EmitMemoryOffset(instr.optional.memory_access.offset);
+        EmitMemoryIndex(instr.optional.memory_access.memory_index);
+      }
       MemIndexPop(is_memory64);  // memory index
       I32Push();
       break;
@@ -12352,18 +12511,27 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
       EMIT_INSTR_HANDLER(s2s_AtomicFence);
       break;
 
-#define ATOMIC_BINOP(name, Type, ctype, type, op_ctype, op_type, operation)    \
-  case kExpr##name: {                                                          \
-    bool is_memory64 =                                                         \
-        module_->memories[instr.optional.memory_access.memory_index]           \
-            .is_memory64();                                                    \
-    EMIT_MULTI_MEM64_INSTR_HANDLER_WITH_PC(s2s_##name, is_memory64, instr.pc); \
-    op_type##Pop();                                                            \
-    EmitMemoryOffset(instr.optional.memory_access.offset);                     \
-    EmitMemoryIndex(instr.optional.memory_access.memory_index);                \
-    MemIndexPop(is_memory64);                                                  \
-    op_type##Push();                                                           \
-    return RegMode::kNoReg;                                                    \
+#define ATOMIC_BINOP(name, Type, ctype, type, op_ctype, op_type, operation)   \
+  case kExpr##name: {                                                         \
+    bool is_memory64 =                                                        \
+        module_->memories[instr.optional.memory_access.memory_index]          \
+            .is_memory64();                                                   \
+    const bool statically_oob =                                               \
+        IsStaticallyOutOfBounds(instr.optional.memory_access, sizeof(ctype)); \
+    if (statically_oob) {                                                     \
+      EMIT_INSTR_HANDLER_WITH_PC(s2s_TrapMemOutOfBounds, instr.pc);           \
+    } else {                                                                  \
+      EMIT_MULTI_MEM64_INSTR_HANDLER_WITH_PC(s2s_##name, is_memory64,         \
+                                             instr.pc);                       \
+    }                                                                         \
+    op_type##Pop();                                                           \
+    if (!statically_oob) {                                                    \
+      EmitMemoryOffset(instr.optional.memory_access.offset);                  \
+      EmitMemoryIndex(instr.optional.memory_access.memory_index);             \
+    }                                                                         \
+    MemIndexPop(is_memory64);                                                 \
+    op_type##Push();                                                          \
+    return RegMode::kNoReg;                                                   \
   }
       FOREACH_ATOMIC_BINOP(ATOMIC_BINOP)
 #undef ATOMIC_BINOP
@@ -12373,11 +12541,20 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
     bool is_memory64 =                                                         \
         module_->memories[instr.optional.memory_access.memory_index]           \
             .is_memory64();                                                    \
-    EMIT_MULTI_MEM64_INSTR_HANDLER_WITH_PC(s2s_##name, is_memory64, instr.pc); \
+    const bool statically_oob =                                                \
+        IsStaticallyOutOfBounds(instr.optional.memory_access, sizeof(ctype));  \
+    if (statically_oob) {                                                      \
+      EMIT_INSTR_HANDLER_WITH_PC(s2s_TrapMemOutOfBounds, instr.pc);            \
+    } else {                                                                   \
+      EMIT_MULTI_MEM64_INSTR_HANDLER_WITH_PC(s2s_##name, is_memory64,          \
+                                             instr.pc);                        \
+    }                                                                          \
     op_type##Pop();                                                            \
     op_type##Pop();                                                            \
-    EmitMemoryOffset(instr.optional.memory_access.offset);                     \
-    EmitMemoryIndex(instr.optional.memory_access.memory_index);                \
+    if (!statically_oob) {                                                     \
+      EmitMemoryOffset(instr.optional.memory_access.offset);                   \
+      EmitMemoryIndex(instr.optional.memory_access.memory_index);              \
+    }                                                                          \
     MemIndexPop(is_memory64);                                                  \
     op_type##Push();                                                           \
     return RegMode::kNoReg;                                                    \
@@ -12385,32 +12562,50 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
       FOREACH_ATOMIC_COMPARE_EXCHANGE_OP(ATOMIC_COMPARE_EXCHANGE_OP)
 #undef ATOMIC_COMPARE_EXCHANGE_OP
 
-#define ATOMIC_LOAD_OP(name, Type, ctype, type, op_ctype, op_type)             \
-  case kExpr##name: {                                                          \
-    bool is_memory64 =                                                         \
-        module_->memories[instr.optional.memory_access.memory_index]           \
-            .is_memory64();                                                    \
-    EMIT_MULTI_MEM64_INSTR_HANDLER_WITH_PC(s2s_##name, is_memory64, instr.pc); \
-    EmitMemoryOffset(instr.optional.memory_access.offset);                     \
-    EmitMemoryIndex(instr.optional.memory_access.memory_index);                \
-    MemIndexPop(is_memory64);                                                  \
-    op_type##Push();                                                           \
-    return RegMode::kNoReg;                                                    \
+#define ATOMIC_LOAD_OP(name, Type, ctype, type, op_ctype, op_type)            \
+  case kExpr##name: {                                                         \
+    bool is_memory64 =                                                        \
+        module_->memories[instr.optional.memory_access.memory_index]          \
+            .is_memory64();                                                   \
+    const bool statically_oob =                                               \
+        IsStaticallyOutOfBounds(instr.optional.memory_access, sizeof(ctype)); \
+    if (statically_oob) {                                                     \
+      EMIT_INSTR_HANDLER_WITH_PC(s2s_TrapMemOutOfBounds, instr.pc);           \
+    } else {                                                                  \
+      EMIT_MULTI_MEM64_INSTR_HANDLER_WITH_PC(s2s_##name, is_memory64,         \
+                                             instr.pc);                       \
+    }                                                                         \
+    if (!statically_oob) {                                                    \
+      EmitMemoryOffset(instr.optional.memory_access.offset);                  \
+      EmitMemoryIndex(instr.optional.memory_access.memory_index);             \
+    }                                                                         \
+    MemIndexPop(is_memory64);                                                 \
+    op_type##Push();                                                          \
+    return RegMode::kNoReg;                                                   \
   }
       FOREACH_ATOMIC_LOAD_OP(ATOMIC_LOAD_OP)
 #undef ATOMIC_LOAD_OP
 
-#define ATOMIC_STORE_OP(name, Type, ctype, type, op_ctype, op_type)            \
-  case kExpr##name: {                                                          \
-    bool is_memory64 =                                                         \
-        module_->memories[instr.optional.memory_access.memory_index]           \
-            .is_memory64();                                                    \
-    EMIT_MULTI_MEM64_INSTR_HANDLER_WITH_PC(s2s_##name, is_memory64, instr.pc); \
-    op_type##Pop();                                                            \
-    EmitMemoryOffset(instr.optional.memory_access.offset);                     \
-    EmitMemoryIndex(instr.optional.memory_access.memory_index);                \
-    MemIndexPop(is_memory64);                                                  \
-    return RegMode::kNoReg;                                                    \
+#define ATOMIC_STORE_OP(name, Type, ctype, type, op_ctype, op_type)           \
+  case kExpr##name: {                                                         \
+    bool is_memory64 =                                                        \
+        module_->memories[instr.optional.memory_access.memory_index]          \
+            .is_memory64();                                                   \
+    const bool statically_oob =                                               \
+        IsStaticallyOutOfBounds(instr.optional.memory_access, sizeof(ctype)); \
+    if (statically_oob) {                                                     \
+      EMIT_INSTR_HANDLER_WITH_PC(s2s_TrapMemOutOfBounds, instr.pc);           \
+    } else {                                                                  \
+      EMIT_MULTI_MEM64_INSTR_HANDLER_WITH_PC(s2s_##name, is_memory64,         \
+                                             instr.pc);                       \
+    }                                                                         \
+    op_type##Pop();                                                           \
+    if (!statically_oob) {                                                    \
+      EmitMemoryOffset(instr.optional.memory_access.offset);                  \
+      EmitMemoryIndex(instr.optional.memory_access.memory_index);             \
+    }                                                                         \
+    MemIndexPop(is_memory64);                                                 \
+    return RegMode::kNoReg;                                                   \
   }
       FOREACH_ATOMIC_STORE_OP(ATOMIC_STORE_OP)
 #undef ATOMIC_STORE_OP
@@ -12819,7 +13014,7 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
       CONVERT_CASE(I32x4RelaxedTruncF64x2UZero, float64x2, f64x2, int32x4, 2, 0,
                    double, base::saturated_cast<uint32_t>(a))
       CONVERT_CASE(F32x4DemoteF64x2Zero, float64x2, f64x2, float32x4, 2, 0,
-                   float, DoubleToFloat32(a))
+                   double, DoubleToFloat32(a))
       CONVERT_CASE(F64x2PromoteLowF32x4, float32x4, f32x4, float64x2, 2, 0,
                    float, static_cast<double>(a))
 #undef CONVERT_CASE
@@ -13175,6 +13370,8 @@ bool WasmBytecodeGenerator::DoEncodeSuperInstruction(
                                             curr_instr.pc);
       EmitMemoryOffset(curr_instr.optional.memory_access.offset);
     }
+    // GetPcFromTrapCode maps the boundary itself to the preceding load.
+    code_pc_map_[code_.size()] = next_instr.pc;
     EmitMemoryOffset(next_instr.optional.memory_access.offset);
     MemIndexPop(is_memory64);
     reg_mode = RegMode::kNoReg;
@@ -13194,6 +13391,8 @@ bool WasmBytecodeGenerator::DoEncodeSuperInstruction(
                                             curr_instr.pc);
       EmitMemoryOffset(curr_instr.optional.memory_access.offset);
     }
+    // GetPcFromTrapCode maps the boundary itself to the preceding load.
+    code_pc_map_[code_.size()] = next_instr.pc;
     EmitMemoryOffset(next_instr.optional.memory_access.offset);
     MemIndexPop(is_memory64);
     reg_mode = RegMode::kNoReg;
@@ -13213,6 +13412,8 @@ bool WasmBytecodeGenerator::DoEncodeSuperInstruction(
                                             curr_instr.pc);
       EmitMemoryOffset(curr_instr.optional.memory_access.offset);
     }
+    // GetPcFromTrapCode maps the boundary itself to the preceding load.
+    code_pc_map_[code_.size()] = next_instr.pc;
     EmitMemoryOffset(next_instr.optional.memory_access.offset);
     MemIndexPop(is_memory64);
     reg_mode = RegMode::kNoReg;
@@ -13232,12 +13433,14 @@ bool WasmBytecodeGenerator::DoEncodeSuperInstruction(
                                             curr_instr.pc);
       EmitMemoryOffset(curr_instr.optional.memory_access.offset);
     }
+    // GetPcFromTrapCode maps the boundary itself to the preceding load.
+    code_pc_map_[code_.size()] = next_instr.pc;
     EmitMemoryOffset(next_instr.optional.memory_access.offset);
     MemIndexPop(is_memory64);
     reg_mode = RegMode::kNoReg;
     return true;
   } else if (curr_instr.orig >= kExprI32Const &&
-             curr_instr.orig <= kExprF32Const &&
+             curr_instr.orig <= kExprF64Const &&
              next_instr.orig == kExprLocalSet) {
     uint32_t to_stack_index = next_instr.optional.index;
     switch (curr_instr.orig) {
@@ -13284,7 +13487,7 @@ bool WasmBytecodeGenerator::DoEncodeSuperInstruction(
         module_->memories[next_instr.optional.memory_access.memory_index]  \
             .is_memory64();                                                \
     EMIT_MEM64_ONLY_INSTR_HANDLER_WITH_PC(s2s_##name, is_memory64,         \
-                                          curr_instr.pc);                  \
+                                          next_instr.pc);                  \
     EmitSlotOffset(slots_[stack_[curr_instr.optional.index]].slot_offset); \
     EmitMemoryOffset(next_instr.optional.memory_access.offset);            \
     MemIndexPop(is_memory64);                                              \

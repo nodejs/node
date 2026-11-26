@@ -190,6 +190,55 @@ void JSIteratorZipKeyedHelper::set_keys(Tagged<FixedArray> value,
   keys_.store(this, value, mode);
 }
 
+Tagged<Smi> JSIteratorChunksHelper::chunk_size() const {
+  return chunk_size_.load();
+}
+
+void JSIteratorChunksHelper::set_chunk_size(Tagged<Smi> value) {
+  chunk_size_.store(this, value);
+}
+
+Tagged<Smi> JSIteratorWindowsHelper::window_size() const {
+  return window_size_.load();
+}
+
+void JSIteratorWindowsHelper::set_window_size(Tagged<Smi> value) {
+  window_size_.store(this, value);
+}
+
+JSIteratorWindowsHelperMode JSIteratorWindowsHelper::mode() const {
+  return static_cast<JSIteratorWindowsHelperMode>(mode_.load().value());
+}
+
+void JSIteratorWindowsHelper::set_mode(JSIteratorWindowsHelperMode value) {
+  mode_.store(this, Smi::From31BitPattern(static_cast<int>(value)));
+}
+
+Tagged<FixedArray> JSIteratorWindowsHelper::buffer() const {
+  return buffer_.load();
+}
+
+void JSIteratorWindowsHelper::set_buffer(Tagged<FixedArray> value,
+                                         WriteBarrierMode mode) {
+  buffer_.store(this, value, mode);
+}
+
+Tagged<Smi> JSIteratorWindowsHelper::element_count() const {
+  return element_count_.load();
+}
+
+void JSIteratorWindowsHelper::set_element_count(Tagged<Smi> value) {
+  element_count_.store(this, value);
+}
+
+Tagged<Smi> JSIteratorWindowsHelper::start_index() const {
+  return start_index_.load();
+}
+
+void JSIteratorWindowsHelper::set_start_index(Tagged<Smi> value) {
+  start_index_.store(this, value);
+}
+
 }  // namespace internal
 }  // namespace v8
 

@@ -12,7 +12,6 @@
 
 #include "src/base/logging.h"
 #include "src/base/platform/mutex.h"
-#include "src/base/string-format.h"
 #include "src/base/strong-alias.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/bailout-reason.h"
@@ -593,13 +592,13 @@ void ConstantOp::PrintOptions(std::ostream& os) const {
       os << "external: " << external_reference();
       break;
     case Kind::kHeapObject:
-      os << "heap object: " << base::JSONEscaped(handle());
+      os << "heap object: " << handle();
       break;
     case Kind::kCompressedHeapObject:
-      os << "compressed heap object: " << base::JSONEscaped(handle());
+      os << "compressed heap object: " << handle();
       break;
     case Kind::kTrustedHeapObject:
-      os << "trusted heap object: " << base::JSONEscaped(handle());
+      os << "trusted heap object: " << handle();
       break;
     case Kind::kRelocatableWasmCall:
       os << "relocatable wasm call: 0x" << std::hex << storage.integral
@@ -664,6 +663,9 @@ void LoadOp::PrintOptions(std::ostream& os) const {
   if (kind.maybe_unaligned) os << ", unaligned";
   if (kind.with_trap_handler) os << ", trapping";
   if (kind.is_immutable) os << ", immutable";
+  if (kind.is_atomic()) {
+    os << ", atomic with memory order " << *kind.memory_order();
+  }
   os << ", " << loaded_rep;
   os << ", " << result_rep;
   if (element_size_log2 != 0) {
@@ -755,7 +757,9 @@ void StoreOp::PrintOptions(std::ostream& os) const {
   if (kind.with_trap_handler) os << ", trapping";
   os << ", " << stored_rep;
   os << ", " << write_barrier;
-  if (kind.is_atomic) os << ", atomic with memory order " << memory_order_;
+  if (kind.is_atomic()) {
+    os << ", atomic with memory order " << *kind.memory_order();
+  }
   if (element_size_log2 != 0) {
     os << ", element size: 2^" << int{element_size_log2};
   }
@@ -769,7 +773,8 @@ void StoreOp::PrintOptions(std::ostream& os) const {
 
 void TaggedBitcastOp::Validate(const Graph& graph) const {
   if (kind == Kind::kSmi) {
-    DCHECK((from.IsWord() && to.IsTaggedOrCompressed()) ||
+    DCHECK((from == RegisterRepresentation::WordPtr() &&
+            to == RegisterRepresentation::Tagged()) ||
            (from.IsTaggedOrCompressed() && to.IsWord()));
     DCHECK_IMPLIES(from == RegisterRepresentation::Word64() ||
                        to == RegisterRepresentation::Word64(),
@@ -792,7 +797,7 @@ void TaggedBitcastOp::Validate(const Graph& graph) const {
       // Tagged. This is safe for load elimination because we don't
       // load-eliminate atomic loads anyways.
       DCHECK(!graph.Get(input()).Is<LoadOp>() ||
-             graph.Get(input()).Cast<LoadOp>().kind.is_atomic);
+             graph.Get(input()).Cast<LoadOp>().kind.is_atomic());
     }
   }
 }
@@ -813,7 +818,7 @@ void AllocateOp::PrintOptions(std::ostream& os) const {
   os << ']';
 }
 
-#if V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
 void LoadExternalPointerOp::PrintOptions(std::ostream& os) const {
   os << '[';
   os << "tag_range: [" << tag_range.first << ", " << tag_range.last << "]";
@@ -1381,6 +1386,8 @@ std::ostream& operator<<(std::ostream& os, ConvertOp::Kind kind) {
   switch (kind) {
     case ConvertOp::Kind::kObject:
       return os << "Object";
+    case ConvertOp::Kind::kHeapObject:
+      return os << "HeapObject";
     case ConvertOp::Kind::kBoolean:
       return os << "Boolean";
     case ConvertOp::Kind::kNumber:
@@ -1713,7 +1720,7 @@ void PrintMapSet(std::ostream& os, const ZoneRefSet<Map>& maps) {
   os << "{";
   for (size_t i = 0; i < maps.size(); ++i) {
     if (i != 0) os << ",";
-    os << base::JSONEscaped(maps[i].object());
+    os << maps[i].object();
   }
   os << "}";
 }
@@ -2497,6 +2504,22 @@ IsSmiDecision DecideObjectIsSmi(const Graph& graph, V<Object> idx, int depth) {
     }
     case Opcode::kAllocate:
       return IsSmiDecision::kFalse;
+    case Opcode::kConvert: {
+      switch (op.Cast<ConvertOp>().to) {
+        case ConvertOp::Kind::kHeapObject:
+        case ConvertOp::Kind::kBoolean:
+        case ConvertOp::Kind::kString:
+          return IsSmiDecision::kFalse;
+        case ConvertOp::Kind::kSmi:
+          return IsSmiDecision::kTrue;
+        case ConvertOp::Kind::kObject:
+        case ConvertOp::Kind::kNumber:
+        case ConvertOp::Kind::kNumberOrOddball:
+        case ConvertOp::Kind::kPlainPrimitive:
+          return IsSmiDecision::kUnknown;
+      }
+      UNREACHABLE();
+    }
     case Opcode::kConvertUntaggedToJSPrimitive: {
       using Kind = ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind;
       switch (op.Cast<ConvertUntaggedToJSPrimitiveOp>().kind) {

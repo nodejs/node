@@ -136,11 +136,29 @@ popcount(T x) noexcept {
 
 #endif
 
+// https://github.com/abseil/abseil-cpp/issues/1890
+// libstdc++ had the wrong return type for std::bit_width prior to version 13.
+#if (defined(__cpp_lib_int_pow2) && __cpp_lib_int_pow2 >= 202002L) && \
+    (!defined(_GLIBCXX_RELEASE) || _GLIBCXX_RELEASE >= 13)
+
+using std::bit_width;
+
+#else
+
+// Returns: If x == 0, 0; otherwise one plus the base-2 logarithm of x, with any
+// fractional part discarded.
+template <class T>
+ABSL_INTERNAL_CONSTEXPR_CLZ inline std::enable_if_t<std::is_unsigned_v<T>, int>
+bit_width(T x) noexcept {
+  return std::numeric_limits<T>::digits - countl_zero(x);
+}
+
+#endif
+
 #if (defined(__cpp_lib_int_pow2) && __cpp_lib_int_pow2 >= 202002L)
 
 using std::bit_ceil;
 using std::bit_floor;
-using std::bit_width;
 using std::has_single_bit;
 
 #else
@@ -150,14 +168,6 @@ template <class T>
 constexpr inline std::enable_if_t<std::is_unsigned_v<T>, bool> has_single_bit(
     T x) noexcept {
   return x != 0 && (x & (x - 1)) == 0;
-}
-
-// Returns: If x == 0, 0; otherwise one plus the base-2 logarithm of x, with any
-// fractional part discarded.
-template <class T>
-ABSL_INTERNAL_CONSTEXPR_CLZ inline std::enable_if_t<std::is_unsigned_v<T>, int>
-bit_width(T x) noexcept {
-  return std::numeric_limits<T>::digits - countl_zero(x);
 }
 
 // Returns: If x == 0, 0; otherwise the maximal value y such that

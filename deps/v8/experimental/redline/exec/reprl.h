@@ -8,6 +8,7 @@
 #include <sys/types.h>
 
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -21,15 +22,14 @@ namespace redline {
 class DataChannel;
 
 // Drives one target process over the REPRL ("read-eval-print-reset-loop")
-// protocol implemented by d8 when built with v8_fuzzilli=true. This is a C++
-// port of Fuzzilli's libreprl and speaks exactly the same protocol, so any
-// d8 that works with Fuzzilli works here:
+// protocol implemented by d8 when built with v8_redline=true. This is a C++
+// port of Fuzzilli's libreprl and speaks exactly the same protocol:
 //
 //  - The child is started with four well-known file descriptors:
 //      100: control pipe, child reads commands ("exec" + 8 byte script size)
 //      101: control pipe, child writes a 4 byte status word per execution
 //      102: data channel, child reads the script source
-//      103: data channel, child writes fuzzilli('FUZZILLI_PRINT') output
+//      103: data channel, child writes redline('REDLINE_PRINT') output
 //    plus an "SHM_ID" environment variable naming the coverage bitmap.
 //  - After startup the child writes "HELO" on 101 and expects "HELO" on 100.
 //  - Per execution the parent writes the script into the 102 channel, sends
@@ -42,6 +42,10 @@ class DataChannel;
 // Instances are not thread-safe: use one per worker thread.
 class ReprlChild {
  public:
+  // Maximum size of one data channel, script or captured output.
+  // Matches `REPRL_MAX_DATA_SIZE` in Fuzzilli.
+  static constexpr size_t kMaxDataSize = size_t{16} << 20;
+
   struct Options {
     std::string executable;
     std::vector<std::string> args;  // without argv[0]
@@ -54,6 +58,18 @@ class ReprlChild {
     int max_execs_before_respawn = 1000;
     // How long to wait for the HELO handshake after spawning.
     uint64_t startup_timeout_us = static_cast<uint64_t>(60) * 1000 * 1000;
+    // If set, each new child gets the flags that this function returns,
+    // before `args`, so that a flag in `args` wins. While the child is
+    // pinned (Pin()), a new child gets the flags of the last one instead.
+    // Pin(false) kills a child whose flags ran max_execs_before_respawn
+    // executions, so that the next child gets new flags.
+    std::function<std::vector<std::string>()> random_args;
+    // If set, gets the new random flags of each new child, and true if the
+    // child did the handshake. If a child with new random flags stops before
+    // the handshake, Execute() starts it again once without the random flags.
+    // If that child starts, spawn_result gets the random flags and false. A
+    // pinned child keeps its flags.
+    std::function<void(const std::vector<std::string>&, bool)> spawn_result;
   };
 
   static std::unique_ptr<ReprlChild> Create(Options options,
@@ -80,10 +96,27 @@ class ReprlChild {
   uint64_t total_executions() const { return total_executions_; }
   const Options& options() const { return options_; }
 
+  // Keeps the random flags of the current child for the next children,
+  // until Pin(false). Most executions run pinned (the reruns and the
+  // minimizer), so most respawns happen there. Thus Pin(false) kills the
+  // child if its flags ran max_execs_before_respawn executions.
+  void Pin(bool pinned);
+  bool pinned() const { return pinned_; }
+  // Executions since the last draw of random flags.
+  int execs_since_draw() const { return execs_since_draw_; }
+  // The random flags of the current (or last) child, and all its flags.
+  const std::vector<std::string>& random_args() const { return random_args_; }
+  std::vector<std::string> CurrentArgs() const;
+
  private:
   explicit ReprlChild(Options options);
   bool Initialize(std::string* error);
   bool Spawn(std::string* error);
+  // Starts one child with argv_ and does the handshake. Sets `flag_failure`
+  // if the child stopped before or during the handshake.
+  bool SpawnProcess(std::string* error, bool* flag_failure);
+  // Builds argv_ from the executable, random_args_ and the options.
+  void BuildArgv();
   void OnChildTerminated();
   void CollectOutput(Execution* result);
 
@@ -92,6 +125,8 @@ class ReprlChild {
   std::vector<std::string> env_storage_;
   std::vector<char*> argv_;
   std::vector<char*> envp_;
+  std::vector<std::string> random_args_;
+  bool pinned_ = false;
 
   std::unique_ptr<DataChannel> script_channel_;   // parent -> child (fd 102)
   std::unique_ptr<DataChannel> fuzzout_channel_;  // child -> parent (fd 103)
@@ -102,6 +137,7 @@ class ReprlChild {
   int ctrl_in_ = -1;   // we read status words here
   int ctrl_out_ = -1;  // we write commands here
   int execs_since_spawn_ = 0;
+  int execs_since_draw_ = 0;
   uint64_t total_spawns_ = 0;
   uint64_t total_executions_ = 0;
 };

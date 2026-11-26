@@ -10,6 +10,7 @@
 #include "absl/container/flat_hash_set.h"
 #include "include/v8-internal.h"
 #include "src/common/globals.h"
+#include "src/heap/base/incremental-marking-schedule.h"
 #include "src/heap/marking-state.h"
 #include "src/heap/marking-visitor.h"
 #include "src/heap/marking-worklist.h"
@@ -458,7 +459,6 @@ class MarkCompactCollector final {
   friend class RecordMigratedSlotVisitor;
   friend class RootMarkingVisitor;
   friend class PrecisePagePinningVisitor;
-  friend class StringForwardingTableCleanerBase;
 };
 
 }  // namespace internal

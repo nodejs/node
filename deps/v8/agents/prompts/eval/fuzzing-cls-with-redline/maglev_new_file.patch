@@ -1,0 +1,9 @@
+diff --git a/src/maglev/eval_dummy_maglev_change.cc b/src/maglev/eval_dummy_maglev_change.cc
+new file mode 100644
+--- /dev/null
++++ b/src/maglev/eval_dummy_maglev_change.cc
+@@ -0,0 +1,4 @@
++// Dummy Maglev file for fuzzing-cls-with-redline skill evaluation.
++namespace v8::internal::maglev {
++void EvalDummyMaglevChange() {}
++}  // namespace v8::internal::maglev

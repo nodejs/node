@@ -104,6 +104,10 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
       std::optional<bool> restrictToFunction,
       std::unique_ptr<protocol::Array<protocol::Debugger::BreakLocation>>*
           locations) override;
+  Response getScopeChain(
+      const String16& callFrameId,
+      std::unique_ptr<protocol::Array<protocol::Debugger::Scope>>* scopeChain)
+      override;
   Response setScriptSource(
       const String16& inScriptId, const String16& inScriptSource,
       std::optional<bool> dryRun, std::optional<bool> allowTopFrameEditing,

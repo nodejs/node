@@ -15,7 +15,6 @@
 #include <string>
 #include <vector>
 
-#include "src/api/api.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
 #include "src/objects/intl-objects.h"
@@ -321,19 +320,16 @@ bool IsValidVariants(std::string_view variants) {
 Maybe<bool> ApplyOptionsToTag(Isolate* isolate, DirectHandle<String> tag,
                               DirectHandle<JSReceiver> options,
                               icu::LocaleBuilder* builder) {
-  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   if (tag->length() == 0) {
     THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kLocaleNotEmpty));
   }
 
-  v8::String::Utf8Value bcp47_tag(v8_isolate, v8::Utils::ToLocal(tag));
-  builder->setLanguageTag(
-      {*bcp47_tag, static_cast<int32_t>(bcp47_tag.length())});
-  DCHECK_LT(0, bcp47_tag.length());
-  DCHECK_NOT_NULL(*bcp47_tag);
+  std::string bcp47_tag = tag->ToStdString();
+  builder->setLanguageTag(bcp47_tag);
+  DCHECK(!bcp47_tag.empty());
   // 2. If IsStructurallyValidLanguageTag(tag) is false, throw a RangeError
   // exception.
-  if (!JSLocale::StartsWithUnicodeLanguageId(*bcp47_tag)) {
+  if (!JSLocale::StartsWithUnicodeLanguageId(bcp47_tag.c_str())) {
     return Just(false);
   }
   UErrorCode status = U_ZERO_ERROR;
@@ -956,7 +952,7 @@ MaybeDirectHandle<JSObject> JSLocale::GetWeekInfo(
     }
   }
   if (length != 2) {
-    wi = wi->RightTrimOrEmpty(isolate, wi, length);
+    wi = FixedArray::RightTrimOrEmpty(isolate, wi, length);
   }
   DirectHandle<JSArray> we = factory->NewJSArrayWithElements(wi);
 

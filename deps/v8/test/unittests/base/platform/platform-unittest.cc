@@ -6,9 +6,11 @@
 
 #include <cstdio>
 #include <cstring>
+#include <limits>
 
 #include "include/v8-function.h"
 #include "src/base/build_config.h"
+#include "src/base/page-allocator.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -74,6 +76,30 @@ TEST(OS, RemapPages) {
     EXPECT_EQ(0, memcmp(remapped_data, data, size));
 
     OS::Free(remapped_data, size);
+  }
+}
+
+TEST(OS, GetRandomMmapAddr) {
+  PageAllocator allocator;
+  const size_t commit_page_size = allocator.CommitPageSize();
+  const size_t alloc_page_size = allocator.AllocatePageSize();
+  // Large enough (> 10 MB icudtl.dat) that a hint near UINTPTR_MAX on 32-bit
+  // builds would overflow TASK_SIZE and cause mmap() to fail with EINVAL.
+  constexpr size_t kLargeAllocSize = 64 * 1024 * 1024;
+  constexpr size_t kMinHeadroom = 256 * 1024 * 1024;
+  ASSERT_EQ(0u, kLargeAllocSize % alloc_page_size);
+
+  for (int i = 0; i < 256; ++i) {
+    void* hint = allocator.GetRandomMmapAddr();
+    uintptr_t addr = reinterpret_cast<uintptr_t>(hint);
+    EXPECT_EQ(0u, addr % commit_page_size);
+    EXPECT_LE(addr, std::numeric_limits<uintptr_t>::max() - kMinHeadroom);
+#if !defined(V8_OS_FUCHSIA)
+    void* pages = allocator.AllocatePages(
+        hint, kLargeAllocSize, alloc_page_size, PageAllocator::kNoAccess);
+    ASSERT_NE(nullptr, pages);
+    EXPECT_TRUE(allocator.FreePages(pages, kLargeAllocSize));
+#endif
   }
 }
 
@@ -335,6 +361,26 @@ TEST(StackTest, GetCurrentStackPosition) {
   EXPECT_NE(nullptr, Stack::GetCurrentStackPosition());
 }
 
+#ifdef V8_OS_WIN
+TEST(StackTest, GetCommittedStackLimit) {
+  uintptr_t reserved_limit = Stack::GetReservedStackLimit();
+  uintptr_t committed_limit = Stack::GetCommittedStackLimit();
+  uintptr_t current_pos = Stack::GetCurrentStackPosition();
+  uintptr_t stack_start = Stack::GetStackStart();
+  EXPECT_LE(reserved_limit, committed_limit);
+  EXPECT_LE(committed_limit, current_pos);
+  EXPECT_LE(current_pos, stack_start);
+#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM64)
+  EXPECT_EQ(committed_limit,
+            reinterpret_cast<NT_TIB64*>(NtCurrentTeb())->StackLimit);
+#elif defined(V8_TARGET_ARCH_32_BIT)
+  EXPECT_EQ(committed_limit,
+            reinterpret_cast<uintptr_t>(
+                reinterpret_cast<NT_TIB*>(NtCurrentTeb())->StackLimit));
+#endif
+}
+#endif  // V8_OS_WIN
+
 #if !defined(V8_OS_FUCHSIA)
 TEST(StackTest, StackVariableInBounds) {
   void* dummy;
@@ -344,8 +390,55 @@ TEST(StackTest, StackVariableInBounds) {
             Stack::GetRealStackAddressForSlot(&dummy));
   EXPECT_LE(static_cast<void*>(Stack::GetCurrentStackPosition()),
             Stack::GetRealStackAddressForSlot(&dummy));
+  if (void* reserved_limit = Stack::GetReservedStackLimit()) {
+    EXPECT_LE(reserved_limit,
+              static_cast<void*>(Stack::GetCurrentStackPosition()));
+  }
 }
 #endif  // !V8_OS_FUCHSIA
+
+#if defined(V8_OS_WIN) || defined(V8_OS_DARWIN) || defined(V8_OS_LINUX) || \
+    defined(V8_OS_ANDROID)
+namespace {
+class ReservedStackLimitThread : public Thread {
+ public:
+  ReservedStackLimitThread() : Thread(Options("ReservedStackLimitThread")) {}
+
+  void Run() override {
+    void* reserved_limit = Stack::GetReservedStackLimit();
+    ASSERT_NE(nullptr, reserved_limit);
+    void* sp = Stack::GetCurrentStackPosition();
+    void* stack_start = Stack::GetStackStart();
+    EXPECT_LE(reserved_limit, sp);
+    EXPECT_LE(sp, stack_start);
+    Stack::StackBounds bounds = Stack::GetStackBounds();
+    EXPECT_EQ(stack_start, static_cast<void*>(bounds.start));
+    EXPECT_EQ(reserved_limit, static_cast<void*>(bounds.reserved_limit));
+  }
+};
+}  // namespace
+
+TEST(StackTest, GetReservedStackLimit) {
+  // Call GetReservedStackLimit() before GetStackStart() on the main thread to
+  // exercise initializing the cached bounds from this entry point.
+  void* main_reserved_limit = Stack::GetReservedStackLimit();
+#if defined(V8_OS_WIN) || defined(V8_OS_DARWIN)
+  EXPECT_NE(nullptr, main_reserved_limit);
+#endif
+  if (main_reserved_limit) {
+    EXPECT_LE(main_reserved_limit,
+              static_cast<void*>(Stack::GetCurrentStackPosition()));
+    EXPECT_LE(static_cast<void*>(Stack::GetCurrentStackPosition()),
+              static_cast<void*>(Stack::GetStackStart()));
+  }
+
+  // On a spawned worker thread, GetReservedStackLimit() is always available
+  // (even on musl or under `ulimit -s unlimited`).
+  ReservedStackLimitThread thread;
+  ASSERT_TRUE(thread.Start());
+  thread.Join();
+}
+#endif
 
 using SetDataReadOnlyTest = ::testing::Test;
 

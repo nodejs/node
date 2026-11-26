@@ -11,6 +11,7 @@
 #include "src/base/hashing.h"
 #include "src/base/iterator.h"
 #include "src/base/macros.h"
+#include "src/heap/base/active-system-pages.h"
 #include "src/heap/base/basic-slot-set.h"
 #include "src/heap/cppgc-internal/globals.h"
 #include "src/heap/cppgc-internal/heap-config.h"
@@ -100,13 +101,6 @@ class V8_EXPORT_PRIVATE BasePage : public BasePageHandle {
 #endif
   }
 
-  void IncrementDiscardedMemory(size_t value) {
-    DCHECK_GE(discarded_memory_ + value, discarded_memory_);
-    discarded_memory_ += value;
-  }
-  void ResetDiscardedMemory() { discarded_memory_ = 0; }
-  size_t discarded_memory() const { return discarded_memory_; }
-
   void IncrementMarkedBytes(size_t value) {
     const size_t old_marked_bytes =
         marked_bytes_.fetch_add(value, std::memory_order_relaxed);
@@ -156,7 +150,6 @@ class V8_EXPORT_PRIVATE BasePage : public BasePageHandle {
 #if defined(CPPGC_YOUNG_GENERATION)
   std::unique_ptr<SlotSet, SlotSetDeleter> slot_set_;
 #endif  // defined(CPPGC_YOUNG_GENERATION)
-  size_t discarded_memory_ = 0;
   std::atomic<size_t> marked_bytes_{0};
 };
 
@@ -257,12 +250,28 @@ class V8_EXPORT_PRIVATE NormalPage final : public BasePage {
     return object_start_bitmap_;
   }
 
+  // Purges the system pages in [begin, begin + size) according to the heap's
+  // PurgeMemoryMode and records them as not resident. The range must be aligned
+  // to the commit page size. System pages that are already purged are only
+  // accounted for once.
+  void PurgeSystemPages(Address begin, size_t size);
+  // Restores all system pages that [begin, begin + size) touches so that they
+  // are recorded as resident again. Needs to be called when memory that may be
+  // purged is reused.
+  void RestoreSystemPages(Address begin, size_t size);
+  // Returns the size of the system pages of this page that are purged.
+  size_t purged_memory() const;
+
  private:
   NormalPage(HeapBase& heap, BaseSpace& space);
   ~NormalPage() = default;
 
   size_t allocated_bytes_at_last_gc_ = 0;
   mutable ObjectStartBitmap object_start_bitmap_;
+  // Bitset with one bit per system page of this page. A set bit means that the
+  // system page is resident, i.e. not purged. All bits are set initially;
+  // purging a system page clears its bit and reusing it sets the bit again.
+  ::heap::base::ActiveSystemPages resident_system_pages_;
 };
 
 class V8_EXPORT_PRIVATE LargePage final : public BasePage {

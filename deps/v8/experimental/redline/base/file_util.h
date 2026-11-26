@@ -24,10 +24,16 @@ bool MakeDirectories(const std::string& path, std::string* error);
 
 bool IsDirectory(const std::string& path);
 bool FileExists(const std::string& path);
+// Stores the byte size of regular file `path` in `size`. Returns false on
+// error.
+bool FileSize(const std::string& path, size_t* size);
 
 // Lists regular files below `directory` (recursively, following symlinks)
-// whose names end with `suffix`, sorted by path. If `directory` is itself a
-// matching file, returns just that file.
+// whose names end with `suffix`, sorted by path. If `directory` is a matching
+// file, `ListFiles` returns just that file. If `directory` contains glob
+// wildcards (`*`, `?`, `[`), `ListFiles` expands the pattern (`**` matches
+// zero or more directory levels). When `suffix` is `".js"`, `ListFiles` skips
+// Test262 `*_FIXTURE.js` helper files.
 std::vector<std::string> ListFiles(const std::string& directory,
                                    const std::string& suffix);
 

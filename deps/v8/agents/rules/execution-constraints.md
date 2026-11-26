@@ -59,12 +59,12 @@ To ensure efficient operation and prevent resource waste:
     files being uploaded. If unrelated files are present, remove them before
     uploading.
 
-10. **Respect Existing CL Descriptions**: On subsequent patchset uploads, omit
-    `--commit-description` unless the CL description itself needs updating.
-    Before updating an existing CL's description (`git cl description -n +`),
-    check the current Gerrit description (`git cl description -d`) and carry
-    over any online edits and the `Change-Id:` footer into the local commit
-    message so human-authored changes are not lost.
+10. **Respect Existing CL Descriptions**: Upload subsequent patchsets with
+    `git cl upload -t "<title>"`, passing `--commit-description=+` (or running
+    `git cl description -n +`) only when the CL description itself needs
+    updating. Before updating an existing CL's description, check
+    `git cl description -d` and preserve any online edits and `Change-Id:` in
+    the local commit message.
 
 11. **Explicit Absolute Paths**: When presenting or linking to files/directories
     that are outside the current workspace directory (such as the App Data

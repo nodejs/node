@@ -113,10 +113,13 @@ class SourcePosition final {
   }
   void SetInliningId(int inlining_id) {
     DCHECK_GE(inlining_id, kNotInlined);
+    DCHECK_LE(inlining_id, MaxInliningId());
     value_ = InliningIdField::update(value_, inlining_id + 1);
   }
 
-  static constexpr int MaxInliningId() { return InliningIdField::kMax; }
+  // InliningIdField stores `inlining_id + 1` (so kNotInlined == -1 maps to 0),
+  // meaning the maximum valid inlining id is InliningIdField::kMax - 1.
+  static constexpr int MaxInliningId() { return InliningIdField::kMax - 1; }
 
   static constexpr int kNotInlined = -1;
   static_assert(kNoSourcePosition == -1);

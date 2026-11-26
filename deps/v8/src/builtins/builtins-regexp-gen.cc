@@ -1855,12 +1855,12 @@ TNode<JSAny> RegExpMatchAllAssembler::CreateRegExpStringIterator(
   // 7. Set iterator.[[Global]] to global.
   // 8. Set iterator.[[Unicode]] to fullUnicode.
   // 9. Set iterator.[[Done]] to false.
-  TNode<Int32T> global_flag =
-      Word32Shl(ReinterpretCast<Int32T>(global),
-                Int32Constant(JSRegExpStringIterator::GlobalBit::kShift));
-  TNode<Int32T> unicode_flag =
-      Word32Shl(ReinterpretCast<Int32T>(full_unicode),
-                Int32Constant(JSRegExpStringIterator::UnicodeBit::kShift));
+  TNode<Int32T> global_flag = Word32Shl(
+      ReinterpretCast<Int32T>(global),
+      Int32Constant(JSRegExpStringIterator::Flags::GlobalBit::kShift));
+  TNode<Int32T> unicode_flag = Word32Shl(
+      ReinterpretCast<Int32T>(full_unicode),
+      Int32Constant(JSRegExpStringIterator::Flags::UnicodeBit::kShift));
   TNode<Int32T> iterator_flags = Word32Or(global_flag, unicode_flag);
   StoreObjectFieldNoWriteBarrier(iterator,
                                  offsetof(JSRegExpStringIterator, flags_),

@@ -36,8 +36,6 @@ extern class JSGeneratorObject extends JSObject {
 
   // Saved interpreter register file.
   parameters_and_registers: FixedArray;
-
-  yielded_value: JSAny;
 }
 
 @cppObjectLayoutDefinition

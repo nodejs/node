@@ -79,7 +79,7 @@ LIBC_INLINE double atan(double x) {
       if (x == 0.0)
         return x;
       // |x| < 2^-26
-      return fputil::multiply_add(-0x1.0p-54, x, x);
+      return fputil::sub_multiply(x, 0x1.0p-54, x);
 #endif // LIBC_MATH_HAS_SKIP_ACCURATE_PASS
     }
 
@@ -153,7 +153,7 @@ LIBC_INLINE double atan(double x) {
   DoubleDouble den = fputil::exact_add(x_d, k);
   // numerator = 1 - k * |x|
   DoubleDouble num;
-  num.hi = fputil::multiply_add(-x_d, k, 1.0);
+  num.hi = fputil::sub_multiply(1.0, x_d, k);
   DoubleDouble prod = fputil::exact_mult(x_d, k);
   // Using Dekker's 2SUM algorithm to compute the lower part.
   num.lo = ((1.0 - num.hi) - prod.hi) - prod.lo;

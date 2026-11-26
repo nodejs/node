@@ -289,7 +289,15 @@ struct GroupSse2Impl {
   // Returns a bitmask representing the positions of slots that match hash.
   BitMaskType Match(h2_t hash) const {
     auto match = _mm_set1_epi8(static_cast<char>(hash));
-    return BitMaskType(MoveMask(_mm_cmpeq_epi8(match, ctrl)));
+    auto mask = MoveMask(_mm_cmpeq_epi8(match, ctrl));
+#ifdef __clang__
+    // TODO(b/472522597): Without the inline asm, clang ends up generating an
+    // unnecessary movzx to zero the upper bits of the output when iterating
+    // over matches, even though those bits are already zero. See
+    // https://godbolt.org/z/G6xW1Ecbx.
+    asm("" : "+r"(mask));  // NOLINT
+#endif
+    return BitMaskType(mask);
   }
 
   // Returns a bitmask representing the positions of empty slots.
@@ -343,14 +351,7 @@ struct GroupSse2Impl {
   }
 
   static MaskInt MoveMask(__m128i xmm) {
-    auto mask = static_cast<MaskInt>(_mm_movemask_epi8(xmm));
-#ifdef __clang__
-    // TODO(b/472522597): Without the inline asm, clang ends up generating an
-    // unnecessary movzx to zero the upper bits of the output, but those bits
-    // are already zero. See https://godbolt.org/z/G6xW1Ecbx.
-    asm("" : "+r"(mask));  // NOLINT
-#endif
-    return mask;
+    return static_cast<MaskInt>(_mm_movemask_epi8(xmm));
   }
 
   __m128i ctrl;

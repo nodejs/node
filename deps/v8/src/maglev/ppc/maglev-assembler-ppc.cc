@@ -232,12 +232,12 @@ void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
                                          Register result, Register char_code,
                                          Register scratch,
                                          CharCodeMaskMode mask_mode) {
-  AssertZeroExtended(char_code);
   DCHECK_NE(char_code, scratch);
   ZoneLabelRef done(this);
   if (mask_mode == CharCodeMaskMode::kMustApplyMask) {
     AndU64(char_code, char_code, Operand(0xFFFF));
   }
+  AssertZeroExtended(char_code);
   CmpU32(char_code, Operand(String::kMaxOneByteCharCode));
   JumpToDeferredIf(
       kUnsignedGreaterThan,
@@ -260,7 +260,7 @@ void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
         __ StoreU16(
             char_code,
             FieldMemOperand(result, OFFSET_OF_DATA_START(SeqTwoByteString)));
-        __ b(*done);
+        __ Jump(*done);
       },
       register_snapshot, done, result, char_code, scratch);
   if (char_code_fits_one_byte != nullptr) {
@@ -307,7 +307,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
           __ SmiUntag(kReturnRegister0);
           __ Move(result, kReturnRegister0);
         }
-        __ b(*done);
+        __ Jump(*done);
       },
       mode, register_snapshot, done, result, string, index);
 
@@ -352,7 +352,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
   {
     LoadTaggedField(string,
                     FieldMemOperand(string, offsetof(ThinString, actual_)));
-    b(&loop);
+    Jump(&loop);
   }
 
   bind(&sliced_string);
@@ -360,11 +360,27 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     TemporaryRegisterScope temps(this);
     Register offset = temps.AcquireScratch();
 
+    if (mode == BuiltinStringPrototypeCharCodeOrCodePointAt::kCodePointAt) {
+      Register scratch = temps.AcquireScratch();
+      Label unwrap_sliced;
+      AndU32(scratch, instance_type, Operand(kOneByteStringTag), SetRC);
+      bne(&unwrap_sliced);
+      // Unwrapping a two-byte SlicedString loses its end bound; if {index} is
+      // the last code unit of the slice, fall back to the runtime before
+      // unwrapping.
+      LoadU32(instance_type,
+              FieldMemOperand(string, offsetof(String, length_)));
+      AddS32(offset, index, Operand(1));
+      CmpU32(offset, instance_type);
+      bge(deferred_runtime_call);
+      bind(&unwrap_sliced);
+    }
+
     LoadAndUntagTaggedSignedField(offset, string,
                                   offsetof(SlicedString, offset_));
     LoadTaggedField(string, string, offsetof(SlicedString, parent_));
     AddS32(index, index, offset, SetRC);
-    b(&loop);
+    Jump(&loop);
   }
 
   bind(&cons_string);
@@ -378,7 +394,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     bne(deferred_runtime_call);
     LoadTaggedField(string,
                     FieldMemOperand(string, offsetof(ConsString, first_)));
-    b(&loop);  // Try again with first string.
+    Jump(&loop);  // Try again with first string.
   }
 
   bind(&seq_string);
@@ -391,7 +407,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     // (CharCodeAt/CodePointAt), since it cannot be the first half of a
     // surrogate pair.
     SeqOneByteStringCharCodeAt(result, string, index);
-    b(result_fits_one_byte);
+    Jump(result_fits_one_byte);
 
     bind(&two_byte_string);
     // {instance_type} is unused from this point, so we can use as scratch.
@@ -405,10 +421,18 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     } else {
       DCHECK_EQ(mode,
                 BuiltinStringPrototypeCharCodeOrCodePointAt::kCodePointAt);
+      DCHECK_NE(string, index);
+      // {result} is written before the trailing-surrogate lookahead, which
+      // still needs {string} and {index}. Preserve whichever one {result}
+      // aliases.
       Register string_backup = string;
+      Register index_backup = index;
       if (result == string) {
         string_backup = scratch2;
         Move(string_backup, string);
+      } else if (result == index) {
+        index_backup = scratch2;
+        Move(index_backup, index);
       }
       LoadU16(result, MemOperand(string, scratch));
 
@@ -418,19 +442,20 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
       bne(*done);
 
       Register length = scratch;
-      LoadU32(length, FieldMemOperand(string, offsetof(String, length_)));
-      AddS32(index, index, Operand(1));
-      CmpS32(index, length);
+      LoadU32(length,
+              FieldMemOperand(string_backup, offsetof(String, length_)));
+      AddS32(index_backup, index_backup, Operand(1));
+      CmpS32(index_backup, length);
       bge(*done);
 
       Register second_code_point = scratch;
-      ShiftLeftU32(index, index, Operand(1));
-      AddS32(index, index,
+      ShiftLeftU32(index_backup, index_backup, Operand(1));
+      AddS32(index_backup, index_backup,
              Operand(OFFSET_OF_DATA_START(SeqTwoByteString) - kHeapObjectTag));
-      LoadU16(second_code_point, MemOperand(string_backup, index));
+      LoadU16(second_code_point, MemOperand(string_backup, index_backup));
 
-      // {index} is not needed at this point.
-      Register scratch2 = index;
+      // {string_backup} and {index_backup} are dead here, so {scratch2} is
+      // free even if it held a backup.
       AndU32(scratch2, second_code_point, Operand(0xfc00));
       CmpS32(scratch2, Operand(0xdc00));
       bne(*done);
@@ -511,8 +536,8 @@ void MaglevAssembler::TruncateDoubleToInt32(Register dst, DoubleRegister src) {
   TryInlineTruncateDoubleToI(dst, src, *done, temp);
   Jump(slow_path);
   bind(*done);
-  // Zero extend the converted value to complete the truncation.
-  ZeroExtend<int>(dst, dst);
+  // Sign extend the converted value to complete the truncation.
+  extsw(dst, dst);
 }
 
 void MaglevAssembler::TryTruncateDoubleToInt32(Register dst, DoubleRegister src,
@@ -524,7 +549,7 @@ void MaglevAssembler::TryTruncateDoubleToInt32(Register dst, DoubleRegister src,
 
   // Convert the input float64 value to int32.
   ConvertDoubleToInt64(src, dst, temp);
-  ZeroExtend<int>(dst, dst);
+  extsw(dst, dst);
 
   // Convert that int32 value back to float64.
   ConvertIntToDouble(dst, temp);
@@ -604,9 +629,10 @@ void MaglevAssembler::TryChangeFloat64ToIndex(Register result,
 
 void MaglevAssembler::Move(ExternalReference dst, int32_t imm) {
   TemporaryRegisterScope temps(this);
-  Register scratch = temps.AcquireScratch();
-  Move(r0, imm);
-  StoreU64(r0, ExternalReferenceAsOperand(dst, scratch));
+  Register scratch_imm = temps.AcquireScratch();
+  Register scratch_dst = temps.AcquireScratch();
+  Move(scratch_imm, imm);
+  StoreU64(scratch_imm, ExternalReferenceAsOperand(dst, scratch_dst));
 }
 
 }  // namespace maglev

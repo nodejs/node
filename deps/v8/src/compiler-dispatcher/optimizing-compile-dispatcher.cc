@@ -348,6 +348,12 @@ void OptimizingCompileDispatcher::InstallOptimizedFunctions() {
       Compiler::DisposeTurbofanCompilationJob(isolate_, job.get());
       continue;
     }
+    // Only %ForceFlush can flush the feedback vector while the job is in
+    // flight.
+    if (!function->has_feedback_vector()) {
+      Compiler::DisposeTurbofanCompilationJob(isolate_, job.get());
+      continue;
+    }
 
     Compiler::FinalizeTurbofanCompilationJob(job.get(), isolate_);
   }
@@ -368,7 +374,7 @@ int OptimizingCompileDispatcher::InstallGeneratedBuiltins(int installed_count) {
 }
 
 bool OptimizingCompileDispatcher::HasJobs() {
-  DCHECK_EQ(ThreadId::Current(), isolate_->thread_id());
+  DCHECK_EQ(base::ThreadId::Current(), isolate_->thread_id());
   if (task_executor_->HasCompilationJobsForIsolate(isolate_)) {
     return true;
   }
@@ -390,7 +396,7 @@ void OptimizingCompileInputQueue::Prioritize(
     Isolate* isolate, Tagged<SharedFunctionInfo> function) {
   // Ensure that we only run this method on the main thread. This makes sure
   // that we never dereference handles during a safepoint.
-  DCHECK_EQ(isolate->thread_id(), ThreadId::Current());
+  DCHECK_EQ(isolate->thread_id(), base::ThreadId::Current());
   base::MutexGuard access(&mutex_);
   auto it =
       std::find_if(queue_.begin(), queue_.end(),

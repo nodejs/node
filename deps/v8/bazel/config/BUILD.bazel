@@ -3,6 +3,7 @@
 # found in the LICENSE file.
 
 load("@bazel_skylib//lib:selects.bzl", "selects")
+load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
 load(
     ":v8-target-cpu.bzl",
     "v8_configure_target_cpu",
@@ -164,6 +165,53 @@ config_setting(
     constraint_values = ["@platforms//os:windows"],
 )
 
+string_flag(
+    name = "v8_target_os",
+    build_setting_default = "none",
+    scope = "universal",
+    values = [
+        "android",
+        "linux",
+        "macos",
+        "windows",
+        "none",
+    ],
+)
+
+config_setting(
+    name = "v8_target_os_is_none",
+    flag_values = {":v8_target_os": "none"},
+)
+
+[
+    [
+        config_setting(
+            name = "v8_target_os_flag_" + os,
+            flag_values = {":v8_target_os": os},
+        ),
+        selects.config_setting_group(
+            name = "v8_target_os_default_" + os,
+            match_all = [
+                ":v8_target_os_is_none",
+                ":is_" + os,
+            ],
+        ),
+        selects.config_setting_group(
+            name = "v8_target_" + os,
+            match_any = [
+                ":v8_target_os_flag_" + os,
+                ":v8_target_os_default_" + os,
+            ],
+        ),
+    ]
+    for os in [
+        "android",
+        "linux",
+        "macos",
+        "windows",
+    ]
+]
+
 selects.config_setting_group(
     name = "is_64bit",
     match_any = [
@@ -199,7 +247,16 @@ selects.config_setting_group(
         ":is_windows",
         ":is_linux",
         ":is_macos",
-    ]
+    ],
+)
+
+selects.config_setting_group(
+    name = "v8_target_is_not_android",
+    match_any = [
+        ":v8_target_windows",
+        ":v8_target_linux",
+        ":v8_target_macos",
+    ],
 )
 
 selects.config_setting_group(

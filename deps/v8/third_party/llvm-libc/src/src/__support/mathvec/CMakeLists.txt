@@ -178,7 +178,6 @@ add_header_library(
     libc.src.__support.common
 )
 
-
 add_header_library(
   expm1f
   HDRS

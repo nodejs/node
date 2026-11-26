@@ -246,6 +246,17 @@ domain Debugger
       # List of the possible breakpoint locations.
       array of BreakLocation locations
 
+  # Returns the current scope chain of the given call frame. Unlike the scope chain reported
+  # with the `paused` event, it reflects changes made to variables since then (e.g. via
+  # `evaluateOnCallFrame` or `setVariableValue`).
+  experimental command getScopeChain
+    parameters
+      # Call frame identifier to get the scope chain for.
+      CallFrameId callFrameId
+    returns
+      # Scope chain for the call frame.
+      array of Scope scopeChain
+
   # Returns source for the script with given id.
   command getScriptSource
     parameters
@@ -1057,7 +1068,8 @@ domain Runtime
     properties
       enum serialization
         # Whether the result should be deep-serialized. The result is put into
-        # `deepSerializedValue` and `ObjectId` is provided.
+        # `deepSerializedValue`; `objectId` is provided for objects and symbols.
+        # `value` and `unserializableValue` are not set.
         deep
         # Whether the result is expected to be a JSON object which should be sent by value.
         # The result is put either into `value` or into `unserializableValue`. Synonym of
@@ -1159,9 +1171,10 @@ domain Runtime
       # Object class (constructor) name. Specified for `object` type values only.
       optional string className
       # Remote object value in case of primitive values or JSON values (if it was requested).
+      # Not set in `deep` serialization mode, see `deepSerializedValue`.
       optional any value
       # Primitive value which can not be JSON-stringified does not have `value`, but gets this
-      # property.
+      # property. Not set in `deep` serialization mode, see `deepSerializedValue`.
       optional UnserializableValue unserializableValue
       # String representation of the object.
       optional string description

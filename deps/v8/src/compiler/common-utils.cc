@@ -4,7 +4,7 @@
 
 #include "src/compiler/common-utils.h"
 
-#include "src/common/synchronization-point-support.h"
+#include "src/base/synchronization-point-support.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/heap/local-heap.h"
 #include "src/heap/read-only-heap-inl.h"

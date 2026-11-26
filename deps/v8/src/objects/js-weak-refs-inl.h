@@ -73,13 +73,13 @@ void JSFinalizationRegistry::set_next_dirty(
   next_dirty_.store(this, value, mode);
 }
 
-int JSFinalizationRegistry::flags() const { return flags_.load().value(); }
-void JSFinalizationRegistry::set_flags(int value) {
-  flags_.store(this, Smi::FromInt(value));
+JSFinalizationRegistry::Flags JSFinalizationRegistry::flags() const {
+  return flags_.load();
 }
+void JSFinalizationRegistry::set_flags(Flags value) { flags_.store(value); }
 
 BIT_FIELD_ACCESSORS(JSFinalizationRegistry, flags, scheduled_for_cleanup,
-                    JSFinalizationRegistry::ScheduledForCleanupBit)
+                    JSFinalizationRegistry::Flags::ScheduledForCleanupBit)
 
 Tagged<UnionOf<Symbol, JSReceiver, Undefined>> JSWeakRef::target() const {
   return target_.load();

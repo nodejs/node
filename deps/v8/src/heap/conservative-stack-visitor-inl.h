@@ -88,7 +88,7 @@ Address ConservativeStackVisitorBase<ConcreteVisitor>::FindBasePtr(
   // If it is contained in a large page, we want to mark the only object on it.
   if (chunk_metadata->is_large()) {
     // This could be simplified if we could guarantee that there are no free
-    // space or filler objects in large pages. A few cctests violate this now.
+    // space or filler objects in large pages. A few unittests violate this now.
     Tagged<HeapObject> obj(
         static_cast<const LargePage*>(chunk_metadata)->GetObject());
     MapWord map_word = obj->map_word(kRelaxedLoad);

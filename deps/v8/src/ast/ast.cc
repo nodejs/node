@@ -447,8 +447,8 @@ void ObjectLiteral::CalculateEmitStore(Zone* zone) {
   }
 }
 
-int ObjectLiteralBoilerplateBuilder::ComputeFlags(bool disable_mementos) const {
-  int flags = LiteralBoilerplateBuilder::ComputeFlags(disable_mementos);
+int ObjectLiteralBoilerplateBuilder::ComputeFlags() const {
+  int flags = LiteralBoilerplateBuilder::ComputeFlags();
   if (fast_elements()) flags |= ObjectLiteral::kFastElements;
   if (has_null_prototype()) flags |= ObjectLiteral::kHasNullPrototype;
   return flags;
@@ -742,6 +742,43 @@ void ArrayLiteralBoilerplateBuilder::InitDepthAndFlags() {
   set_needs_initial_allocation_site(true);
 }
 
+namespace {
+
+// Returns true and sets {value} if {expression} is a literal whose value is a
+// Smi or a read-only root, which needs neither a handle nor a write barrier.
+template <typename IsolateT>
+bool TryGetImmortalBoilerplateValue(Expression* expression, IsolateT* isolate,
+                                    Tagged<Object>* value) {
+  Literal* literal = expression->AsLiteral();
+  if (literal == nullptr) return false;
+  ReadOnlyRoots roots(isolate);
+  switch (literal->type()) {
+    case Literal::kSmi:
+      *value = literal->AsSmiLiteral();
+      return true;
+    case Literal::kNull:
+      *value = roots.null_value();
+      return true;
+    case Literal::kUndefined:
+      *value = roots.undefined_value();
+      return true;
+    case Literal::kBoolean:
+      *value = roots.boolean_value(literal->ToBooleanIsTrue());
+      return true;
+    case Literal::kTheHole:
+      *value = roots.the_hole_value();
+      return true;
+    case Literal::kHeapNumber:
+    case Literal::kString:
+    case Literal::kConsString:
+    case Literal::kBigInt:
+      return false;
+  }
+  UNREACHABLE();
+}
+
+}  // namespace
+
 template <typename IsolateT>
 void ArrayLiteralBoilerplateBuilder::BuildBoilerplateDescription(
     IsolateT* isolate) {
@@ -783,6 +820,18 @@ void ArrayLiteralBoilerplateBuilder::BuildBoilerplateDescription(
       }
 
     } else {
+      Tagged<Object> value;
+      if (TryGetImmortalBoilerplateValue(element, isolate, &value)) {
+        if (IsTheHole(value)) {
+          DCHECK(IsHoleyElementsKind(kind));
+          continue;
+        }
+        DCHECK_EQ(kind, GetMoreGeneralElementsKind(
+                            kind, Object::OptimalElementsKind(value)));
+        Cast<FixedArray>(*elements)->set(array_index, value,
+                                         SKIP_WRITE_BARRIER);
+        continue;
+      }
       MaterializedLiteral* m_literal = element->AsMaterializedLiteral();
       if (m_literal != nullptr) {
         BuildConstants(isolate, m_literal);

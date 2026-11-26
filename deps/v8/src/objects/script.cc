@@ -210,13 +210,12 @@ Tagged<Script> Script::GetEvalOrigin() {
   return origin_script;
 }
 
-String::LineEndsVector Script::GetLineEnds(Isolate* isolate,
-                                           DirectHandle<Script> script) {
-  DCHECK(!script->has_line_ends());
-  Tagged<Object> src_obj = script->source();
+String::LineEndsVector Script::GetLineEnds(
+    const DisallowGarbageCollection& no_gc) const {
+  DCHECK(!has_line_ends());
+  Tagged<Object> src_obj = source();
   if (IsString(src_obj)) {
-    DirectHandle<String> src(Cast<String>(src_obj), isolate);
-    return String::CalculateLineEndsVector(isolate, src, true);
+    return String::CalculateLineEndsVector(Cast<String>(src_obj), true, no_gc);
   }
 
   return String::LineEndsVector();
@@ -653,7 +652,7 @@ DirectHandle<String> Script::GetScriptHash(Isolate* isolate,
   std::unique_ptr<char[]> string_val = src_text->ToCString();
   size_t len = strlen(string_val.get());
   uint8_t hash[kSizeOfSha256Digest];
-  SHA256_hash(string_val.get(), len, hash);
+  Sha256Hash(string_val.get(), len, hash);
   FormatBytesToHex(formatted_hash, kSizeOfFormattedSha256Digest, hash,
                    kSizeOfSha256Digest);
   formatted_hash[kSizeOfSha256Digest * 2] = '\0';

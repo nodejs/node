@@ -222,7 +222,7 @@ class ConcurrentRecordRelocSlotThread final : public v8::base::Thread {
                                   code_->constant_pool(), mode_mask);
          !it.done(); it.next()) {
       DCHECK(RelocInfo::IsEmbeddedObjectMode(it.rinfo()->rmode()));
-      it.rinfo()->set_target_object(istream, value_);
+      it.rinfo()->set_target_object(heap_->isolate(), istream, value_);
     }
   }
 
@@ -235,9 +235,9 @@ class ConcurrentRecordRelocSlotThread final : public v8::base::Thread {
 }  // namespace
 
 TEST_F(ConcurrentAllocationUninitializedTest, ConcurrentAllocationInOldSpace) {
-  v8_flags.detect_ineffective_gcs_near_heap_limit = false;
-  v8_flags.max_old_space_size = 64;
-  v8_flags.stress_concurrent_allocation = false;
+  v8_flags.detect_ineffective_gcs_near_heap_limit.Set(false);
+  v8_flags.max_old_space_size.Set(64);
+  v8_flags.stress_concurrent_allocation.Set(false);
 
   IsolateWrapper isolate_wrapper(kNoCounters);
   v8::Isolate* isolate = isolate_wrapper.isolate();
@@ -265,8 +265,8 @@ TEST_F(ConcurrentAllocationUninitializedTest, ConcurrentAllocationInOldSpace) {
 
 TEST_F(ConcurrentAllocationUninitializedTest,
        ConcurrentAllocationInOldSpaceFromMainThread) {
-  v8_flags.max_old_space_size = 4;
-  v8_flags.stress_concurrent_allocation = false;
+  v8_flags.max_old_space_size.Set(4);
+  v8_flags.stress_concurrent_allocation.Set(false);
 
   IsolateWrapper isolate_wrapper(kNoCounters);
   v8::Isolate* isolate = isolate_wrapper.isolate();
@@ -281,8 +281,9 @@ TEST_F(ConcurrentAllocationUninitializedTest,
   // With CSS, it is expected that the GCs triggered by concurrent allocation
   // will reclaim less memory. If this test fails, this limit should probably
   // be further increased.
-  v8_flags.max_old_space_size = v8_flags.conservative_stack_scanning ? 10 : 4;
-  v8_flags.stress_concurrent_allocation = false;
+  v8_flags.max_old_space_size.Set(v8_flags.conservative_stack_scanning ? 10
+                                                                       : 4);
+  v8_flags.stress_concurrent_allocation.Set(false);
 
   IsolateWrapper isolate_wrapper(kNoCounters);
   Isolate* i_isolate = isolate_wrapper.i_isolate();
@@ -310,9 +311,10 @@ TEST_F(ConcurrentAllocationUninitializedTest,
   // With CSS, it is expected that the GCs triggered by concurrent allocation
   // will reclaim less memory. If this test fails, this limit should probably
   // be further increased.
-  v8_flags.max_old_space_size = v8_flags.conservative_stack_scanning ? 10 : 4;
-  v8_flags.stress_concurrent_allocation = false;
-  v8_flags.incremental_marking = false;
+  v8_flags.max_old_space_size.Set(v8_flags.conservative_stack_scanning ? 10
+                                                                       : 4);
+  v8_flags.stress_concurrent_allocation.Set(false);
+  v8_flags.incremental_marking.Set(false);
   FlagList::EnforceFlagImplications();
 
   IsolateWrapper isolate_wrapper(kNoCounters);
@@ -346,9 +348,10 @@ TEST_F(ConcurrentAllocationUninitializedTest,
   // With CSS, it is expected that the GCs triggered by concurrent allocation
   // will reclaim less memory. If this test fails, this limit should probably
   // be further increased.
-  v8_flags.max_old_space_size = v8_flags.conservative_stack_scanning ? 10 : 4;
-  v8_flags.stress_concurrent_allocation = false;
-  v8_flags.incremental_marking = false;
+  v8_flags.max_old_space_size.Set(v8_flags.conservative_stack_scanning ? 10
+                                                                       : 4);
+  v8_flags.stress_concurrent_allocation.Set(false);
+  v8_flags.incremental_marking.Set(false);
   FlagList::EnforceFlagImplications();
 
   IsolateWrapper isolate_wrapper(kNoCounters);
@@ -382,9 +385,9 @@ TEST_F(ConcurrentAllocationUninitializedTest,
 
 TEST_F(ConcurrentAllocationUninitializedTest,
        ConcurrentAllocationInLargeSpace) {
-  v8_flags.detect_ineffective_gcs_near_heap_limit = false;
-  v8_flags.max_old_space_size = 32;
-  v8_flags.stress_concurrent_allocation = false;
+  v8_flags.detect_ineffective_gcs_near_heap_limit.Set(false);
+  v8_flags.max_old_space_size.Set(32);
+  v8_flags.stress_concurrent_allocation.Set(false);
 
   IsolateWrapper isolate_wrapper(kNoCounters);
   v8::Isolate* isolate = isolate_wrapper.isolate();

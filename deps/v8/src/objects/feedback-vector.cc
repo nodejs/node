@@ -231,7 +231,7 @@ DirectHandle<ClosureFeedbackCellArray> ClosureFeedbackCellArray::New(
 
   // Pre-allocate the cells s.t. we can initialize `result` without further
   // allocation.
-  DirectHandleVector<FeedbackCell> cells(isolate);
+  DirectHandleSmallVector<FeedbackCell, 8> cells(isolate);
   cells.reserve(length);
   for (uint32_t i = 0; i < length; i++) {
     DirectHandle<FeedbackCell> cell = isolate->factory()->NewNoClosuresCell();
@@ -1115,6 +1115,10 @@ void FeedbackNexus::SetSpeculationMode(SpeculationMode mode) {
 
 void FeedbackNexus::NextSpeculationMode(SpeculationMode mode) {
   SpeculationMode cur = GetSpeculationMode();
+  // Code compiled with {mode} does not deopt for this reason. A repeated deopt
+  // comes from code compiled before the first one (e.g. another function that
+  // inlined the same call site), so keep the current mode.
+  if (cur == mode) return;
   if (cur == SpeculationMode::kAllowSpeculation) {
     SetSpeculationMode(mode);
   } else {
@@ -1315,7 +1319,7 @@ KeyedAccessLoadMode FeedbackNexus::GetKeyedAccessLoadMode() const {
   if (GetKeyType() == IcCheckType::kProperty) {
     return KeyedAccessLoadMode::kInBounds;
   }
-  MapsAndHandlers maps_and_handlers(isolate_);
+  MapsAndHandlers maps_and_handlers(config()->isolate());
   ExtractMapsAndHandlers(&maps_and_handlers);
   KeyedAccessLoadMode mode = KeyedAccessLoadMode::kInBounds;
   for (auto [_, handler] : maps_and_handlers) {
@@ -1383,7 +1387,7 @@ KeyedAccessStoreMode FeedbackNexus::GetKeyedAccessStoreMode() const {
 
   if (GetKeyType() == IcCheckType::kProperty) return mode;
 
-  MapsAndHandlers maps_and_handlers(isolate_);
+  MapsAndHandlers maps_and_handlers(config()->isolate());
   ExtractMapsAndHandlers(&maps_and_handlers);
   for (auto [_, maybe_code_handler] : maps_and_handlers) {
     // The first handler that isn't the slow handler will have the bits we need.

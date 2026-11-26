@@ -123,6 +123,7 @@ namespace {
 bool IsPrint(uint16_t c) { return 0x20 <= c && c <= 0x7E; }
 bool IsSpace(uint16_t c) { return (0x9 <= c && c <= 0xD) || c == 0x20; }
 bool IsOK(uint16_t c) { return (IsPrint(c) || IsSpace(c)) && c != '\\'; }
+bool IsOKForJSON(uint16_t c) { return IsPrint(c) && c != '\\'; }
 
 std::ostream& PrintUC16(std::ostream& os, uint16_t c, bool (*pred)(uint16_t)) {
   char buf[10];
@@ -160,7 +161,7 @@ std::ostream& operator<<(std::ostream& os, const AsEscapedUC16ForJSON& c) {
   if (c.value == '\r') return os << "\\r";
   if (c.value == '\t') return os << "\\t";
   if (c.value == '\"') return os << "\\\"";
-  return PrintUC16ForJSON(os, c.value, IsOK);
+  return PrintUC16ForJSON(os, c.value, IsOKForJSON);
 }
 
 std::ostream& operator<<(std::ostream& os, const AsUC16& c) {

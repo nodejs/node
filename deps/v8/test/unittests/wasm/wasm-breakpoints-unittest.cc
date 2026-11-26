@@ -288,7 +288,6 @@ WASM_COMPILED_EXEC_TEST(WasmCollectPossibleBreakpoints) {
   CppGCManaged<NativeModule>::Ptr native_module =
       instance->module_object()->native_module();
 
-  std::vector<debug::Location> locations;
   // Check all locations for function 0.
   CheckLocations(&runner, native_module.raw(), {0, 0}, {0, 10},
                  {{0, 1}, {0, 2}, {0, 4}, {0, 6}, {0, 7}});
@@ -636,6 +635,87 @@ WASM_COMPILED_EXEC_TEST(WasmBreakpointMultipleScripts) {
   CHECK(!WasmScript::ClearBreakPoint(script1, code_offset, bp2));
   retval = Execution::Call(isolate, main_fun_wrapper, global, {});
   CHECK_EQ(14, GetIntReturnValue(retval));
+}
+
+namespace {
+class SkipListBreakHandler : public debug::DebugDelegate {
+ public:
+  explicit SkipListBreakHandler(Isolate* isolate, int skipped_offset,
+                                std::vector<int>* hit_offsets,
+                                std::vector<int>* hit_breakpoint_ids)
+      : isolate_(isolate),
+        skipped_offset_(skipped_offset),
+        hit_offsets_(hit_offsets),
+        hit_breakpoint_ids_(hit_breakpoint_ids) {
+    v8::debug::SetDebugDelegate(reinterpret_cast<v8::Isolate*>(isolate_), this);
+  }
+  ~SkipListBreakHandler() override {
+    v8::debug::SetDebugDelegate(reinterpret_cast<v8::Isolate*>(isolate_),
+                                nullptr);
+  }
+
+  bool ShouldBeSkipped(v8::Local<v8::debug::Script> script, int line,
+                       int column) override {
+    return line == 0 && column == skipped_offset_;
+  }
+
+  void BreakProgramRequested(v8::Local<v8::Context> paused_context,
+                             const std::vector<int>& inspector_break_points_hit,
+                             v8::debug::BreakReasons break_reasons) override {
+    DebuggableStackFrameIterator frame_it(isolate_);
+    auto summ = FrameSummary::GetInnermost(frame_it.frame()).AsWasm();
+    hit_offsets_->push_back(summ.code_offset());
+    for (int id : inspector_break_points_hit) {
+      hit_breakpoint_ids_->push_back(id);
+    }
+    if (hit_offsets_->size() == 1) {
+      isolate_->debug()->PrepareStep(StepAction::StepOver);
+    }
+  }
+
+ private:
+  Isolate* isolate_;
+  int skipped_offset_;
+  std::vector<int>* hit_offsets_;
+  std::vector<int>* hit_breakpoint_ids_;
+};
+}  // namespace
+
+WASM_COMPILED_EXEC_TEST(WasmSteppingWithSkipListHitsBreakpoint) {
+  WasmRunner<int> runner(execution_tier);
+  runner.Build({WASM_I32_ADD(WASM_I32V_1(11), WASM_I32V_1(3))});
+
+  Isolate* isolate = runner.isolate();
+  DirectHandle<JSFunction> main_fun_wrapper =
+      runner.builder().WrapCode(runner.function_index());
+
+  // Set breakpoint at the first I32Const (offset 1) and second I32Const
+  // (offset 3).
+  Handle<BreakPoint> bp1 =
+      SetBreakpoint(&runner, runner.function_index(), 1, 1);
+  Handle<BreakPoint> bp2 =
+      SetBreakpoint(&runner, runner.function_index(), 3, 3);
+
+  int func_offset =
+      runner.builder().GetFunctionAt(runner.function_index())->code.offset();
+  int skipped_module_offset = func_offset + 3;
+
+  std::vector<int> hit_offsets;
+  std::vector<int> hit_breakpoint_ids;
+  SkipListBreakHandler handler(isolate, skipped_module_offset, &hit_offsets,
+                               &hit_breakpoint_ids);
+
+  DirectHandle<Object> global(isolate->context()->global_object(), isolate);
+  MaybeDirectHandle<Object> retval =
+      Execution::Call(isolate, main_fun_wrapper, global, {});
+  CHECK_EQ(14, GetIntReturnValue(retval));
+
+  // Stepping from offset 1 with offset 3 in the skip list must still pause at
+  // the user breakpoint at offset 3 and report both breakpoints as hit.
+  std::vector<int> expected_offsets = {1, 3};
+  std::vector<int> expected_bp_ids = {bp1->id(), bp2->id()};
+  CHECK_EQ(expected_offsets, hit_offsets);
+  CHECK_EQ(expected_bp_ids, hit_breakpoint_ids);
 }
 
 #undef WASM_EXEC_TEST_SUITE

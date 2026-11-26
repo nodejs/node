@@ -8,6 +8,7 @@
 #include <array>
 #include <optional>
 
+#include "src/base/platform/mutex.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/wrappers.h"
 #include "src/base/strings.h"
@@ -77,6 +78,7 @@ class CodeTracer final : public Malloced {
     if (!ShouldRedirect()) {
       return;
     }
+    base::MutexGuard lock_guard(&mutex_);
 
     if (file_ == nullptr) {
       file_ = base::OS::FOpen(filename_.data(), "ab");
@@ -92,7 +94,7 @@ class CodeTracer final : public Malloced {
     if (!ShouldRedirect()) {
       return;
     }
-
+    base::MutexGuard lock_guard(&mutex_);
     if (--scope_depth_ == 0) {
       DCHECK_NOT_NULL(file_);
       base::Fclose(file_);
@@ -105,6 +107,7 @@ class CodeTracer final : public Malloced {
  private:
   static bool ShouldRedirect() { return v8_flags.redirect_code_traces; }
 
+  mutable base::Mutex mutex_;
   std::array<char, 128> filename_;
   FILE* file_;
   int scope_depth_;

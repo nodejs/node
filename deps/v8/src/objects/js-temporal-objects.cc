@@ -5,8 +5,10 @@
 #include "src/objects/js-temporal-objects.h"
 
 #include <algorithm>
+#include <cmath>
 #include <optional>
 #include <set>
+#include <type_traits>
 
 #include "include/v8config.h"
 #include "src/api/api-inl.h"
@@ -1743,6 +1745,50 @@ struct DateRecord {
   std::optional<std::string> era;
   std::optional<double> era_year;
   temporal_rs::AnyCalendarKind calendar = temporal_rs::AnyCalendarKind::Iso;
+
+  // This is not explicitly specced: in the spec, Calendar Fields Record's
+  // [[Year]] holds an unbounded mathematical integer (from
+  // ToIntegerWithTruncation), whereas temporal_rs's PartialDate::year is an
+  // int32_t so DateRecord::Regulate clamps or range-checks year to int32_t
+  // before passing to Rust (see
+  // https://github.com/boa-dev/temporal/issues/334).
+  //
+  // For all other operations, ISODateWithinLimits eventually rejects years
+  // outside [-271821, 275760], making the int32_t conversion unobservable for
+  // valid inputs. However, CalendarMonthDayFromFields calls
+  // CalendarResolveFields(..., ~month-day~) (which ignores [[Year]] for
+  // "iso8601") followed by CalendarMonthDayToISOReferenceDate:
+  // https://tc39.es/proposal-temporal/#sec-temporal-calendarmonthdaytoisoreferencedate
+  //   1. If calendar is "iso8601", then
+  //     a. Assert: fields.[[Month]] and fields.[[Day]] are not ~unset~.
+  //     b. Let referenceISOYear be 1972 ...
+  //     c. If fields.[[Year]] is ~unset~, let year be referenceISOYear; else
+  //        let year be fields.[[Year]].
+  //     d. Let result be ? RegulateISODate(year, fields.[[Month]],
+  //        fields.[[Day]], overflow).
+  //     e. Return CreateISODateRecord(referenceISOYear, result.[[Month]],
+  //        result.[[Day]]).
+  //
+  // RegulateISODate only reads year via ISODaysInMonth(year, 2) ->
+  // 28 + MathematicalInLeapYear(EpochTimeForYear(year)), and step 1.e discards
+  // year in favor of 1972. Because Gregorian leap years repeat every 400 years
+  // and IEEE-754 std::fmod(d, 400.0) is exact for every finite integral double,
+  // reducing year modulo 400 into [0, 399] preserves MathematicalInLeapYear
+  // while fitting in int32_t for both ~constrain~ and ~reject~.
+  void ReduceIsoYearForMonthDay() {
+    if (calendar == temporal_rs::AnyCalendarKind::Iso && year.has_value()) {
+      DCHECK(std::isfinite(year.value()));
+      DCHECK_EQ(std::nearbyint(year.value()), year.value());
+      double rem = std::fmod(year.value(), 400.0);
+      if (rem < 0) {
+        rem += 400.0;
+      } else if (rem == 0) {
+        rem = 0.0;
+      }
+      year = rem;
+    }
+  }
+
   Maybe<temporal_rs::PartialDate> Regulate(
       Isolate* isolate,
       temporal_rs::ArithmeticOverflow overflow) V8_LIFETIME_BOUND;
@@ -3111,6 +3157,11 @@ MaybeDirectHandle<JSTemporalPlainMonthDay> ToTemporalMonthDay(
       //    overflow).
       //
       // g. Return ! CreateTemporalMonthDay(isoDate, calendar).
+      //
+      // Diverges from spec: reduce unbounded ISO year modulo 400 before
+      // DateRecord::Regulate converts fields to int32_t for temporal_rs
+      // (see ReduceIsoYearForMonthDay comment).
+      fields.date.ReduceIsoYearForMonthDay();
       temporal_rs::PartialDate partial = temporal::kNullPartialDate;
       ASSIGN_RETURN_ON_EXCEPTION(
           isolate, partial,
@@ -3557,6 +3608,15 @@ MaybeDirectHandle<JSType> GenericWithHelper(
       isolate, overflow,
       ToTemporalOverflowHandleUndefined(isolate, options_obj, method_name));
 
+  // For Temporal.PlainMonthDay.prototype.with (step 10: Let isoDate be
+  // ? CalendarMonthDayFromFields(calendar, fields, overflow)), diverges from
+  // spec by reducing unbounded ISO year modulo 400 before DateRecord::Regulate
+  // converts fields to int32_t for temporal_rs (see ReduceIsoYearForMonthDay
+  // comment).
+  // https://tc39.es/proposal-temporal/#sec-temporal.plainmonthday.prototype.with
+  if constexpr (std::is_same_v<JSType, JSTemporalPlainMonthDay>) {
+    fields.date.ReduceIsoYearForMonthDay();
+  }
   PartialType partial;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, partial,
                              fields.Regulate<PartialType>(isolate, overflow));

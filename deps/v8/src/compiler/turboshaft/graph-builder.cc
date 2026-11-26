@@ -316,6 +316,9 @@ std::optional<BailoutReason> GraphBuilder::Run() {
     block_mapping[block->rpo_number()].final_frame_state =
         dominating_frame_state;
 
+    // Regions stay within a single basic block, unless terminated early by
+    // `Unreachable` or `Throw` before `FinishRegion`.
+    inside_region = false;
     std::optional<BailoutReason> bailout = std::nullopt;
     for (Node* node : *block->nodes()) {
       if (V8_UNLIKELY(node->InputCount() >=
@@ -756,7 +759,6 @@ OpIndex GraphBuilder::Process(
       UNARY_CASE(Float64Atanh, Float64Atanh)
       UNARY_CASE(Float64Cbrt, Float64Cbrt)
 
-      UNARY_CASE(BitcastWord32ToWord64, BitcastWord32ToWord64)
       UNARY_CASE(BitcastFloat32ToInt32, BitcastFloat32ToWord32)
       UNARY_CASE(BitcastInt32ToFloat32, BitcastWord32ToFloat32)
       UNARY_CASE(BitcastFloat64ToInt64, BitcastFloat64ToWord64)
@@ -1036,6 +1038,8 @@ OpIndex GraphBuilder::Process(
       return __ Convert(Map(node->InputAt(0)),
                         ConvertOp::Kind::kNumberOrOddball,
                         ConvertOp::Kind::kSmi);
+    case IrOpcode::kChangeTaggedToTaggedPointer:
+      return __ ConvertToHeapObject(Map(node->InputAt(0)));
 
     case IrOpcode::kCheckedTaggedToTaggedSigned: {
       DCHECK(dominating_frame_state.valid());
@@ -1712,10 +1716,11 @@ OpIndex GraphBuilder::Process(
       Node* value = node->InputAt(2);
       ObjectAccess const& access = ObjectAccessOf(node->op());
       bool initializing_transitioning = inside_region;
+      uint8_t element_size_log2 = 0;
       __ Store(Map(object), Map(offset), Map(value),
                StoreOp::Kind::TaggedBase(),
                MemoryRepresentation::FromMachineType(access.machine_type),
-               access.write_barrier_kind, kHeapObjectTag,
+               access.write_barrier_kind, kHeapObjectTag, element_size_log2,
                initializing_transitioning);
       return OpIndex::Invalid();
     }
@@ -1744,7 +1749,9 @@ OpIndex GraphBuilder::Process(
       FieldAccess const& access = FieldAccessOf(node->op());
       // External pointer must never be stored by optimized code.
       DCHECK(!access.type.Is(compiler::Type::ExternalPointer()) ||
-             !V8_ENABLE_SANDBOX_BOOL);
+             !COMPRESS_POINTERS_BOOL ||
+             (!V8_ENABLE_SANDBOX_BOOL &&
+              access.external_pointer_tag == kExternalPointerNullTag));
       // SandboxedPointers are not currently stored by optimized code.
       DCHECK(!access.type.Is(compiler::Type::SandboxedPointer()));
 
@@ -1805,22 +1812,33 @@ OpIndex GraphBuilder::Process(
       }
       MemoryRepresentation rep =
           MemoryRepresentation::FromMachineType(machine_type);
-#ifdef V8_ENABLE_SANDBOX
-      bool is_sandboxed_external =
+#ifdef V8_COMPRESS_POINTERS
+      bool is_external_pointer_handle =
           access.type.Is(compiler::Type::ExternalPointer());
-      if (is_sandboxed_external) {
-        // Fields for sandboxed external pointer contain a 32-bit handle, not a
+#ifndef V8_ENABLE_SANDBOX
+      // When the sandbox is disabled, SandboxedPointer fields (e.g.
+      // JSTypedArray::external_pointer_ and JSDataView::data_pointer_) are
+      // represented as raw pointers with Type::ExternalPointer() and
+      // kExternalPointerNullTag rather than ExternalPointerTable handles.
+      if (access.external_pointer_tag == kExternalPointerNullTag) {
+        is_external_pointer_handle = false;
+      }
+#endif  // !V8_ENABLE_SANDBOX
+      if (is_external_pointer_handle) {
+        // Fields in the external pointer table contain a 32-bit handle, not a
         // 64-bit raw pointer.
         rep = MemoryRepresentation::Uint32();
       }
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
       OpIndex value = __ Load(Map(object), kind, rep, access.offset);
-#ifdef V8_ENABLE_SANDBOX
-      if (is_sandboxed_external) {
+#ifdef V8_COMPRESS_POINTERS
+      if (is_external_pointer_handle) {
         value = __ LoadExternalPointer(value, access.external_pointer_tag);
       }
+#endif  // V8_COMPRESS_POINTERS
+#ifdef V8_ENABLE_SANDBOX
       if (access.is_bounded_size_access) {
-        DCHECK(!is_sandboxed_external);
+        DCHECK(!is_external_pointer_handle);
         value = __ WordPtrShiftRightLogical(value, kBoundedSizeShift);
       }
 #endif  // V8_ENABLE_SANDBOX
@@ -1868,10 +1886,10 @@ OpIndex GraphBuilder::Process(
                               Map(node->InputAt(2)));
     case IrOpcode::kNewDoubleElements:
       return __ NewArray(Map(node->InputAt(0)), NewArrayOp::Kind::kDouble,
-                         AllocationTypeOf(node->op()));
+                         AllocationType::kYoung);
     case IrOpcode::kNewSmiOrObjectElements:
       return __ NewArray(Map(node->InputAt(0)), NewArrayOp::Kind::kObject,
-                         AllocationTypeOf(node->op()));
+                         AllocationType::kYoung);
 
     case IrOpcode::kDoubleArrayMin:
       return __ DoubleArrayMinMax(Map(node->InputAt(0)),
@@ -1995,12 +2013,17 @@ OpIndex GraphBuilder::Process(
           Map(node->InputAt(0)), Map(node->InputAt(1)), dominating_frame_state,
           FeedbackSource{});
 
-#define BIGINT_BINOP_CASE(op, kind)                                     \
-  case IrOpcode::kBigInt##op:                                           \
-    DCHECK(dominating_frame_state.valid());                             \
-    return __ BigIntBinop(Map(node->InputAt(0)), Map(node->InputAt(1)), \
-                          dominating_frame_state,                       \
-                          BigIntBinopOp::Kind::k##kind);
+#define BIGINT_BINOP_CASE(opcode, kind)                                     \
+  case IrOpcode::kBigInt##opcode: {                                         \
+    DCHECK(dominating_frame_state.valid());                                 \
+    OptionalV<LazyFrameState> lazy_frame_state =                            \
+        OperatorProperties::HasFrameStateInput(node->op())                  \
+            ? Map<LazyFrameState>(NodeProperties::GetFrameStateInput(node)) \
+            : OptionalV<LazyFrameState>::Nullopt();                         \
+    return __ BigIntBinop(Map(node->InputAt(0)), Map(node->InputAt(1)),     \
+                          dominating_frame_state, lazy_frame_state,         \
+                          BigIntBinopOp::Kind::k##kind);                    \
+  }
       BIGINT_BINOP_CASE(Add, Add)
       BIGINT_BINOP_CASE(Subtract, Sub)
       BIGINT_BINOP_CASE(Multiply, Mul)
@@ -2027,7 +2050,7 @@ OpIndex GraphBuilder::Process(
 
     case IrOpcode::kLoadRootRegister:
       // Inlined usage of wasm root register operation in JS.
-      return assembler.ReduceLoadRootRegister();
+      return __ LoadRootRegister();
 
     case IrOpcode::kStringCharCodeAt:
       return __ StringCharCodeAt(Map(node->InputAt(0)), Map(node->InputAt(1)));
@@ -2212,8 +2235,11 @@ OpIndex GraphBuilder::Process(
 
       } else {
         DCHECK(dominating_frame_state.valid());
-        __ DeoptimizeIfNot(check, dominating_frame_state,
-                           DeoptimizeReason::kOutOfBounds,
+        DeoptimizeReason reason =
+            (params.flags() & CheckBoundsFlag::kSpeculativeBoundsCheck)
+                ? DeoptimizeReason::kSpeculativeBoundsCheckFailed
+                : DeoptimizeReason::kOutOfBounds;
+        __ DeoptimizeIfNot(check, dominating_frame_state, reason,
                            params.check_parameters().feedback());
       }
       return index;
@@ -2464,8 +2490,15 @@ OpIndex GraphBuilder::Process(
 
       V<Context> context = Map(n.Context());
 
-      const FastApiCallParameters* parameters =
-          FastApiCallParameters::Create(c_function, __ graph_zone());
+      const bool needs_eager_frame_state =
+          fast_api_call::NeedsEagerFrameState(c_function.signature);
+      OptionalV<EagerFrameState> eager_frame_state =
+          needs_eager_frame_state
+              ? OptionalV<EagerFrameState>(dominating_frame_state)
+              : OptionalV<EagerFrameState>::Nullopt();
+
+      const FastApiCallParameters* parameters = FastApiCallParameters::Create(
+          c_function, params.feedback(), __ graph_zone());
 
       // There is one return in addition to the return value of the C function,
       // which indicates if a fast API call actually happened.
@@ -2482,7 +2515,7 @@ OpIndex GraphBuilder::Process(
 
       ThrowingScope throwing_scope(this, block, is_final_control);
       V<Tuple<Word32, Any>> fast_call_result =
-          __ FastApiCall(frame_state, data_argument, context,
+          __ FastApiCall(frame_state, eager_frame_state, data_argument, context,
                          base::VectorOf(arguments), parameters, out_reps);
 
       V<Word32> result_state = __ template Projection<0>(fast_call_result);
@@ -2494,8 +2527,8 @@ OpIndex GraphBuilder::Process(
       IF (UNLIKELY(
               __ Word32Equal(result_state, FastApiCallOp::kFailureValue))) {
         // We need to generate a fallback (both fast and slow call) in case
-        // the generated code might fail, in case e.g. a Smi was passed where
-        // a JSObject was expected and an error must be thrown.
+        // the generated code might fail, e.g. when a number is out of range for
+        // an [EnforceRange] parameter and an error must be thrown.
         // None of this usually holds true for Wasm functions with
         // primitive types only, so we avoid generating an extra branch here.
 
@@ -2627,12 +2660,12 @@ OpIndex GraphBuilder::Process(
       LoadOp::Kind kind;
       switch (p.kind()) {
         case MemoryAccessKind::kNormal:
-          kind = LoadOp::Kind::RawAligned().Atomic();
+          kind = LoadOp::Kind::RawAligned().Atomic(p.order());
           break;
         case MemoryAccessKind::kUnaligned:
           UNREACHABLE();
         case MemoryAccessKind::kTrapping:
-          kind = LoadOp::Kind::RawAligned().Atomic().Trapping();
+          kind = LoadOp::Kind::Trapping().Atomic(p.order());
           break;
       }
       RegisterRepresentation result_rep =
@@ -2670,18 +2703,18 @@ OpIndex GraphBuilder::Process(
       StoreOp::Kind kind;
       switch (p.kind()) {
         case MemoryAccessKind::kNormal:
-          kind = StoreOp::Kind::RawAligned().Atomic();
+          kind = StoreOp::Kind::RawAligned().Atomic(p.order());
           break;
         case MemoryAccessKind::kUnaligned:
           UNREACHABLE();
         case MemoryAccessKind::kTrapping:
-          kind = StoreOp::Kind::RawAligned().Atomic().Trapping();
+          kind = StoreOp::Kind::Trapping().Atomic(p.order());
           break;
       }
       __ Store(
           base, offset, value, kind,
           MemoryRepresentation::FromMachineRepresentation(p.representation()),
-          p.write_barrier_kind(), p.order(), 0, 0, true);
+          p.write_barrier_kind(), 0, 0, true);
       return OpIndex::Invalid();
     }
 

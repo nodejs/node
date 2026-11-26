@@ -535,14 +535,6 @@ bool is_inbounds(float_t v) {
 #define IF_SIMD128(V, ...)
 #endif  // V8_ENABLE_SIMD128
 
-#if V8_ENABLE_SIMD256
-// 256 bit simd cannot be enabled without 128 bit simd.
-static_assert(V8_ENABLE_SIMD128);
-#define IF_SIMD256(V, ...) EXPAND(V(__VA_ARGS__))
-#else
-#define IF_SIMD256(V, ...)
-#endif  // V8_ENABLE_SIMD256
-
 #ifdef V8_ENABLE_DRUMBRAKE
 #define IF_WASM_DRUMBRAKE(V, ...) EXPAND(V(__VA_ARGS__))
 #else
@@ -575,6 +567,12 @@ static_assert(V8_ENABLE_SIMD128);
 #else
 #define IF_SANDBOX(V, ...)
 #endif  // V8_ENABLE_SANDBOX
+
+#ifdef V8_COMPRESS_POINTERS
+#define IF_COMPRESS_POINTERS(V, ...) EXPAND(V(__VA_ARGS__))
+#else
+#define IF_COMPRESS_POINTERS(V, ...)
+#endif  // V8_COMPRESS_POINTERS
 
 // Defines IF_INTL, to be used in macro lists for elements that should only be
 // there if INTL is enabled.

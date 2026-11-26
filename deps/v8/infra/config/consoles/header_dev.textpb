@@ -1,0 +1,33 @@
+tree_status_host: "v8-status.appspot.com"
+
+links {
+  name: "Consoles"
+  links {
+    text: "dev_image"
+    url: "/p/v8/g/dev_image"
+    alt: "Dev Image"
+  }
+}
+
+links {
+  name: "Controls"
+  links {
+    text: "tree status"
+    url: "https://v8-status.appspot.com/"
+  }
+  links {
+    text: "roll status"
+    url: "https://autoroll.skia.org/r/v8-chromium-autoroll"
+  }
+}
+
+links {
+  name: "LKGR"
+  links {
+    # TODO(sergiyb): Make this text show LKGR revision dynamically and its age
+    # as it was displayed on Buildbot, e.g. "3d468c38 (5h old)". Currently
+    # this is not possible in Milo, see https://crbug.com/832598.
+    text: "status"
+    url: "https://storage.cloud.google.com/chromium-v8/lkgr-status/v8-lkgr-status.html"
+  }
+}

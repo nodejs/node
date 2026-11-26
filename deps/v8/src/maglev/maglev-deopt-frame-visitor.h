@@ -14,39 +14,70 @@ namespace v8 {
 namespace internal {
 namespace maglev {
 
+template <typename DeoptFrameT, typename Function>
+inline void DeoptFrame::ForEachValueImpl(DeoptFrameT& frame, Function&& f) {
+  switch (frame.type()) {
+    case FrameType::kInterpretedFrame:
+      f(frame.as_interpreted().closure());
+      frame.as_interpreted().frame_state()->ForEachValue(
+          frame.as_interpreted().unit(),
+          [&](ValueNode*& node, interpreter::Register) { f(node); });
+      break;
+    case FrameType::kInlinedArgumentsFrame:
+      f(frame.as_inlined_arguments().closure());
+      for (ValueNode*& node : frame.as_inlined_arguments().arguments()) {
+        f(node);
+      }
+      break;
+    case FrameType::kConstructInvokeStubFrame:
+      f(frame.as_construct_stub().receiver());
+      f(frame.as_construct_stub().context());
+      break;
+    case FrameType::kBuiltinContinuationFrame:
+      for (ValueNode*& node : frame.as_builtin_continuation().parameters()) {
+        f(node);
+      }
+      f(frame.as_builtin_continuation().context());
+      break;
+  }
+}
+
+template <typename Function>
+inline void DeoptFrame::ForEachValue(Function&& f) {
+  ForEachValueImpl(*this, std::forward<Function>(f));
+}
+
+template <typename Function>
+inline void DeoptFrame::ForEachValue(Function&& f) const {
+  ForEachValueImpl(*this, std::forward<Function>(f));
+}
+
 template <typename DeoptInfoT>
 class DeoptInfoVisitor {
  public:
   template <typename Function>
   static void ForEager(DeoptInfoT* deopt_info, Function&& f) {
-    DeoptInfoVisitor<DeoptInfoT> visitor(deopt_info);
-    visitor.Visit(deopt_info->top_frame(), f);
+    Visit(deopt_info->top_frame(), f);
   }
 
   template <typename Function>
   static void ForLazy(DeoptInfoT* deopt_info, Function&& f) {
-    DeoptInfoVisitor<DeoptInfoT> visitor(deopt_info);
     if (deopt_info->top_frame().parent()) {
-      visitor.Visit(*deopt_info->top_frame().parent(), f);
+      Visit(*deopt_info->top_frame().parent(), f);
     }
-    visitor.VisitSingleFrame(deopt_info->top_frame(), f);
+    VisitSingleFrame(deopt_info->top_frame(), f);
   }
 
  private:
-  const DeoptInfoT* deopt_info_;
-  const VirtualObjectList virtual_objects_;
-
   using DeoptFrameT = std::conditional_t<std::is_const_v<DeoptInfoT>,
                                          const DeoptFrame, DeoptFrame>;
   using ValueNodeT =
       std::conditional_t<std::is_const_v<DeoptInfoT>, ValueNode*, ValueNode*&>;
-
-  explicit DeoptInfoVisitor(DeoptInfoT* deopt_info)
-      : deopt_info_(deopt_info),
-        virtual_objects_(deopt_info->top_frame().GetVirtualObjects()) {}
+  using VirtualObjectT = std::conditional_t<std::is_const_v<DeoptInfoT>,
+                                            const VirtualObject, VirtualObject>;
 
   template <typename Function>
-  void Visit(DeoptFrameT& frame, Function&& f) {
+  static void Visit(DeoptFrameT& frame, Function&& f) {
     if (frame.parent()) {
       Visit(*frame.parent(), f);
     }
@@ -54,53 +85,20 @@ class DeoptInfoVisitor {
   }
 
   template <typename Function>
-  void VisitSingleFrame(DeoptFrameT& frame, Function&& f) {
+  static void VisitSingleFrame(DeoptFrameT& frame, Function&& f) {
     auto updated_f = [&](ValueNodeT node) {
-      DCHECK(!node->template Is<VirtualObject>());
-      if (std::is_same_v<ValueNodeT, ValueNode*&>) {
-        node = node->UnwrapAndUpdateUseCountForDeopt(virtual_objects_);
+      if constexpr (std::is_same_v<ValueNodeT, ValueNode*&>) {
+        node = node->UnwrapAndUpdateUseCountForDeopt();
       } else {
         node = node->Unwrap();
       }
-      if (auto alloc = node->template TryCast<InlinedAllocation>()) {
-        VirtualObject* vobject = virtual_objects_.FindAllocatedWith(alloc);
-        if (vobject && (!alloc->HasBeenAnalysed() || alloc->HasBeenElided())) {
-          return vobject->ForEachNestedRuntimeInput(
-              virtual_objects_, f,
-              VirtualObject::ForEachSlotIterationMode::kForDeopt);
-        }
+      if (VirtualObjectT* vobject = node->TryGetDeoptVirtualObject()) {
+        return vobject->ForEachNestedRuntimeInput(
+            f, VirtualObject::ForEachSlotIterationMode::kForDeopt);
       }
       f(node);
     };
-    switch (frame.type()) {
-      case DeoptFrame::FrameType::kInterpretedFrame:
-        updated_f(frame.as_interpreted().closure());
-        frame.as_interpreted().frame_state()->ForEachValue(
-            frame.as_interpreted().unit(),
-            [&](ValueNode*& node, interpreter::Register reg) {
-              updated_f(node);
-            });
-        break;
-      case DeoptFrame::FrameType::kInlinedArgumentsFrame: {
-        // The inlined arguments frame can never be the top frame.
-        updated_f(frame.as_inlined_arguments().closure());
-        for (ValueNode*& node : frame.as_inlined_arguments().arguments()) {
-          updated_f(node);
-        }
-        break;
-      }
-      case DeoptFrame::FrameType::kConstructInvokeStubFrame: {
-        updated_f(frame.as_construct_stub().receiver());
-        updated_f(frame.as_construct_stub().context());
-        break;
-      }
-      case DeoptFrame::FrameType::kBuiltinContinuationFrame:
-        for (ValueNode*& node : frame.as_builtin_continuation().parameters()) {
-          updated_f(node);
-        }
-        updated_f(frame.as_builtin_continuation().context());
-        break;
-    }
+    frame.ForEachValue(updated_f);
   }
 };
 

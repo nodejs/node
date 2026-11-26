@@ -214,7 +214,6 @@ class InstructionSelectionNormalizationReducer : public Next {
                                Simd128BinopOp::Kind::kI32x4DotI8x16S);
       }
     }
-#endif  // V8_TARGET_ARCH_ARM64
 
     if (kind != Simd128BinopOp::Kind::kI32x4DotI16x8S) goto no_change;
 
@@ -259,16 +258,15 @@ class InstructionSelectionNormalizationReducer : public Next {
           return __ Simd128Unary(
               __ Simd128Binop(left_conv, right_conv, extmul_kind), extadd_kind);
         }
-#if V8_TARGET_ARCH_ARM64
         OpIndex mul_low = __ Simd128Binop(
             left, right, Simd128BinopOp::Kind::kI32x4ExtMulLowI16x8S);
         OpIndex mul_high = __ Simd128Binop(
             left, right, Simd128BinopOp::Kind::kI32x4ExtMulHighI16x8S);
         return __ Simd128Binop(mul_low, mul_high,
                                Simd128BinopOp::Kind::kI32x4AddPairwise);
-#endif  // V8_TARGET_ARCH_ARM64
       }
     }
+#endif  // V8_TARGET_ARCH_ARM64
 
     goto no_change;
   }

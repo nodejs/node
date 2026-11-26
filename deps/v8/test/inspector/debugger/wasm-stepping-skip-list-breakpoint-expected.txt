@@ -1,0 +1,10 @@
+Tests that stepping with a skipList does not skip breakpoints
+
+Running test: test
+Setting breakpoint 1 at offset 35
+Setting breakpoint 2 at offset 37
+Paused at: 36
+Hit breakpoint 1: true
+Stepping with skipList covering breakpoint 2
+Paused at: 38
+Hit breakpoint 2: true

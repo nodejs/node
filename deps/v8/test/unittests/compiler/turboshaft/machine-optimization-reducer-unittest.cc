@@ -21,11 +21,9 @@ TEST_F(MachineOptimizationReducerTest, ReduceToWord32RorWithXorChain) {
     auto other1 = t.template GetParameter<Word32>(1);
     auto other2 = t.template GetParameter<Word32>(2);
 
-    auto shl =
-        t.Asm().Shift(value, t.Asm().Word32Constant(7),
-                      ShiftOp::Kind::kShiftLeft, WordRepresentation::Word32());
-    auto shr = t.Asm().Shift(value, t.Asm().Word32Constant(25),
-                             ShiftOp::Kind::kShiftRightLogical,
+    auto shl = t.Asm().Shift(value, 7, ShiftOp::Kind::kShiftLeft,
+                             WordRepresentation::Word32());
+    auto shr = t.Asm().Shift(value, 25, ShiftOp::Kind::kShiftRightLogical,
                              WordRepresentation::Word32());
 
     auto xor1 = t.Asm().WordBinop(shl, other1, WordBinopOp::Kind::kBitwiseXor,
@@ -61,11 +59,9 @@ TEST_F(MachineOptimizationReducerTest, ReduceToWord32RorWithOrChain) {
     auto other1 = t.template GetParameter<Word32>(1);
     auto other2 = t.template GetParameter<Word32>(2);
 
-    auto shl =
-        t.Asm().Shift(value, t.Asm().Word32Constant(7),
-                      ShiftOp::Kind::kShiftLeft, WordRepresentation::Word32());
-    auto shr = t.Asm().Shift(value, t.Asm().Word32Constant(25),
-                             ShiftOp::Kind::kShiftRightLogical,
+    auto shl = t.Asm().Shift(value, 7, ShiftOp::Kind::kShiftLeft,
+                             WordRepresentation::Word32());
+    auto shr = t.Asm().Shift(value, 25, ShiftOp::Kind::kShiftRightLogical,
                              WordRepresentation::Word32());
 
     auto or1 = t.Asm().WordBinop(shl, other1, WordBinopOp::Kind::kBitwiseOr,
@@ -101,11 +97,9 @@ TEST_F(MachineOptimizationReducerTest, ReduceToWord32RorWithXorTree) {
     auto other1 = t.template GetParameter<Word32>(1);
     auto other2 = t.template GetParameter<Word32>(2);
 
-    auto shl =
-        t.Asm().Shift(value, t.Asm().Word32Constant(7),
-                      ShiftOp::Kind::kShiftLeft, WordRepresentation::Word32());
-    auto shr = t.Asm().Shift(value, t.Asm().Word32Constant(25),
-                             ShiftOp::Kind::kShiftRightLogical,
+    auto shl = t.Asm().Shift(value, 7, ShiftOp::Kind::kShiftLeft,
+                             WordRepresentation::Word32());
+    auto shr = t.Asm().Shift(value, 25, ShiftOp::Kind::kShiftRightLogical,
                              WordRepresentation::Word32());
 
     auto xor_left =
@@ -144,11 +138,9 @@ TEST_F(MachineOptimizationReducerTest,
   auto test = CreateFromGraph(base::VectorOf(reps), [](auto& t) {
     auto value = t.template GetParameter<Word32>(0);
 
-    auto shl =
-        t.Asm().Shift(value, t.Asm().Word32Constant(7),
-                      ShiftOp::Kind::kShiftLeft, WordRepresentation::Word32());
-    auto shr = t.Asm().Shift(value, t.Asm().Word32Constant(25),
-                             ShiftOp::Kind::kShiftRightLogical,
+    auto shl = t.Asm().Shift(value, 7, ShiftOp::Kind::kShiftLeft,
+                             WordRepresentation::Word32());
+    auto shr = t.Asm().Shift(value, 25, ShiftOp::Kind::kShiftRightLogical,
                              WordRepresentation::Word32());
 
     auto curr = shl;
@@ -205,11 +197,9 @@ TEST_F(MachineOptimizationReducerTest,
   auto test = CreateFromGraph(base::VectorOf(reps), [](auto& t) {
     auto value = t.template GetParameter<Word32>(0);
 
-    auto shl =
-        t.Asm().Shift(value, t.Asm().Word32Constant(7),
-                      ShiftOp::Kind::kShiftLeft, WordRepresentation::Word32());
-    auto shr = t.Asm().Shift(value, t.Asm().Word32Constant(25),
-                             ShiftOp::Kind::kShiftRightLogical,
+    auto shl = t.Asm().Shift(value, 7, ShiftOp::Kind::kShiftLeft,
+                             WordRepresentation::Word32());
+    auto shr = t.Asm().Shift(value, 25, ShiftOp::Kind::kShiftRightLogical,
                              WordRepresentation::Word32());
 
     auto curr = shl;
@@ -278,9 +268,7 @@ TEST_F(MachineOptimizationReducerTest, DropRedundantShiftAmountMask) {
     auto test = CreateFromGraph(base::VectorOf(reps), [mask](auto& t) {
       auto value = t.template GetParameter<Word32>(0);
       auto amount = t.template GetParameter<Word32>(1);
-      V<Word32> masked = V<Word32>::Cast(t.Asm().WordBinop(
-          amount, t.Asm().Word32Constant(mask), WordBinopOp::Kind::kBitwiseAnd,
-          WordRepresentation::Word32()));
+      V<Word32> masked = t.Asm().Word32BitwiseAnd(amount, mask);
       t.Asm().Return(
           t.Capture(t.Asm().Shift(value, masked, ShiftOp::Kind::kShiftLeft,
                                   WordRepresentation::Word32()),
@@ -306,9 +294,7 @@ TEST_F(MachineOptimizationReducerTest, KeepNarrowingShiftAmountMask) {
   auto test = CreateFromGraph(base::VectorOf(reps), [](auto& t) {
     auto value = t.template GetParameter<Word32>(0);
     auto amount = t.template GetParameter<Word32>(1);
-    V<Word32> masked = V<Word32>::Cast(t.Asm().WordBinop(
-        amount, t.Asm().Word32Constant(0x0f), WordBinopOp::Kind::kBitwiseAnd,
-        WordRepresentation::Word32()));
+    V<Word32> masked = t.Asm().Word32BitwiseAnd(amount, 0x0f);
     t.Asm().Return(
         t.Capture(t.Asm().Shift(value, masked, ShiftOp::Kind::kShiftLeft,
                                 WordRepresentation::Word32()),
@@ -398,8 +384,9 @@ TEST_F(MachineOptimizationReducerTest,
   EXPECT_EQ(proj0_uses[0], consumer);
 }
 
-#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM64) || \
-    defined(V8_TARGET_ARCH_LOONG64) || defined(V8_TARGET_ARCH_MIPS64)
+#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM64) ||      \
+    defined(V8_TARGET_ARCH_LOONG64) || defined(V8_TARGET_ARCH_MIPS64) || \
+    defined(V8_TARGET_ARCH_RISCV64)
 TEST_F(MachineOptimizationReducerTest, ReduceNestedWord64Add128ToWord64Add3) {
   const RegisterRepresentation rep64 = RegisterRepresentation::Word64();
   base::SmallVector<RegisterRepresentation, 3> reps = {rep64, rep64, rep64};
@@ -556,6 +543,47 @@ TEST_F(MachineOptimizationReducerTest, SelfComparisonLessThan) {
       EXPECT_EQ(constant->word32(), 0u);
       EXPECT_EQ(test.CountOp(Opcode::kComparison), 0u);
     }
+  }
+}
+
+TEST_F(MachineOptimizationReducerTest, Float64ToInt64ToFloat64Reversibility) {
+  const RegisterRepresentation rep_f64 = RegisterRepresentation::Float64();
+  base::SmallVector<RegisterRepresentation, 1> reps = {rep_f64};
+
+  // ReversibleFloat64ToInt64 excludes -0, so converting back to Float64 folds
+  // to the original input parameter.
+  {
+    auto test = CreateFromGraph(base::VectorOf(reps), [](auto& t) {
+      auto x = t.template GetParameter<Float64>(0);
+      auto i64 = t.Asm().ReversibleFloat64ToInt64(x);
+      auto f64 = t.Asm().ReversibleInt64ToFloat64(i64);
+      t.Asm().Return(f64);
+    });
+
+    test.Run<MachineOptimizationReducer>();
+    const ReturnOp* ret =
+        test.graph().Get(test.graph().LastOperation()).TryCast<ReturnOp>();
+    ASSERT_NE(ret, nullptr);
+    ASSERT_EQ(ret->return_values().size(), 1u);
+    EXPECT_TRUE(test.graph().Get(ret->return_values()[0]).Is<ParameterOp>());
+  }
+
+  // TruncateFloat64ToInt64OverflowUndefined maps -0 to 0, so converting back to
+  // Float64 must not fold to the original input.
+  {
+    auto test = CreateFromGraph(base::VectorOf(reps), [](auto& t) {
+      auto x = t.template GetParameter<Float64>(0);
+      auto i64 = t.Asm().TruncateFloat64ToInt64OverflowUndefined(x);
+      auto f64 = t.Asm().ReversibleInt64ToFloat64(i64);
+      t.Asm().Return(f64);
+    });
+
+    test.Run<MachineOptimizationReducer>();
+    const ReturnOp* ret =
+        test.graph().Get(test.graph().LastOperation()).TryCast<ReturnOp>();
+    ASSERT_NE(ret, nullptr);
+    ASSERT_EQ(ret->return_values().size(), 1u);
+    EXPECT_TRUE(test.graph().Get(ret->return_values()[0]).Is<ChangeOp>());
   }
 }
 

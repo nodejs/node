@@ -54,8 +54,8 @@ std::unique_ptr<Value> ReadValue(DeserializerState* state) {
       return StringValue::create(StringUtil::fromUTF8(str.data(), str.size()));
     }
     case cbor::CBORTokenTag::STRING16: {
-      const auto str = tokenizer->GetString16WireRep();
-      return StringValue::create(StringUtil::fromUTF16LE(reinterpret_cast<const uint16_t*>(str.data()), str.size() / 2));
+      const auto str = tokenizer->GetString16View();
+      return StringValue::create(StringUtil::fromUTF16(str.data(), str.size()));
     }
     case cbor::CBORTokenTag::ENVELOPE: {
       const auto env = tokenizer->GetEnvelope();

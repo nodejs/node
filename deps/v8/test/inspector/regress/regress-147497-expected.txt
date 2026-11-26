@@ -1,0 +1,2 @@
+Tests regress-147497.
+Steps: 4

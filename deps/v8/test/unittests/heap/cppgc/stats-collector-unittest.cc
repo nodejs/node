@@ -243,15 +243,15 @@ TEST_F(StatsCollectorTest, AllocatedMemorySize) {
   EXPECT_EQ(0u, stats.allocated_memory_size());
 }
 
-TEST_F(StatsCollectorTest, DiscardedMemorySize) {
-  EXPECT_EQ(0u, stats.discarded_memory_size());
-  stats.IncrementDiscardedMemory(1024);
-  EXPECT_EQ(1024u, stats.discarded_memory_size());
-  stats.DecrementDiscardedMemory(1024);
-  EXPECT_EQ(0u, stats.discarded_memory_size());
+TEST_F(StatsCollectorTest, PurgedMemorySize) {
+  EXPECT_EQ(0u, stats.purged_memory_size());
+  stats.IncrementPurgedMemory(1024);
+  EXPECT_EQ(1024u, stats.purged_memory_size());
+  stats.DecrementPurgedMemory(1024);
+  EXPECT_EQ(0u, stats.purged_memory_size());
 }
 
-TEST_F(StatsCollectorTest, ResidentMemorySizeWithoutDiscarded) {
+TEST_F(StatsCollectorTest, ResidentMemorySizeWithoutPurged) {
   EXPECT_EQ(0u, stats.resident_memory_size());
   stats.NotifyAllocatedMemory(1024);
   EXPECT_EQ(1024u, stats.resident_memory_size());
@@ -259,13 +259,13 @@ TEST_F(StatsCollectorTest, ResidentMemorySizeWithoutDiscarded) {
   EXPECT_EQ(0u, stats.resident_memory_size());
 }
 
-TEST_F(StatsCollectorTest, ResidentMemorySizeWithDiscarded) {
+TEST_F(StatsCollectorTest, ResidentMemorySizeWithPurged) {
   EXPECT_EQ(0u, stats.resident_memory_size());
   stats.NotifyAllocatedMemory(8192);
   EXPECT_EQ(8192u, stats.resident_memory_size());
-  stats.IncrementDiscardedMemory(4096);
+  stats.IncrementPurgedMemory(4096);
   EXPECT_EQ(4096u, stats.resident_memory_size());
-  stats.DecrementDiscardedMemory(4096);
+  stats.DecrementPurgedMemory(4096);
   EXPECT_EQ(8192u, stats.resident_memory_size());
   stats.NotifyFreedMemory(8192);
   EXPECT_EQ(0u, stats.resident_memory_size());

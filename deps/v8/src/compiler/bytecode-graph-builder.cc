@@ -1735,8 +1735,7 @@ void BytecodeGraphBuilder::VisitLdaContextSlot() {
 void BytecodeGraphBuilder::VisitLdaImmutableContextSlot() {
   // LdaImmutableContextSlot is emitted for kNotAssigned context slots, which
   // the debugger may still mutate at runtime.
-  bool immutable =
-      !broker()->isolate()->is_context_slot_not_assigned_unreliable();
+  bool immutable = !broker()->is_context_slot_not_assigned_unreliable();
   const Operator* op = javascript()->LoadContextNoCell(
       bytecode_iterator().GetUnsignedImmediateOperand(2),
       bytecode_iterator().GetContextSlotOperand(1), immutable);
@@ -1764,8 +1763,7 @@ void BytecodeGraphBuilder::VisitLdaCurrentContextSlot() {
 void BytecodeGraphBuilder::VisitLdaImmutableCurrentContextSlot() {
   // LdaImmutableCurrentContextSlot is emitted for kNotAssigned context slots,
   // which the debugger may still mutate at runtime.
-  bool immutable =
-      !broker()->isolate()->is_context_slot_not_assigned_unreliable();
+  bool immutable = !broker()->is_context_slot_not_assigned_unreliable();
   const Operator* op = javascript()->LoadContextNoCell(
       0, bytecode_iterator().GetContextSlotOperand(0), immutable);
   Node* node = NewNode(op);
@@ -2530,11 +2528,11 @@ void BytecodeGraphBuilder::VisitCreateArrayLiteral() {
   int bytecode_flags = bytecode_iterator().GetFlag8Operand(2);
   int literal_flags =
       interpreter::CreateArrayLiteralFlags::FlagsBits::decode(bytecode_flags);
-  // Disable allocation site mementos. Only unoptimized code will collect
+  // Disable allocation site tracking. Only unoptimized code will collect
   // feedback about allocation site. Once the code is optimized we expect the
-  // data to converge. So, we disable allocation site mementos in optimized
+  // data to converge. So, we disable allocation site tracking in optimized
   // code. We can revisit this when we have data to the contrary.
-  literal_flags |= ArrayLiteral::kDisableMementos;
+  literal_flags |= ArrayLiteral::kDisableAllocationSiteTracking;
   uint32_t number_of_elements =
       array_boilerplate_description.constants_elements_length();
   static_assert(JSCreateLiteralArrayNode::FeedbackVectorIndex() == 0);
@@ -2608,7 +2606,8 @@ void BytecodeGraphBuilder::VisitGetTemplateObject() {
       javascript()->GetTemplateObject(description, shared_info(), source);
   DCHECK(IrOpcode::IsFeedbackCollectingOpcode(op->opcode()));
   Node* template_object = NewNode(op, feedback_vector_node());
-  environment()->BindAccumulator(template_object);
+  environment()->BindAccumulator(template_object,
+                                 Environment::kAttachFrameState);
 }
 
 Node* const* BytecodeGraphBuilder::GetCallArgumentsFromRegisters(
@@ -3755,7 +3754,7 @@ void BytecodeGraphBuilder::VisitToName() {
 }
 
 void BytecodeGraphBuilder::VisitToObject() {
-  BuildCastOperator(javascript()->ToObject());
+  BuildCastOperator(javascript()->ToObject(ToObjectMode::kForInOrWith));
 }
 
 void BytecodeGraphBuilder::VisitToString() {

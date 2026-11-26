@@ -10,6 +10,7 @@
 
 #include "src/base/logging.h"
 #include "src/heap/heap-layout-inl.h"
+#include "src/heap/heap-write-barrier-inl.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/marking.h"
@@ -22,7 +23,7 @@ void MarkingBarrier::Write(Tagged<HeapObject> host, TSlot slot,
                            Tagged<HeapObject> value) {
   DCHECK(IsCurrentMarkingBarrier(host));
   DCHECK(is_activated_ || shared_heap_worklists_.has_value());
-  DCHECK(MemoryChunk::FromHeapObject(host)->IsMarking());
+  DCHECK(WriteBarrier::IsMarking(isolate(), host));
 
   MarkValue(host, value);
 
@@ -47,23 +48,19 @@ void MarkingBarrier::MarkValue(Tagged<HeapObject> host,
   // local marking barrier. Also from the point-of-view of the shared space
   // isolate (= main isolate) also shared objects are considered local.
   if (V8_UNLIKELY(uses_shared_heap_) && !is_shared_space_isolate_) {
-    auto* host_chunk = MemoryChunk::FromHeapObject(host);
-    // Check whether incremental marking is enabled for that object's space.
-    if (!host_chunk->IsMarking()) {
-      return;
-    }
-
     auto* value_chunk = MemoryChunk::FromHeapObject(value);
-    if (value_chunk->IsBlackAllocated()) {
-      return;
-    }
-
-    if (host_chunk->InWritableSharedSpace()) {
+    if (TrustedHeapLayout::InWritableSharedSpace(isolate(), host)) {
+      if (!is_shared() || value_chunk->IsBlackAllocated()) {
+        return;
+      }
       // Invoking shared marking barrier when storing into shared objects.
       MarkValueShared(value);
       return;
-    } else if (value_chunk->InWritableSharedSpace()) {
-      // No marking needed when storing shared objects in local objects.
+    }
+    if (!is_activated_ || value_chunk->IsBlackAllocated() ||
+        value_chunk->InWritableSharedSpace()) {
+      // No marking needed when local marking is off or when storing shared
+      // objects in local objects.
       return;
     }
   }
@@ -130,7 +127,8 @@ inline void MarkingBarrier::MarkRange(Tagged<HeapObject> host, TSlot start,
     if (object.GetHeapObject(isolate, &heap_object)) {
       MarkValue(host, heap_object);
       if (record_slots) {
-        major_collector_->RecordSlot(host, HeapObjectSlot(slot), heap_object);
+        MarkCompactCollector::RecordSlot(host, HeapObjectSlot(slot),
+                                         heap_object);
       }
     }
   }

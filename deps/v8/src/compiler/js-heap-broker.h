@@ -131,6 +131,13 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
 
   Zone* zone() const { return zone_; }
   bool tracing_enabled() const { return tracing_enabled_; }
+  // Per-compilation snapshot of
+  // Isolate::is_context_slot_not_assigned_unreliable captured at broker
+  // construction so background compilation sees a consistent value across all
+  // phases.
+  bool is_context_slot_not_assigned_unreliable() const {
+    return is_context_slot_not_assigned_unreliable_;
+  }
 
   NexusConfig feedback_nexus_config() const {
     return IsMainThread() ? NexusConfig::FromMainThread(isolate())
@@ -484,6 +491,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   BrokerMode mode_ = kDisabled;
   bool const tracing_enabled_;
   CodeKind const code_kind_;
+  bool const is_context_slot_not_assigned_unreliable_;
   std::unique_ptr<PersistentHandles> ph_;
   LocalIsolate* local_isolate_ = nullptr;
   // The CanonicalHandlesMap is owned by the compilation info.

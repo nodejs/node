@@ -17,14 +17,13 @@
 #include "src/__support/OSUtil/linux/syscall_wrappers/mmap.h"
 #include "src/__support/OSUtil/linux/syscall_wrappers/munmap.h"
 #include "src/__support/OSUtil/linux/syscall_wrappers/open.h"
+#include "src/__support/OSUtil/linux/syscall_wrappers/prctl.h"
 #include "src/__support/OSUtil/linux/syscall_wrappers/read.h"
-#include "src/__support/OSUtil/syscall.h"
 #include "src/__support/common.h"
 #include "src/__support/threads/callonce.h"
 
-#include <linux/param.h>  // For EXEC_PAGESIZE
-#include <linux/prctl.h>  // For prctl
-#include <sys/syscall.h>  // For syscall numbers
+#include <linux/param.h> // For EXEC_PAGESIZE
+#include <linux/prctl.h> // For prctl
 
 namespace LIBC_NAMESPACE_DECL {
 
@@ -106,10 +105,10 @@ LIBC_INLINE void Vector::fallback_initialize_unsync() {
 // Attempt 1: use PRCTL to get the auxv.
 // We guarantee that the vector is always padded with AT_NULL entries.
 #ifdef PR_GET_AUXV
-  long prctl_ret = syscall_impl<long>(SYS_prctl, PR_GET_AUXV,
-                                      reinterpret_cast<unsigned long>(vector),
-                                      avaiable_size, 0, 0);
-  if (prctl_ret >= 0) {
+  auto prctl_ret = linux_syscalls::prctl(
+      PR_GET_AUXV, reinterpret_cast<unsigned long>(vector), avaiable_size, 0,
+      0);
+  if (prctl_ret) {
     entries = vector;
     return;
   }

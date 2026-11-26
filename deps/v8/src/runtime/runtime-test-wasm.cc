@@ -714,7 +714,6 @@ RUNTIME_FUNCTION(Runtime_WasmTraceMemory) {
 RUNTIME_FUNCTION(Runtime_WasmTierUpFunction) {
   SealHandleScope shs(isolate);
   DisallowGarbageCollection no_gc;
-  DCHECK(!v8_flags.wasm_jitless);
 
   if (V8_UNLIKELY(v8_flags.wasm_generate_compilation_hints ||
                   v8_flags.trace_wasm_generate_compilation_hints)) {
@@ -736,14 +735,17 @@ RUNTIME_FUNCTION(Runtime_WasmTierUpFunction) {
       static_cast<uint32_t>(func_index) >= module->functions.size()) {
     return CrashUnlessFuzzing(isolate);
   }
-  wasm::TierUpNowForTesting(isolate, trusted_data, func_index);
+
+  // Ignore tier-up requests when running in JITless mode.
+  if (!v8_flags.wasm_jitless) {
+    wasm::TierUpNowForTesting(isolate, trusted_data, func_index);
+  }
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_WasmTriggerTierUpForTesting) {
   SealHandleScope shs(isolate);
   DisallowGarbageCollection no_gc;
-  DCHECK(!v8_flags.wasm_jitless);
 
   if (V8_UNLIKELY(v8_flags.wasm_generate_compilation_hints ||
                   v8_flags.trace_wasm_generate_compilation_hints)) {
@@ -765,7 +767,10 @@ RUNTIME_FUNCTION(Runtime_WasmTriggerTierUpForTesting) {
       static_cast<uint32_t>(func_index) >= module->functions.size()) {
     return CrashUnlessFuzzing(isolate);
   }
-  wasm::TriggerTierUp(isolate, trusted_data, func_index);
+  // Ignore tier-up requests when running in JITless mode.
+  if (!v8_flags.wasm_jitless) {
+    wasm::TriggerTierUp(isolate, trusted_data, func_index);
+  }
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
@@ -807,12 +812,14 @@ static Tagged<Object> CreateWasmObject(Isolate* isolate,
       Cast<Map>(instance->trusted_data(isolate)->managed_object_maps()->get(
           type_index.index));
   if (is_struct) {
+    SBXCHECK(module->has_struct(type_index));
     const wasm::StructType* struct_type = module->struct_type(type_index);
     SBXCHECK_EQ(struct_type->field_count(), 1);
     SBXCHECK_EQ(struct_type->field(0), wasm::kWasmI64);
     return *isolate->factory()->NewWasmStruct(struct_type, &value,
                                               direct_handle(map, isolate));
   } else {
+    SBXCHECK(module->has_array(type_index));
     SBXCHECK_EQ(module->array_type(type_index)->element_type(), wasm::kWasmI64);
     return *isolate->factory()->NewWasmArray(
         wasm::kWasmI64, 1, value, direct_handle(map, isolate),
@@ -1099,8 +1106,10 @@ RUNTIME_FUNCTION(Runtime_BuildRefTypeBitfield) {
 // builds (to save binary size). Hence also skip the runtime function in
 // official builds.
 #ifdef V8_WASM_RANDOM_FUZZERS
-RUNTIME_FUNCTION(Runtime_WasmGenerateRandomModule) {
-  if (v8_flags.jitless) {
+namespace {
+Tagged<Object> GenerateRandomWasmModule(Isolate* isolate, RuntimeArguments args,
+                                        bool for_revec) {
+  if (v8_flags.jitless || (for_revec && !wasm::CheckHardwareSupportsSimd())) {
     return CrashUnlessFuzzing(isolate);
   }
   HandleScope scope{isolate};
@@ -1141,23 +1150,28 @@ RUNTIME_FUNCTION(Runtime_WasmGenerateRandomModule) {
     }
   }
 
-  // Avoid generating SIMD if the CPU does not support it, or it's disabled via
-  // flags. Otherwise, do not limit the generated expressions and types.
-  constexpr auto kAllOptions =
-      wasm::fuzzing::WasmModuleGenerationOptions::All();
-  constexpr auto kNoSimdOptions = wasm::fuzzing::WasmModuleGenerationOptions{
-      {wasm::fuzzing::WasmModuleGenerationOption::kGenerateWasmGC}};
-  static_assert(
-      (kNoSimdOptions |
-       wasm::fuzzing::WasmModuleGenerationOptions{
-           {wasm::fuzzing::WasmModuleGenerationOption::kGenerateSIMD}}) ==
-      kAllOptions);
-  auto options =
-      wasm::CheckHardwareSupportsSimd() ? kAllOptions : kNoSimdOptions;
+  base::Vector<const uint8_t> module_bytes;
+  if (for_revec) {
+    module_bytes = wasm::fuzzing::GenerateWasmModuleForRevec(
+        &temporary_zone, base::VectorOf(input_bytes));
+  } else {
+    // Avoid generating SIMD if the CPU does not support it, or it's disabled
+    // via flags. Otherwise, do not limit the generated expressions and types.
+    constexpr auto kAllOptions =
+        wasm::fuzzing::WasmModuleGenerationOptions::All();
+    constexpr auto kNoSimdOptions = wasm::fuzzing::WasmModuleGenerationOptions{
+        {wasm::fuzzing::WasmModuleGenerationOption::kGenerateWasmGC}};
+    static_assert(
+        (kNoSimdOptions |
+         wasm::fuzzing::WasmModuleGenerationOptions{
+             {wasm::fuzzing::WasmModuleGenerationOption::kGenerateSIMD}}) ==
+        kAllOptions);
+    auto options =
+        wasm::CheckHardwareSupportsSimd() ? kAllOptions : kNoSimdOptions;
 
-  base::Vector<const uint8_t> module_bytes =
-      wasm::fuzzing::GenerateRandomWasmModule(&temporary_zone, options,
-                                              base::VectorOf(input_bytes));
+    module_bytes = wasm::fuzzing::GenerateRandomWasmModule(
+        &temporary_zone, options, base::VectorOf(input_bytes));
+  }
 
   // Fuzzers can set `--wasm-max-module-size` to small values and then call
   // %WasmGenerateRandomModule() (see https://crbug.com/382816108).
@@ -1178,6 +1192,15 @@ RUNTIME_FUNCTION(Runtime_WasmGenerateRandomModule) {
         thrower.error_msg());
   }
   return *maybe_module_object.ToHandleChecked();
+}
+}  // namespace
+
+RUNTIME_FUNCTION(Runtime_WasmGenerateRandomModule) {
+  return GenerateRandomWasmModule(isolate, args, false);
+}
+
+RUNTIME_FUNCTION(Runtime_WasmGenerateRandomRevecModule) {
+  return GenerateRandomWasmModule(isolate, args, true);
 }
 #endif  // V8_WASM_RANDOM_FUZZERS
 

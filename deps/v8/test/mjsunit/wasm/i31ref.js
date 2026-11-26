@@ -18,17 +18,44 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     .addBody([kExprLocalGet, 0, kGCPrefix, kExprRefI31, kExprLocalTee, 1,
               kGCPrefix, kExprI31GetU])
     .exportFunc();
+  // Split ref.i31 and i31.get_{s,u} across separate exports via a mutable
+  // global so WasmGCTypedOptimizationReducer cannot fold them and
+  // WasmLoweringReducer is exercised at runtime.
+  let global = builder.addGlobal(kWasmI31Ref, true, false);
+  builder.addFunction("set_i31", kSig_v_i)
+    .addBody([kExprLocalGet, 0, kGCPrefix, kExprRefI31,
+              kExprGlobalSet, global.index])
+    .exportFunc();
+  builder.addFunction("get_signed", kSig_i_v)
+    .addBody([kExprGlobalGet, global.index, kGCPrefix, kExprI31GetS])
+    .exportFunc();
+  builder.addFunction("get_unsigned", kSig_i_v)
+    .addBody([kExprGlobalGet, global.index, kGCPrefix, kExprI31GetU])
+    .exportFunc();
 
   let instance = builder.instantiate();
 
-  assertEquals(123, instance.exports.signed(123));
-  assertEquals(123, instance.exports.unsigned(123));
-  // Truncation:
-  assertEquals(0x1234, instance.exports.signed(0x80001234));
-  assertEquals(0x1234, instance.exports.unsigned(0x80001234));
-  // Sign/zero extention:
-  assertEquals(-1, instance.exports.signed(0x7fffffff));
-  assertEquals(0x7fffffff, instance.exports.unsigned(0x7fffffff));
+  const cases = [
+    [0, 0, 0],
+    [123, 123, 123],
+    [-1, -1, 0x7fffffff],
+    // Truncation:
+    [0x80001234, 0x1234, 0x1234],
+    [-0x80000000, 0, 0],
+    // Sign/zero extension:
+    [0x7fffffff, -1, 0x7fffffff],
+    [0x3fffffff, 0x3fffffff, 0x3fffffff],
+    [0x40000000, -0x40000000, 0x40000000],
+    [-0x40000000, -0x40000000, 0x40000000],
+    [-0x40000001, 0x3fffffff, 0x3fffffff],
+  ];
+  for (const [input, expected_signed, expected_unsigned] of cases) {
+    assertEquals(expected_signed, instance.exports.signed(input));
+    assertEquals(expected_unsigned, instance.exports.unsigned(input));
+    instance.exports.set_i31(input);
+    assertEquals(expected_signed, instance.exports.get_signed());
+    assertEquals(expected_unsigned, instance.exports.get_unsigned());
+  }
 })();
 
 (function I31RefNullable() {

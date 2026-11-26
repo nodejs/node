@@ -95,14 +95,50 @@
   }
 })();
 
-// Smi/Double/Obj arrays. This test ensure that:
-//  - When different kinds are present in the feedback, they all get properly
-//    optimized: |smis|, |doubles| and |objects| will produce 3 different
-//    branches in the inlined code.
-//
-//  - The "needs_fallback_builtin_call" mechanism works as intended: while the
-//    |smis|, |doubles| and |objects| cases will be inlined, |dict| should
-//    produce a call to the builtin (without deoptimizing).
+// Polymorphic fast Smi/Double/Obj arrays: all three element kinds get inlined.
+(() => {
+  const smis = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+  const doubles = [0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5, 9.5, 10.5];
+  const objects = [0, 1, 2.5, 3, {}, 5, "a", 7, 8, { "x": 42 }, 10];
+  assertEquals(smis.length, doubles.length);
+  assertEquals(smis.length, objects.length);
+  function testArrayAt(a, idx) {
+    return a.at(idx);
+  }
+  %PrepareFunctionForOptimization(testArrayAt);
+  testArrayAt(smis, 2);
+  testArrayAt(doubles, 2);
+  testArrayAt(objects, 2);
+  assertEquals(doubles[2], testArrayAt(doubles, 2));
+  assertEquals(objects[2], testArrayAt(objects, 2));
+  assertEquals(smis[2], testArrayAt(smis, 2));
+  %OptimizeFunctionOnNextCall(testArrayAt);
+  assertEquals(smis[2], testArrayAt(smis, 2));
+  assertOptimized(testArrayAt);
+  assertEquals(doubles[2], testArrayAt(doubles, 2));
+  assertOptimized(testArrayAt);
+  assertEquals(objects[2], testArrayAt(objects, 2));
+  assertOptimized(testArrayAt);
+  for (let idx = 0; idx < smis.length; idx++) {
+    assertEquals(smis[idx], testArrayAt(smis, idx));
+    assertOptimized(testArrayAt);
+    assertEquals(doubles[idx], testArrayAt(doubles, idx));
+    assertOptimized(testArrayAt);
+    assertEquals(objects[idx], testArrayAt(objects, idx));
+    assertOptimized(testArrayAt);
+  }
+  for (let idx = 1; idx <= smis.length; idx++) {
+    assertEquals(smis[smis.length - idx], testArrayAt(smis, -idx));
+    assertOptimized(testArrayAt);
+    assertEquals(doubles[doubles.length - idx], testArrayAt(doubles, -idx));
+    assertOptimized(testArrayAt);
+    assertEquals(objects[objects.length - idx], testArrayAt(objects, -idx));
+    assertOptimized(testArrayAt);
+  }
+})();
+
+// Mixing fast arrays with a dictionary array keeps the builtin call and stays
+// optimized (without deoptimizing).
 (() => {
   const smis = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
   const doubles = [0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5, 9.5, 10.5];

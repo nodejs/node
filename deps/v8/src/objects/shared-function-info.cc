@@ -46,6 +46,13 @@ uint32_t SharedFunctionInfo::Hash() {
 SharedFunctionInfo::SharedFunctionInfo(const AllocationWitness& witness,
                                        int unique_id)
     : HeapObject(witness.roots().shared_function_info_map()),
+      // Set the function data to the "illegal" builtin by default. Ideally
+      // we'd use some sort of "uninitialized" marker here, but it's cheaper
+      // to use a valid builtin and avoid having to do uninitialized checks
+      // elsewhere.
+      untrusted_function_data_(Smi::FromEnum(Builtin::kIllegal)),
+      // Set the name to the no-name sentinel, this can be updated later.
+      name_or_scope_info_(kNoSharedNameSentinel),
       // Generally functions won't have feedback, unless they have been created
       // from a FunctionLiteral. Those can just reset this field to keep the
       // SharedFunctionInfo in a consistent state.
@@ -58,7 +65,9 @@ SharedFunctionInfo::SharedFunctionInfo(const AllocationWitness& witness,
 SharedFunctionInfo::SharedFunctionInfo(const AllocationWitness& witness,
                                        Tagged<SharedFunctionInfo> other,
                                        IsolateForSandbox isolate)
-    : HeapObject(witness.roots().shared_function_info_map()) {
+    : HeapObject(witness.roots().shared_function_info_map()),
+      untrusted_function_data_(Smi::FromEnum(Builtin::kIllegal)),
+      name_or_scope_info_(kNoSharedNameSentinel) {
   CopyFrom(other, isolate);
 }
 
@@ -218,8 +227,8 @@ void SharedFunctionInfo::CopyFrom(Tagged<SharedFunctionInfo> other,
   set_name_or_scope_info(other->name_or_scope_info(kAcquireLoad),
                          kReleaseStore);
 
-  set_outer_scope_info_or_feedback_metadata(
-      other->outer_scope_info_or_feedback_metadata());
+  outer_scope_info_or_feedback_metadata_.Release_Store(
+      this, other->raw_outer_scope_info_or_feedback_metadata(kAcquireLoad));
   set_script(other->script(kAcquireLoad), kReleaseStore);
 
   set_length(other->length());
@@ -232,6 +241,7 @@ void SharedFunctionInfo::CopyFrom(Tagged<SharedFunctionInfo> other,
                           kRelaxedStore);
   set_unique_id(other->unique_id());
   set_age(0);
+  set_feedback_slot(other->feedback_slot());
 
   // Install code last to ensure that the entire SFI is properly initialized if
   // it's compiled.
@@ -241,8 +251,6 @@ void SharedFunctionInfo::CopyFrom(Tagged<SharedFunctionInfo> other,
   } else {
     SetUntrustedData(other->GetUntrustedData());
   }
-
-  set_feedback_slot(other->feedback_slot());
 #if DEBUG
   // This should now be byte-for-byte identical to the input except for the age
   // field (could be reset concurrently). Compare content before age field now:
@@ -470,15 +478,11 @@ Handle<Object> SharedFunctionInfo::GetSourceCodeHarmony(
   builder.AppendString(source);
   builder.AppendCStringLiteral("\n}");
   DirectHandle<String> result;
-  if (builder.Finish().To(&result)) {
+  if (builder.Finish(kDontThrow).ToHandle(&result)) {
     return indirect_handle(result, isolate);
   }
   // This should be extremely rare (only when {source} is close to
-  // String::kMaxLength), but it is reachable. Finish() threw an
-  // invalid-string-length error; clear it, since we return a valid fallback
-  // string rather than propagating the exception.
-  DCHECK(isolate->has_exception());
-  isolate->clear_exception();
+  // String::kMaxLength), but it is reachable.
   return isolate->factory()->NewStringFromAsciiChecked("<too long to print>");
 }
 

@@ -44,14 +44,16 @@ bool MapInference::AllOfInstanceTypesAreJSReceiver() const {
       static_cast<bool (*)(InstanceType)>(&InstanceTypeChecker::IsJSReceiver));
 }
 
-bool MapInference::AllOfInstanceTypesAre(InstanceType type) const {
+bool MapInference::AllOfInstanceTypesAre(InstanceType type) {
   CHECK(!InstanceTypeChecker::IsString(type));
+  if (InstanceTypeChecker::IsJSTypedArray(type)) SetNeedGuardIfUnreliable();
   return AllOfInstanceTypesUnsafe(
       [type](InstanceType other) { return type == other; });
 }
 
-bool MapInference::AnyOfInstanceTypesAre(InstanceType type) const {
+bool MapInference::AnyOfInstanceTypesAre(InstanceType type) {
   CHECK(!InstanceTypeChecker::IsString(type));
+  if (InstanceTypeChecker::IsJSTypedArray(type)) SetNeedGuardIfUnreliable();
   return AnyOfInstanceTypesUnsafe(
       [type](InstanceType other) { return type == other; });
 }

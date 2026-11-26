@@ -283,6 +283,15 @@ class ReducerTest : public TestWithNativeContextAndZone {
   }
 
   template <typename Builder>
+  TestInstance CreateFromGraph(int parameter_count, const Builder& builder,
+                               TurboshaftPipelineKind pipeline_kind) {
+    Initialize(pipeline_kind);
+    Handle<Context> context = indirect_handle(native_context());
+    return TestInstance::CreateFromGraph(pipeline_data_.get(), parameter_count,
+                                         builder, isolate(), zone(), context);
+  }
+
+  template <typename Builder>
   TestInstance CreateFromGraph(
       base::Vector<const RegisterRepresentation> parameter_reps,
       const Builder& builder) {
@@ -329,13 +338,32 @@ class ReducerTest : public TestWithNativeContextAndZone {
 
  private:
   void Initialize(bool is_wasm) {
+    Initialize(is_wasm ? TurboshaftPipelineKind::kWasm
+                       : TurboshaftPipelineKind::kJS);
+  }
+
+  void Initialize(TurboshaftPipelineKind pipeline_kind) {
     const testing::TestInfo* test_info =
         testing::UnitTest::GetInstance()->current_test_info();
-    std::stringstream file_name;
-    CodeKind code_kind =
-        is_wasm ? CodeKind::WASM_FUNCTION : CodeKind::FOR_TESTING_JS;
-    TurboshaftPipelineKind pipeline_kind =
-        is_wasm ? TurboshaftPipelineKind::kWasm : TurboshaftPipelineKind::kJS;
+    bool is_wasm = pipeline_kind == TurboshaftPipelineKind::kWasm ||
+                   pipeline_kind == TurboshaftPipelineKind::kJSToWasm;
+    CodeKind code_kind;
+    switch (pipeline_kind) {
+      case TurboshaftPipelineKind::kJS:
+        code_kind = CodeKind::FOR_TESTING_JS;
+        break;
+      case TurboshaftPipelineKind::kWasm:
+        code_kind = CodeKind::WASM_FUNCTION;
+        break;
+      case TurboshaftPipelineKind::kJSToWasm:
+        code_kind = CodeKind::JS_TO_WASM_FUNCTION;
+        break;
+      case TurboshaftPipelineKind::kCSA:
+      case TurboshaftPipelineKind::kTSABuiltin:
+        code_kind = CodeKind::BUILTIN;
+        break;
+    }
+    pipeline_data_.reset();
     info_.reset(new OptimizedCompilationInfo(test_info->name(), this->zone(),
                                              code_kind));
     AssemblerOptions options = AssemblerOptions::Default(this->isolate());

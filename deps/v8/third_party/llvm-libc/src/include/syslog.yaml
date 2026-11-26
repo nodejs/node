@@ -62,7 +62,48 @@ macros:
     macro_header: syslog-macros.h
   - macro_name: LOG_DEBUG
     macro_header: syslog-macros.h
-types: []
+  - macro_name: LOG_MASK
+    macro_header: syslog-macros.h
+  - macro_name: LOG_UPTO
+    macro_header: syslog-macros.h
+types:
+  - type_name: va_list
 enums: []
 objects: []
-functions: []
+functions:
+  - name: closelog
+    standards:
+      - posix
+    return_type: void
+    arguments:
+      - type: void
+  - name: openlog
+    standards:
+      - posix
+    return_type: void
+    arguments:
+      - type: const char *
+      - type: int
+      - type: int
+  - name: setlogmask
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+  - name: syslog
+    standards:
+      - posix
+    return_type: void
+    arguments:
+      - type: int
+      - type: const char *
+      - type: '...'
+  - name: vsyslog
+    standards:
+      - bsd
+    return_type: void
+    arguments:
+      - type: int
+      - type: const char *
+      - type: va_list

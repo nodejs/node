@@ -115,6 +115,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   class TestResultScope;
   class TopLevelDeclarationsBuilder;
   class DisposablesStackScope;
+  class SyncDisposablesScope;
   class ValueResultScope;
 
   using ToBooleanMode = BytecodeArrayBuilder::ToBooleanMode;
@@ -334,7 +335,8 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
 
   Variable* GetPotentialVariableInAccumulator();
 
-  void AddDisposableValue(VariableMode mode);
+  void AddDisposableValue(Variable* variable);
+  void AddSyncDisposableValue(Variable* variable);
   void BuildVariableLoad(Variable* variable, HoleCheckMode hole_check_mode,
                          TypeofMode typeof_mode = TypeofMode::kNotInside);
   void BuildVariableLoadForAccumulatorValue(
@@ -497,10 +499,18 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
                        HandlerTable::CatchPrediction catch_prediction,
                        TryFinallyStatement* stmt_for_coverage = nullptr);
   template <typename WrappedFunc>
-  void BuildDisposeScope(WrappedFunc wrapped_func, bool has_await_using);
+  void BuildDisposeScope(WrappedFunc wrapped_func, Scope* scope);
+  template <typename WrappedFunc>
+  void BuildSyncDisposeScope(WrappedFunc wrapped_func, Scope* scope);
+  void BuildSyncDisposeResources(SyncDisposablesScope* disposables,
+                                 Register body_continuation_token,
+                                 Register body_continuation_result,
+                                 Register message);
 
   template <typename ExpressionFunc>
   void BuildOptionalChain(ExpressionFunc expression_func);
+  template <typename ExpressionFunc, typename ElseFunc>
+  void BuildOptionalChain(ExpressionFunc expression_func, ElseFunc else_func);
 
   void BuildGetAndCheckSuperConstructor(Register this_function,
                                         Register new_target,
@@ -639,6 +649,14 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
     current_disposables_stack_ = disposables_stack;
   }
 
+  SyncDisposablesScope* current_sync_disposables() const {
+    SBXCHECK(current_sync_disposables_ != nullptr);
+    return current_sync_disposables_;
+  }
+  void set_current_sync_disposables(SyncDisposablesScope* disposables) {
+    current_sync_disposables_ = disposables;
+  }
+
   LocalIsolate* local_isolate_;
   Zone* zone_;
   BytecodeArrayBuilder builder_;
@@ -674,6 +692,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
 
   Register incoming_new_target_or_generator_;
   Register current_disposables_stack_;
+  SyncDisposablesScope* current_sync_disposables_;
 
   BytecodeLabels* optional_chaining_null_labels_;
 

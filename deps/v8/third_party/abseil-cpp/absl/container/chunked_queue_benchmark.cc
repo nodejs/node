@@ -232,6 +232,30 @@ BENCHMARK_TEMPLATE(BM_pop_front, Chunked<Element>)->Apply(CustomArgs);
 BENCHMARK_TEMPLATE(BM_pop_front, ExpChunked<Element>)->Apply(CustomArgs);
 
 template <class Q>
+void BM_pop_back(benchmark::State& state) {
+  const int64_t num_elements = state.range(0);
+
+  state.SetItemsProcessed(state.max_iterations * num_elements);
+  for (auto s : state) {
+    state.PauseTiming();
+    Q q = MakeQueue<Q>(num_elements);
+    state.ResumeTiming();
+    for (int j = 0; j < num_elements; j++) q.pop_back();
+    benchmark::DoNotOptimize(q);
+  }
+}
+
+// FwdList does not support pop_back.
+BENCHMARK_TEMPLATE(BM_pop_back, Deque<int64_t>)->Apply(CustomArgs);
+BENCHMARK_TEMPLATE(BM_pop_back, List<int64_t>)->Apply(CustomArgs);
+BENCHMARK_TEMPLATE(BM_pop_back, Chunked<int64_t>)->Apply(CustomArgs);
+BENCHMARK_TEMPLATE(BM_pop_back, ExpChunked<int64_t>)->Apply(CustomArgs);
+BENCHMARK_TEMPLATE(BM_pop_back, Deque<Element>)->Apply(CustomArgs);
+BENCHMARK_TEMPLATE(BM_pop_back, List<Element>)->Apply(CustomArgs);
+BENCHMARK_TEMPLATE(BM_pop_back, Chunked<Element>)->Apply(CustomArgs);
+BENCHMARK_TEMPLATE(BM_pop_back, ExpChunked<Element>)->Apply(CustomArgs);
+
+template <class Q>
 void BM_clear(benchmark::State& state) {
   const int64_t num_elements = state.range(0);
 
@@ -281,6 +305,31 @@ BENCHMARK_TEMPLATE(BM_iter, List<Element>)->Apply(CustomArgs);
 BENCHMARK_TEMPLATE(BM_iter, FwdList<Element>)->Apply(CustomArgs);
 BENCHMARK_TEMPLATE(BM_iter, Chunked<Element>)->Apply(CustomArgs);
 BENCHMARK_TEMPLATE(BM_iter, ExpChunked<Element>)->Apply(CustomArgs);
+
+template <class Q>
+void BM_riter(benchmark::State& state) {
+  const int64_t num_elements = state.range(0);
+
+  state.SetItemsProcessed(state.max_iterations * num_elements);
+  for (auto s : state) {
+    state.PauseTiming();
+    Q q = MakeQueue<Q>(state.max_iterations);
+    int sum = 0;
+    state.ResumeTiming();
+    for (auto it = q.rbegin(); it != q.rend(); ++it) sum += *it;
+    benchmark::DoNotOptimize(sum);
+  }
+}
+
+// FwdList does not support rbegin/rend.
+BENCHMARK_TEMPLATE(BM_riter, Deque<int64_t>)->Apply(CustomArgs);
+BENCHMARK_TEMPLATE(BM_riter, List<int64_t>)->Apply(CustomArgs);
+BENCHMARK_TEMPLATE(BM_riter, Chunked<int64_t>)->Apply(CustomArgs);
+BENCHMARK_TEMPLATE(BM_riter, ExpChunked<int64_t>)->Apply(CustomArgs);
+BENCHMARK_TEMPLATE(BM_riter, Deque<Element>)->Apply(CustomArgs);
+BENCHMARK_TEMPLATE(BM_riter, List<Element>)->Apply(CustomArgs);
+BENCHMARK_TEMPLATE(BM_riter, Chunked<Element>)->Apply(CustomArgs);
+BENCHMARK_TEMPLATE(BM_riter, ExpChunked<Element>)->Apply(CustomArgs);
 
 template <class Q>
 void BM_resize_shrink(benchmark::State& state) {

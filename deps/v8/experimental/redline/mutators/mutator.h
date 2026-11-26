@@ -5,7 +5,9 @@
 #ifndef V8_EXPERIMENTAL_REDLINE_MUTATORS_MUTATOR_H_
 #define V8_EXPERIMENTAL_REDLINE_MUTATORS_MUTATOR_H_
 
+#include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -22,6 +24,8 @@ namespace redline {
 struct ExploreProbe;
 
 struct MutationContext {
+  struct PartnerCache;
+
   // The program being mutated (its tree is NOT the one in the Builder; the
   // Builder works on a copy). May be null for ad-hoc trees.
   ProgramPtr parent;
@@ -35,6 +39,8 @@ struct MutationContext {
   // worker executes the instrumented program and completes the mutation
   // from the target's answers (see mutators/explore.h).
   std::vector<ExploreProbe> probes;
+  // Cached analysis of `partner` reused across rounds in `ApplyMutation`.
+  std::unique_ptr<PartnerCache> partner_cache;
 
   MutationContext();
   ~MutationContext();
@@ -75,6 +81,8 @@ class Mutator : public Component {
     (void)extra_count;
     return false;
   }
+  // Enables or disables V8 `%` native calls for mutators that emit them.
+  virtual void SetNatives(bool natives) { (void)natives; }
 
  private:
   std::string_view description_;
@@ -126,17 +134,45 @@ class MutatorSet {
   std::unique_ptr<Selector<Mutator>> selector_;
 };
 
-// Applies `mutator` to a copy of `parent`'s tree. On success returns the
-// mutated tree; on failure returns nullptr. `rounds` sub-mutations are
-// attempted (at least one must succeed).
+// Target function body for a focused mutation chain.
+struct FocusTarget {
+  uint32_t body_id = 0;
+  std::string name;
+  bool is_hot = false;
+  bool has_tier_up = false;
+  bool is_top_level_decl = false;
+  bool is_generator = false;
+};
+
+// Picks one function with a block body from `tree` and writes it to `out`.
+// Prefers functions that contain a loop, run in a loop, or pass to
+// optimization natives. Returns false if `tree` has no candidate function.
+bool PickFocusTarget(const fast::Tree& tree, Random& rng, FocusTarget* out);
+
+// Inserts warm-up and optimization calls for `target` on a copy of `parent`.
+// Returns nullptr when no tier-up code applies.
+std::unique_ptr<fast::Tree> ApplyFocusTierUp(const Program& parent,
+                                             const FocusTarget& target,
+                                             Random& rng,
+                                             const Environment& env,
+                                             const GeneratorSet& generators,
+                                             std::string* detail);
+
+// The mutators with weight 0 that the swarm mask of a worker can turn on
+// (core/swarm.h). They change the structure of a program.
+const std::vector<std::string>& SwarmStructuralMutators();
+
 // Applies `mutator` `rounds` times to a copy of `parent`'s tree. Returns the
 // mutated tree, or nullptr if no round changed anything. For runtime-assisted
-// mutators `probes` (if given) receives the inserted probes.
+// mutators `probes` (if given) receives the inserted probes. When
+// `focus_node_id` holds a node id, the builder restricts queries to that
+// subtree. If no round applies, it falls back to the full tree.
 std::unique_ptr<fast::Tree> ApplyMutation(
     Mutator& mutator, const Program& parent, const ProgramPtr& partner,
     Random& rng, const Environment& env, const GeneratorSet& generators,
     int rounds, std::string* detail,
-    std::vector<ExploreProbe>* probes = nullptr);
+    std::vector<ExploreProbe>* probes = nullptr,
+    std::optional<uint32_t> focus_node_id = std::nullopt);
 
 }  // namespace redline
 

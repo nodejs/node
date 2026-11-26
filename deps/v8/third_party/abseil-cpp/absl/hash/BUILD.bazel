@@ -139,7 +139,6 @@ cc_binary(
     visibility = ["//visibility:private"],
     deps = [
         ":hash",
-        "//absl/base:core_headers",
         "//absl/container:flat_hash_set",
         "//absl/random",
         "//absl/strings:cord",
@@ -209,6 +208,37 @@ cc_library(
     ],
     deps = [
         "//absl/base:config",
+    ],
+)
+
+cc_library(
+    name = "canonical_hash",
+    hdrs = ["internal/canonical_hash.h"],
+    copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = [
+        "//absl/container:__pkg__",
+    ],
+    deps = [
+        ":hash",
+        "//absl/base",
+        "//absl/base:config",
+        "//absl/meta:type_traits",
+    ],
+)
+
+cc_test(
+    name = "canonical_hash_test",
+    srcs = ["internal/canonical_hash_test.cc"],
+    copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        ":canonical_hash",
+        ":hash",
+        "//absl/base:config",
+        "//absl/strings:string_view",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 

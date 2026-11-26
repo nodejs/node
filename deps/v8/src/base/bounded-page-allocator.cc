@@ -123,15 +123,26 @@ bool BoundedPageAllocator::AllocatePagesAt(Address address, size_t size,
   }
 
   void* ptr = reinterpret_cast<void*>(address);
-  if (!page_allocator_->SetPermissions(ptr, size, access)) {
-    // This most likely means that we ran out of memory.
-    CHECK_EQ(region_allocator_.FreeRegion(address), size);
-    allocation_status_ = AllocationStatus::kFailedToCommit;
-    return false;
+  if (page_initialization_mode_ == PageInitializationMode::kRecommitOnly) {
+    // In kRecommitOnly mode, it's assumed that free regions are already
+    // discarded with fixed permissions (reconfiguring permissions is
+    // disallowed), so kNoAccess/kNoAccessWillJitLater allocations do not need
+    // to change permissions or recommit pages.
+    if (access == PageAllocator::kNoAccess ||
+        access == PageAllocator::kNoAccessWillJitLater ||
+        page_allocator_->RecommitPages(ptr, size, access)) {
+      allocation_status_ = AllocationStatus::kSuccess;
+      return true;
+    }
+  } else if (page_allocator_->SetPermissions(ptr, size, access)) {
+    allocation_status_ = AllocationStatus::kSuccess;
+    return true;
   }
 
-  allocation_status_ = AllocationStatus::kSuccess;
-  return true;
+  // This most likely means that we ran out of memory.
+  CHECK_EQ(region_allocator_.FreeRegion(address), size);
+  allocation_status_ = AllocationStatus::kFailedToCommit;
+  return false;
 }
 
 bool BoundedPageAllocator::ResizeAllocationAt(

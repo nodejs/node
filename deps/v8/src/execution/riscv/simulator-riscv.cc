@@ -1338,7 +1338,7 @@ struct type_sew_t<128> {
     }                                                                          \
   }                                                                            \
   set_rvv_vstart(0);                                                           \
-  if (v8_flags.trace_sim) {                                                    \
+  if (InstructionTracingEnabled()) {                                           \
     int trace_offset = snprintf_vreg(rvv_vd_reg());                            \
     SNPrintF(                                                                  \
         base::VectorOf(trace_buf_).SubVector(trace_offset, trace_buf_.size()), \
@@ -1365,7 +1365,7 @@ struct type_sew_t<128> {
     }                                                                          \
   }                                                                            \
   set_rvv_vstart(0);                                                           \
-  if (v8_flags.trace_sim) {                                                    \
+  if (InstructionTracingEnabled()) {                                           \
     int trace_offset = snprintf_vreg(rvv_vd_reg());                            \
     SNPrintF(                                                                  \
         base::VectorOf(trace_buf_).SubVector(trace_offset, trace_buf_.size()), \
@@ -1739,15 +1739,29 @@ class RiscvDebugger {
   bool GetValue(const char* desc, sreg_t* value);
 };
 
-#define UNSUPPORTED()                                                  \
-  std::array<char, 256> buffer;                                        \
-  disasm::NameConverter converter;                                     \
-  disasm::Disassembler dasm(converter);                                \
-  dasm.InstructionDecode(buffer, reinterpret_cast<uint8_t*>(&instr_)); \
-  printf("Sim: Unsupported inst. Func:%s Line:%d PC:0x%" REGIx_FORMAT, \
-         __FUNCTION__, __LINE__, get_pc());                            \
-  PrintF(" %-44s\n", buffer.data());                                   \
+namespace {
+
+// Out of line, so that the decoders that end in UNSUPPORTED() don't each set
+// up and check a stack protector for the disassembly buffer on every
+// instruction they simulate.
+[[noreturn]] V8_NOINLINE void UnsupportedInstruction(const char* function,
+                                                     int line, sreg_t pc,
+                                                     uint8_t* instr) {
+  std::array<char, 256> buffer;
+  disasm::NameConverter converter;
+  disasm::Disassembler dasm(converter);
+  dasm.InstructionDecode(buffer, instr);
+  printf("Sim: Unsupported inst. Func:%s Line:%d PC:0x%" REGIx_FORMAT, function,
+         line, pc);
+  PrintF(" %-44s\n", buffer.data());
   base::OS::Abort();
+}
+
+}  // namespace
+
+#define UNSUPPORTED()                                      \
+  UnsupportedInstruction(__FUNCTION__, __LINE__, get_pc(), \
+                         reinterpret_cast<uint8_t*>(&instr_))
 
 sreg_t RiscvDebugger::GetRegisterValue(int regnum) {
   if (regnum == kNumSimuRegisters) {
@@ -2172,9 +2186,10 @@ void RiscvDebugger::Debug() {
         PrintF("relinquishing control to gdb\n");
         v8::base::OS::DebugBreak();
         PrintF("regaining control from gdb\n");
-      } else if (strcmp(cmd, "trace") == 0) {
-        PrintF("enable trace sim\n");
-        v8_flags.trace_sim = true;
+      } else if ((strcmp(cmd, "t") == 0) || (strcmp(cmd, "trace") == 0)) {
+        sim_->ToggleInstructionTracing();
+        PrintF("Trace of executed instructions is %s\n",
+               sim_->InstructionTracingEnabled() ? "on" : "off");
       } else if (strcmp(cmd, "break") == 0 || strcmp(cmd, "b") == 0 ||
                  strcmp(cmd, "tbreak") == 0) {
         bool is_tbreak = strcmp(cmd, "tbreak") == 0;
@@ -2309,6 +2324,8 @@ void RiscvDebugger::Debug() {
         PrintF("  from pc\n");
         PrintF("gdb \n");
         PrintF("  Return to gdb if the simulator was started with gdb\n");
+        PrintF("trace (alias 't')\n");
+        PrintF("  Toggle the tracing of all executed statements\n");
         PrintF("break (alias 'b')\n");
         PrintF("  break : list all breakpoints\n");
         PrintF("  break <address> : set / enable / disable a breakpoint.\n");
@@ -2340,6 +2357,8 @@ void RiscvDebugger::Debug() {
       }
     }
   }
+  // The commands may have set breakpoints, a watch or tracing.
+  sim_->UpdateInstructionChecks();
 
 #undef COMMAND_SIZE
 #undef ARG_SIZE
@@ -2936,7 +2955,7 @@ void Simulator::DieOrDebug() {
 
 #if V8_TARGET_ARCH_RISCV64
 void Simulator::TraceRegWr(int64_t value, TraceType t) {
-  if (v8_flags.trace_sim) {
+  if (InstructionTracingEnabled()) {
     union {
       int64_t fmt_int64;
       int32_t fmt_int32[2];
@@ -2977,7 +2996,7 @@ void Simulator::TraceRegWr(int64_t value, TraceType t) {
 #elif V8_TARGET_ARCH_RISCV32
 template <typename T>
 void Simulator::TraceRegWr(T value, TraceType t) {
-  if (v8_flags.trace_sim) {
+  if (InstructionTracingEnabled()) {
     union {
       int32_t fmt_int32;
       float fmt_float;
@@ -3016,7 +3035,7 @@ void Simulator::TraceRegWr(T value, TraceType t) {
 // TODO(plind): consider making icount_ printing a flag option.
 template <typename T>
 void Simulator::TraceMemRd(sreg_t addr, T value, sreg_t reg_value) {
-  if (v8_flags.trace_sim) {
+  if (InstructionTracingEnabled()) {
     if (std::is_integral_v<T>) {
       switch (sizeof(T)) {
         case 1:
@@ -3070,7 +3089,7 @@ void Simulator::TraceMemRd(sreg_t addr, T value, sreg_t reg_value) {
 }
 
 void Simulator::TraceMemRdFloat(sreg_t addr, Float32 value, int64_t reg_value) {
-  if (v8_flags.trace_sim) {
+  if (InstructionTracingEnabled()) {
     base::SNPrintF(trace_buf_,
                    "%016" PRIx64 "    (%" PRId64
                    ")    flt:%e <-- [addr: %" REGIx_FORMAT "]",
@@ -3080,7 +3099,7 @@ void Simulator::TraceMemRdFloat(sreg_t addr, Float32 value, int64_t reg_value) {
 }
 
 void Simulator::TraceMemRdDouble(sreg_t addr, double value, int64_t reg_value) {
-  if (v8_flags.trace_sim) {
+  if (InstructionTracingEnabled()) {
     base::SNPrintF(trace_buf_,
                    "%016" PRIx64 "    (%" PRId64
                    ")    dbl:%e <-- [addr: %" REGIx_FORMAT "]",
@@ -3090,7 +3109,7 @@ void Simulator::TraceMemRdDouble(sreg_t addr, double value, int64_t reg_value) {
 
 void Simulator::TraceMemRdDouble(sreg_t addr, Float64 value,
                                  int64_t reg_value) {
-  if (v8_flags.trace_sim) {
+  if (InstructionTracingEnabled()) {
     base::SNPrintF(trace_buf_,
                    "%016" PRIx64 "    (%" PRId64
                    ")    dbl:%e <-- [addr: %" REGIx_FORMAT "]",
@@ -3101,7 +3120,7 @@ void Simulator::TraceMemRdDouble(sreg_t addr, Float64 value,
 
 template <typename T>
 void Simulator::TraceMemWr(sreg_t addr, T value) {
-  if (v8_flags.trace_sim) {
+  if (InstructionTracingEnabled()) {
     switch (sizeof(T)) {
       case 1:
         base::SNPrintF(trace_buf_,
@@ -3155,7 +3174,7 @@ void Simulator::TraceMemWr(sreg_t addr, T value) {
 }
 
 void Simulator::TraceMemWrDouble(sreg_t addr, double value) {
-  if (v8_flags.trace_sim) {
+  if (InstructionTracingEnabled()) {
     base::SNPrintF(trace_buf_,
                    "                    (%" PRIu64 ")    dbl:%e bit:%" PRIx64
                    "--> [addr: %" REGIx_FORMAT "]",
@@ -3464,7 +3483,7 @@ void Simulator::CallAnyCTypeFunction(Address target_address,
   static_assert(20 == kMaxCParameters,
                 "If you've changed kMaxCParameters, please change the "
                 "GEN_MAX_PARAM_COUNT macro.");
-  if (v8_flags.trace_sim) {
+  if (InstructionTracingEnabled()) {
     printf("CallAnyCTypeFunction end result \n");
   }
 #undef CALL_TARGET_VARARG
@@ -3558,7 +3577,7 @@ void Simulator::SoftwareInterrupt() {
       GetFpArgs(&dval0, &dval1, &ival);
       SimulatorRuntimeCall generic_target =
           reinterpret_cast<SimulatorRuntimeCall>(external);
-      if (v8_flags.trace_sim) {
+      if (InstructionTracingEnabled()) {
         switch (redirection->type()) {
           case ExternalReference::BUILTIN_FP_FP_CALL:
           case ExternalReference::BUILTIN_COMPARE_CALL:
@@ -3633,7 +3652,7 @@ void Simulator::SoftwareInterrupt() {
         default:
           UNREACHABLE();
       }
-      if (v8_flags.trace_sim) {
+      if (InstructionTracingEnabled()) {
         switch (redirection->type()) {
           case ExternalReference::BUILTIN_COMPARE_CALL:
           case ExternalReference::BUILTIN_INT_FP_CALL:
@@ -3650,7 +3669,7 @@ void Simulator::SoftwareInterrupt() {
       }
     } else if (redirection->type() ==
                ExternalReference::BUILTIN_FP_POINTER_CALL) {
-      if (v8_flags.trace_sim) {
+      if (InstructionTracingEnabled()) {
         PrintF("Call to host function at %p args %08" REGIx_FORMAT " \n",
                reinterpret_cast<void*>(external), arg0);
       }
@@ -3658,14 +3677,14 @@ void Simulator::SoftwareInterrupt() {
           reinterpret_cast<SimulatorRuntimeFPTaggedCall>(external);
       double dresult = target(arg0, arg1, arg2, arg3);
       SetFpResult(dresult);
-      if (v8_flags.trace_sim) {
+      if (InstructionTracingEnabled()) {
         PrintF("Returned %f\n", dresult);
       }
     } else if (redirection->type() == ExternalReference::DIRECT_API_CALL) {
       // See callers of MacroAssembler::CallApiFunctionAndReturn for
       // explanation of register usage.
       // void f(v8::FunctionCallbackInfo&)
-      if (v8_flags.trace_sim) {
+      if (InstructionTracingEnabled()) {
         PrintF("Call to host function %s at %p args %08" REGIx_FORMAT " \n",
                ExternalReferenceTable::NameOfIsolateIndependentAddress(
                    pc, IsolateGroup::current()->external_ref_table()),
@@ -3679,7 +3698,7 @@ void Simulator::SoftwareInterrupt() {
       // explanation of register usage.
       // void f(v8::Local<v8::Name>, v8::PropertyCallbackInfo&)
       // v8::Intercepted f(v8::Local<v8::Name>, v8::PropertyCallbackInfo&)
-      if (v8_flags.trace_sim) {
+      if (InstructionTracingEnabled()) {
         PrintF("Type: DIRECT_GETTER_CALL\n");
         PrintF("Call to host function at %p args %08" REGIx_FORMAT
                "  %08" REGIx_FORMAT " \n",
@@ -3688,7 +3707,7 @@ void Simulator::SoftwareInterrupt() {
       SimulatorRuntimeDirectGetterCall target =
           reinterpret_cast<SimulatorRuntimeDirectGetterCall>(external);
       int64_t result = target(arg0, arg1);
-      if (v8_flags.trace_sim) {
+      if (InstructionTracingEnabled()) {
         PrintF("Returned %ld\n", result);
       }
       set_register(a0, result);
@@ -3697,7 +3716,7 @@ void Simulator::SoftwareInterrupt() {
       //        v8::PropertyCallbackInfo&)
       // v8::Intercepted f(v8::Local<Name>, v8::Local<v8::Value>,
       //                   v8::PropertyCallbackInfo&)
-      if (v8_flags.trace_sim) {
+      if (InstructionTracingEnabled()) {
         PrintF("Type: DIRECT_GETTER_CALL\n");
         PrintF("Call to host function at %p args %08" REGIx_FORMAT
                "  %08" REGIx_FORMAT "  %08" REGIx_FORMAT " \n",
@@ -3706,7 +3725,7 @@ void Simulator::SoftwareInterrupt() {
       SimulatorRuntimeDirectSetterCall target =
           reinterpret_cast<SimulatorRuntimeDirectSetterCall>(external);
       intptr_t iresult = target(arg0, arg1, arg2);
-      if (v8_flags.trace_sim) {
+      if (InstructionTracingEnabled()) {
         PrintF("Returned %ld\n", iresult);
       }
       set_register(a0, iresult);
@@ -3731,7 +3750,7 @@ void Simulator::SoftwareInterrupt() {
 #endif  // V8_TARGET_ARCH_RISCV64
       SimulatorRuntimeCall target =
           reinterpret_cast<SimulatorRuntimeCall>(external);
-      if (v8_flags.trace_sim) {
+      if (InstructionTracingEnabled()) {
         PrintF(
             "Call to host function %s at %p "
             "args %08" REGIx_FORMAT " , %08" REGIx_FORMAT " , %08" REGIx_FORMAT
@@ -3762,7 +3781,7 @@ void Simulator::SoftwareInterrupt() {
       set_register(a1, (sreg_t)(result >> 32));
 #endif
     }
-    if (v8_flags.trace_sim) {
+    if (InstructionTracingEnabled()) {
       PrintF("Returned %08" REGIx_FORMAT "  : %08" REGIx_FORMAT " \n",
              get_register(a1), get_register(a0));
     }
@@ -3789,7 +3808,7 @@ void Simulator::SoftwareInterrupt() {
         switch (code & kDebuggerTracingDirectivesMask) {
           case TRACE_ENABLE:
             if (code & LOG_TRACE) {
-              v8_flags.trace_sim = true;
+              SetInstructionTracing(true);
             }
             if (code & LOG_REGS) {
               RiscvDebugger dbg(this);
@@ -3798,7 +3817,7 @@ void Simulator::SoftwareInterrupt() {
             break;
           case TRACE_DISABLE:
             if (code & LOG_TRACE) {
-              v8_flags.trace_sim = false;
+              SetInstructionTracing(false);
             }
             break;
           default:
@@ -3809,7 +3828,7 @@ void Simulator::SoftwareInterrupt() {
         HandleStop(code);
       }
     } else if (IsSwitchStackLimit(code)) {
-      if (v8_flags.trace_sim) {
+      if (InstructionTracingEnabled()) {
         PrintF("Switching stack limit\n");
       }
       DoSwitchStackLimit(instr_.instr());
@@ -4500,26 +4519,40 @@ void Simulator::AtomicMemoryHelper(sreg_t rs1, T value, OP f,
   // First, check whether the memory is accessible (for wasm trap handling).
   if (!ProbeMemory(address, element_size)) return;
 
-  local_monitor_.NotifyLoad();
-
-  T data = ReadMem<T>(address, instr);
-
-  if (instr->AqValue()) {
-    // Approximate load-acquire by issuing a full barrier after the load.
+  if (instr->RlValue()) {
+    // Approximate store-release by issuing a full barrier before the AMO. It
+    // must order all earlier accesses before this AMO's store.
     std::atomic_thread_fence(std::memory_order_seq_cst);
   }
 
-  T result = f(data, value);
+  local_monitor_.NotifyLoad();
 
-  if (instr->RlValue()) {
+  // ReadMem makes the checks any load makes. The read-modify-write itself
+  // is a compare-and-swap loop on the host, so that a store from another
+  // simulator thread cannot land between the read and the write and be
+  // lost.
+  T data = ReadMem<T>(address, instr);
+
+  {
     GlobalMonitor::SimulatorMutex lock_guard(global_monitor_);
     local_monitor_.NotifyStore();
     global_monitor_->NotifyStore_Locked(&global_monitor_thread_);
-    // Approximate store-release by issuing a full barrier before the store.
-    std::atomic_thread_fence(std::memory_order_seq_cst);
   }
 
-  WriteMem<T>(address, result, instr);
+  std::atomic_ref<T> location(*reinterpret_cast<T*>(address));
+  T result = f(data, value);
+  while (!location.compare_exchange_weak(data, result,
+                                         std::memory_order_relaxed)) {
+    result = f(data, value);
+  }
+  TraceMemWr(address, result);
+
+  if (instr->AqValue()) {
+    // Approximate load-acquire by issuing a full barrier after the AMO. It must
+    // also order this AMO's store before subsequent accesses, which is required
+    // for sequentially consistent read-modify-write operations.
+    std::atomic_thread_fence(std::memory_order_seq_cst);
+  }
   set_rd(format_result(data));
 }
 
@@ -5946,7 +5979,7 @@ void Simulator::DecodeRVIType() {
       // Note: No need to shift 2 for JALR's imm12, but set lowest bit to 0.
       sreg_t next_pc = (rs1() + imm12()) & ~static_cast<sreg_t>(1);
       set_pc(next_pc);
-      if (v8_flags.trace_sim) {
+      if (InstructionTracingEnabled()) {
         Builtin builtin = LookUp(static_cast<Address>(get_pc()));
         if (builtin != Builtin::kNoBuiltinId) {
           auto code = builtins_.code(builtin);
@@ -6277,7 +6310,11 @@ void Simulator::DecodeRVIType() {
     }
 #endif /*V8_TARGET_ARCH_RISCV64*/
     case RO_FENCE: {
-      // DO nothing in sumulator
+      // The simulator executes simulated threads on different host threads, so
+      // a guest fence must translate into a host memory barrier. Otherwise
+      // simulated memory accesses are not ordered and concurrent programs such
+      // as litmus tests observe spurious weak-memory behaviors.
+      std::atomic_thread_fence(std::memory_order_seq_cst);
       break;
     }
     case RO_ECALL: {                   // RO_EBREAK
@@ -9401,25 +9438,9 @@ void Simulator::DecodeVType() {
 }
 #endif
 
-// Executes the current instruction.
-void Simulator::InstructionDecode(Instruction* instr) {
-  if (v8_flags.check_icache) {
-    CheckICache(i_cache(), instr);
-  }
+// Executes the current instruction, without the debugging checks.
+V8_INLINE void Simulator::DecodeInstruction(Instruction* instr) {
   pc_modified_ = false;
-
-  std::array<char, 256> buffer;
-
-  if (v8_flags.trace_sim || v8_flags.debug_sim) {
-    base::SNPrintF(trace_buf_, " ");
-    disasm::NameConverter converter;
-    disasm::Disassembler dasm(converter);
-    // Use a reasonably large buffer.
-    dasm.InstructionDecode(buffer, reinterpret_cast<uint8_t*>(instr));
-
-    // PrintF("EXECUTING  0x%08" PRIxPTR "   %-44s\n",
-    //        reinterpret_cast<intptr_t>(instr), buffer.data());
-  }
 #ifdef CAN_USE_RVV_INSTRUCTIONS
   set_vill_ignore(false);
 #endif
@@ -9487,14 +9508,36 @@ void Simulator::InstructionDecode(Instruction* instr) {
       UNSUPPORTED();
   }
 
-  if (v8_flags.trace_sim) {
-    PrintF("  0x%012" PRIxPTR "      %-44s\t%s\n",
-           reinterpret_cast<intptr_t>(instr), buffer.data(), trace_buf_.data());
-  }
-
   if (!pc_modified_) {
     set_register(pc,
                  reinterpret_cast<sreg_t>(instr) + instr->InstructionSize());
+  }
+}
+
+// Executes the current instruction.
+void Simulator::InstructionDecode(Instruction* instr) {
+  if (v8_flags.check_icache) {
+    CheckICache(i_cache(), instr);
+  }
+
+  std::array<char, 256> buffer;
+  const bool can_trace = InstructionTracingEnabled() || v8_flags.debug_sim;
+
+  if (can_trace) {
+    base::SNPrintF(trace_buf_, " ");
+    disasm::NameConverter converter;
+    disasm::Disassembler dasm(converter);
+    // Use a reasonably large buffer.
+    dasm.InstructionDecode(buffer, reinterpret_cast<uint8_t*>(instr));
+
+    // PrintF("EXECUTING  0x%08" PRIxPTR "   %-44s\n",
+    //        reinterpret_cast<intptr_t>(instr), buffer.data());
+  }
+  DecodeInstruction(instr);
+
+  if (can_trace && InstructionTracingEnabled()) {
+    PrintF("  0x%012" PRIxPTR "      %-44s\t%s\n",
+           reinterpret_cast<intptr_t>(instr), buffer.data(), trace_buf_.data());
   }
 
   if (watch_address_ != nullptr) {
@@ -9523,20 +9566,35 @@ void Simulator::InstructionDecode(Instruction* instr) {
   }
 }
 
+void Simulator::UpdateInstructionChecks() {
+  instruction_checks_ = v8_flags.stop_sim_at != 0 || v8_flags.check_icache ||
+                        v8_flags.debug_sim || InstructionTracingEnabled() ||
+                        watch_address_ != nullptr || !breakpoints_.empty();
+}
+
+V8_NOINLINE void Simulator::ExecuteWithChecks(Instruction* instr) {
+  if (icount_ == static_cast<sreg_t>(v8_flags.stop_sim_at)) {
+    RiscvDebugger dbg(this);
+    dbg.Debug();
+  } else {
+    InstructionDecode(instr);
+  }
+  CheckBreakpoints();
+}
+
 void Simulator::Execute() {
+  UpdateInstructionChecks();
   // Get the PC to simulate. Cannot use the accessor here as we need the
   // raw PC value and not the one used as input to arithmetic instructions.
   sreg_t program_counter = get_pc();
   while (program_counter != end_sim_pc) {
     Instruction* instr = reinterpret_cast<Instruction*>(program_counter);
     icount_++;
-    if (icount_ == static_cast<sreg_t>(v8_flags.stop_sim_at)) {
-      RiscvDebugger dbg(this);
-      dbg.Debug();
+    if (V8_UNLIKELY(instruction_checks_)) {
+      ExecuteWithChecks(instr);
     } else {
-      InstructionDecode(instr);
+      DecodeInstruction(instr);
     }
-    CheckBreakpoints();
     program_counter = get_pc();
   }
 }
@@ -9698,7 +9756,7 @@ void Simulator::CallImpl(Address entry, CallArgument* args) {
       stack_args.push_back(arg.bits());
     }
   }
-  if (v8_flags.trace_sim) {
+  if (InstructionTracingEnabled()) {
     std::cout << "CallImpl: reg_arg_count = " << index_fp + index_gp << std::hex
               << " entry-pc (JSEntry) = 0x" << entry
               << " a0 (Isolate-root) = 0x" << get_register(a0)
@@ -9746,7 +9804,7 @@ intptr_t Simulator::CallImpl(Address entry, int argument_count,
   if (reg_arg_count > 5) set_register(a5, arguments[5]);
   if (reg_arg_count > 6) set_register(a6, arguments[6]);
   if (reg_arg_count > 7) set_register(a7, arguments[7]);
-  if (v8_flags.trace_sim) {
+  if (InstructionTracingEnabled()) {
     std::cout << "CallImpl: reg_arg_count = " << reg_arg_count << std::hex
               << " entry-pc (JSEntry) = 0x" << entry
               << " a0 (Isolate-root) = 0x" << get_register(a0)

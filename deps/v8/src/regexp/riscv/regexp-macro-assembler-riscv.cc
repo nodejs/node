@@ -324,7 +324,7 @@ void RegExpMacroAssemblerRISCV::CheckNotBackReferenceIgnoreCase(
     __ BranchShort(&fail, eq, a3, Operand(247 - 224));
 
     __ bind(&loop_check);
-    __ Branch(&loop, lt, a0, Operand(a1));
+    __ Branch(&loop, Uless, a0, Operand(a1));
     __ jmp(&success);
 
     __ bind(&fail);
@@ -441,7 +441,7 @@ void RegExpMacroAssemblerRISCV::CheckNotBackReference(int start_reg,
     __ addi(a2, a2, char_size());
   }
   BranchOrBacktrack(on_no_match, ne, a3, Operand(a4));
-  __ Branch(&loop, lt, a0, Operand(a1));
+  __ Branch(&loop, Uless, a0, Operand(a1));
 
   // Move current character position to position after match.
   __ SubWord(current_input_offset(), a2, end_of_input_address());
@@ -929,8 +929,12 @@ DirectHandle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(
   // (effectively string position -1).
   __ LoadWord(a1, MemOperand(frame_pointer(), kStartIndexOffset));
   __ SubWord(a0, current_input_offset(), Operand(char_size()));
-  __ slli(t1, a1, (mode() == UC16) ? 1 : 0);
-  __ SubWord(a0, a0, t1);
+  if (mode() == UC16) {
+    __ slli(t1, a1, 1);
+    __ SubWord(a0, a0, t1);
+  } else {
+    __ SubWord(a0, a0, a1);
+  }
   // Store this value in a local variable, for use when clearing
   // position registers.
   __ StoreWord(a0, MemOperand(frame_pointer(), kStringStartMinusOneOffset));

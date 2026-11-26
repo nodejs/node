@@ -25,6 +25,7 @@
 #include "src/execution/frames-inl.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/ic/ic-stats.h"
+#include "src/interpreter/bytecode-register.h"
 #include "src/logging/counters.h"
 #include "src/objects/abstract-code-inl.h"
 #include "src/objects/casting-inl.h"
@@ -564,7 +565,8 @@ StackFrameIteratorForProfiler::StackFrameIteratorForProfiler(
     // the stack before kFunctionOffset.
     static_assert(StandardFrameConstants::kFunctionOffset <
                   StandardFrameConstants::kContextOffset);
-    if (IsValidStackAddress(state.fp +
+    if (IsValidFramePointer(state.fp) &&
+        IsValidStackAddress(state.fp +
                             StandardFrameConstants::kFunctionOffset)) {
       type = ComputeStackFrameType(&state);
       if (IsValidFrameType(type)) {
@@ -578,7 +580,7 @@ StackFrameIteratorForProfiler::StackFrameIteratorForProfiler(
   } else if (IsValidTop(top)) {
     type = ExitFrame::GetStateForFramePointer(Isolate::c_entry_fp(top), &state);
     top_frame_type_ = type;
-  } else if (IsValidStackAddress(fp)) {
+  } else if (IsValidFramePointer(fp)) {
     DCHECK_NE(fp, kNullAddress);
     state.fp = fp;
     state.sp = sp;
@@ -603,13 +605,15 @@ StackFrameIteratorForProfiler::StackFrameIteratorForProfiler(
       Address* top_location = nullptr;
       if (top_link_register_) {
         top_location = &top_link_register_;
-      } else if (IsValidStackAddress(sp)) {
+      } else if (IsValidStackAddress(sp) && IsAligned(sp, kSystemPointerSize)) {
         MSAN_MEMORY_IS_INITIALIZED(sp, kSystemPointerSize);
         top_location = reinterpret_cast<Address*>(sp);
       }
 
       std::optional<bool> is_interpreter_frame_pc =
-          IsInterpreterFramePc(isolate, *top_location, &state);
+          top_location == nullptr
+              ? std::nullopt
+              : IsInterpreterFramePc(isolate, *top_location, &state);
       // Since we're in a signal handler, the pc lookup might not be possible
       // since the required locks are taken by the same thread.
       if (!is_interpreter_frame_pc.has_value()) {
@@ -689,9 +693,13 @@ void StackFrameIteratorForProfiler::AdvanceOneFrame() {
   }
 }
 
+bool StackFrameIteratorForProfiler::IsValidFramePointer(Address fp) const {
+  return IsAligned(fp, kSystemPointerSize) && IsValidStackAddress(fp);
+}
+
 bool StackFrameIteratorForProfiler::IsValidState(
     const StackFrame::State& state) const {
-  return IsValidStackAddress(state.sp) && IsValidStackAddress(state.fp);
+  return IsValidStackAddress(state.sp) && IsValidFramePointer(state.fp);
 }
 
 bool StackFrameIteratorForProfiler::HasValidExitIfEntryFrame(
@@ -707,8 +715,7 @@ bool StackFrameIteratorForProfiler::HasValidExitIfEntryFrame(
   MSAN_MEMORY_IS_INITIALIZED(next_fast_c_call_fp_address, kSystemPointerSize);
   Address next_fast_c_call_fp = Memory<Address>(next_fast_c_call_fp_address);
   if (next_fast_c_call_fp != kNullAddress) {
-    if (!IsAligned(next_fast_c_call_fp, kSystemPointerSize) ||
-        !IsValidStackAddress(next_fast_c_call_fp)) {
+    if (!IsValidFramePointer(next_fast_c_call_fp)) {
       return false;
     }
     // EntryFrame::GetCallerState will use this FP and won't read the
@@ -730,10 +737,11 @@ bool StackFrameIteratorForProfiler::HasValidExitIfEntryFrame(
 }
 
 bool StackFrameIteratorForProfiler::IsValidExitFrame(Address fp) const {
-  if (!IsAligned(fp, kSystemPointerSize)) return false;
-  if (!IsValidStackAddress(fp)) return false;
+  if (!IsValidFramePointer(fp)) return false;
   Address sp = ExitFrame::ComputeStackPointer(fp);
-  if (!IsValidStackAddress(sp)) return false;
+  if (!IsAligned(sp, kSystemPointerSize) || !IsValidStackAddress(sp)) {
+    return false;
+  }
   StackFrame::State state;
   ExitFrame::FillState(fp, sp, &state);
   MSAN_MEMORY_IS_INITIALIZED(state.pc_address, sizeof(state.pc_address));
@@ -990,10 +998,21 @@ StackFrame::Type StackFrameIterator::ComputeStackFrameType(
     case CodeKind::BUILTIN:
     case CodeKind::FOR_TESTING:
     case CodeKind::FOR_TESTING_JS: {
-      if (StackFrame::IsTypeMarker(marker)) break;
+      if (StackFrame::IsTypeMarker(marker)) {
+        // An INTERNAL frame can be set up with an associated interpreter or
+        // baseline entry trampoline code object when calling into runtime to
+        // handle tiering or stack checks.
+        DCHECK_IMPLIES(
+            lookup_result.value()->is_interpreter_trampoline_builtin() ||
+                lookup_result.value()->is_baseline_trampoline_builtin(),
+            StackFrame::MarkerToType(marker) == StackFrame::INTERNAL);
+        DCHECK(!lookup_result.value()->is_baseline_leave_frame_builtin());
+        break;
+      }
       return ComputeBuiltinFrameType(lookup_result.value());
     }
     case CodeKind::BASELINE:
+      DCHECK(!StackFrame::IsTypeMarker(marker));
       // Baseline code can be deoptimized by DiscardBaselineCodeVisitor.
       if (lookup_result.value()->marked_for_deoptimization()) {
         return StackFrame::INTERPRETED;
@@ -1010,6 +1029,7 @@ StackFrame::Type StackFrameIterator::ComputeStackFrameType(
       }
       return StackFrame::MAGLEV;
     case CodeKind::TURBOFAN_JS:
+      DCHECK(!StackFrame::IsTypeMarker(marker));
       return StackFrame::TURBOFAN_JS;
 #if V8_ENABLE_WEBASSEMBLY
     case CodeKind::JS_TO_WASM_FUNCTION:
@@ -1062,6 +1082,7 @@ StackFrame::Type StackFrameIteratorForProfiler::ComputeStackFrameType(
     return StackFrame::NO_FRAME_TYPE;
   }
 #endif
+  DCHECK(IsAligned(state->fp, kSystemPointerSize));
 
   // We use unauthenticated_pc because it may come from
   // fast_c_call_caller_pc_address, for which authentication does not work.
@@ -3579,8 +3600,39 @@ Tagged<BytecodeArray> UnoptimizedJSFrame::GetBytecodeArray() const {
   return TrustedCast<BytecodeArray>(GetExpression(index));
 }
 
+namespace {
+// Validates that an interpreter register index points to a legitimate register
+// in the unoptimized frame: either a local register in the register file,
+// a parameter passed by the caller, or a recognized fixed frame
+// pseudo-register. This prevents out-of-bounds reads into adjacent frames or
+// into the frame linkage gap (saved FP / return address) between the context
+// and parameters.
+bool IsValidInterpreterRegisterIndex(Tagged<BytecodeArray> bytecode_array,
+                                     int register_index) {
+  if (register_index >= 0) {
+    return register_index < bytecode_array->register_count();
+  }
+  if (bytecode_array->parameter_count() > 0) {
+    int max_param_reg = interpreter::Register::FromParameterIndex(0).index();
+    int min_param_reg = interpreter::Register::FromParameterIndex(
+                            bytecode_array->parameter_count() - 1)
+                            .index();
+    if (register_index >= min_param_reg && register_index <= max_param_reg) {
+      return true;
+    }
+  }
+  return register_index == interpreter::Register::current_context().index() ||
+         register_index == interpreter::Register::function_closure().index() ||
+         register_index == interpreter::Register::bytecode_array().index() ||
+         register_index == interpreter::Register::bytecode_offset().index() ||
+         register_index == interpreter::Register::feedback_vector().index();
+}
+}  // namespace
+
 Tagged<Object> UnoptimizedJSFrame::ReadInterpreterRegister(
     int register_index) const {
+  Tagged<BytecodeArray> bytecode_array = GetBytecodeArray();
+  SBXCHECK(IsValidInterpreterRegisterIndex(bytecode_array, register_index));
   const int index = UnoptimizedFrameConstants::kRegisterFileExpressionIndex;
   DCHECK_EQ(UnoptimizedFrameConstants::kRegisterFileFromFp,
             UnoptimizedFrameConstants::kExpressionsOffset -
@@ -3659,6 +3711,11 @@ uint32_t BuiltinFrame::ComputeParametersCount() const {
 }
 
 #if V8_ENABLE_WEBASSEMBLY
+void TypedFrame::ComputeCallerState(State* state) const {
+  CommonFrame::ComputeCallerState(state);
+  UnwindWasmReturnFromSegment(state);
+}
+
 void TypedFrame::UnwindWasmReturnFromSegment(State* state) const {
   if (v8_flags.wasm_growable_stacks && iterator_->wasm_stack() != nullptr &&
       state->fp != kNullAddress && *state->pc_address != kNullAddress) {
@@ -3680,11 +3737,6 @@ void TypedFrame::UnwindWasmReturnFromSegment(State* state) const {
       state->sp = current_fp + StandardFrameConstants::kCallerSPOffset;
     }
   }
-}
-
-void WasmFrame::ComputeCallerState(State* state) const {
-  TypedFrame::ComputeCallerState(state);
-  UnwindWasmReturnFromSegment(state);
 }
 
 void WasmFrame::Print(StringStream* accumulator, PrintMode mode, int index,
@@ -3851,12 +3903,12 @@ void WasmDebugBreakFrame::Iterate(RootVisitor* v) const {
       wasm::GetWasmCodeManager()->LookupCodeAndSafepoint(isolate(),
                                                          caller_pc());
   if (!safepoint_entry.is_initialized()) {
-    // Trap handler traps from non-debugging code also enter a WASM_DEBUG_BREAK
-    // frame via kWasmTrapHandlerThrowTrap, but do not emit safepoints with
-    // callee-saved registers. In that case, there are no tagged registers to
-    // iterate. Debugging code, however, must always have an initialized
-    // safepoint.
-    DCHECK(!code || !code->for_debugging());
+    // Trap handler traps from non-inspectable code also enter a
+    // WASM_DEBUG_BREAK frame via kWasmTrapHandlerThrowTrap, but do not emit
+    // safepoints with callee-saved registers. In that case, there are no tagged
+    // registers to iterate. Inspectable debugging code, however, must always
+    // have an initialized safepoint.
+    DCHECK(!code || !code->is_inspectable());
     return;
   }
   uint32_t tagged_register_indexes = safepoint_entry.tagged_register_indexes();
@@ -4069,9 +4121,9 @@ void WasmJspiFrame::GetStateForJumpBuffer(wasm::JumpBuffer* jmpbuf,
   DCHECK_NE(*state->pc_address, kNullAddress);
 }
 
-int WasmLiftoffSetupFrame::GetDeclaredFunctionIndex() const {
+int WasmLiftoffSetupFrame::GetDefinedFunctionIndex() const {
   Tagged<Object> func_index(Memory<Address>(
-      sp() + WasmLiftoffSetupFrameConstants::kDeclaredFunctionIndexOffset));
+      sp() + WasmLiftoffSetupFrameConstants::kDefinedFunctionIndexOffset));
   return Smi::ToInt(func_index);
 }
 
@@ -4092,7 +4144,6 @@ Address WasmLiftoffSetupFrame::CallingPC() const {
 
 void WasmLiftoffSetupFrame::ComputeCallerState(State* state) const {
   TypedFrame::ComputeCallerState(state);
-  UnwindWasmReturnFromSegment(state);
   // Unlike {CallingPC}, which only runs at safepoints, this can run on a
   // profiler tick: the setup builtin sets the frame marker a few instructions
   // before it signs and spills the calling PC, so the slot can still be
@@ -4111,7 +4162,7 @@ void WasmLiftoffSetupFrame::Iterate(RootVisitor* v) const {
                       wasm_instance_data_slot());
 
   wasm::NativeModule* native_module = GetNativeModule();
-  int func_index = GetDeclaredFunctionIndex() +
+  int func_index = GetDefinedFunctionIndex() +
                    native_module->module()->num_imported_functions;
 
   // Scan the spill slots of the parameter registers. Parameters in WebAssembly
@@ -4191,6 +4242,16 @@ void PrintFunctionSource(StringStream* accumulator,
 
 void JavaScriptFrame::Print(StringStream* accumulator, PrintMode mode,
                             int index, AllowAllocation allow_allocation) const {
+  if (!IsJSFunction(unchecked_function())) [[unlikely]] {
+    // During deoptimization, inlined escape-analyzed closures may still hold
+    // `arguments_marker` until Deoptimizer::MaterializeHeapObjects finishes.
+    DisallowGarbageCollection no_gc;
+    PrintIndex(accumulator, mode, index);
+    PrintFrameKind(accumulator);
+    accumulator->Add("<unmaterialized function> [pc: %p]\n",
+                     reinterpret_cast<void*>(maybe_unauthenticated_pc()));
+    return;
+  }
   DirectHandle<SharedFunctionInfo> shared(function()->shared(), isolate());
   if (allow_allocation) {
     SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate(), shared);
@@ -4267,6 +4328,13 @@ void JavaScriptFrame::Print(StringStream* accumulator, PrintMode mode,
     while (context->IsWithContext()) {
       context = context->previous();
       DCHECK(!context.is_null());
+    }
+    // If the frame is printed before the function allocates its own context
+    // (e.g. on a stack overflow in the prologue), this->context() can still be
+    // the enclosing NativeContext, which holds no local variables and stores
+    // untagged inline EmbedderDataSlots.
+    if (IsNativeContext(context)) {
+      context = Tagged<Context>();
     }
   }
 

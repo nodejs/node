@@ -136,6 +136,7 @@ namespace internal {
   V(NoContext)                                                  \
   V(OnStackReplacement)                                         \
   V(ProxyGetPropertyTrapResultLazyDeoptContinuation)            \
+  V(ProxySetPropertyTrapResultLazyDeoptContinuation)            \
   V(RegExpTrampoline)                                           \
   V(RestartFrameTrampoline)                                     \
   V(ResumeGenerator)                                            \
@@ -714,12 +715,11 @@ constexpr EmptyDoubleRegisterArray DoubleRegisterArray() { return {}; }
   static constexpr int kReturnCount = 1;                    \
   enum ParameterIndices {                                   \
     __dummy = -1, /* to be able to pass zero arguments */   \
-    ##__VA_ARGS__,                                          \
-                                                            \
-    kParameterCount                                         \
+    __VA_OPT__(__VA_ARGS__, ) kParameterCount               \
   };
 
-#define DEFINE_PARAMETERS(...) DEFINE_RESULT_AND_PARAMETERS(1, ##__VA_ARGS__)
+#define DEFINE_PARAMETERS(...) \
+  DEFINE_RESULT_AND_PARAMETERS(1 __VA_OPT__(, __VA_ARGS__))
 
 #define DEFINE_PARAMETERS_NO_CONTEXT(...) \
   DEFINE_PARAMETERS(__VA_ARGS__)          \
@@ -751,9 +751,9 @@ constexpr EmptyDoubleRegisterArray DoubleRegisterArray() { return {}; }
     data->InitializeTypes(kMachineTypes, arraysize(kMachineTypes));           \
   }
 
-#define DEFINE_PARAMETER_TYPES(...)                                        \
-  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged() /* result */, \
-                                    ##__VA_ARGS__)
+#define DEFINE_PARAMETER_TYPES(...)                                       \
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged() /* result */ \
+                                    __VA_OPT__(, __VA_ARGS__))
 
 // When the extra arguments described here are located in the stack, they are
 // just above the return address in the frame (first arguments).
@@ -766,8 +766,7 @@ constexpr EmptyDoubleRegisterArray DoubleRegisterArray() { return {}; }
     kTarget,                                                \
     kNewTarget,                                             \
     kActualArgumentsCount,                                  \
-    ##__VA_ARGS__,                                          \
-    kParameterCount,                                        \
+    __VA_OPT__(__VA_ARGS__, ) kParameterCount,              \
     kContext = kParameterCount /* implicit parameter */     \
   };
 
@@ -781,15 +780,14 @@ constexpr EmptyDoubleRegisterArray DoubleRegisterArray() { return {}; }
     kTarget,                                                \
     kNewTarget,                                             \
     kActualArgumentsCount,                                  \
-    ##__VA_ARGS__,                                          \
-    kParameterCount,                                        \
+    __VA_OPT__(__VA_ARGS__, ) kParameterCount,              \
   };
 
 #define DEFINE_JS_PARAMETER_TYPES(...)                                         \
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(), /* kTarget */               \
                          MachineType::AnyTagged(), /* kNewTarget */            \
-                         MachineType::Int32(),     /* kActualArgumentsCount */ \
-                         ##__VA_ARGS__)
+                         MachineType::Int32()      /* kActualArgumentsCount */ \
+                         __VA_OPT__(, __VA_ARGS__))
 
 // Code/Builtins using this descriptor are referenced from inside the sandbox
 // through a code pointer and must therefore be exposed via the code pointer
@@ -1847,13 +1845,31 @@ class ProxyGetPropertyTrapResultLazyDeoptContinuationDescriptor final
  public:
   INTERNAL_DESCRIPTOR()
   SANDBOXING_MODE(kSandboxed)
-  DEFINE_RESULT_AND_PARAMETERS(1, kTarget, kProxy, kName, kTrapResult)
+  DEFINE_RESULT_AND_PARAMETERS(1, kTarget, kKey, kTrapResult)
   DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(),  // result value
                                     MachineType::AnyTagged(),  // kTarget
-                                    MachineType::AnyTagged(),  // kProxy
-                                    MachineType::AnyTagged(),  // kName
+                                    MachineType::AnyTagged(),  // kKey
                                     MachineType::AnyTagged())  // kTrapResult
   DECLARE_DESCRIPTOR(ProxyGetPropertyTrapResultLazyDeoptContinuationDescriptor)
+
+  static constexpr auto registers();
+};
+
+class ProxySetPropertyTrapResultLazyDeoptContinuationDescriptor final
+    : public StaticCallInterfaceDescriptor<
+          ProxySetPropertyTrapResultLazyDeoptContinuationDescriptor> {
+ public:
+  INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
+  DEFINE_RESULT_AND_PARAMETERS(1, kTarget, kKey, kValue, kLanguageMode,
+                               kTrapResult)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(),  // result value
+                                    MachineType::AnyTagged(),  // kTarget
+                                    MachineType::AnyTagged(),  // kKey
+                                    MachineType::AnyTagged(),  // kValue
+                                    MachineType::AnyTagged(),  // kLanguageMode
+                                    MachineType::AnyTagged())  // kTrapResult
+  DECLARE_DESCRIPTOR(ProxySetPropertyTrapResultLazyDeoptContinuationDescriptor)
 
   static constexpr auto registers();
 };
@@ -2510,12 +2526,14 @@ class CallApiGetterDescriptor
   SANDBOXING_MODE(kSandboxed)
 
   static constexpr auto kStackArgumentOrder = StackArgumentOrder::kLowToHigh;
-  // On arm64 both parameters are passed on the stack to keep it aligned.
-  // We keep passing the callback value in register on non-arm64 architectures
-  // because we need to load the C++ function pointer from it.
+  // On arm64 (and x64 with V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) both callback
+  // and holder are passed on the stack so the stack parameter count is even
+  // and needs no alignment padding. Elsewhere we keep passing the callback
+  // value in a register because we need to load the C++ function pointer from
+  // it.
   //
-  //                               |  Non-arm64   |    arm64
-  //                               +--------------+--------------
+  //                               |  Default     | arm64 / x64 16B
+  //                               +--------------+-----------------
   DEFINE_PARAMETERS(kName,      // |  reg         |    reg
                     kCallback,  // |  reg         |    sp[0]
                     kHolder)    // |  sp[0]       |    sp[1]
@@ -2526,7 +2544,7 @@ class CallApiGetterDescriptor
   DECLARE_DESCRIPTOR(CallApiGetterDescriptor)
 
   static constexpr inline Register NameRegister();
-#if !V8_TARGET_ARCH_ARM64
+#if !V8_TARGET_ARCH_ARM64 && !V8_X64_16BYTE_STACK_ALIGNMENT_BOOL
   static constexpr inline Register CallbackRegister();
 #endif
 
@@ -2540,13 +2558,14 @@ class CallApiSetterDescriptor
   SANDBOXING_MODE(kSandboxed)
 
   static constexpr auto kStackArgumentOrder = StackArgumentOrder::kLowToHigh;
-  // On arm64 both callback and holder parameters are passed on the stack to
-  // keep it aligned. We keep passing the callback value in register on
-  // non-arm64 architectures because we need to load the C++ function pointer
-  // from it.
+  // On arm64 (and x64 with V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) both callback
+  // and holder are passed on the stack so the stack parameter count is even
+  // and needs no alignment padding. Elsewhere we keep passing the callback
+  // value in a register because we need to load the C++ function pointer from
+  // it.
   //
-  //                                         |  Non-arm64   |    arm64
-  //                                         +--------------+--------------
+  //                                         |  Default     | arm64 / x64 16B
+  //                                         +--------------+-----------------
   DEFINE_PARAMETERS(kName,                // |  reg         |    reg
                     kCallback,            // |  reg         |    sp[0]
                     kHolder,              // |  sp[0]       |    sp[1]
@@ -2561,7 +2580,7 @@ class CallApiSetterDescriptor
   DECLARE_DESCRIPTOR(CallApiSetterDescriptor)
 
   static constexpr inline Register NameRegister();
-#if !V8_TARGET_ARCH_ARM64
+#if !V8_TARGET_ARCH_ARM64 && !V8_X64_16BYTE_STACK_ALIGNMENT_BOOL
   static constexpr inline Register CallbackRegister();
 #endif
 
@@ -2615,13 +2634,11 @@ class BaselineLeaveFrameDescriptor
  public:
   INTERNAL_DESCRIPTOR()
   SANDBOXING_MODE(kSandboxed)
-  DEFINE_PARAMETERS_NO_CONTEXT(kParamsSize, kWeight)
-  DEFINE_PARAMETER_TYPES(MachineType::Int32(),  // kParamsSize
-                         MachineType::Int32())  // kWeight
+  DEFINE_PARAMETERS_NO_CONTEXT(kParamsSize)
+  DEFINE_PARAMETER_TYPES(MachineType::Int32())  // kParamsSize
   DECLARE_DESCRIPTOR(BaselineLeaveFrameDescriptor)
 
   static constexpr inline Register ParamsSizeRegister();
-  static constexpr inline Register WeightRegister();
 
   static constexpr inline auto registers();
 };

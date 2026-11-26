@@ -290,7 +290,7 @@ class StringEscapeAnalysisReducer : public Next {
       deduplicator = deduplicators_[parent_ig_index]->clone(__ phase_zone());
     } else {
       deduplicator =
-          __ phase_zone() -> template New<Deduplicator>(__ phase_zone());
+          __ phase_zone()->template New<Deduplicator>(__ phase_zone());
     }
     deduplicators_[ig_index] = deduplicator;
 

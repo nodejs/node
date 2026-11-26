@@ -5,6 +5,7 @@
 #include "experimental/redline/minimizer/minimizer.h"
 
 #include <algorithm>
+#include <cmath>
 #include <limits>
 #include <map>
 #include <unordered_set>
@@ -28,7 +29,18 @@ using fast::Statement;
 using StatementList = std::vector<Statement*>;
 
 // ---------------------------------------------------------------------------
-// MinimizationHelper
+// Adaptive budget tunables and MinimizationHelper
+
+namespace {
+
+REDLINE_TUNABLE(
+    kBudgetMinSamples, "minimizer.budget.min_samples", 4, 1, 32,
+    "probes before average probe duration scales the adaptive test budget");
+REDLINE_TUNABLE(
+    kBudgetTargetScale, "minimizer.budget.target_scale", 1.0, 0.1, 10.0,
+    "multiplier on target_time_ms for adaptive probe budget scaling");
+
+}  // namespace
 
 MinimizationHelper::MinimizationHelper(fast::Tree* tree,
                                        const MinimizationOracle& oracle,
@@ -40,8 +52,35 @@ MinimizationHelper::MinimizationHelper(fast::Tree* tree,
       options_(options),
       start_us_(MonotonicNowUs()) {}
 
+uint64_t MinimizationHelper::EstimatedExecTimeUs() const {
+  const int min_samples = kBudgetMinSamples.AsInt();
+  const uint64_t avg_all_us =
+      result_.tests >= min_samples
+          ? total_probe_time_us_ / static_cast<uint64_t>(result_.tests)
+          : 0;
+  if (kept_probes_ > 0) {
+    // Use the last kept probe time so a cut that removes a slow loop recovers
+    // budget at once. Keep `avg_all_us` as a floor so timeout bursts still
+    // tighten the budget.
+    return std::max(last_kept_probe_time_us_, avg_all_us);
+  }
+  return std::max(options_.initial_exec_time_us, avg_all_us);
+}
+
+int MinimizationHelper::EffectiveMaxTests() const {
+  const int cap = options_.max_tests;
+  if (options_.target_time_ms == 0 || cap <= 0) {
+    return cap;
+  }
+  const uint64_t est_us = EstimatedExecTimeUs();
+  if (est_us == 0) {
+    return cap;
+  }
+  return options_.TestsFor(est_us);
+}
+
 bool MinimizationHelper::BudgetExhausted() const {
-  if (result_.tests >= options_.max_tests) {
+  if (result_.tests >= EffectiveMaxTests()) {
     return true;
   }
   if (options_.max_time_ms != 0 &&
@@ -49,6 +88,10 @@ bool MinimizationHelper::BudgetExhausted() const {
     return true;
   }
   return false;
+}
+
+int MinimizationHelper::TestsLeft() const {
+  return std::max(0, EffectiveMaxTests() - result_.tests);
 }
 
 bool MinimizationHelper::Test() {
@@ -70,10 +113,12 @@ bool MinimizationHelper::Test() {
   result_.tests++;
   Stopwatch stopwatch;
   bool ok = oracle_(source);
+  const uint64_t elapsed_us = stopwatch.ElapsedUs();
+  total_probe_time_us_ += elapsed_us;
   if (reducer_ != nullptr) {
     ComponentStats& stats = reducer_->stats();
     stats.executed++;
-    stats.time_us += stopwatch.ElapsedUs();
+    stats.time_us += elapsed_us;
     if (ok) {
       stats.succeeded++;
     } else {
@@ -82,6 +127,8 @@ bool MinimizationHelper::Test() {
   }
   if (ok) {
     result_.accepted++;
+    last_kept_probe_time_us_ = elapsed_us;
+    kept_probes_++;
   }
   return ok;
 }
@@ -176,6 +223,7 @@ int TrimList(std::vector<T*>& list, size_t min_size,
   if (list.size() <= min_size) {
     return 0;
   }
+  bool empty_failed = false;
   size_t chunk = std::max<size_t>(1, list.size() / 2);
   while (!helper.BudgetExhausted()) {
     size_t end = list.size();
@@ -188,8 +236,13 @@ int TrimList(std::vector<T*>& list, size_t min_size,
       if (begin >= end) {
         break;
       }
-      if (TryRemoveRange(list, begin, end, helper)) {
-        accepted++;
+      const bool empties = (begin == 0 && end == list.size());
+      if (!empties || !empty_failed) {
+        if (TryRemoveRange(list, begin, end, helper)) {
+          accepted++;
+        } else if (empties) {
+          empty_failed = true;
+        }
       }
       end = begin;
     }
@@ -197,6 +250,95 @@ int TrimList(std::vector<T*>& list, size_t min_size,
       break;
     }
     chunk = std::max<size_t>(1, chunk / 2);
+  }
+  return accepted;
+}
+
+REDLINE_TUNABLE(kStatementsChunkMinList, "minimizer.statements.chunk_min_list",
+                8, 2, 64,
+                "minimum statements in a list before block chunking runs");
+REDLINE_TUNABLE(
+    kStatementsMinChunkSize, "minimizer.statements.min_chunk_size", 4, 2, 32,
+    "smallest contiguous block size tried before the single-statement sweep");
+REDLINE_TUNABLE(
+    kStatementsMaxEmptyLevels, "minimizer.statements.max_empty_levels", 2, 1, 8,
+    "consecutive chunk levels with zero kept cuts before the single-statement "
+    "sweep");
+
+// Adaptive delta-debugging trimming for statement lists. Medium and large
+// lists try balanced contiguous blocks from the end down to `min_chunk_size`.
+// Chunking stops early when consecutive levels keep nothing. A
+// single-statement sweep then checks the remaining statements.
+int TrimStatements(StatementList& list, bool allow_empty_whole,
+                   MinimizationHelper& helper) {
+  int accepted = 0;
+  if (list.empty() || helper.BudgetExhausted()) {
+    return 0;
+  }
+  const size_t min_list = static_cast<size_t>(kStatementsChunkMinList.AsInt());
+  const size_t min_chunk = static_cast<size_t>(kStatementsMinChunkSize.AsInt());
+  const int max_empty_levels = kStatementsMaxEmptyLevels.AsInt();
+  bool empty_failed = false;
+
+  auto try_remove = [&](size_t begin, size_t end) {
+    if (begin >= end || end > list.size()) {
+      return false;
+    }
+    const bool empties = (begin == 0 && end == list.size());
+    if (empties && empty_failed) {
+      return false;
+    }
+    if (TryRemoveRange(list, begin, end, helper)) {
+      accepted++;
+      return true;
+    }
+    if (empties) {
+      empty_failed = true;
+    }
+    return false;
+  };
+
+  // Clear a dead medium or large nested block in 1 probe.
+  if (allow_empty_whole && list.size() >= min_list &&
+      !helper.BudgetExhausted()) {
+    if (try_remove(0, list.size())) {
+      return accepted;
+    }
+  }
+
+  if (list.size() >= min_list && list.size() >= min_chunk * 2) {
+    size_t chunk = list.size() / 2;
+    int empty_levels = 0;
+    while (!helper.BudgetExhausted() && chunk >= min_chunk &&
+           list.size() >= min_chunk * 2 && empty_levels < max_empty_levels) {
+      const size_t n = list.size();
+      const size_t parts = n / chunk;
+      if (parts < 2) {
+        break;
+      }
+      const int accepted_before = accepted;
+      // Walk balanced blocks from the end so removals do not shift earlier
+      // indices.
+      for (size_t p = parts; p > 0 && !helper.BudgetExhausted(); p--) {
+        const size_t begin = (p - 1) * n / parts;
+        const size_t end = p * n / parts;
+        if (begin == 0 && end == list.size() && !allow_empty_whole) {
+          continue;
+        }
+        try_remove(begin, end);
+      }
+      if (accepted > accepted_before) {
+        empty_levels = 0;
+      } else {
+        empty_levels++;
+      }
+      chunk = std::min(chunk / 2, list.size() / 2);
+    }
+  }
+
+  // Sweep the remaining statements 1 by 1 from the end.
+  for (size_t i = list.size(); i > 0 && !helper.BudgetExhausted(); i--) {
+    try_remove(i - 1, i);
   }
   return accepted;
 }
@@ -265,10 +407,42 @@ class Truncator : public Reducer {
   }
 };
 
+// The identifiers that declare a binding without references.
+std::unordered_set<const fast::Identifier*> UnreferencedIdentifiers(
+    const fast::ScopeAnalysis& scopes) {
+  std::unordered_set<const fast::Identifier*> unreferenced;
+  for (const fast::Binding* binding : scopes.bindings()) {
+    if (binding->references.empty() && binding->identifier != nullptr) {
+      unreferenced.insert(binding->identifier);
+    }
+  }
+  return unreferenced;
+}
+
+// True if `stmt` is a variable declaration whose declarators all declare an
+// identifier in `unreferenced`.
+bool IsUnreferencedDeclaration(
+    const Statement* stmt,
+    const std::unordered_set<const fast::Identifier*>& unreferenced) {
+  const auto* decl = stmt->As<fast::VariableDeclaration>();
+  if (decl == nullptr || decl->declarations.empty()) {
+    return false;
+  }
+  for (const fast::VariableDeclarator* d : decl->declarations) {
+    const auto* id =
+        d->target != nullptr ? d->target->As<fast::Identifier>() : nullptr;
+    if (id == nullptr || unreferenced.count(id) == 0) {
+      return false;
+    }
+  }
+  return true;
+}
+
 // Removes the parts of the program that the rest does not use: the
 // top-level statements form a graph in which two statements are connected
 // when one references a binding the other declares (scope analysis
-// resolves every identifier). Each connected part that does not contain
+// resolves every identifier). First one test removes all unused variable
+// declarations together. Then each connected part that does not contain
 // every statement is removed with one test. Side effects through globals,
 // prototypes or getters can connect statements that share no binding, so
 // the graph only proposes the cut; the oracle decides.
@@ -284,7 +458,10 @@ class DataflowReducer : public Reducer {
     if (body == nullptr || body->size() < 2) {
       return 0;
     }
-    std::vector<std::vector<size_t>> parts = Parts(helper.tree(), *body);
+    std::unique_ptr<fast::ScopeAnalysis> scopes =
+        fast::ScopeAnalysis::Analyze(helper.tree());
+    std::vector<std::vector<size_t>> parts =
+        Parts(helper.tree(), *body, *scopes);
     if (parts.size() < 2) {
       return 0;
     }
@@ -293,27 +470,45 @@ class DataflowReducer : public Reducer {
               [](const auto& a, const auto& b) { return a.back() > b.back(); });
     const std::vector<Statement*> all = *body;
     std::vector<bool> removed(all.size(), false);
+    // Removes the statements of `indices` if the oracle accepts it.
+    auto try_remove = [&](const std::vector<size_t>& indices) {
+      for (size_t index : indices) {
+        removed[index] = true;
+      }
+      Assign(all, removed, body);
+      if (!body->empty() && helper.Test()) {
+        return true;
+      }
+      for (size_t index : indices) {
+        removed[index] = false;
+      }
+      return false;
+    };
     int accepted = 0;
+    // First remove all unused declarations with one test, as the
+    // `statements` reducer does. A program often has many of them, for
+    // example the values of the prefix stage.
+    const std::unordered_set<const fast::Identifier*> unreferenced =
+        UnreferencedIdentifiers(*scopes);
+    std::vector<size_t> unused;
+    for (const std::vector<size_t>& part : parts) {
+      if (part.size() == 1 &&
+          IsUnreferencedDeclaration(all[part[0]], unreferenced)) {
+        unused.push_back(part[0]);
+      }
+    }
+    if (unused.size() >= 2 && !helper.BudgetExhausted() && try_remove(unused)) {
+      accepted++;
+    }
     for (const std::vector<size_t>& part : parts) {
       if (helper.BudgetExhausted()) {
         break;
       }
-      for (size_t index : part) {
-        removed[index] = true;
-      }
-      Assign(all, removed, body);
-      if (body->empty()) {
-        for (size_t index : part) {
-          removed[index] = false;
-        }
+      if (removed[part[0]]) {
         continue;
       }
-      if (helper.Test()) {
+      if (try_remove(part)) {
         accepted++;
-        continue;
-      }
-      for (size_t index : part) {
-        removed[index] = false;
       }
     }
     Assign(all, removed, body);
@@ -333,8 +528,9 @@ class DataflowReducer : public Reducer {
 
   // The connected parts of the def-use graph of the top-level statements,
   // each as a sorted list of statement indices.
-  static std::vector<std::vector<size_t>> Parts(fast::Tree* tree,
-                                                const StatementList& body) {
+  static std::vector<std::vector<size_t>> Parts(
+      fast::Tree* tree, const StatementList& body,
+      const fast::ScopeAnalysis& scopes) {
     // Which top-level statement each node belongs to.
     constexpr size_t kNone = std::numeric_limits<size_t>::max();
     std::vector<size_t> owner(tree->id_limit(), kNone);
@@ -357,13 +553,11 @@ class DataflowReducer : public Reducer {
       }
       return x;
     };
-    std::unique_ptr<fast::ScopeAnalysis> scopes =
-        fast::ScopeAnalysis::Analyze(tree);
     auto owner_of = [&](const Node* node) {
       return node != nullptr && node->id < owner.size() ? owner[node->id]
                                                         : kNone;
     };
-    for (const fast::Binding* binding : scopes->bindings()) {
+    for (const fast::Binding* binding : scopes.bindings()) {
       size_t declared = owner_of(binding->identifier);
       if (declared == kNone) {
         continue;
@@ -396,7 +590,8 @@ class StatementRemover : public Reducer {
       : Reducer("statements", "remove statements (chunks, then one by one)") {}
 
   int Reduce(MinimizationHelper& helper) override {
-    int accepted = 0;
+    int accepted = PruneUnreferencedDeclarations(helper);
+    StatementList* root_body = StatementListOf(helper.tree()->root());
     std::unordered_set<StatementList*> done;
     while (!helper.BudgetExhausted()) {
       StatementList* list = nullptr;
@@ -411,9 +606,49 @@ class StatementRemover : public Reducer {
         break;
       }
       done.insert(list);
-      accepted += TrimList(*list, 0, helper);
+      accepted += TrimStatements(*list, list != root_body, helper);
     }
     return accepted;
+  }
+
+ private:
+  // Removes top-level VariableDeclaration statements whose bindings have
+  // zero references in 1 probe before `TrimStatements` runs.
+  static int PruneUnreferencedDeclarations(MinimizationHelper& helper) {
+    if (helper.BudgetExhausted()) {
+      return 0;
+    }
+    StatementList* body = StatementListOf(helper.tree()->root());
+    if (body == nullptr || body->size() < 2) {
+      return 0;
+    }
+    std::unique_ptr<fast::ScopeAnalysis> scopes =
+        fast::ScopeAnalysis::Analyze(helper.tree());
+    const std::unordered_set<const fast::Identifier*> unreferenced =
+        UnreferencedIdentifiers(*scopes);
+    if (unreferenced.empty()) {
+      return 0;
+    }
+    std::vector<Statement*> kept;
+    kept.reserve(body->size());
+    size_t removed_count = 0;
+    for (Statement* stmt : *body) {
+      if (IsUnreferencedDeclaration(stmt, unreferenced)) {
+        removed_count++;
+      } else {
+        kept.push_back(stmt);
+      }
+    }
+    if (removed_count < 2 || kept.empty()) {
+      return 0;
+    }
+    std::vector<Statement*> saved = std::move(*body);
+    *body = std::move(kept);
+    if (helper.Test()) {
+      return 1;
+    }
+    *body = std::move(saved);
+    return 0;
   }
 };
 
@@ -684,6 +919,10 @@ REDLINE_TUNABLE(kExpressionsMaxCallArguments,
                 "minimizer.expressions.max_call_arguments", 2, 0, 8,
                 "leading arguments of a call or `new` that are tried as its "
                 "replacement (the callee always is)");
+REDLINE_TUNABLE(kExpressionsMaxConsecutiveFailures,
+                "minimizer.expressions.max_consecutive_failures", 10, 0, 200,
+                "rejected probes in a row that stop `expressions` early when "
+                "`expressions_share` is below 1 (0 disables)");
 
 // Replaces expressions by one of their operands or by a constant:
 // `a + f(b)` -> `a`, `f(b)` -> `b`, `o.p.q` -> `o.p`, `x ? y : z` -> `y`,
@@ -696,14 +935,30 @@ class ExpressionSimplifier : public Reducer {
 
   int Reduce(MinimizationHelper& helper) override {
     int accepted = 0;
+    // On corpus programs (`expressions_share` < 1), the reducer stops after
+    // its budget share or consecutive rejected probes. When
+    // `expressions_share` is 1, the reducer stays uncapped so budget recovery
+    // still applies.
+    const bool has_share_cap = helper.options().expressions_share < 1.0;
+    const int last_test =
+        has_share_cap ? helper.result().tests + Share(helper) : 0;
+    const int max_consecutive_failures =
+        has_share_cap ? kExpressionsMaxConsecutiveFailures.AsInt() : 0;
+    int consecutive_failures = 0;
+    auto exhausted = [&] {
+      return helper.BudgetExhausted() ||
+             (has_share_cap && helper.result().tests >= last_test) ||
+             (max_consecutive_failures > 0 &&
+              consecutive_failures >= max_consecutive_failures);
+    };
     // (slot, alternative index) pairs that were already rejected.
     std::unordered_set<uint64_t> failed;
     bool progress = true;
-    while (progress && !helper.BudgetExhausted()) {
+    while (progress && !exhausted()) {
       progress = false;
       std::vector<Slot> slots = CollectSlots(helper.tree()->root());
       for (const Slot& s : slots) {
-        if (helper.BudgetExhausted()) {
+        if (exhausted()) {
           break;
         }
         Node** slot = s.field;
@@ -717,6 +972,9 @@ class ExpressionSimplifier : public Reducer {
             s.loop_test ? std::vector<Expression*>{mk::Num(helper.tree(), 0)}
                         : Alternatives(helper.tree(), current);
         for (size_t alt = 0; alt < alternatives.size(); alt++) {
+          if (exhausted()) {
+            break;
+          }
           // Slots are 8-byte aligned pointers; 4 bits hold the index of
           // any alternative (at most max_call_arguments + 3 of them).
           uint64_t key = reinterpret_cast<uint64_t>(slot) * 16 + alt;
@@ -724,13 +982,18 @@ class ExpressionSimplifier : public Reducer {
             continue;
           }
           *slot = alternatives[alt];
+          const int tests_before = helper.result().tests;
           if (helper.Test()) {
             accepted++;
+            consecutive_failures = 0;
             progress = true;
             break;
           }
           *slot = current;
           failed.insert(key);
+          if (helper.result().tests > tests_before) {
+            consecutive_failures++;
+          }
         }
         if (progress) {
           break;  // the tree changed: recollect the slots
@@ -741,6 +1004,16 @@ class ExpressionSimplifier : public Reducer {
   }
 
  private:
+  // The tests that this reducer can use in this call.
+  static int Share(const MinimizationHelper& helper) {
+    const double share = helper.options().expressions_share;
+    const int left = helper.TestsLeft();
+    if (share >= 1.0) {
+      return left;
+    }
+    return static_cast<int>(std::ceil(std::max(0.0, share) * left));
+  }
+
   static bool IsAtomic(const Expression* e) {
     switch (e->kind) {
       case NodeKind::kIdentifier:
@@ -837,12 +1110,9 @@ class ExpressionSimplifier : public Reducer {
         case NodeKind::kSwitchCase:
           add(node->Cast<fast::SwitchCase>()->test);
           break;
-        case NodeKind::kCallExpression: {
-          auto* n = node->Cast<fast::CallExpression>();
-          add(n->callee);
-          add_list(n->arguments);
+        case NodeKind::kCallExpression:
+          add_list(node->Cast<fast::CallExpression>()->arguments);
           break;
-        }
         case NodeKind::kNewExpression:
           add_list(node->Cast<fast::NewExpression>()->arguments);
           break;
@@ -873,7 +1143,6 @@ class ExpressionSimplifier : public Reducer {
         }
         case NodeKind::kMemberExpression: {
           auto* n = node->Cast<fast::MemberExpression>();
-          add(n->object);
           if (n->computed) {
             add(n->property);
           }
@@ -1011,8 +1280,11 @@ class ExpressionSimplifier : public Reducer {
       default:
         break;
     }
-    out.push_back(mk::Num(tree, 0));
-    out.push_back(mk::Undefined(tree));
+    if (!e->Is<fast::FunctionExpression>() &&
+        !e->Is<fast::ArrowFunctionExpression>() &&
+        !e->Is<fast::ClassExpression>()) {
+      out.push_back(mk::Num(tree, 0));
+    }
     return out;
   }
 };
@@ -1034,9 +1306,11 @@ std::vector<std::unique_ptr<Reducer>> Minimizer::CreateDefaultReducers() {
   reducers.push_back(std::make_unique<Unwrapper>());
   reducers.push_back(std::make_unique<ListTrimmer>());
   reducers.push_back(std::make_unique<ExpressionSimplifier>());
-  // Not in the default order (see DefaultOrder): on crash reproducers they
-  // reach the same result as `statements` with 5-12% more tests. Enable
-  // them with stages.minimize.reducers or `minimize --reducer=`.
+  // `truncate` is not in the default order (see DefaultOrder). The crash
+  // order (see CrashOrder) runs it. Enable it for corpus programs with
+  // stages.minimize.reducers or `minimize --reducer=`. `dataflow` is first
+  // in both orders. It removes each group of unused top-level statements
+  // with one test, for example unused prelude statements of a crash.
   reducers.push_back(std::make_unique<Truncator>());
   reducers.push_back(std::make_unique<DataflowReducer>());
   return reducers;
@@ -1046,8 +1320,18 @@ std::vector<std::unique_ptr<Reducer>> Minimizer::CreateDefaultReducers() {
 const std::vector<std::string_view>& Minimizer::DefaultOrder() {
   // Never deleted: no destructor runs when the process exits.
   static const std::vector<std::string_view>* const kOrder =
-      new std::vector<std::string_view>{"statements", "unwrap", "lists",
-                                        "expressions"};
+      new std::vector<std::string_view>{"dataflow", "statements", "unwrap",
+                                        "lists", "expressions"};
+  return *kOrder;
+}
+
+// static
+const std::vector<std::string_view>& Minimizer::CrashOrder() {
+  // The process keeps this vector until it exits. Thus no destructor runs at
+  // the exit.
+  static const std::vector<std::string_view>* const kOrder =
+      new std::vector<std::string_view>{"dataflow", "statements",  "unwrap",
+                                        "lists",    "expressions", "truncate"};
   return *kOrder;
 }
 
@@ -1108,19 +1392,38 @@ MinimizationResult Minimizer::MinimizeWith(
   Stopwatch stopwatch;
   MinimizationHelper helper(tree, oracle, checker, options);
   helper.mutable_result()->nodes_before = fast::CountNodes(tree->root());
+  // The loop below ends with a break, except after max_rounds rounds.
+  MinimizationStop stop = MinimizationStop::kRounds;
+  int last_changer = -1;
   for (int round = 0; round < options.max_rounds; round++) {
     int accepted = 0;
-    for (Reducer* reducer : reducers) {
+    bool fixed_point = false;
+    for (size_t i = 0; i < reducers.size(); i++) {
+      if (last_changer == static_cast<int>(i)) {
+        fixed_point = true;
+        break;
+      }
       if (helper.BudgetExhausted()) {
         break;
       }
+      Reducer* reducer = reducers[i];
       helper.set_reducer(reducer);
       reducer->stats().invocations++;
       int n = reducer->Reduce(helper);
       reducer->stats().produced += static_cast<uint64_t>(n);
       accepted += n;
+      if (n > 0) {
+        last_changer = static_cast<int>(i);
+      }
     }
-    if (accepted == 0 || helper.BudgetExhausted()) {
+    // A reducer stops at the end of the budget. Then the round is not
+    // complete, so it does not show a fixed point.
+    if (helper.BudgetExhausted()) {
+      stop = MinimizationStop::kBudget;
+      break;
+    }
+    if (fixed_point || accepted == 0) {
+      stop = MinimizationStop::kFixedPoint;
       break;
     }
   }
@@ -1130,23 +1433,49 @@ MinimizationResult Minimizer::MinimizeWith(
   result.nodes_after = fast::CountNodes(tree->root());
   result.time_us = stopwatch.ElapsedUs();
   result.budget_exhausted = helper.BudgetExhausted();
+  result.stop = stop;
   return result;
 }
 
+const char* MinimizationStopName(MinimizationStop stop) {
+  switch (stop) {
+    case MinimizationStop::kNone:
+      return "skipped";
+    case MinimizationStop::kFixedPoint:
+      return "fixed_point";
+    case MinimizationStop::kBudget:
+      return "budget";
+    case MinimizationStop::kRounds:
+      return "rounds";
+    case MinimizationStop::kStopped:
+      return "stopped";
+  }
+  return "skipped";
+}
+
 int MinimizerOptions::TestsFor(uint64_t exec_time_us) const {
+  if (max_tests <= 0) {
+    return 0;
+  }
   if (target_time_ms == 0 || exec_time_us == 0) {
     return max_tests;
   }
-  uint64_t affordable = target_time_ms * 1000 / exec_time_us;
-  int tests = affordable > static_cast<uint64_t>(max_tests)
-                  ? max_tests
-                  : static_cast<int>(affordable);
-  return std::max(tests, std::min(min_tests, max_tests));
+  const double scaled_target_us =
+      static_cast<double>(target_time_ms) * 1000.0 * kBudgetTargetScale();
+  const double affordable =
+      scaled_target_us / static_cast<double>(exec_time_us);
+  if (!std::isfinite(affordable) ||
+      affordable >= static_cast<double>(max_tests)) {
+    return max_tests;
+  }
+  const int tests = affordable <= 0.0 ? 0 : static_cast<int>(affordable);
+  const int floor_tests = std::max(0, std::min(min_tests, max_tests));
+  return std::max(tests, floor_tests);
 }
 
 MinimizerOptions MinimizerOptions::ForProgram(uint64_t exec_time_us) const {
   MinimizerOptions scaled = *this;
-  scaled.max_tests = TestsFor(exec_time_us);
+  scaled.initial_exec_time_us = exec_time_us;
   return scaled;
 }
 

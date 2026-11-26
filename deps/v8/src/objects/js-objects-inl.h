@@ -415,20 +415,6 @@ Tagged<JSAny> JSObject::RawFastPropertyAt(FieldIndex index) const {
   }
 }
 
-// The SeqCst versions of RawFastPropertyAt are used for atomically accessing
-// shared struct fields.
-
-// See the TODO(jgruber) on the non-SeqCst overload above.
-Tagged<JSAny> JSObject::RawFastPropertyAt(FieldIndex index,
-                                          SeqCstAccessTag tag) const {
-  if (index.is_inobject()) {
-    return TaggedField<JSAny>::SeqCst_Load(this, index.offset());
-  } else {
-    return UncheckedCast<JSAny>(
-        property_array()->get(index.outobject_array_index(), tag));
-  }
-}
-
 std::optional<Tagged<Object>> JSObject::RawInobjectPropertyAt(
     Tagged<Map> original_map, FieldIndex index) const {
   CHECK(index.is_inobject());
@@ -473,15 +459,6 @@ void JSObject::RawFastInobjectPropertyAtPut(FieldIndex index,
   CONDITIONAL_WRITE_BARRIER(this, offset, value, mode);
 }
 
-void JSObject::RawFastInobjectPropertyAtPut(FieldIndex index,
-                                            Tagged<Object> value,
-                                            SeqCstAccessTag tag) {
-  DCHECK(index.is_inobject());
-  DCHECK(IsShared(value));
-  SEQ_CST_WRITE_FIELD(this, index.offset(), value);
-  CONDITIONAL_WRITE_BARRIER(this, index.offset(), value, UPDATE_WRITE_BARRIER);
-}
-
 void JSObject::FastPropertyAtPut(FieldIndex index, Tagged<Object> value,
                                  WriteBarrierMode mode) {
   if (index.is_inobject()) {
@@ -492,15 +469,6 @@ void JSObject::FastPropertyAtPut(FieldIndex index, Tagged<Object> value,
   }
 }
 
-void JSObject::FastPropertyAtPut(FieldIndex index, Tagged<Object> value,
-                                 SeqCstAccessTag tag) {
-  if (index.is_inobject()) {
-    RawFastInobjectPropertyAtPut(index, value, tag);
-  } else {
-    property_array()->set(index.outobject_array_index(), value, tag);
-  }
-}
-
 void JSObject::WriteToField(InternalIndex descriptor, PropertyDetails details,
                             Tagged<Object> value) {
   DCHECK_EQ(PropertyLocation::kField, details.location());
@@ -508,10 +476,14 @@ void JSObject::WriteToField(InternalIndex descriptor, PropertyDetails details,
   DisallowGarbageCollection no_gc;
   FieldIndex index = FieldIndex::ForDetails(map(), details);
   if (details.representation().IsDouble()) {
-    DCHECK(!IsUninitializedHole(value));
     auto box = Cast<UnionOf<HeapNumber, UninitializedHeapNumber>>(
         RawFastPropertyAt(index));
     DCHECK_NE(box, value);
+    if (IsUninitializedHole(value)) {
+      // Leave the uninitialized heap number box intact.
+      DCHECK(IsUninitializedHeapNumber(box));
+      return;
+    }
     // Manipulating the signaling NaN used for the hole and uninitialized
     // double field sentinel in C++, e.g. with base::bit_cast or
     // value()/set_value(), will change its value on ia32 (the x87 stack is used
@@ -535,50 +507,6 @@ void JSObject::WriteToField(InternalIndex descriptor, PropertyDetails details,
   } else {
     FastPropertyAtPut(index, value);
   }
-}
-
-Tagged<Object> JSObject::RawFastInobjectPropertyAtSwap(FieldIndex index,
-                                                       Tagged<Object> value,
-                                                       SeqCstAccessTag tag) {
-  DCHECK(index.is_inobject());
-  DCHECK(IsShared(value));
-  int offset = index.offset();
-  Tagged<Object> old_value = SEQ_CST_SWAP_FIELD(this, offset, value);
-  CONDITIONAL_WRITE_BARRIER(this, offset, value, UPDATE_WRITE_BARRIER);
-  return old_value;
-}
-
-Tagged<Object> JSObject::RawFastPropertyAtSwap(FieldIndex index,
-                                               Tagged<Object> value,
-                                               SeqCstAccessTag tag) {
-  if (index.is_inobject()) {
-    return RawFastInobjectPropertyAtSwap(index, value, tag);
-  }
-  return property_array()->Swap(index.outobject_array_index(), value, tag);
-}
-
-Tagged<Object> JSObject::RawFastInobjectPropertyAtCompareAndSwap(
-    FieldIndex index, Tagged<Object> expected, Tagged<Object> value,
-    SeqCstAccessTag tag) {
-  DCHECK(index.is_inobject());
-  DCHECK(IsShared(value));
-  Tagged<Object> previous_value =
-      SEQ_CST_COMPARE_AND_SWAP_FIELD(this, index.offset(), expected, value);
-  if (previous_value == expected) {
-    CONDITIONAL_WRITE_BARRIER(this, index.offset(), value,
-                              UPDATE_WRITE_BARRIER);
-  }
-  return previous_value;
-}
-
-Tagged<Object> JSObject::RawFastPropertyAtCompareAndSwapInternal(
-    FieldIndex index, Tagged<Object> expected, Tagged<Object> value,
-    SeqCstAccessTag tag) {
-  if (index.is_inobject()) {
-    return RawFastInobjectPropertyAtCompareAndSwap(index, expected, value, tag);
-  }
-  return property_array()->CompareAndSwap(index.outobject_array_index(),
-                                          expected, value, tag);
 }
 
 int JSObject::GetInObjectPropertyOffset(int index) {
@@ -961,10 +889,6 @@ DEF_GETTER(JSObject, HasAnyNonextensibleElements, bool) {
 
 DEF_GETTER(JSObject, HasSealedElements, bool) {
   return IsSealedElementsKind(GetElementsKind());
-}
-
-DEF_GETTER(JSObject, HasSharedArrayElements, bool) {
-  return GetElementsKind() == SHARED_ARRAY_ELEMENTS;
 }
 
 DEF_GETTER(JSObject, HasNonextensibleElements, bool) {

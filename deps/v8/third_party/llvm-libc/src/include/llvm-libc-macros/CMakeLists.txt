@@ -43,6 +43,12 @@ add_macro_header(
 )
 
 add_macro_header(
+  arpa_nameser_macros
+  HDR
+    arpa-nameser-macros.h
+)
+
+add_macro_header(
   assert_macros
   HDR
     assert-macros.h
@@ -211,6 +217,12 @@ add_macro_header(
 )
 
 add_macro_header(
+  netinet_tcp_macros
+  HDR
+    netinet-tcp-macros.h
+)
+
+add_macro_header(
   offsetof_macro
   HDR
     offsetof-macro.h
@@ -317,6 +329,14 @@ add_macro_header(
 )
 
 add_macro_header(
+  sys_shm_macros
+  HDR
+    sys-shm-macros.h
+  DEPENDS
+    .stdint_macros
+)
+
+add_macro_header(
   sys_stat_macros
   HDR
     sys-stat-macros.h
@@ -326,6 +346,12 @@ add_macro_header(
   sys_statfs_macros
   HDR
     sys-statfs-macros.h
+)
+
+add_macro_header(
+  sys_swap_macros
+  HDR
+    sys-swap-macros.h
 )
 
 add_macro_header(
@@ -403,6 +429,12 @@ add_macro_header(
   sys_time_macros
   HDR
     sys-time-macros.h
+)
+
+add_macro_header(
+  sys_timerfd_macros
+  HDR
+    sys-timerfd-macros.h
 )
 
 add_macro_header(

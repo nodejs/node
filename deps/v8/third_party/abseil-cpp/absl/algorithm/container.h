@@ -52,6 +52,7 @@
 #include <vector>
 
 #include "absl/algorithm/algorithm.h"
+#include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/base/internal/hardening.h"
 #include "absl/base/internal/iterator_traits.h"
@@ -209,29 +210,32 @@ template <typename T, size_t Extent>
 struct IsSpan<std::span<T, Extent>> : std::true_type {};
 #endif
 
-// Indicates whether the given type is safe to pass as a sink to a function such
-// as absl::c_fill(). Similar idea as std::ranges::borrowed_range.
+// Indicates whether the given type is a borrowed range, meaning it is safe to
+// return iterators from it even when passed as an rvalue (or use as a sink
+// for algorithms that mutate the container). Similar to
+// std::ranges::borrowed_range.
 //
 // We are deliberately conservative here and only support lvalues and spans for
 // now, in order to avoid divergence from C++17 or potentially unforeseen
 // consequences. If needed in the future, we can probably extend this to all
 // types that satisfy std::ranges::borrowed_range.
 template <typename C>
-using IsPermissibleDestinationRange =
-    std::conditional_t<std::is_lvalue_reference_v<C>, std::true_type,
-                       IsSpan<C>>;
+using IsBorrowedRange = std::conditional_t<std::is_lvalue_reference_v<C>,
+                                           std::true_type, IsSpan<C>>;
+
+template <typename C>
+using IsPermissibleDestinationRange = IsBorrowedRange<C>;
 
 template <typename C, typename OutputRange>
-using ResultOfRangeToRangeTransfer =
-    std::enable_if_t<container_algorithm_internal::HasBeginEnd<
-                         std::add_lvalue_reference_t<OutputRange>>::value &&
-                         !container_algorithm_internal::IsMultidimensionalArray<
-                             std::remove_reference_t<OutputRange>>::value &&
-                         !container_algorithm_internal::IsMultidimensionalArray<
-                             std::remove_reference_t<C>>::value &&
-                         container_algorithm_internal::
-                             IsPermissibleDestinationRange<OutputRange>::value,
-                     void>;
+using ResultOfRangeToRangeTransfer = std::enable_if_t<
+    container_algorithm_internal::HasBeginEnd<
+        std::add_lvalue_reference_t<OutputRange>>::value &&
+        !container_algorithm_internal::IsMultidimensionalArray<
+            std::remove_reference_t<OutputRange>>::value &&
+        !container_algorithm_internal::IsMultidimensionalArray<
+            std::remove_reference_t<C>>::value &&
+        container_algorithm_internal::IsBorrowedRange<OutputRange>::value,
+    void>;
 
 }  // namespace container_algorithm_internal
 
@@ -743,7 +747,9 @@ constexpr container_algorithm_internal::ContainerIter<C2> c_swap_ranges(
   auto last2 = container_algorithm_internal::c_end(c2);
 
   using std::swap;
-  for (; first1 != last1 && first2 != last2; ++first1, (void)++first2) {
+  // SAFETY: Legacy buffer usage.
+  for (; first1 != last1 && first2 != last2;
+       ABSL_UNSAFE_BUFFERS(++first1), (void)ABSL_UNSAFE_BUFFERS(++first2)) {
     swap(*first1, *first2);
   }
   return first2;
@@ -799,7 +805,10 @@ c_transform(const InputSequence1& input1, const InputSequence2& input2,
   auto first2 = container_algorithm_internal::c_begin(input2);
   auto last2 = container_algorithm_internal::c_end(input2);
   std::decay_t<OutputIterator> out = std::forward<OutputIterator>(output);
-  for (; first1 != last1 && first2 != last2; ++first1, (void)++first2, ++out) {
+  // SAFETY: Legacy buffer usage.
+  for (; first1 != last1 && first2 != last2;
+       ABSL_UNSAFE_BUFFERS(++first1), (void)ABSL_UNSAFE_BUFFERS(++first2),
+       ABSL_UNSAFE_BUFFERS(++out)) {
     *out = binary_op(*first1, *first2);
   }
   return out;
@@ -919,7 +928,7 @@ constexpr OutputIterator c_replace_copy_if(const C& c, OutputIterator result,
 // container with some value.
 template <typename C, typename T>
 constexpr std::enable_if_t<
-    container_algorithm_internal::IsPermissibleDestinationRange<C>::value, void>
+    container_algorithm_internal::IsBorrowedRange<C>::value, void>
 c_fill(C&& c, const T& value) {
   std::fill(container_algorithm_internal::c_begin(c),
             container_algorithm_internal::c_end(c), value);
@@ -931,7 +940,7 @@ c_fill(C&& c, const T& value) {
 // the first N elements in a container with some value.
 template <typename C, typename Size, typename T>
 constexpr std::enable_if_t<
-    container_algorithm_internal::IsPermissibleDestinationRange<C>::value, void>
+    container_algorithm_internal::IsBorrowedRange<C>::value, void>
 c_fill_n(C&& c, Size n, const T& value) {
   std::fill_n(container_algorithm_internal::c_begin(c), n, value);
 }
@@ -1170,7 +1179,7 @@ constexpr container_algorithm_internal::ContainerIter<C> c_partition_point(
 // to sort elements in ascending order of their values.
 template <typename C>
 constexpr std::enable_if_t<
-    container_algorithm_internal::IsPermissibleDestinationRange<C>::value, void>
+    container_algorithm_internal::IsBorrowedRange<C>::value, void>
 c_sort(C&& c) {
   std::sort(container_algorithm_internal::c_begin(c),
             container_algorithm_internal::c_end(c));
@@ -1180,7 +1189,7 @@ c_sort(C&& c) {
 // default `operator<`.
 template <typename C, typename LessThan>
 constexpr std::enable_if_t<
-    container_algorithm_internal::IsPermissibleDestinationRange<C>::value, void>
+    container_algorithm_internal::IsBorrowedRange<C>::value, void>
 c_sort(C&& c, LessThan&& comp) {
   std::sort(container_algorithm_internal::c_begin(c),
             container_algorithm_internal::c_end(c),
@@ -1193,8 +1202,7 @@ c_sort(C&& c, LessThan&& comp) {
 // to sort elements in ascending order of their values, preserving the order
 // of equivalents.
 template <typename C>
-std::enable_if_t<
-    container_algorithm_internal::IsPermissibleDestinationRange<C>::value, void>
+std::enable_if_t<container_algorithm_internal::IsBorrowedRange<C>::value, void>
 c_stable_sort(C&& c) {
   std::stable_sort(container_algorithm_internal::c_begin(c),
                    container_algorithm_internal::c_end(c));
@@ -1203,8 +1211,7 @@ c_stable_sort(C&& c) {
 // Overload of c_stable_sort() for performing a `comp` comparison other than the
 // default `operator<`.
 template <typename C, typename LessThan>
-std::enable_if_t<
-    container_algorithm_internal::IsPermissibleDestinationRange<C>::value, void>
+std::enable_if_t<container_algorithm_internal::IsBorrowedRange<C>::value, void>
 c_stable_sort(C&& c, LessThan&& comp) {
   std::stable_sort(container_algorithm_internal::c_begin(c),
                    container_algorithm_internal::c_end(c),
@@ -1236,8 +1243,11 @@ constexpr bool c_is_sorted(const C& c, LessThan&& comp) {
 // to rearrange elements within a container such that elements before `middle`
 // are sorted in ascending order.
 template <typename RandomAccessContainer>
-constexpr void c_partial_sort(
-    RandomAccessContainer& sequence,
+constexpr std::enable_if_t<
+    container_algorithm_internal::IsBorrowedRange<RandomAccessContainer>::value,
+    void>
+c_partial_sort(
+    RandomAccessContainer&& sequence,
     container_algorithm_internal::ContainerIter<RandomAccessContainer> middle) {
   std::partial_sort(container_algorithm_internal::c_begin(sequence), middle,
                     container_algorithm_internal::c_end(sequence));
@@ -1246,8 +1256,11 @@ constexpr void c_partial_sort(
 // Overload of c_partial_sort() for performing a `comp` comparison other than
 // the default `operator<`.
 template <typename RandomAccessContainer, typename LessThan>
-constexpr void c_partial_sort(
-    RandomAccessContainer& sequence,
+constexpr std::enable_if_t<
+    container_algorithm_internal::IsBorrowedRange<RandomAccessContainer>::value,
+    void>
+c_partial_sort(
+    RandomAccessContainer&& sequence,
     container_algorithm_internal::ContainerIter<RandomAccessContainer> middle,
     LessThan&& comp) {
   std::partial_sort(container_algorithm_internal::c_begin(sequence), middle,
@@ -1343,8 +1356,10 @@ constexpr void c_nth_element(
 // to return an iterator pointing to the first element in a sorted container
 // which does not compare less than `value`.
 template <typename Sequence, typename T>
-constexpr container_algorithm_internal::ContainerIter<Sequence> c_lower_bound(
-    Sequence& sequence, const T& value) {
+constexpr std::enable_if_t<
+    container_algorithm_internal::IsBorrowedRange<Sequence>::value,
+    container_algorithm_internal::ContainerIter<Sequence>>
+c_lower_bound(Sequence&& sequence, const T& value) {
   return std::lower_bound(container_algorithm_internal::c_begin(sequence),
                           container_algorithm_internal::c_end(sequence), value);
 }
@@ -1352,8 +1367,10 @@ constexpr container_algorithm_internal::ContainerIter<Sequence> c_lower_bound(
 // Overload of c_lower_bound() for performing a `comp` comparison other than
 // the default `operator<`.
 template <typename Sequence, typename T, typename LessThan>
-constexpr container_algorithm_internal::ContainerIter<Sequence> c_lower_bound(
-    Sequence& sequence, const T& value, LessThan&& comp) {
+constexpr std::enable_if_t<
+    container_algorithm_internal::IsBorrowedRange<Sequence>::value,
+    container_algorithm_internal::ContainerIter<Sequence>>
+c_lower_bound(Sequence&& sequence, const T& value, LessThan&& comp) {
   return std::lower_bound(container_algorithm_internal::c_begin(sequence),
                           container_algorithm_internal::c_end(sequence), value,
                           std::forward<LessThan>(comp));
@@ -1365,8 +1382,10 @@ constexpr container_algorithm_internal::ContainerIter<Sequence> c_lower_bound(
 // to return an iterator pointing to the first element in a sorted container
 // which is greater than `value`.
 template <typename Sequence, typename T>
-constexpr container_algorithm_internal::ContainerIter<Sequence> c_upper_bound(
-    Sequence& sequence, const T& value) {
+constexpr std::enable_if_t<
+    container_algorithm_internal::IsBorrowedRange<Sequence>::value,
+    container_algorithm_internal::ContainerIter<Sequence>>
+c_upper_bound(Sequence&& sequence, const T& value) {
   return std::upper_bound(container_algorithm_internal::c_begin(sequence),
                           container_algorithm_internal::c_end(sequence), value);
 }
@@ -1374,8 +1393,10 @@ constexpr container_algorithm_internal::ContainerIter<Sequence> c_upper_bound(
 // Overload of c_upper_bound() for performing a `comp` comparison other than
 // the default `operator<`.
 template <typename Sequence, typename T, typename LessThan>
-constexpr container_algorithm_internal::ContainerIter<Sequence> c_upper_bound(
-    Sequence& sequence, const T& value, LessThan&& comp) {
+constexpr std::enable_if_t<
+    container_algorithm_internal::IsBorrowedRange<Sequence>::value,
+    container_algorithm_internal::ContainerIter<Sequence>>
+c_upper_bound(Sequence&& sequence, const T& value, LessThan&& comp) {
   return std::upper_bound(container_algorithm_internal::c_begin(sequence),
                           container_algorithm_internal::c_end(sequence), value,
                           std::forward<LessThan>(comp));
@@ -1387,9 +1408,10 @@ constexpr container_algorithm_internal::ContainerIter<Sequence> c_upper_bound(
 // to return an iterator pair pointing to the first and last elements in a
 // sorted container which compare equal to `value`.
 template <typename Sequence, typename T>
-constexpr container_algorithm_internal::ContainerIterPairType<Sequence,
-                                                              Sequence>
-c_equal_range(Sequence& sequence, const T& value) {
+constexpr std::enable_if_t<
+    container_algorithm_internal::IsBorrowedRange<Sequence>::value,
+    container_algorithm_internal::ContainerIterPairType<Sequence, Sequence>>
+c_equal_range(Sequence&& sequence, const T& value) {
   return std::equal_range(container_algorithm_internal::c_begin(sequence),
                           container_algorithm_internal::c_end(sequence), value);
 }
@@ -1397,9 +1419,10 @@ c_equal_range(Sequence& sequence, const T& value) {
 // Overload of c_equal_range() for performing a `comp` comparison other than
 // the default `operator<`.
 template <typename Sequence, typename T, typename LessThan>
-constexpr container_algorithm_internal::ContainerIterPairType<Sequence,
-                                                              Sequence>
-c_equal_range(Sequence& sequence, const T& value, LessThan&& comp) {
+constexpr std::enable_if_t<
+    container_algorithm_internal::IsBorrowedRange<Sequence>::value,
+    container_algorithm_internal::ContainerIterPairType<Sequence, Sequence>>
+c_equal_range(Sequence&& sequence, const T& value, LessThan&& comp) {
   return std::equal_range(container_algorithm_internal::c_begin(sequence),
                           container_algorithm_internal::c_end(sequence), value,
                           std::forward<LessThan>(comp));
@@ -1726,7 +1749,10 @@ constexpr void c_make_heap(RandomAccessContainer& sequence, LessThan&& comp) {
 // Container-based version of the <algorithm> `std::sort_heap()` function
 // to sort a heap into ascending order (after which it is no longer a heap).
 template <typename RandomAccessContainer>
-constexpr void c_sort_heap(RandomAccessContainer& sequence) {
+constexpr std::enable_if_t<
+    container_algorithm_internal::IsBorrowedRange<RandomAccessContainer>::value,
+    void>
+c_sort_heap(RandomAccessContainer&& sequence) {
   std::sort_heap(container_algorithm_internal::c_begin(sequence),
                  container_algorithm_internal::c_end(sequence));
 }
@@ -1734,7 +1760,10 @@ constexpr void c_sort_heap(RandomAccessContainer& sequence) {
 // Overload of c_sort_heap() for performing heap comparisons using a
 // `comp` other than `operator<`
 template <typename RandomAccessContainer, typename LessThan>
-constexpr void c_sort_heap(RandomAccessContainer& sequence, LessThan&& comp) {
+constexpr std::enable_if_t<
+    container_algorithm_internal::IsBorrowedRange<RandomAccessContainer>::value,
+    void>
+c_sort_heap(RandomAccessContainer&& sequence, LessThan&& comp) {
   std::sort_heap(container_algorithm_internal::c_begin(sequence),
                  container_algorithm_internal::c_end(sequence),
                  std::forward<LessThan>(comp));
@@ -1791,8 +1820,10 @@ c_is_heap_until(RandomAccessContainer& sequence, LessThan&& comp) {
 // to return an iterator pointing to the element with the smallest value, using
 // `operator<` to make the comparisons.
 template <typename Sequence>
-constexpr container_algorithm_internal::ContainerIter<Sequence> c_min_element(
-    Sequence& sequence) {
+constexpr std::enable_if_t<
+    container_algorithm_internal::IsBorrowedRange<Sequence>::value,
+    container_algorithm_internal::ContainerIter<Sequence>>
+c_min_element(Sequence&& sequence) {
   return std::min_element(container_algorithm_internal::c_begin(sequence),
                           container_algorithm_internal::c_end(sequence));
 }
@@ -1800,8 +1831,10 @@ constexpr container_algorithm_internal::ContainerIter<Sequence> c_min_element(
 // Overload of c_min_element() for performing a `comp` comparison other than
 // `operator<`.
 template <typename Sequence, typename LessThan>
-constexpr container_algorithm_internal::ContainerIter<Sequence> c_min_element(
-    Sequence& sequence, LessThan&& comp) {
+constexpr std::enable_if_t<
+    container_algorithm_internal::IsBorrowedRange<Sequence>::value,
+    container_algorithm_internal::ContainerIter<Sequence>>
+c_min_element(Sequence&& sequence, LessThan&& comp) {
   return std::min_element(container_algorithm_internal::c_begin(sequence),
                           container_algorithm_internal::c_end(sequence),
                           std::forward<LessThan>(comp));
@@ -1813,8 +1846,10 @@ constexpr container_algorithm_internal::ContainerIter<Sequence> c_min_element(
 // to return an iterator pointing to the element with the largest value, using
 // `operator<` to make the comparisons.
 template <typename Sequence>
-constexpr container_algorithm_internal::ContainerIter<Sequence> c_max_element(
-    Sequence& sequence) {
+constexpr std::enable_if_t<
+    container_algorithm_internal::IsBorrowedRange<Sequence>::value,
+    container_algorithm_internal::ContainerIter<Sequence>>
+c_max_element(Sequence&& sequence) {
   return std::max_element(container_algorithm_internal::c_begin(sequence),
                           container_algorithm_internal::c_end(sequence));
 }
@@ -1822,8 +1857,10 @@ constexpr container_algorithm_internal::ContainerIter<Sequence> c_max_element(
 // Overload of c_max_element() for performing a `comp` comparison other than
 // `operator<`.
 template <typename Sequence, typename LessThan>
-constexpr container_algorithm_internal::ContainerIter<Sequence> c_max_element(
-    Sequence& sequence, LessThan&& comp) {
+constexpr std::enable_if_t<
+    container_algorithm_internal::IsBorrowedRange<Sequence>::value,
+    container_algorithm_internal::ContainerIter<Sequence>>
+c_max_element(Sequence&& sequence, LessThan&& comp) {
   return std::max_element(container_algorithm_internal::c_begin(sequence),
                           container_algorithm_internal::c_end(sequence),
                           std::forward<LessThan>(comp));

@@ -7,7 +7,9 @@
 d8.file.execute('test/mjsunit/wasm/gc-js-interop-helpers.js');
 
 let {struct, array} = CreateWasmObjects();
-for (const wasm_obj of [struct, array]) {
+// Also run on a sealed empty JS object to verify consistency with Wasm objects.
+let sealed_js_obj = Object.seal({__proto__: null});
+for (const wasm_obj of [struct, array, sealed_js_obj]) {
 
   // Test constructors of the global object as function.
   testThrowsRepeated(() => AggregateError(wasm_obj), TypeError);
@@ -108,5 +110,6 @@ for (const wasm_obj of [struct, array]) {
   testThrowsRepeated(() => new WeakSet(wasm_obj), TypeError);
 
   // Ensure no statement re-assigned wasm_obj by accident.
-  assertTrue(wasm_obj == struct || wasm_obj == array);
+  assertTrue(
+      wasm_obj == struct || wasm_obj == array || wasm_obj == sealed_js_obj);
 }

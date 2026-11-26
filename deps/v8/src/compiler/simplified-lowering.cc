@@ -157,6 +157,7 @@ UseInfo TruncatingUseInfoFromRepresentation(
     case MachineRepresentation::kTaggedSigned:
       return UseInfo::TaggedSigned();
     case MachineRepresentation::kTaggedPointer:
+      return UseInfo::TaggedPointer();
     case MachineRepresentation::kTagged:
     case MachineRepresentation::kTrustedPointer:
     case MachineRepresentation::kMapWord:
@@ -1154,7 +1155,11 @@ class RepresentationSelector {
     DCHECK_EQ(2, node->op()->ValueInputCount());
     ProcessInput<T>(node, 0, left_use);
     ProcessInput<T>(node, 1, right_use);
-    for (int i = 2; i < node->InputCount(); i++) {
+    int first_effect_index = NodeProperties::FirstEffectIndex(node);
+    for (int i = 2; i < first_effect_index; i++) {
+      ProcessInput<T>(node, i, UseInfo::AnyTagged());
+    }
+    for (int i = first_effect_index; i < node->InputCount(); i++) {
       EnqueueInput<T>(node, i);
     }
     SetOutput<T>(node, output, restriction_type);
@@ -1419,6 +1424,12 @@ class RepresentationSelector {
       DCHECK(type.Is(TypeCache::Get()->kSafeInteger));
       return MachineType(rep, MachineSemantic::kInt64);
     }
+    if (rep == MachineRepresentation::kWord8 ||
+        rep == MachineRepresentation::kWord16) {
+      // Sub-word loads always sign- or zero-extend to 32 bits in registers,
+      // and Turboshaft has no Word8/Word16 RegisterRepresentation.
+      rep = MachineRepresentation::kWord32;
+    }
     MachineType machine_type(rep, DeoptValueSemanticOf(type));
     DCHECK_IMPLIES(
         machine_type.representation() == MachineRepresentation::kWord32,
@@ -1650,8 +1661,11 @@ class RepresentationSelector {
     } else if (base_taggedness == kTaggedBase &&
                CanBeTaggedPointer(field_representation)) {
       Type value_type = NodeProperties::GetType(value);
-      if (value_representation == MachineRepresentation::kTaggedSigned) {
-        // Write barriers are only for stores of heap objects.
+      if (field_representation != MachineRepresentation::kTaggedPointer &&
+          value_representation == MachineRepresentation::kTaggedSigned) {
+        // Write barriers are only for stores of heap objects. Stores to
+        // kTaggedPointer fields convert kTaggedSigned inputs into HeapNumbers
+        // during ProcessInput, so they still require a write barrier.
         return kNoWriteBarrier;
       }
       if (field_type.Is(Type::BooleanOrNullOrUndefined()) ||
@@ -2160,6 +2174,7 @@ class RepresentationSelector {
                                         CFunctionInfo::Int64Representation repr,
                                         FeedbackSource const& feedback) {
     uint8_t flags = uint8_t(type.GetFlags());
+    START_ALLOW_USE_DEPRECATED()
     if (flags & uint8_t(CTypeInfo::Flags::kEnforceRangeBit) ||
         flags & uint8_t(CTypeInfo::Flags::kClampBit)) {
       DCHECK(repr != CFunctionInfo::Int64Representation::kBigInt);
@@ -2170,6 +2185,7 @@ class RepresentationSelector {
       // an `int32_t`.
       return UseInfo::CheckedNumberAsFloat64(kIdentifyZeros, feedback);
     }
+    END_ALLOW_USE_DEPRECATED()
     switch (type.GetType()) {
       case CTypeInfo::Type::kVoid:
       case CTypeInfo::Type::kUint8:
@@ -3815,6 +3831,9 @@ class RepresentationSelector {
                 node, UseInfo::CheckedBigInt64AsWord64(FeedbackSource{}),
                 MachineRepresentation::kWord64, Type::SignedBigInt64());
             if (lower<T>()) {
+              if (OperatorProperties::HasFrameStateInput(node->op())) {
+                node->RemoveInput(NodeProperties::FirstFrameStateIndex(node));
+              }
               ChangeOp(node, Int64OverflowOp(node));
             }
             return;
@@ -3843,6 +3862,9 @@ class RepresentationSelector {
                 node, UseInfo::CheckedBigInt64AsWord64(FeedbackSource{}),
                 MachineRepresentation::kWord64, Type::SignedBigInt64());
             if (lower<T>()) {
+              if (OperatorProperties::HasFrameStateInput(node->op())) {
+                node->RemoveInput(NodeProperties::FirstFrameStateIndex(node));
+              }
               ChangeOp(node, Int64OverflowOp(node));
             }
             return;
@@ -5021,6 +5043,9 @@ class RepresentationSelector {
       case IrOpcode::kMajorGCForCompilerTesting:
         ProcessRemainingInputs<T>(node, 0);
         return SetOutput<T>(node, MachineRepresentation::kTagged);
+      case IrOpcode::kRetain:
+        return VisitUnop<T>(node, UseInfo::AnyTagged(),
+                            MachineRepresentation::kNone);
       case IrOpcode::kStaticAssert:
         DCHECK(TypeOf(node->InputAt(0)).Is(Type::Boolean()));
         return VisitUnop<T>(node, UseInfo::Bool(),

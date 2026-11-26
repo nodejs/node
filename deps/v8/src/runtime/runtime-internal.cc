@@ -844,16 +844,6 @@ RUNTIME_FUNCTION(Runtime_DoubleToStringWithRadix) {
   return *result;
 }
 
-RUNTIME_FUNCTION(Runtime_SharedValueBarrierSlow) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  Handle<HeapObject> value = args.at<HeapObject>(0);
-  DirectHandle<Object> shared_value;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, shared_value, Object::ShareSlow(isolate, value, kThrowOnError));
-  return *shared_value;
-}
-
 RUNTIME_FUNCTION(Runtime_NotifyContextCellStateWillChange) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());

@@ -1,0 +1,62 @@
+Tests that initialized undefined locals are not falsely reported in TDZ
+
+Running test: testSwitchScopeInitializedUndefined
+setVariableValue on x result:
+{
+    id : <messageId>
+    result : {
+    }
+}
+evaluateOnCallFrame x:
+{
+    description : 42
+    type : number
+    value : 42
+}
+testSwitchInitialized return value: 42
+
+Running test: testSwitchScopeUninitialized
+setVariableValue on uninitialized switch var error:
+{
+    error : {
+        code : -32603
+        message : Internal error
+    }
+    id : <messageId>
+}
+
+Running test: testDestructuringDeclaration
+mid-declaration setVariableValue on a result:
+{
+    id : <messageId>
+    result : {
+    }
+}
+post-declaration evaluateOnCallFrame a:
+{
+    description : 40
+    type : number
+    value : 40
+}
+post-declaration setVariableValue on a result:
+{
+    id : <messageId>
+    result : {
+    }
+}
+testDestructuringArray return value: 52
+
+Running test: testDestructuringElidedTdz
+elided-TDZ setVariableValue on a result:
+{
+    id : <messageId>
+    result : {
+    }
+}
+elided-TDZ evaluateOnCallFrame a (WAI):
+{
+    description : 99
+    type : number
+    value : 99
+}
+testDestructuringArrayElidedTdz return value: undefined

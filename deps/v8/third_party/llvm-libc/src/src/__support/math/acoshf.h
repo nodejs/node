@@ -79,7 +79,7 @@ LIBC_INLINE float acoshf(float x) {
 #endif // LIBC_MATH_HAS_SKIP_ACCURATE_PASS
       double y_inv = 0.5 / x_d;
       return static_cast<float>(
-          fputil::multiply_add(y_inv, -y_inv, log_eval(y)));
+          fputil::sub_multiply(log_eval(y), y_inv, y_inv));
 
     } else {
 // x > 2^26
@@ -114,7 +114,7 @@ LIBC_INLINE float acoshf(float x) {
   // For 1 < x < 2^12, we use the formula:
   //   acosh(x) = log(x + sqrt(x^2 - 1))
   return static_cast<float>(log_eval(
-      x_d + fputil::sqrt<double>(fputil::multiply_add(x_d, x_d, -1.0))));
+      x_d + fputil::sqrt<double>(fputil::multiply_sub(x_d, x_d, 1.0))));
 }
 
 } // namespace math

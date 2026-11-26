@@ -1,5 +1,5 @@
 specific_include_rules = {
-  "isolate-data\.h": [
+  "isolate-data\\.h": [
     "+src/heap/linear-allocation-area.h",
   ],
 }

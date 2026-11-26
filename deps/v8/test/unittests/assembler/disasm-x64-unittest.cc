@@ -1553,7 +1553,6 @@ TEST_F(DisasmX64Test, DisasmX64CheckOutputF16C) {
   }
 
   DisassemblerTester t;
-  std::string actual, exp;
   CpuFeatureScope scope(&t.assm_, F16C);
 
   COMPARE("c4e27d13c1           vcvtph2ps ymm0,xmm1", vcvtph2ps(ymm0, xmm1));
@@ -1986,6 +1985,198 @@ TEST_F(DisasmX64Test, DisasmX64CheckOutputAVX10Vsubph) {
   t.assm_.bind(&ymm_label);
   COMPARE_INSTR("vsubph ymm3,ymm2,[rip+0xfffffff6]",
                 vsubph(ymm3, ymm2, Operand(&ymm_label)));
+}
+
+TEST_F(DisasmX64Test, DisasmX64CheckOutputAVX10MinMaxPh) {
+  for (bool is_min : {true, false}) {
+    DisassemblerTester tester;
+    CpuFeatureScope scope(&tester.assm_, AVX10_1,
+                          CpuFeatureScope::kDontCheckSupported);
+    auto compare = [&](const char* operands, auto dst, auto src1, auto src2) {
+      tester.prev_offset = tester.pc_offset();
+      if (is_min) {
+        tester.assm_.vminph(dst, src1, src2);
+      } else {
+        tester.assm_.vmaxph(dst, src1, src2);
+      }
+      std::string actual = tester.InstructionDecode();
+      std::string expected = is_min ? "vminph " : "vmaxph ";
+      CHECK_EQ(expected + operands, actual.substr(kHexOffset));
+    };
+
+    compare("xmm3,xmm2,xmm1", xmm3, xmm2, xmm1);
+    compare("ymm3,ymm2,ymm1", ymm3, ymm2, ymm1);
+    compare("xmm19,xmm18,xmm17", xmm19, xmm18, xmm17);
+    compare("ymm31,ymm30,ymm29", ymm31, ymm30, ymm29);
+    compare("xmm3,xmm3,xmm1", xmm3, xmm3, xmm1);
+    compare("xmm3,xmm2,xmm3", xmm3, xmm2, xmm3);
+    compare("xmm3,xmm3,xmm3", xmm3, xmm3, xmm3);
+    compare("ymm3,ymm3,ymm1", ymm3, ymm3, ymm1);
+    compare("ymm3,ymm2,ymm3", ymm3, ymm2, ymm3);
+    compare("ymm3,ymm3,ymm3", ymm3, ymm3, ymm3);
+    compare("xmm3,xmm2,[rbx+0x7f0]", xmm3, xmm2, Operand(rbx, 2032));
+    compare("ymm3,ymm2,[rbx+0xfe0]", ymm3, ymm2, Operand(rbx, 4064));
+    compare("xmm3,xmm2,[rbx-0x800]", xmm3, xmm2, Operand(rbx, -2048));
+    compare("ymm3,ymm2,[rbx-0x1000]", ymm3, ymm2, Operand(rbx, -4096));
+    compare("xmm3,xmm2,[rbx+0x14]", xmm3, xmm2, Operand(rbx, 20));
+    compare("ymm3,ymm2,[rbx+0x24]", ymm3, ymm2, Operand(rbx, 36));
+    compare("xmm3,xmm2,[rbx+0x800]", xmm3, xmm2, Operand(rbx, 2048));
+    compare("ymm3,ymm2,[rbx+0x1000]", ymm3, ymm2, Operand(rbx, 4096));
+    compare("xmm19,xmm18,[r12+r13*2+0x40]", xmm19, xmm18,
+            Operand(r12, r13, times_2, 64));
+    compare("ymm19,ymm18,[r12+r13*2+0x80]", ymm19, ymm18,
+            Operand(r12, r13, times_2, 128));
+    Label xmm_label, ymm_label;
+    tester.assm_.bind(&xmm_label);
+    compare("xmm3,xmm2,[rip+0xfffffff6]", xmm3, xmm2, Operand(&xmm_label));
+    tester.assm_.bind(&ymm_label);
+    compare("ymm3,ymm2,[rip+0xfffffff6]", ymm3, ymm2, Operand(&ymm_label));
+  }
+}
+
+TEST_F(DisasmX64Test, DisasmX64CheckOutputAVX10Vmulph) {
+  DisassemblerTester t;
+  std::string actual;
+  CpuFeatureScope fscope(&t.assm_, AVX10_1,
+                         CpuFeatureScope::kDontCheckSupported);
+
+  COMPARE_INSTR("vmulph xmm3,xmm2,xmm1", vmulph(xmm3, xmm2, xmm1));
+  COMPARE_INSTR("vmulph ymm3,ymm2,ymm1", vmulph(ymm3, ymm2, ymm1));
+  COMPARE_INSTR("vmulph xmm19,xmm18,xmm17", vmulph(xmm19, xmm18, xmm17));
+  COMPARE_INSTR("vmulph ymm31,ymm30,ymm29", vmulph(ymm31, ymm30, ymm29));
+  COMPARE_INSTR("vmulph xmm3,xmm3,xmm1", vmulph(xmm3, xmm3, xmm1));
+  COMPARE_INSTR("vmulph xmm3,xmm2,xmm3", vmulph(xmm3, xmm2, xmm3));
+  COMPARE_INSTR("vmulph xmm3,xmm3,xmm3", vmulph(xmm3, xmm3, xmm3));
+  COMPARE_INSTR("vmulph ymm3,ymm3,ymm1", vmulph(ymm3, ymm3, ymm1));
+  COMPARE_INSTR("vmulph ymm3,ymm2,ymm3", vmulph(ymm3, ymm2, ymm3));
+  COMPARE_INSTR("vmulph ymm3,ymm3,ymm3", vmulph(ymm3, ymm3, ymm3));
+  COMPARE_INSTR("vmulph xmm3,xmm2,[rbx+0x7f0]",
+                vmulph(xmm3, xmm2, Operand(rbx, 2032)));
+  COMPARE_INSTR("vmulph ymm3,ymm2,[rbx+0xfe0]",
+                vmulph(ymm3, ymm2, Operand(rbx, 4064)));
+  COMPARE_INSTR("vmulph xmm3,xmm2,[rbx-0x800]",
+                vmulph(xmm3, xmm2, Operand(rbx, -2048)));
+  COMPARE_INSTR("vmulph ymm3,ymm2,[rbx-0x1000]",
+                vmulph(ymm3, ymm2, Operand(rbx, -4096)));
+  COMPARE_INSTR("vmulph xmm3,xmm2,[rbx+0x14]",
+                vmulph(xmm3, xmm2, Operand(rbx, 20)));
+  COMPARE_INSTR("vmulph ymm3,ymm2,[rbx+0x24]",
+                vmulph(ymm3, ymm2, Operand(rbx, 36)));
+  COMPARE_INSTR("vmulph xmm3,xmm2,[rbx+0x800]",
+                vmulph(xmm3, xmm2, Operand(rbx, 2048)));
+  COMPARE_INSTR("vmulph ymm3,ymm2,[rbx+0x1000]",
+                vmulph(ymm3, ymm2, Operand(rbx, 4096)));
+  COMPARE_INSTR("vmulph xmm19,xmm18,[r12+r13*2+0x40]",
+                vmulph(xmm19, xmm18, Operand(r12, r13, times_2, 64)));
+  COMPARE_INSTR("vmulph ymm19,ymm18,[r12+r13*2+0x80]",
+                vmulph(ymm19, ymm18, Operand(r12, r13, times_2, 128)));
+  Label xmm_label, ymm_label;
+  t.assm_.bind(&xmm_label);
+  COMPARE_INSTR("vmulph xmm3,xmm2,[rip+0xfffffff6]",
+                vmulph(xmm3, xmm2, Operand(&xmm_label)));
+  t.assm_.bind(&ymm_label);
+  COMPARE_INSTR("vmulph ymm3,ymm2,[rip+0xfffffff6]",
+                vmulph(ymm3, ymm2, Operand(&ymm_label)));
+}
+
+TEST_F(DisasmX64Test, DisasmX64CheckOutputAVX10Vdivph) {
+  DisassemblerTester tester;
+  CpuFeatureScope fscope(&tester.assm_, AVX10_1,
+                         CpuFeatureScope::kDontCheckSupported);
+  auto compare = [&](const char* expected, auto dst, auto lhs, auto rhs) {
+    tester.prev_offset = tester.pc_offset();
+    tester.assm_.vdivph(dst, lhs, rhs);
+    std::string actual = tester.InstructionDecode();
+    CHECK_EQ(expected, actual.substr(kHexOffset));
+  };
+
+  compare("vdivph xmm3,xmm2,xmm1", xmm3, xmm2, xmm1);
+  compare("vdivph ymm3,ymm2,ymm1", ymm3, ymm2, ymm1);
+  compare("vdivph xmm19,xmm18,xmm17", xmm19, xmm18, xmm17);
+  compare("vdivph ymm31,ymm30,ymm29", ymm31, ymm30, ymm29);
+  compare("vdivph xmm3,xmm3,xmm1", xmm3, xmm3, xmm1);
+  compare("vdivph xmm3,xmm2,xmm3", xmm3, xmm2, xmm3);
+  compare("vdivph xmm3,xmm3,xmm3", xmm3, xmm3, xmm3);
+  compare("vdivph ymm3,ymm3,ymm1", ymm3, ymm3, ymm1);
+  compare("vdivph ymm3,ymm2,ymm3", ymm3, ymm2, ymm3);
+  compare("vdivph ymm3,ymm3,ymm3", ymm3, ymm3, ymm3);
+  compare("vdivph xmm3,xmm2,[rbx+0x7f0]", xmm3, xmm2, Operand(rbx, 2032));
+  compare("vdivph ymm3,ymm2,[rbx+0xfe0]", ymm3, ymm2, Operand(rbx, 4064));
+  compare("vdivph xmm3,xmm2,[rbx-0x800]", xmm3, xmm2, Operand(rbx, -2048));
+  compare("vdivph ymm3,ymm2,[rbx-0x1000]", ymm3, ymm2, Operand(rbx, -4096));
+  compare("vdivph xmm3,xmm2,[rbx+0x14]", xmm3, xmm2, Operand(rbx, 20));
+  compare("vdivph ymm3,ymm2,[rbx+0x24]", ymm3, ymm2, Operand(rbx, 36));
+  compare("vdivph xmm3,xmm2,[rbx+0x800]", xmm3, xmm2, Operand(rbx, 2048));
+  compare("vdivph ymm3,ymm2,[rbx+0x1000]", ymm3, ymm2, Operand(rbx, 4096));
+  compare("vdivph xmm19,xmm18,[r12+r13*2+0x40]", xmm19, xmm18,
+          Operand(r12, r13, times_2, 64));
+  compare("vdivph ymm19,ymm18,[r12+r13*2+0x80]", ymm19, ymm18,
+          Operand(r12, r13, times_2, 128));
+  Label xmm_label, ymm_label;
+  tester.assm_.bind(&xmm_label);
+  compare("vdivph xmm3,xmm2,[rip+0xfffffff6]", xmm3, xmm2, Operand(&xmm_label));
+  tester.assm_.bind(&ymm_label);
+  compare("vdivph ymm3,ymm2,[rip+0xfffffff6]", ymm3, ymm2, Operand(&ymm_label));
+}
+
+TEST_F(DisasmX64Test, DisasmX64CheckOutputAVX10Vsqrtph) {
+  DisassemblerTester tester;
+  CpuFeatureScope fscope(&tester.assm_, AVX10_1,
+                         CpuFeatureScope::kDontCheckSupported);
+  auto compare = [&](const char* expected, auto dst, auto src) {
+    tester.prev_offset = tester.pc_offset();
+    tester.assm_.vsqrtph(dst, src);
+    std::string actual = tester.InstructionDecode();
+    CHECK_EQ(expected, actual.substr(kHexOffset));
+  };
+
+  compare("vsqrtph xmm3,xmm1", xmm3, xmm1);
+  compare("vsqrtph ymm3,ymm1", ymm3, ymm1);
+  compare("vsqrtph xmm19,xmm17", xmm19, xmm17);
+  compare("vsqrtph ymm31,ymm29", ymm31, ymm29);
+  compare("vsqrtph xmm3,xmm3", xmm3, xmm3);
+  compare("vsqrtph ymm3,ymm3", ymm3, ymm3);
+  compare("vsqrtph xmm3,[rbx+0x7f0]", xmm3, Operand(rbx, 2032));
+  compare("vsqrtph ymm3,[rbx+0xfe0]", ymm3, Operand(rbx, 4064));
+  compare("vsqrtph xmm3,[rbx-0x800]", xmm3, Operand(rbx, -2048));
+  compare("vsqrtph ymm3,[rbx-0x1000]", ymm3, Operand(rbx, -4096));
+  compare("vsqrtph xmm3,[rbx+0x14]", xmm3, Operand(rbx, 20));
+  compare("vsqrtph ymm3,[rbx+0x24]", ymm3, Operand(rbx, 36));
+  compare("vsqrtph xmm3,[rbx+0x800]", xmm3, Operand(rbx, 2048));
+  compare("vsqrtph ymm3,[rbx+0x1000]", ymm3, Operand(rbx, 4096));
+  compare("vsqrtph xmm19,[r12+r13*2+0x40]", xmm19,
+          Operand(r12, r13, times_2, 64));
+  compare("vsqrtph ymm19,[r12+r13*2+0x80]", ymm19,
+          Operand(r12, r13, times_2, 128));
+  Label xmm_label, ymm_label;
+  tester.assm_.bind(&xmm_label);
+  compare("vsqrtph xmm3,[rip+0xfffffff6]", xmm3, Operand(&xmm_label));
+  tester.assm_.bind(&ymm_label);
+  compare("vsqrtph ymm3,[rip+0xfffffff6]", ymm3, Operand(&ymm_label));
+}
+
+TEST_F(DisasmX64Test, DisasmX64CheckOutputAVX10Vrndscaleph) {
+  for (RoundingMode mode :
+       {kRoundToNearest, kRoundDown, kRoundUp, kRoundToZero}) {
+    DisassemblerTester tester;
+    CpuFeatureScope fscope(&tester.assm_, AVX10_1,
+                           CpuFeatureScope::kDontCheckSupported);
+    auto compare = [&](const char* operands, auto dst, auto src) {
+      tester.prev_offset = tester.pc_offset();
+      tester.assm_.vrndscaleph(dst, src, mode);
+      std::string actual = tester.InstructionDecode();
+      std::string expected = std::string("vrndscaleph ") + operands + ",0x";
+      expected += "89ab"[mode];
+      CHECK_EQ(expected, actual.substr(kHexOffset));
+    };
+
+    compare("xmm3,xmm1", xmm3, xmm1);
+    compare("ymm3,ymm1", ymm3, ymm1);
+    compare("xmm19,xmm17", xmm19, xmm17);
+    compare("ymm31,ymm29", ymm31, ymm29);
+    compare("xmm3,xmm3", xmm3, xmm3);
+    compare("ymm3,ymm3", ymm3, ymm3);
+  }
 }
 
 TEST_F(DisasmX64Test, DisasmX64CheckOutputAVX10FmaPh) {

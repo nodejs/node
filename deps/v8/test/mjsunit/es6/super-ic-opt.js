@@ -117,10 +117,10 @@
   // Assert that the function was deoptimized (dependency to the constant
   // value).
   // TODO(v8:11457) We don't support inlining JSLoadNamedFromSuper for
-  // dictionary mode prototypes, yet. Therefore, if
-  // v8_dict_property_const_tracking is enabled, the optimized code only
-  // contains a call to the IC handler and doesn't get deopted.
-  assertEquals(%IsDictPropertyConstTrackingEnabled(),
+  // dictionary mode prototypes, yet. Therefore, if v8_dict_prototypes is
+  // enabled, the optimized code only contains a call to the IC handler and
+  // doesn't get deopted.
+  assertEquals(%IsDictPrototypesEnabled(),
                isOptimized(D.prototype.foo));
 
   r = o.foo();
@@ -253,11 +253,11 @@
 
   // Assert that the function was deoptimized (holder changed).
   // TODO(v8:11457) We don't support inlining JSLoadNamedFromSuper for
-  // dictionary mode prototypes, yet. Therefore, if
-  // v8_dict_property_const_tracking is enabled, the optimized code only
-  // contains a call to the IC handler and doesn't get deopted.
+  // dictionary mode prototypes, yet. Therefore, if v8_dict_prototypes is
+  // enabled, the optimized code only contains a call to the IC handler and
+  // doesn't get deopted.
   if (was_optimized) {
-    assertEquals(%IsDictPropertyConstTrackingEnabled(),
+    assertEquals(%IsDictPrototypesEnabled(),
                  isOptimized(C.prototype.foo));
   }
 })();
@@ -305,11 +305,11 @@
 
   // Assert that the function was deoptimized.
   // TODO(v8:11457) We don't support inlining JSLoadNamedFromSuper for
-  // dictionary mode prototypes, yet. Therefore, if
-  // v8_dict_property_const_tracking is enabled, the optimized code only
-  // contains a call to the IC handler and doesn't get deopted.
+  // dictionary mode prototypes, yet. Therefore, if v8_dict_prototypes is
+  // enabled, the optimized code only contains a call to the IC handler and
+  // doesn't get deopted.
   if (was_optimized) {
-    assertEquals(%IsDictPropertyConstTrackingEnabled(),
+    assertEquals(%IsDictPrototypesEnabled(),
                  isOptimized(D.prototype.foo));
   }
 

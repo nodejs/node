@@ -334,8 +334,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   // on-stack receiver as the result.
   __ Bind(&use_receiver);
   __ Peek(x0, 0 * kSystemPointerSize);
-  __ CompareRoot(x0, RootIndex::kTdzHoleValue);
-  __ B(eq, &do_throw);
+  __ JumpIfRoot(x0, RootIndex::kTdzHoleValue, &do_throw);
 
   __ Bind(&leave_and_return);
   // Restore arguments count from the frame.
@@ -402,7 +401,10 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(
     Label* is_baseline, Label* is_unavailable) {
   ASM_CODE_COMMENT(masm);
   DCHECK(!AreAliased(bytecode, scratch1));
-  Label is_interpreter_data, is_bytecode_array, is_code;
+  Label is_interpreter_data, is_bytecode_array;
+#if !V8_JITLESS_BOOL
+  Label is_code;
+#endif
 
   Register data = bytecode;
   __ LoadTrustedUnknownPointerField(
@@ -1233,10 +1235,48 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     __ B(lo, &call_stack_guard);
   }
 
+  // Reduce interrupt budget.
+  Label budget_interrupt;
+  {
+    ASM_CODE_COMMENT_STRING(masm, "Update Interrupt Budget");
+    UseScratchRegisterScope temps(masm);
+    Register interrupt_budget = temps.AcquireW();
+    Register bytecode_length = temps.AcquireX();
+    Register bytecode_array = descriptor.GetRegisterParameter(
+        BaselineOutOfLinePrologueDescriptor::kInterpreterBytecodeArray);
+    __ Ldr(interrupt_budget,
+           FieldMemOperand(feedback_cell,
+                           offsetof(FeedbackCell, interrupt_budget_)));
+    __ SmiUntagField(
+        bytecode_length,
+        FieldMemOperand(bytecode_array, offsetof(BytecodeArray, length_)));
+    __ Subs(interrupt_budget, interrupt_budget, bytecode_length.W());
+    __ Str(interrupt_budget,
+           FieldMemOperand(feedback_cell,
+                           offsetof(FeedbackCell, interrupt_budget_)));
+    __ B(lt, &budget_interrupt);
+  }
+
   // Do "fast" return to the caller pc in lr.
   __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
   __ Ret();
 
+  __ Bind(&budget_interrupt);
+  {
+    ASM_CODE_COMMENT_STRING(masm, "Budget interrupt call");
+    Register new_target = descriptor.GetRegisterParameter(
+        BaselineOutOfLinePrologueDescriptor::kJavaScriptCallNewTarget);
+
+    FrameScope frame_scope(masm, StackFrame::INTERNAL);
+    __ PushDispatchHandle(kJavaScriptCallDispatchHandleRegister, new_target,
+                          feedback_cell, feedback_vector);
+    __ PushArgument(closure);
+    __ CallRuntime(Runtime::kBytecodeBudgetInterrupt_Sparkplug, 1);
+    __ PopDispatchHandle(kJavaScriptCallDispatchHandleRegister, new_target,
+                         feedback_cell, feedback_vector);
+  }
+  __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
+  __ Ret();
 
   __ bind(&call_stack_guard);
   {
@@ -1905,8 +1945,7 @@ void Builtins::Generate_InterpreterPushArgsThenFastConstructFunction(
   __ Bind(&use_receiver);
   __ Ldr(x0,
          MemOperand(fp, FastConstructFrameConstants::kImplicitReceiverOffset));
-  __ CompareRoot(x0, RootIndex::kTdzHoleValue);
-  __ B(eq, &do_throw);
+  __ JumpIfRoot(x0, RootIndex::kTdzHoleValue, &do_throw);
 
   __ Bind(&leave_and_return);
   // Leave construct frame.
@@ -2950,17 +2989,25 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   // -----------------------------------
   __ AssertCallableFunction(x1);
 
-  __ LoadTaggedField(
-      x2, FieldMemOperand(x1, offsetof(JSFunction, shared_function_info_)));
-
   // Enter the context of the function; ToObject has to run in the function
   // context, and we also need to take the global proxy from the function
   // context in case of conversion.
   __ LoadTaggedField(cp, FieldMemOperand(x1, offsetof(JSFunction, context_)));
-  // We need to convert the receiver for non-native sloppy mode functions.
   Label done_convert;
-  __ Ldr(w3, FieldMemOperand(x2, offsetof(SharedFunctionInfo, flags_)));
-  __ TestAndBranchIfAnySet(w3,
+  if (mode != ConvertReceiverMode::kNullOrUndefined) {
+    // JSReceivers never need conversion, so only look at the callee's
+    // language mode for primitive receivers.
+    Label receiver_is_primitive;
+    __ Peek(x3, __ ReceiverOperand());
+    __ JumpIfSmi(x3, &receiver_is_primitive);
+    __ JumpIfJSAnyIsNotPrimitive(x3, x4, &done_convert);
+    __ Bind(&receiver_is_primitive);
+  }
+  // We need to convert the receiver for non-native sloppy mode functions.
+  __ LoadTaggedField(
+      x2, FieldMemOperand(x1, offsetof(JSFunction, shared_function_info_)));
+  __ Ldr(w4, FieldMemOperand(x2, offsetof(SharedFunctionInfo, flags_)));
+  __ TestAndBranchIfAnySet(w4,
                            SharedFunctionInfo::Flags::IsNativeBit::kMask |
                                SharedFunctionInfo::Flags::IsStrictBit::kMask,
                            &done_convert);
@@ -2968,7 +3015,7 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
     // ----------- S t a t e -------------
     //  -- x0 : the number of arguments
     //  -- x1 : the function to call (checked to be a JSFunction)
-    //  -- x2 : the shared function info.
+    //  -- x3 : the receiver (a primitive, unless mode is kNullOrUndefined).
     //  -- cp : the function context.
     // -----------------------------------
 
@@ -2977,9 +3024,6 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
       __ LoadGlobalProxy(x3);
     } else {
       Label convert_to_object, convert_receiver;
-      __ Peek(x3, __ ReceiverOperand());
-      __ JumpIfSmi(x3, &convert_to_object);
-      __ JumpIfJSAnyIsNotPrimitive(x3, x4, &done_convert);
       if (mode != ConvertReceiverMode::kNotNullOrUndefined) {
         Label convert_global_proxy;
         __ JumpIfRoot(x3, RootIndex::kUndefinedValue, &convert_global_proxy);
@@ -3005,8 +3049,6 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
         __ Pop(cp, x1, x0, padreg);
         __ SmiUntag(x0);
       }
-      __ LoadTaggedField(
-          x2, FieldMemOperand(x1, offsetof(JSFunction, shared_function_info_)));
       __ Bind(&convert_receiver);
     }
     __ Poke(x3, __ ReceiverOperand());
@@ -3016,7 +3058,6 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   // ----------- S t a t e -------------
   //  -- x0 : the number of arguments
   //  -- x1 : the function to call (checked to be a JSFunction)
-  //  -- x2 : the shared function info.
   //  -- cp : the function context.
   // -----------------------------------
 
@@ -3370,8 +3411,8 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
   __ JumpIfSmi(vector, &allocate_vector);
   __ bind(&done);
   // Increment the total invocation count of the function.
-  __ LoadTaggedField(scratch,
-                     FieldMemOperand(vector, OFFSET_OF_DATA_START(FixedArray)));
+  __ LoadTaggedSignedField(
+      scratch, FieldMemOperand(vector, OFFSET_OF_DATA_START(FixedArray)));
   if (SmiValuesAre31Bits()) {
     __ Add(scratch.W(), scratch.W(), Immediate(Smi::FromInt(1)));
   } else {
@@ -5734,6 +5775,8 @@ void Builtins::Generate_DeoptimizationEntry_LazyAfterFastCall(
   __ PopAll(kCalleeSaveRegisters);
   __ PopAll(kCalleeSaveFPRegisters);
   __ LeaveFrame(StackFrame::INTERNAL);
+  __ TailCallBuiltin(Builtin::kDeoptimizationEntry_Lazy);
+
   __ bind(&no_exception);
   // Deoptimization expects that the return value of the API call is in the
   // return register. As we only allow deoptimization if the return type is

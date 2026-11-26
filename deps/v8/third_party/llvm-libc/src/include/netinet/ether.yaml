@@ -6,6 +6,19 @@ types: []
 enums: []
 objects: []
 functions:
+  - name: ether_aton
+    standards:
+      - bsd
+    return_type: struct ether_addr *
+    arguments:
+      - type: const char *
+  - name: ether_aton_r
+    standards:
+      - gnu
+    return_type: struct ether_addr *
+    arguments:
+      - type: const char *
+      - type: struct ether_addr *
   - name: ether_ntoa
     standards:
       - bsd

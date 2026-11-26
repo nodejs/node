@@ -31,6 +31,14 @@ int BuiltinContinuationFrameConstants::PaddingSlotCount(int register_count) {
 
 // static
 intptr_t MaglevFrame::StackGuardFrameSize(int register_input_count) {
+  if constexpr (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+    // Include any paddings from kFixedFrameSizeFromFp, an extra slot + padding
+    // for the single argument into StackGuardWithGap and finally padded
+    // register input count.
+    int slot_count = RoundUp<2>(StandardFrameConstants::kFixedSlotCountFromFp) +
+                     2 /* argument */ + RoundUp<2>(register_input_count);
+    return slot_count * kSystemPointerSize;
+  }
   // Include one extra slot for the single argument into StackGuardWithGap +
   // register input count.
   return StandardFrameConstants::kFixedFrameSizeFromFp +

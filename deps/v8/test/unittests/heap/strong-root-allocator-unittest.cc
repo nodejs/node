@@ -4,6 +4,7 @@
 
 #include <list>
 #include <set>
+#include <span>
 #include <vector>
 
 #include "src/heap/heap.h"
@@ -195,6 +196,15 @@ TEST_F(StrongRootAllocatorTest, LocalVector) {
     v8::HandleScope outer_scope(v8_isolate());
     // LocalVector uses the StrongRootAllocator for its backing store.
     LocalVector<v8::FixedArray> v(v8_isolate(), 10);
+    std::span<Local<v8::FixedArray>> span(v.begin(), v.end());
+    EXPECT_EQ(10u, span.size());
+
+    LocalVector<v8::FixedArray> empty(v8_isolate());
+    EXPECT_TRUE(
+        std::span<Local<v8::FixedArray>>(empty.begin(), empty.end()).empty());
+    empty.reserve(4);
+    EXPECT_TRUE(
+        std::span<Local<v8::FixedArray>>(empty.begin(), empty.end()).empty());
 
     {
       v8::EscapableHandleScope inner_scope(v8_isolate());
@@ -228,6 +238,15 @@ TEST_F(StrongRootAllocatorTest, LocalVectorWithDirect) {
   {
     // LocalVector uses the StrongRootAllocator for its backing store.
     LocalVector<v8::FixedArray> v(v8_isolate(), 10);
+    std::span<Local<v8::FixedArray>> span(v.begin(), v.end());
+    EXPECT_EQ(10u, span.size());
+
+    LocalVector<v8::FixedArray> empty(v8_isolate());
+    EXPECT_TRUE(
+        std::span<Local<v8::FixedArray>>(empty.begin(), empty.end()).empty());
+    empty.reserve(4);
+    EXPECT_TRUE(
+        std::span<Local<v8::FixedArray>>(empty.begin(), empty.end()).empty());
 
     {
       v8::HandleScope scope(v8_isolate());

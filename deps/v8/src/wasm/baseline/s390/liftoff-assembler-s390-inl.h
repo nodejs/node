@@ -103,7 +103,7 @@ int LiftoffAssembler::PrepareStackFrame() {
   return offset;
 }
 
-void LiftoffAssembler::CallFrameSetupStub(int declared_function_index) {
+void LiftoffAssembler::CallFrameSetupStub(int defined_function_index) {
 // The standard library used by gcc tryjobs does not consider `std::find` to be
 // `constexpr`, so wrap it in a `#ifdef __clang__` block.
 #ifdef __clang__
@@ -119,7 +119,7 @@ void LiftoffAssembler::CallFrameSetupStub(int declared_function_index) {
   mov(scratch, Operand(StackFrame::TypeToMarker(StackFrame::WASM)));
   PushCommonFrame(scratch);
   LoadConstant(LiftoffRegister(kLiftoffFrameSetupFunctionReg),
-               WasmValue(declared_function_index));
+               WasmValue(defined_function_index));
   CallBuiltin(Builtin::kWasmLiftoffFrameSetup);
 }
 
@@ -270,7 +270,7 @@ bool LiftoffAssembler::NeedsAlignment(ValueKind kind) {
   return (kind == kS128 || is_reference(kind));
 }
 
-void LiftoffAssembler::CheckTierUp(int declared_func_index, int budget_used,
+void LiftoffAssembler::CheckTierUp(int defined_func_index, int budget_used,
                                    Label* ool_label,
                                    const FreezeCacheState& frozen) {
   Register budget_array = ip;
@@ -285,7 +285,7 @@ void LiftoffAssembler::CheckTierUp(int declared_func_index, int budget_used,
           FieldMemOperand(instance_data,
                           WasmTrustedInstanceData::kTieringBudgetArrayOffset));
 
-  int budget_arr_offset = kInt32Size * declared_func_index;
+  int budget_arr_offset = kInt32Size * defined_func_index;
   Register budget = r1;
   MemOperand budget_addr(budget_array, budget_arr_offset);
   LoadS32(budget, budget_addr);
@@ -436,8 +436,31 @@ void LiftoffAssembler::AtomicStoreTaggedPointer(
     Register dst_addr, Register offset_reg, int32_t offset_imm, Register src,
     LiftoffRegList pinned, AtomicMemoryOrder memory_order,
     uint32_t* trapping_store_pc) {
-  StoreTaggedPointer(dst_addr, offset_reg, offset_imm, src, pinned,
-                     trapping_store_pc);
+  if (memory_order != AtomicMemoryOrder::kSeqCst) {
+    StoreTaggedPointer(dst_addr, offset_reg, offset_imm, src, pinned,
+                       trapping_store_pc);
+    return;
+  }
+
+  AtomicStore(
+      dst_addr, offset_reg, offset_imm, LiftoffRegister(src),
+      COMPRESS_POINTERS_BOOL ? StoreType::kI32Store : StoreType::kI64Store,
+      trapping_store_pc, memory_order, pinned, false, kNative);
+
+  if (v8_flags.disable_write_barriers) return;
+
+  Label exit;
+  JumpIfSmi(src, &exit);
+  CheckPageFlag(dst_addr, r1, MemoryChunk::kPointersFromHereAreInterestingMask,
+                to_condition(kZero), &exit);
+  CheckPageFlag(src, r1, MemoryChunk::kPointersToHereAreInterestingMask,
+                to_condition(kZero), &exit);
+  MemOperand dst_op =
+      MemOperand(dst_addr, offset_reg == no_reg ? r0 : offset_reg, offset_imm);
+  lay(r1, dst_op);
+  CallRecordWriteStubSaveRegisters(dst_addr, r1, SaveFPRegsMode::kSave,
+                                   StubCallMode::kCallWasmRuntimeStub);
+  bind(&exit);
 }
 
 void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
@@ -1949,6 +1972,14 @@ UNOP_LIST(EMIT_UNOP_FUNCTION)
   V(i64_sari, ShiftRightS64, LiftoffRegister, LiftoffRegister, int32_t,        \
     LFR_TO_REG, LFR_TO_REG, INT32_AND_WITH_3F, USE, , void)                    \
   V(i64_shri, ShiftRightU64, LiftoffRegister, LiftoffRegister, int32_t,        \
+    LFR_TO_REG, LFR_TO_REG, INT32_AND_WITH_3F, USE, , void)                    \
+  V(i64_rol, RotateLeft, LiftoffRegister, LiftoffRegister, Register,           \
+    LFR_TO_REG, LFR_TO_REG, , USE, , void)                                     \
+  V(i64_ror, RotateRight, LiftoffRegister, LiftoffRegister, Register,          \
+    LFR_TO_REG, LFR_TO_REG, , USE, , void)                                     \
+  V(i64_roli, RotateLeft, LiftoffRegister, LiftoffRegister, int32_t,           \
+    LFR_TO_REG, LFR_TO_REG, INT32_AND_WITH_3F, USE, , void)                    \
+  V(i64_rori, RotateRight, LiftoffRegister, LiftoffRegister, int32_t,          \
     LFR_TO_REG, LFR_TO_REG, INT32_AND_WITH_3F, USE, , void)
 
 #define EMIT_BINOP_FUNCTION(name, instr, dtype, stype1, stype2, dcast, scast1, \

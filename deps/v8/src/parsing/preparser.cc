@@ -123,6 +123,11 @@ PreParser::PreParseResult PreParser::PreParseFunction(
 
   if (IsArrowFunction(kind)) {
     formals.is_simple = function_scope->has_simple_parameters();
+    // Only simple-parameter arrow functions are skippable in PreparseData
+    // (must match ParserBase::ParseArrowFunctionLiteral).
+    if (formals.is_simple) {
+      preparse_data_builder_scope.Start(function_scope);
+    }
   } else {
     preparse_data_builder_scope.Start(function_scope);
 
@@ -214,11 +219,12 @@ PreParser::PreParseResult PreParser::PreParseFunction(
 
       DeclareFunctionNameVar(function_name, function_syntax_kind,
                              function_scope);
+    }
 
-      if (preparse_data_builder_->HasData()) {
-        *produced_preparse_data =
-            ProducedPreparseData::For(preparse_data_builder_, main_zone());
-      }
+    if (preparse_data_builder_ != nullptr &&
+        preparse_data_builder_->HasData()) {
+      *produced_preparse_data =
+          ProducedPreparseData::For(preparse_data_builder_, main_zone());
     }
 
     if (pending_error_handler()->has_error_unidentifiable_by_preparser()) {

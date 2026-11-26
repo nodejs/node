@@ -5,4 +5,6 @@ include_rules = [
   "+src",
   "+testing",
   "+third_party/siphash",
+  "+tools/debug_helper",
+  "+tools/v8windbg",
 ]

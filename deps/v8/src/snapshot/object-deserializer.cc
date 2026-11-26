@@ -23,7 +23,8 @@ ObjectDeserializer::ObjectDeserializer(Isolate* isolate,
                                        const SerializedCodeData* data)
     : Deserializer(isolate, data->UntrustedPayload(), data->TrustedPayload(),
                    data->GetMagicNumber(), /* deserializing_user_code */ true,
-                   /* can_rehash */ false) {}
+                   /* can_rehash */ false,
+                   SnapshotTrustLevel::kUntrustedWithTrustedSection) {}
 
 MaybeDirectHandle<SharedFunctionInfo>
 ObjectDeserializer::DeserializeSharedFunctionInfo(
@@ -47,7 +48,6 @@ MaybeDirectHandle<HeapObject> ObjectDeserializer::Deserialize() {
     result = DeserializeUntrustedSection();
     DeserializeTrustedSection();
     CHECK(new_instruction_stream_objects().empty());
-    LinkAllocationSites();
     CHECK(new_maps().empty());
   }
 
@@ -70,34 +70,12 @@ void ObjectDeserializer::CommitPostProcessedObjects() {
   PostProcessExposedTrustedObjects();
 }
 
-void ObjectDeserializer::LinkAllocationSites() {
-  DisallowGarbageCollection no_gc;
-  Heap* heap = isolate()->heap();
-  // Allocation sites are present in the snapshot, and must be linked into
-  // a list at deserialization time.
-  for (DirectHandle<AllocationSite> site : new_allocation_sites()) {
-    if (!site->HasWeakNext()) continue;
-    DirectHandle<AllocationSiteWithWeakNext> site_with_next =
-        Cast<AllocationSiteWithWeakNext>(site);
-    // TODO(mvstanton): consider treating the heap()->allocation_sites_list()
-    // as a (weak) root. If this root is relocated correctly, this becomes
-    // unnecessary.
-    if (heap->allocation_sites_list() == Smi::zero()) {
-      site_with_next->set_weak_next(ReadOnlyRoots(heap).undefined_value());
-    } else {
-      site_with_next->set_weak_next(
-          Cast<UnionOf<Undefined, AllocationSiteWithWeakNext>>(
-              heap->allocation_sites_list()));
-    }
-    heap->set_allocation_sites_list(*site_with_next);
-  }
-}
-
 OffThreadObjectDeserializer::OffThreadObjectDeserializer(
     LocalIsolate* isolate, const SerializedCodeData* data)
     : Deserializer(isolate, data->UntrustedPayload(), data->TrustedPayload(),
                    data->GetMagicNumber(), /* deserializing_user_code */ true,
-                   /* can_rehash */ false) {}
+                   /* can_rehash */ false,
+                   SnapshotTrustLevel::kUntrustedWithTrustedSection) {}
 
 MaybeDirectHandle<SharedFunctionInfo>
 OffThreadObjectDeserializer::DeserializeSharedFunctionInfo(
@@ -124,7 +102,6 @@ MaybeDirectHandle<HeapObject> OffThreadObjectDeserializer::Deserialize(
     result = DeserializeUntrustedSection();
     DeserializeTrustedSection();
     CHECK(new_instruction_stream_objects().empty());
-    CHECK(new_allocation_sites().empty());
     CHECK(new_maps().empty());
   }
 

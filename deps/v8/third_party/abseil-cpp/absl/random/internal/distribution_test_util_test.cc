@@ -14,12 +14,29 @@
 
 #include "absl/random/internal/distribution_test_util.h"
 
+#include <cmath>
+#include <limits>
 #include <utility>
 #include <vector>
 
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
 namespace {
+
+using absl::random_internal::BetaIncomplete;
+using absl::random_internal::BetaIncompleteInv;
+using absl::random_internal::erfinv;
+using absl::random_internal::InverseNormalSurvival;
+using absl::random_internal::MaxErrorTolerance;
+using absl::random_internal::RequiredSuccessProbability;
+using ::testing::AllOf;
+using ::testing::DoubleEq;
+using ::testing::DoubleNear;
+using ::testing::Gt;
+using ::testing::IsNan;
+using ::testing::Le;
+using ::testing::Lt;
 
 TEST(TestUtil, InverseErf) {
   const struct {
@@ -193,4 +210,210 @@ TEST(ZScore, DifferentMean) {
   m.variance = 100;
   EXPECT_NEAR(absl::random_internal::ZScore(-4, m), -10, 1e-12);
 }
+
+MATCHER_P4(InvertsBetaIncompleteNear, p, q, expected_alpha, tol, "") {
+  const double actual_alpha = BetaIncomplete(arg, p, q);
+  if (std::fabs(actual_alpha - expected_alpha) <= tol) {
+    return true;
+  }
+  *result_listener << "BetaIncomplete(" << arg << ", " << p << ", " << q
+                   << ") = " << actual_alpha << " (expected " << expected_alpha
+                   << ", diff " << std::fabs(actual_alpha - expected_alpha)
+                   << ")";
+  return false;
+}
+
+MATCHER_P2(HasNormalSurvivalNear, expected_u, rel_tol, "") {
+  constexpr double kSqrt1_2 = 0.70710678118654752440084436210485;
+  const double actual_u = 0.5 * std::erfc(arg * kSqrt1_2);
+  if (std::fabs(actual_u - expected_u) <= rel_tol * expected_u) {
+    return true;
+  }
+  *result_listener << "normal_survival(" << arg << ") = " << actual_u
+                   << " (expected " << expected_u << ")";
+  return false;
+}
+
+TEST(BetaTest, BetaIncompleteInvHighPrecision) {
+  // Exact closed-form Beta quantiles should invert to near double precision.
+  EXPECT_THAT(BetaIncompleteInv(2.0, 2.0, 0.028), DoubleNear(0.1, 1e-13));
+  EXPECT_THAT(BetaIncompleteInv(2.0, 2.0, 0.216), DoubleNear(0.3, 1e-13));
+  EXPECT_THAT(BetaIncompleteInv(2.0, 2.0, 0.784), DoubleNear(0.7, 1e-13));
+  EXPECT_THAT(BetaIncompleteInv(2.0, 2.0, 0.972), DoubleNear(0.9, 1e-13));
+  EXPECT_THAT(BetaIncompleteInv(1.0, 5.0, 0.67232), DoubleNear(0.2, 1e-13));
+  EXPECT_THAT(BetaIncompleteInv(5.0, 2.0, 0.010935), DoubleNear(0.3, 1e-13));
+  EXPECT_THAT(BetaIncompleteInv(10.0, 5.0, 0.08978271484375),
+              DoubleNear(0.5, 1e-13));
+
+  // Skewed and symmetric distributions at interior and extreme-tail quantiles.
+  EXPECT_THAT(BetaIncompleteInv(20.0, 5.0, 0.4598773297575791),
+              DoubleNear(0.8, 1e-13));
+  EXPECT_THAT(BetaIncompleteInv(30.0, 10.0, 0.2241297491808366),
+              DoubleNear(0.7, 1e-13));
+  EXPECT_THAT(BetaIncompleteInv(40.0, 20.0, 0.7001783247477069),
+              DoubleNear(0.7, 1e-13));
+  EXPECT_THAT(BetaIncompleteInv(0.5, 0.5, 1e-8),
+              AllOf(DoubleNear(2.46740110027234e-16, 1e-28),
+                    InvertsBetaIncompleteNear(0.5, 0.5, 1e-8, 1e-20)));
+  EXPECT_THAT(BetaIncompleteInv(2.0, 5.0, 1e-12),
+              InvertsBetaIncompleteNear(2.0, 5.0, 1e-12, 1e-24));
+  EXPECT_THAT(BetaIncompleteInv(2.0, 5.0, 1.0 - 1e-12),
+              InvertsBetaIncompleteNear(2.0, 5.0, 1.0 - 1e-12, 1e-13));
+  EXPECT_THAT(BetaIncompleteInv(5.0, 2.0, 1e-12),
+              InvertsBetaIncompleteNear(5.0, 2.0, 1e-12, 1e-24));
+  EXPECT_THAT(BetaIncompleteInv(5.0, 2.0, 1.0 - 1e-12),
+              InvertsBetaIncompleteNear(5.0, 2.0, 1.0 - 1e-12, 1e-13));
+  EXPECT_THAT(BetaIncompleteInv(100.0, 100.0, 1e-12),
+              InvertsBetaIncompleteNear(100.0, 100.0, 1e-12, 1e-24));
+  EXPECT_THAT(BetaIncompleteInv(100.0, 100.0, 1.0 - 1e-12),
+              InvertsBetaIncompleteNear(100.0, 100.0, 1.0 - 1e-12, 1e-13));
+  EXPECT_THAT(BetaIncompleteInv(0.1, 10.0, 1e-10),
+              InvertsBetaIncompleteNear(0.1, 10.0, 1e-10, 1e-22));
+  EXPECT_THAT(BetaIncompleteInv(10.0, 0.1, 1e-10),
+              InvertsBetaIncompleteNear(10.0, 0.1, 1e-10, 1e-22));
+  EXPECT_THAT(BetaIncompleteInv(1000.0, 1000.0, 1e-12),
+              InvertsBetaIncompleteNear(1000.0, 1000.0, 1e-12, 1e-24));
+}
+
+TEST(BetaTest, BetaIncompleteInvExtremeTailAndUnderflowRegressions) {
+  const double kMinNormal = std::numeric_limits<double>::min();
+
+  // Quantiles in [DBL_MIN, DBL_MIN / kErr) where tol = kErr * value < DBL_MIN.
+  EXPECT_THAT(BetaIncompleteInv(0.001, 1.0, 0.5),
+              AllOf(DoubleNear(std::ldexp(1.0, -1000), 1e-312),
+                    InvertsBetaIncompleteNear(0.001, 1.0, 0.5, 1e-13)));
+  EXPECT_THAT(BetaIncompleteInv(0.05, 1.0, 1e-15),
+              AllOf(DoubleNear(1e-300, 1e-311),
+                    InvertsBetaIncompleteNear(0.05, 1.0, 1e-15, 1e-28)));
+  EXPECT_THAT(BetaIncompleteInv(0.05, 2.0, 1e-15),
+              AllOf(Gt(0.0), Lt(1e-299),
+                    InvertsBetaIncompleteNear(0.05, 2.0, 1e-15, 1e-28)));
+  EXPECT_THAT(BetaIncompleteInv(0.05, 0.05, 1e-15),
+              AllOf(Gt(0.0), Lt(1e-293),
+                    InvertsBetaIncompleteNear(0.05, 0.05, 1e-15, 1e-28)));
+
+  // Positive initial-estimate underflow branches (both p > 1 && q > 1 and
+  // t <= 1) clamp to DBL_MIN and converge without stalling.
+  EXPECT_THAT(BetaIncompleteInv(1.1, 100.0, 1e-300),
+              AllOf(Gt(0.0), Lt(1e-270),
+                    InvertsBetaIncompleteNear(1.1, 100.0, 1e-300, 1e-312)));
+  EXPECT_THAT(BetaIncompleteInv(0.05, 2.0, 1e-20),
+              AllOf(Gt(0.0), Le(kMinNormal)));
+  EXPECT_THAT(BetaIncompleteInv(0.001, 1.0, 0.48),
+              AllOf(Gt(0.0), Le(kMinNormal)));
+
+  // Quantiles pressed against 0 / 1 terminate cleanly (including under x87).
+  EXPECT_THAT(BetaIncompleteInv(1e-5, 1.0, 0.75), AllOf(Gt(0.0), Lt(1e-13)));
+  EXPECT_THAT(BetaIncompleteInv(1.0, 1e-5, 0.25),
+              AllOf(Gt(1.0 - 1e-13), Lt(1.0)));
+}
+
+TEST(BetaTest, InvalidAndBoundaryInputs) {
+  const double kInf = std::numeric_limits<double>::infinity();
+  const double kNan = std::numeric_limits<double>::quiet_NaN();
+
+  EXPECT_THAT(BetaIncomplete(kNan, 1.0, 1.0), IsNan());
+  EXPECT_THAT(BetaIncomplete(0.5, kNan, 1.0), IsNan());
+  EXPECT_THAT(BetaIncomplete(0.5, 1.0, kNan), IsNan());
+  EXPECT_THAT(BetaIncomplete(0.0, kNan, 1.0), IsNan());
+
+  EXPECT_THAT(BetaIncomplete(0.5, 0.0, 1.0), DoubleEq(kInf));
+  EXPECT_THAT(BetaIncomplete(0.5, 1.0, 0.0), DoubleEq(kInf));
+  EXPECT_THAT(BetaIncomplete(0.5, -1.0, 1.0), DoubleEq(kInf));
+  EXPECT_THAT(BetaIncomplete(0.5, 1.0, -1.0), DoubleEq(kInf));
+  EXPECT_THAT(BetaIncomplete(0.5, kInf, 1.0), DoubleEq(kInf));
+  EXPECT_THAT(BetaIncomplete(0.5, 1.0, kInf), DoubleEq(kInf));
+  EXPECT_THAT(BetaIncomplete(-0.1, 1.0, 1.0), DoubleEq(kInf));
+  EXPECT_THAT(BetaIncomplete(1.1, 1.0, 1.0), DoubleEq(kInf));
+  EXPECT_THAT(BetaIncomplete(0.0, 0.0, 1.0), DoubleEq(kInf));
+
+  EXPECT_THAT(BetaIncompleteInv(kNan, 1.0, 0.5), IsNan());
+  EXPECT_THAT(BetaIncompleteInv(1.0, kNan, 0.5), IsNan());
+  EXPECT_THAT(BetaIncompleteInv(1.0, 1.0, kNan), IsNan());
+  EXPECT_THAT(BetaIncompleteInv(kNan, 1.0, 0.0), IsNan());
+
+  EXPECT_THAT(BetaIncompleteInv(0.0, 1.0, 0.25), DoubleEq(kInf));
+  EXPECT_THAT(BetaIncompleteInv(1.0, 0.0, 0.25), DoubleEq(kInf));
+  EXPECT_THAT(BetaIncompleteInv(-1.0, 1.0, 0.5), DoubleEq(kInf));
+  EXPECT_THAT(BetaIncompleteInv(1.0, -1.0, 0.5), DoubleEq(kInf));
+  EXPECT_THAT(BetaIncompleteInv(kInf, 1.0, 0.5), DoubleEq(kInf));
+  EXPECT_THAT(BetaIncompleteInv(1.0, kInf, 0.5), DoubleEq(kInf));
+  EXPECT_THAT(BetaIncompleteInv(1.0, 1.0, -0.1), DoubleEq(kInf));
+  EXPECT_THAT(BetaIncompleteInv(1.0, 1.0, 1.1), DoubleEq(kInf));
+  EXPECT_THAT(BetaIncompleteInv(0.0, 1.0, 0.0), DoubleEq(kInf));
+}
+
+TEST(TestUtil, RequiredSuccessProbabilityAndMaxErrorTolerance) {
+  const double kInf = std::numeric_limits<double>::infinity();
+
+  // Small p_fail where naive 1.0 - p_fail loses ~40 bits of precision.
+  const double p_1e12_100 = RequiredSuccessProbability(1e-12, 100);
+  EXPECT_THAT(p_1e12_100, AllOf(Lt(1.0), DoubleNear(1.0 - 1e-14, 1e-15)));
+  EXPECT_THAT(MaxErrorTolerance(p_1e12_100), DoubleNear(7.739358, 1e-4));
+
+  // When p_fail / num_trials <= 2^-54, RequiredSuccessProbability clamps below
+  // 1.0 so MaxErrorTolerance remains finite.
+  const double p_1e12_100k = RequiredSuccessProbability(1e-12, 100000);
+  EXPECT_THAT(p_1e12_100k, Lt(1.0));
+  EXPECT_THAT(MaxErrorTolerance(p_1e12_100k),
+              AllOf(Gt(8.0), Lt(kInf), DoubleNear(8.292361, 1e-4)));
+
+  const double p_1e15_100 = RequiredSuccessProbability(1e-15, 100);
+  EXPECT_THAT(p_1e15_100, Lt(1.0));
+  EXPECT_THAT(MaxErrorTolerance(p_1e15_100),
+              AllOf(Gt(8.0), Lt(kInf), DoubleNear(8.292361, 1e-4)));
+
+  EXPECT_THAT(RequiredSuccessProbability(0.0, 100), DoubleEq(1.0));
+  EXPECT_THAT(MaxErrorTolerance(1.0), DoubleEq(kInf));
+
+  // Very small acceptance probability without 1 - p cancellation near 0.
+  EXPECT_THAT(MaxErrorTolerance(1e-12),
+              DoubleNear(1.2533141373155002e-12, 1e-20));
+}
+
+TEST(TestUtil, InverseNormalSurvivalExtremeTailsAndBoundaries) {
+  const double kInf = std::numeric_limits<double>::infinity();
+  const double kNan = std::numeric_limits<double>::quiet_NaN();
+
+  EXPECT_THAT(InverseNormalSurvival(0.0), DoubleEq(kInf));
+  EXPECT_THAT(InverseNormalSurvival(1.0), DoubleEq(-kInf));
+  EXPECT_THAT(InverseNormalSurvival(0.5), DoubleEq(0.0));
+  EXPECT_THAT(InverseNormalSurvival(-0.1), IsNan());
+  EXPECT_THAT(InverseNormalSurvival(1.1), IsNan());
+  EXPECT_THAT(InverseNormalSurvival(kNan), IsNan());
+
+  EXPECT_THAT(InverseNormalSurvival(1e-10),
+              HasNormalSurvivalNear(1e-10, 1e-12));
+  EXPECT_THAT(InverseNormalSurvival(1e-15),
+              HasNormalSurvivalNear(1e-15, 1e-12));
+  EXPECT_THAT(InverseNormalSurvival(std::ldexp(1.0, -54)),
+              AllOf(DoubleNear(8.292361075813595, 1e-12),
+                    HasNormalSurvivalNear(std::ldexp(1.0, -54), 1e-12)));
+  EXPECT_THAT(InverseNormalSurvival(1e-20),
+              HasNormalSurvivalNear(1e-20, 1e-12));
+  EXPECT_THAT(InverseNormalSurvival(1e-50),
+              HasNormalSurvivalNear(1e-50, 1e-12));
+  EXPECT_THAT(InverseNormalSurvival(1e-100),
+              HasNormalSurvivalNear(1e-100, 1e-12));
+  EXPECT_THAT(InverseNormalSurvival(1e-300),
+              HasNormalSurvivalNear(1e-300, 1e-12));
+
+  // Anti-symmetry across 0.5 using an exact dyadic fraction so 1 - u is exact.
+  const double kDyadic = std::ldexp(1.0, -33);
+  EXPECT_THAT(InverseNormalSurvival(1.0 - kDyadic),
+              DoubleEq(-InverseNormalSurvival(kDyadic)));
+}
+
+TEST(TestUtil, InverseErfBoundaries) {
+  const double kInf = std::numeric_limits<double>::infinity();
+  const double kNan = std::numeric_limits<double>::quiet_NaN();
+
+  EXPECT_THAT(erfinv(1.0), DoubleEq(kInf));
+  EXPECT_THAT(erfinv(-1.0), DoubleEq(-kInf));
+  EXPECT_THAT(erfinv(0.0), DoubleEq(0.0));
+  EXPECT_THAT(erfinv(1.5), IsNan());
+  EXPECT_THAT(erfinv(-1.5), IsNan());
+  EXPECT_THAT(erfinv(kNan), IsNan());
+}
+
 }  // namespace

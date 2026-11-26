@@ -264,7 +264,7 @@ Node* GraphAssembler::TaggedEqual(Node* left, Node* right) {
 
 Node* GraphAssembler::SmiSub(Node* left, Node* right) {
   if (COMPRESS_POINTERS_BOOL) {
-    return BitcastWord32ToWord64(Int32Sub(left, right));
+    return ChangeUint32ToUint64(Int32Sub(left, right));
   } else {
     return IntSub(left, right);
   }
@@ -1294,7 +1294,7 @@ void GraphAssembler::TailCall(const CallDescriptor* call_descriptor,
 
   // Unlike ConnectUnreachableToEnd, the TailCall node terminates a block; to
   // keep it live, it *must* be connected to End (also in Turboprop schedules).
-  NodeProperties::MergeControlToEnd(graph(), common(), node);
+  MergeControlToEnd(node);
 
   // Setting effect, control to nullptr effectively terminates the current block
   // by disallowing the addition of new nodes until a new label has been bound.
@@ -1319,13 +1319,17 @@ void GraphAssembler::RuntimeAbort(AbortReason reason) {
   DebugBreak();
 }
 
-void GraphAssembler::ConnectUnreachableToEnd() {
-  DCHECK_EQ(effect()->opcode(), IrOpcode::kUnreachable);
-  Node* throw_node = graph()->NewNode(common()->Throw(), effect(), control());
-  NodeProperties::MergeControlToEnd(graph(), common(), throw_node);
+void GraphAssembler::MergeControlToEnd(Node* control) {
+  NodeProperties::MergeControlToEnd(graph(), common(), control);
   if (node_changed_callback_.has_value()) {
     (*node_changed_callback_)(graph()->end());
   }
+}
+
+void GraphAssembler::ConnectUnreachableToEnd() {
+  DCHECK_EQ(effect()->opcode(), IrOpcode::kUnreachable);
+  Node* throw_node = graph()->NewNode(common()->Throw(), effect(), control());
+  MergeControlToEnd(throw_node);
   effect_ = control_ = mcgraph()->Dead();
 }
 

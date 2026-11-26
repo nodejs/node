@@ -67,29 +67,6 @@ void reportError(v8::Local<v8::Context> context, const v8::TryCatch& tryCatch,
   reportError(context, tryCatch);
 }
 
-bool takeValues(CustomPreviewBudget* budget, uint32_t count) {
-  if (count > budget->values) {
-    budget->values = 0;
-    budget->exhausted = true;
-    return false;
-  }
-  budget->values -= count;
-  return true;
-}
-
-bool takeCharacters(CustomPreviewBudget* budget, size_t count) {
-  if (count > budget->characters) {
-    budget->characters = 0;
-    budget->exhausted = true;
-    return false;
-  }
-  budget->characters -= static_cast<uint32_t>(count);
-  return true;
-}
-
-bool takeCharacters(CustomPreviewBudget* budget, v8::Local<v8::String> string) {
-  return takeCharacters(budget, static_cast<size_t>(string->Length()));
-}
 
 bool substituteObjectTags(int sessionId, const String16& groupName,
                           v8::Local<v8::Context> context,
@@ -143,7 +120,7 @@ bool jsonMLValueToProtocolValue(int sessionId, const String16& groupName,
   }
   if (value->IsString()) {
     v8::Local<v8::String> string = value.As<v8::String>();
-    if (!takeCharacters(budget, string)) {
+    if (!budget->takeCharacters(string->Length())) {
       reportError(context, tryCatch, "JSONML is too large");
       return false;
     }
@@ -174,7 +151,7 @@ bool jsonMLValueToProtocolValue(int sessionId, const String16& groupName,
       return false;
     }
     uint32_t length = propertyNames->Length();
-    if (!takeValues(budget, length)) {
+    if (!budget->takeValues(length)) {
       reportError(context, tryCatch, "JSONML is too large");
       return false;
     }
@@ -208,7 +185,7 @@ bool jsonMLValueToProtocolValue(int sessionId, const String16& groupName,
           property->IsSymbol()) {
         continue;
       }
-      if (!takeCharacters(budget, propertyName)) {
+      if (!budget->takeCharacters(propertyName->Length())) {
         reportError(context, tryCatch, "JSONML is too large");
         return false;
       }
@@ -264,7 +241,7 @@ bool substituteObjectTags(int sessionId, const String16& groupName,
       reportError(context, tryCatch, "object tag should have 2 elements");
       return false;
     }
-    if (!takeValues(budget, 1)) {
+    if (!budget->takeValues(1)) {
       reportError(context, tryCatch, "JSONML is too large");
       return false;
     }
@@ -294,7 +271,7 @@ bool substituteObjectTags(int sessionId, const String16& groupName,
     }
 
     if (originValue->IsString() &&
-        !takeCharacters(budget, originValue.As<v8::String>())) {
+        !budget->takeCharacters(originValue.As<v8::String>()->Length())) {
       reportError(context, tryCatch, "JSONML is too large");
       return false;
     }
@@ -327,19 +304,16 @@ bool substituteObjectTags(int sessionId, const String16& groupName,
     // Wrapping the object runs the (nested) custom formatters, which might
     // terminate execution. Don't call into V8 anymore in that case, since the
     // next V8 API call would clear the pending termination exception.
-    if (isolate->IsExecutionTerminating() || budget->exhausted) return false;
+    if (isolate->IsExecutionTerminating()) return false;
+    if (budget->exhausted) {
+      if (!response.IsSuccess()) {
+        reportError(context, tryCatch, "JSONML is too large");
+      }
+      return false;
+    }
     if (!response.IsSuccess() || !wrapper) {
       reportError(context, tryCatch, "cannot wrap value");
       return false;
-    }
-    if (!originValue->IsString()) {
-      size_t wrapperChars =
-          wrapper->getDescription(String16()).length() +
-          wrapper->getUnserializableValue(String16()).length();
-      if (!takeCharacters(budget, wrapperChars)) {
-        reportError(context, tryCatch, "JSONML is too large");
-        return false;
-      }
     }
     std::vector<uint8_t> cbor = wrapper->Serialize();
     std::unique_ptr<protocol::Value> protocolWrapper =
@@ -355,8 +329,8 @@ bool substituteObjectTags(int sessionId, const String16& groupName,
     // early (before converting any of them) if they don't fit.
     uint32_t length = jsonML->Length();
     uint32_t childCount = length > 0 ? length - 1 : 0;
-    if (!takeValues(budget, childCount) ||
-        !takeCharacters(budget, firstValue.As<v8::String>())) {
+    if (!budget->takeValues(childCount) ||
+        !budget->takeCharacters(firstValue.As<v8::String>()->Length())) {
       reportError(context, tryCatch, "JSONML is too large");
       return false;
     }
@@ -407,7 +381,7 @@ void bodyCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::MicrotasksScope microtasksScope(context,
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
   v8::Local<v8::Object> bodyConfig =
-      info.DataV2().As<v8::Value>().As<v8::Object>();
+      info.Data().As<v8::Value>().As<v8::Object>();
 
   v8::Local<v8::Value> objectValue;
   if (!bodyConfig->Get(context, toV8String(isolate, "object"))
@@ -503,8 +477,7 @@ void bodyCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8_crdtp::json::ConvertCBORToJSON(
       v8_crdtp::SpanFrom(protocolJsonML->Serialize()), &json);
   uint32_t charged = budgetBefore - budget.characters;
-  if (json.size() > charged &&
-      !takeCharacters(&budget, json.size() - charged)) {
+  if (json.size() > charged && !budget.takeCharacters(json.size() - charged)) {
     reportError(context, tryCatch, "JSONML is too large");
     return;
   }
@@ -520,17 +493,22 @@ void bodyCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
 }
 }  // anonymous namespace
 
-void generateCustomPreview(v8::Isolate* isolate, int sessionId,
+void generateCustomPreview(InjectedScript* injectedScript,
                            const String16& groupName,
                            v8::Local<v8::Object> object,
                            v8::MaybeLocal<v8::Value> maybeConfig, int maxDepth,
                            CustomPreviewBudget* budget,
                            std::unique_ptr<CustomPreview>* preview) {
+  v8::Isolate* isolate = injectedScript->context()->isolate();
+  int sessionId = injectedScript->sessionId();
+  int wrappingContextId = injectedScript->context()->contextId();
+
   v8::Local<v8::Context> context;
   if (!object->GetCreationContext(isolate).ToLocal(&context)) {
     return;
   }
 
+  v8::Context::Scope contextScope(context);
   v8::MicrotasksScope microtasksScope(context,
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
   v8::TryCatch tryCatch(isolate);
@@ -614,7 +592,7 @@ void generateCustomPreview(v8::Isolate* isolate, int sessionId,
         v8_crdtp::SpanFrom(protocolJsonML->Serialize()), &json);
     uint32_t charged = budgetBefore - budget->characters;
     if (json.size() > charged &&
-        !takeCharacters(budget, json.size() - charged)) {
+        !budget->takeCharacters(json.size() - charged)) {
       reportError(context, tryCatch, "JSONML is too large");
       return;
     }
@@ -675,19 +653,18 @@ void generateCustomPreview(v8::Isolate* isolate, int sessionId,
       V8InspectorImpl* inspector =
           static_cast<V8InspectorImpl*>(v8::debug::GetInspector(isolate));
       std::shared_ptr<InspectedContext> inspectedContext =
-          inspector->getContext(InspectedContext::contextId(context));
+          inspector->getContext(wrappingContextId);
       if (!inspectedContext) {
         reportError(context, tryCatch, "cannot find context with specified id");
         return;
       }
-      std::shared_ptr<InjectedScript> injectedScript =
+      std::shared_ptr<InjectedScript> script =
           inspectedContext->getInjectedScript(sessionId);
-      if (!injectedScript) {
+      if (!script) {
         reportError(context, tryCatch, "cannot find context with specified id");
         return;
       }
-      (*preview)->setBodyGetterId(
-          injectedScript->bindObject(bodyFunction, groupName));
+      (*preview)->setBodyGetterId(script->bindObject(bodyFunction, groupName));
     }
     return;
   }

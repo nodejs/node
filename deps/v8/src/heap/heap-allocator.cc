@@ -159,10 +159,10 @@ constexpr AllocationSpace AllocationTypeToGCSpace(AllocationType type) {
     case AllocationType::kTrusted:
     case AllocationType::kSharedMap:
     case AllocationType::kSharedOld:
+    case AllocationType::kSharedTrusted:
       // OLD_SPACE indicates full GC.
       return OLD_SPACE;
     case AllocationType::kReadOnly:
-    case AllocationType::kSharedTrusted:
       UNREACHABLE();
   }
   UNREACHABLE();
@@ -170,16 +170,15 @@ constexpr AllocationSpace AllocationTypeToGCSpace(AllocationType type) {
 
 }  // namespace
 
-void HeapAllocator::CollectGarbage(
-    AllocationType allocation, PerformHeapLimitCheck perform_heap_limit_check,
-    GarbageCollectionReason gc_reason) {
+void HeapAllocator::CollectGarbage(AllocationType allocation,
+                                   GarbageCollectionReason gc_reason) {
   if (IsSharedAllocationType(allocation)) {
     auto* isolate = heap_->isolate();
     if (isolate->shared_space_isolate() == isolate &&
         local_heap_->is_main_thread()) {
       AllocationSpace space_to_gc = AllocationTypeToGCSpace(allocation);
       heap_->CollectGarbage(space_to_gc, gc_reason, kNoGCCallbackFlags,
-                            perform_heap_limit_check);
+                            PerformHeapLimitCheck{false});
     } else {
       isolate->shared_space_isolate()
           ->heap()
@@ -190,7 +189,7 @@ void HeapAllocator::CollectGarbage(
     // On the main thread we can directly start the GC.
     AllocationSpace space_to_gc = AllocationTypeToGCSpace(allocation);
     heap_->CollectGarbage(space_to_gc, gc_reason, kNoGCCallbackFlags,
-                          perform_heap_limit_check);
+                          PerformHeapLimitCheck{false});
   } else {
     // Request GC from main thread.
     heap_->TriggerAndWaitForGCFromBackgroundThread(local_heap_,
@@ -548,18 +547,17 @@ bool HeapAllocator::RetryCustomAllocateLight(
     return result;
   }
 
-  heap_for_allocation(allocation)->CheckHeapLimitReached();
+  if (heap_for_allocation(allocation)->ReachedHeapLimit()) {
+    CollectAllAvailableGarbage(allocation);
+    return allocate();
+  }
 
-  return {};
+  return false;
 }
 
 bool HeapAllocator::CollectGarbageAndRetryAllocation(
     CustomAllocationFunction allocate, AllocationType allocation,
     GarbageCollectionReason gc_reason) {
-  const auto perform_heap_limit_check = v8_flags.late_heap_limit_check
-                                            ? PerformHeapLimitCheck{false}
-                                            : PerformHeapLimitCheck{true};
-
   for (int i = 0; i < 2; i++) {
     if (allocation != AllocationType::kYoung &&
         heap_for_allocation(allocation)
@@ -567,9 +565,9 @@ bool HeapAllocator::CollectGarbageAndRetryAllocation(
       return false;
     }
 
-    // Skip the heap limit check in the GC if enabled. The heap limit needs to
-    // be enforced by the caller.
-    CollectGarbage(allocation, perform_heap_limit_check, gc_reason);
+    // Skip the heap limit check in the GC. The heap limit needs to be enforced
+    // by the caller.
+    CollectGarbage(allocation, gc_reason);
 
     // As long as we are at or above the heap limit, we definitely need another
     // GC.

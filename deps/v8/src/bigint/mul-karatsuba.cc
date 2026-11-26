@@ -202,6 +202,7 @@ void ProcessorImpl::KaratsubaMain(RWDigits Z, Digits X, Digits Y,
   KaratsubaSubtractionHelper(Y_diff, Y0, Y1, &sign);
   RWDigits P1(scratch, n, n);
   KaratsubaMain(P1, X_diff, Y_diff, scratch_for_recursion, n2);
+  MAYBE_TERMINATE
   if (sign > 0) {
     overflow += AddAndReturnOverflow(Z + n2, P1);
   } else {

@@ -113,9 +113,6 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     case FREE_SPACE_TYPE:
       return kVisitFreeSpace;
 
-    case EMBEDDER_DATA_ARRAY_TYPE:
-      return kVisitEmbedderDataArray;
-
     case NAME_TO_INDEX_HASH_TABLE_TYPE:
     case REGISTERED_SYMBOL_TABLE_TYPE:
     case HASH_TABLE_TYPE:
@@ -299,9 +296,8 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     // Objects that may have embedder fields but otherwise are just a regular
     // JSObject.
     case JS_PROMISE_TYPE: {
-      const bool has_raw_data_fields =
-          COMPRESS_POINTERS_BOOL && JSObject::GetEmbedderFieldCount(map) > 0;
-      return has_raw_data_fields ? kVisitJSObject : kVisitJSObjectFast;
+      const bool has_embedder_fields = JSObject::GetEmbedderFieldCount(map) > 0;
+      return has_embedder_fields ? kVisitJSObject : kVisitJSObjectFast;
     }
 
     // Objects that are guaranteed to not have any embedder fields and just
@@ -326,6 +322,8 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     case JS_ITERATOR_CONCAT_HELPER_TYPE:
     case JS_ITERATOR_ZIP_HELPER_TYPE:
     case JS_ITERATOR_ZIP_KEYED_HELPER_TYPE:
+    case JS_ITERATOR_CHUNKS_HELPER_TYPE:
+    case JS_ITERATOR_WINDOWS_HELPER_TYPE:
     case JS_ITERATOR_PROTOTYPE_TYPE:
     case JS_MAP_ITERATOR_PROTOTYPE_TYPE:
     case JS_MAP_KEY_ITERATOR_TYPE:
@@ -348,8 +346,6 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     case JS_SET_VALUE_ITERATOR_TYPE:
     case JS_SYNC_DISPOSABLE_STACK_TYPE:
     case JS_SHADOW_REALM_TYPE:
-    case JS_SHARED_ARRAY_TYPE:
-    case JS_SHARED_STRUCT_TYPE:
     case JS_STRING_ITERATOR_PROTOTYPE_TYPE:
     case JS_STRING_ITERATOR_TYPE:
 #ifdef V8_TEMPORAL_SUPPORT
@@ -453,7 +449,6 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     case ACCESS_CHECK_INFO_TYPE:
     case ACCESSOR_PAIR_TYPE:
     case ALIASED_ARGUMENTS_ENTRY_TYPE:
-    case ALLOCATION_MEMENTO_TYPE:
     case ARRAY_BOILERPLATE_DESCRIPTION_TYPE:
     case ASYNC_GENERATOR_REQUEST_TYPE:
     case BREAK_POINT_TYPE:
@@ -742,8 +737,13 @@ void Map::DeprecateTransitionTreeImpl(Isolate* isolate) {
 void Map::ReplaceDescriptors(Isolate* isolate,
                              Tagged<DescriptorArray> new_descriptors) {
   CHECK(AllowJSObjectModification::IsAllowed(isolate));
-  // Don't overwrite the empty descriptor array or initial map's descriptors.
-  if (NumberOfOwnDescriptors() == 0 || IsUndefined(GetBackPointer())) {
+  // Don't overwrite the empty descriptor array, initial map's descriptors, or
+  // special transition map's descriptors (such as an elements kind transition
+  // or integrity level transition).
+  int nof = NumberOfOwnDescriptors();
+  Tagged<Object> back_pointer = GetBackPointer();
+  if (nof == 0 || IsUndefined(back_pointer) ||
+      Cast<Map>(back_pointer)->NumberOfOwnDescriptors() == nof) {
     return;
   }
 
@@ -927,8 +927,11 @@ void Map::EnsureDescriptorSlack(Isolate* isolate, DirectHandle<Map> map,
   int old_size = map->NumberOfOwnDescriptors();
   if (slack <= descriptors->number_of_slack_descriptors()) return;
 
-  DirectHandle<DescriptorArray> new_descriptors =
-      DescriptorArray::CopyUpTo(isolate, descriptors, old_size, slack);
+  // Since this map owns the descriptor array and we are going to replace the
+  // old descriptor array with a new one, we can reuse the previous lookup
+  // table and remove it from the old descriptor array.
+  DirectHandle<DescriptorArray> new_descriptors = DescriptorArray::CopyUpTo(
+      isolate, descriptors, old_size, slack, /*replace_source=*/true);
 
   DisallowGarbageCollection no_gc;
   if (old_size == 0) {
@@ -952,7 +955,12 @@ void Map::EnsureDescriptorSlack(Isolate* isolate, DirectHandle<Map> map,
   Tagged<Map> current = Cast<Map>(next);
   while (current->instance_descriptors() == *descriptors) {
     next = current->GetBackPointer();
-    if (IsUndefined(next)) break;
+    // Initial maps and special transition maps never share their descriptors
+    // with child property transitions, so {current} must be a property
+    // transition map and cannot be an initial map or a special transition map.
+    CHECK(!IsUndefined(next));
+    DCHECK_NE(Cast<Map>(next)->NumberOfOwnDescriptors(),
+              current->NumberOfOwnDescriptors());
     current->UpdateDescriptors(*new_descriptors,
                                current->NumberOfOwnDescriptors());
     current = Cast<Map>(next);
@@ -1618,6 +1626,13 @@ Handle<Map> Map::ShareDescriptor(Isolate* isolate, DirectHandle<Map> map,
     }
   }
 
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+  if (descriptors->number_of_descriptors() ==
+      DescriptorArray::kMaxElementsForLinearSearch) {
+    DescriptorArray::EnsureLookupTable(isolate, descriptors);
+  }
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+
   {
     DisallowGarbageCollection no_gc;
     descriptors->Append(descriptor);
@@ -1686,7 +1701,11 @@ Handle<Map> Map::CopyReplaceDescriptors(
     DirectHandle<DescriptorArray> descriptors, TransitionFlag flag,
     const InitMapCb& InitMap, MaybeDirectHandle<Name> maybe_name,
     const char* reason, TransitionKindFlag transition_kind) {
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+  SLOW_DCHECK(descriptors->VerifyLookupTable());
+#else
   DCHECK(descriptors->IsSortedNoDuplicates());
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
 
   Handle<Map> result = CopyDropDescriptors(isolate, map);
   bool is_connected = false;
@@ -1740,7 +1759,11 @@ Handle<Map> Map::CopyReplaceDescriptors(
 Handle<Map> Map::AddMissingTransitions(
     Isolate* isolate, DirectHandle<Map> split_map,
     DirectHandle<DescriptorArray> descriptors) {
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+  DCHECK(descriptors->VerifyLookupTable());
+#else
   DCHECK(descriptors->IsSortedNoDuplicates());
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
   int split_nof = split_map->NumberOfOwnDescriptors();
   int nof_descriptors = descriptors->number_of_descriptors();
   CHECK_LT(split_nof, nof_descriptors);
@@ -1788,7 +1811,11 @@ void Map::InstallDescriptors(Isolate* isolate, DirectHandle<Map> parent,
                              InternalIndex new_descriptor,
                              DirectHandle<DescriptorArray> descriptors,
                              bool force_connect) {
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+  DCHECK(descriptors->VerifyLookupTable());
+#else
   DCHECK(descriptors->IsSortedNoDuplicates());
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
 
   child->SetInstanceDescriptors(*descriptors, new_descriptor.as_int() + 1);
   child->CopyUnusedPropertyFields(*parent);
@@ -2135,31 +2162,7 @@ DirectHandle<Map> Map::TransitionToDataProperty(
       reason = buffer.data();
     }
 #endif
-    DirectHandle<Object> maybe_constructor(map->GetConstructor(), isolate);
-    if (v8_flags.feedback_normalization && map->new_target_is_base() &&
-        IsJSFunction(*maybe_constructor) &&
-        !Cast<JSFunction>(*maybe_constructor)->shared()->native()) {
-      auto constructor = Cast<JSFunction>(maybe_constructor);
-      DCHECK_NE(*constructor, constructor->native_context()->object_function());
-      DirectHandle<Map> initial_map(constructor->initial_map(), isolate);
-      result = Map::Normalize(isolate, initial_map, CLEAR_INOBJECT_PROPERTIES,
-                              reason);
-      initial_map->DeprecateTransitionTree(isolate);
-      DirectHandle<JSReceiver> prototype(Cast<JSReceiver>(result->prototype()),
-                                         isolate);
-      JSFunction::SetInitialMap(isolate, constructor, result, prototype);
-
-      // Deoptimize all code that embeds the previous initial map.
-      DependentCode::DeoptimizeDependencyGroups(
-          isolate, *initial_map, DependentCode::kInitialMapChangedGroup);
-      if (!result->EquivalentToForNormalization(*map,
-                                                CLEAR_INOBJECT_PROPERTIES)) {
-        result =
-            Map::Normalize(isolate, map, CLEAR_INOBJECT_PROPERTIES, reason);
-      }
-    } else {
-      result = Map::Normalize(isolate, map, CLEAR_INOBJECT_PROPERTIES, reason);
-    }
+    return Map::Normalize(isolate, map, CLEAR_INOBJECT_PROPERTIES, reason);
   }
 
   return result;
@@ -2222,7 +2225,9 @@ DirectHandle<Map> Map::TransitionToAccessorProperty(
   DirectHandle<AccessorPair> pair;
   Tagged<DescriptorArray> old_descriptors = map->instance_descriptors();
   if (descriptor.is_found()) {
-    if (descriptor != map->LastAdded()) {
+    Tagged<Map> parent;
+    if (descriptor != map->LastAdded() || !map->TryGetBackPointer(&parent) ||
+        parent->NumberOfOwnDescriptors() == map->NumberOfOwnDescriptors()) {
       return Map::Normalize(isolate, map, mode, "AccessorsOverwritingNonLast");
     }
     PropertyDetails old_details = old_descriptors->GetDetails(descriptor);
@@ -2282,16 +2287,25 @@ Handle<Map> Map::CopyAddDescriptor(Isolate* isolate, DirectHandle<Map> map,
   DirectHandle<DescriptorArray> descriptors(map->instance_descriptors(),
                                             isolate);
 
-  // Share descriptors only if map owns descriptors and is not an initial map.
+  int nof = map->NumberOfOwnDescriptors();
+
+  // Share descriptors only if map owns descriptors and is not an initial map
+  // or a special transition (such as an elements kind transition or integrity
+  // level transition).
   if (flag == INSERT_TRANSITION && map->owns_descriptors() &&
       !IsUndefined(map->GetBackPointer()) &&
+      Cast<Map>(map->GetBackPointer())->NumberOfOwnDescriptors() != nof &&
       TransitionsAccessor::CanHaveMoreTransitions(isolate, map)) {
     return ShareDescriptor(isolate, map, descriptors, descriptor);
   }
 
-  int nof = map->NumberOfOwnDescriptors();
   DirectHandle<DescriptorArray> new_descriptors =
       DescriptorArray::CopyUpTo(isolate, descriptors, nof, 1);
+#ifdef V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+  if (nof == DescriptorArray::kMaxElementsForLinearSearch) {
+    DescriptorArray::EnsureLookupTable(isolate, new_descriptors);
+  }
+#endif  // V8_ENABLE_DESCRIPTOR_ARRAY_LOOKUP_TABLE
   new_descriptors->Append(descriptor);
 
   auto InitMap = [&](DirectHandle<Map> new_map) {

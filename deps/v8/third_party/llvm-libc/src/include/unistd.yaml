@@ -96,6 +96,12 @@ macros:
     macro_header: unistd-macros.h
   - macro_name: F_TEST
     macro_header: unistd-macros.h
+  - macro_name: CLOSE_RANGE_UNSHARE
+    macro_header: unistd-macros.h
+  - macro_name: CLOSE_RANGE_CLOEXEC
+    macro_header: unistd-macros.h
+  - macro_name: POSIX_CLOSE_RESTART
+    macro_header: unistd-macros.h
 types:
   - type_name: uid_t
   - type_name: gid_t
@@ -120,18 +126,6 @@ objects:
   - object_name: optopt
     object_type: int
 functions:
-  - name: __llvm_libc_syscall
-    standards:
-      - posix
-    return_type: long
-    arguments:
-      - type: long
-      - type: long
-      - type: long
-      - type: long
-      - type: long
-      - type: long
-      - type: long
   - name: _exit
     standards:
       - posix
@@ -185,6 +179,25 @@ functions:
     return_type: int
     arguments:
       - type: int
+  - name: close_range
+    standards:
+      - linux
+    return_type: int
+    arguments:
+      - type: unsigned int
+      - type: unsigned int
+      - type: int
+  - name: copy_file_range
+    standards:
+      - linux
+    return_type: ssize_t
+    arguments:
+      - type: int
+      - type: off_t *
+      - type: int
+      - type: off_t *
+      - type: size_t
+      - type: unsigned int
   - name: dup
     standards:
       - posix
@@ -359,6 +372,13 @@ functions:
     return_type: uid_t
     arguments:
       - type: void
+  - name: getgroups
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
+      - type: gid_t *
   - name: gethostname
     standards:
       - posix
@@ -404,6 +424,22 @@ functions:
     return_type: int
     arguments:
       - type: void
+  - name: getresgid
+    standards:
+      - linux
+    return_type: int
+    arguments:
+      - type: gid_t *
+      - type: gid_t *
+      - type: gid_t *
+  - name: getresuid
+    standards:
+      - linux
+    return_type: int
+    arguments:
+      - type: uid_t *
+      - type: uid_t *
+      - type: uid_t *
   - name: getsid
     standards:
       - posix
@@ -508,6 +544,13 @@ functions:
     return_type: int
     arguments:
       - type: int *
+      - type: int
+  - name: posix_close
+    standards:
+      - posix
+    return_type: int
+    arguments:
+      - type: int
       - type: int
   - name: pread
     standards:
@@ -666,6 +709,13 @@ functions:
     return_type: int
     arguments:
       - type: int
+  - name: syscall
+    standards:
+      - gnu
+    return_type: long
+    arguments:
+      - type: long
+      - type: '...'
   - name: sysconf
     standards:
       - posix

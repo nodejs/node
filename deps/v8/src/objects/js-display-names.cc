@@ -435,7 +435,7 @@ MaybeDirectHandle<JSDisplayNames> JSDisplayNames::New(
   // 9. Let r be ResolveLocale(%DisplayNames%.[[AvailableLocales]],
   //     requestedLocales, opt, %DisplayNames%.[[RelevantExtensionKeys]]).
   Intl::ResolvedLocale r;
-  if (!Intl::ResolveLocale(isolate, JSDisplayNames::GetAvailableLocales(),
+  if (!Intl::ResolveLocale(isolate, JSDisplayNames::GetAvailableLocales,
                            requested_locales, matcher, {})
            .To(&r)) {
     THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError));

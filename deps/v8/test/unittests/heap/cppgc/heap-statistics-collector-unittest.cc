@@ -10,6 +10,7 @@
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/heap/cppgc-internal/globals.h"
+#include "src/heap/cppgc-internal/memory.h"
 #include "test/unittests/heap/cppgc/tests.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -143,7 +144,8 @@ TEST_F(HeapStatisticsCollectorTest, NonEmptyLargePage) {
 }
 
 TEST_F(HeapStatisticsCollectorTest, BriefStatisticsWithDiscardingOnNormalPage) {
-  if (!Sweeper::CanDiscardMemory()) return;
+  if (!CanPurgeMemory()) return;
+  Heap::From(GetHeap())->set_purge_memory_mode(PurgeMemoryMode::kDiscard);
 
   Persistent<GCed<1>> holder =
       MakeGarbageCollected<GCed<1>>(GetHeap()->GetAllocationHandle());
@@ -158,7 +160,8 @@ TEST_F(HeapStatisticsCollectorTest, BriefStatisticsWithDiscardingOnNormalPage) {
 
 TEST_F(HeapStatisticsCollectorTest,
        BriefStatisticsWithoutDiscardingOnNormalPage) {
-  if (!Sweeper::CanDiscardMemory()) return;
+  if (!CanPurgeMemory()) return;
+  Heap::From(GetHeap())->set_purge_memory_mode(PurgeMemoryMode::kDiscard);
 
   MakeGarbageCollected<GCed<1>>(GetHeap()->GetAllocationHandle());
 
@@ -197,7 +200,8 @@ TEST_F(HeapStatisticsCollectorTest,
 
 TEST_F(HeapStatisticsCollectorTest,
        DetailedStatisticsWithDiscardingOnNormalPage) {
-  if (!Sweeper::CanDiscardMemory()) return;
+  if (!CanPurgeMemory()) return;
+  Heap::From(GetHeap())->set_purge_memory_mode(PurgeMemoryMode::kDiscard);
 
   Persistent<GCed<1>> holder =
       MakeGarbageCollected<GCed<1>>(GetHeap()->GetAllocationHandle());

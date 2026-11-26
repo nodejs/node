@@ -54,6 +54,7 @@ enum class CpuType {
   kArmNeoverseN3,
   kArmNeoverseN4,
   kNvidiaGrace,
+  kNvidiaVera,
 };
 
 // Returns the type of host CPU this code is running on.  Returns kUnknown if
@@ -66,6 +67,12 @@ CpuType GetCpuType();
 // this to see if it's safe to use hardware acceleration, though without any
 // tuning.
 bool SupportsArmCRC32PMULL();
+
+// Returns whether the host CPU supports ARM SHA3 instructions (e.g., EOR3).
+bool SupportsArmSHA3();
+
+// Returns whether the host CPU and OS support AVX2 instructions.
+bool SupportsAvx2();
 
 // Returns whether the host CPU supports BMI2 instructions.
 bool SupportsBmi2();

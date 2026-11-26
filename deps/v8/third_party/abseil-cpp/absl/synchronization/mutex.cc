@@ -2475,7 +2475,9 @@ ABSL_ATTRIBUTE_NOINLINE void Mutex::UnlockSlow(SynchWaitParams* waitp) {
         int64_t cycles_waited =
             (now - wake_list->waitp->contention_start_cycles);
         total_wait_cycles += cycles_waited;
-        if (max_wait_cycles == 0) max_wait_cycles = cycles_waited;
+        // Waiters in wake_list are not ordered by contention_start_cycles
+        // (e.g. due to priority queueing or LIFO requeueing).
+        max_wait_cycles = std::max(max_wait_cycles, cycles_waited);
         wake_list->waitp->contention_start_cycles = now;
         wake_list->waitp->should_submit_contention_data = true;
       }

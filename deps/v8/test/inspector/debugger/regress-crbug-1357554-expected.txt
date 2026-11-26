@@ -1,0 +1,9 @@
+Tests regress-crbug-1357554.
+  (function foo() {
+    const x = #5;
+    () => x; // context-allocate x.
+
+    const x = 5;
+    #() => x; // context-allocate x.
+  })();
+

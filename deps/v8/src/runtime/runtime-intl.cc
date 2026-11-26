@@ -9,6 +9,7 @@
 #include <cmath>
 #include <memory>
 
+#include "src/execution/arguments-inl.h"
 #include "src/execution/isolate-inl.h"
 #include "src/objects/intl-objects.h"
 #include "src/objects/js-collator-inl.h"

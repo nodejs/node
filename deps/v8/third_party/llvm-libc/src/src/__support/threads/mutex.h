@@ -62,6 +62,10 @@ struct Mutex {
   LIBC_INLINE MutexError unlock() { return MutexError::NONE; }
   LIBC_INLINE MutexError reset() { return MutexError::NONE; }
   LIBC_INLINE MutexError try_lock() { return MutexError::NONE; }
+  template <typename TimeoutType>
+  LIBC_INLINE MutexError timed_lock(TimeoutType) {
+    return MutexError::NONE;
+  }
   LIBC_INLINE bool is_robust() const { return false; }
 };
 

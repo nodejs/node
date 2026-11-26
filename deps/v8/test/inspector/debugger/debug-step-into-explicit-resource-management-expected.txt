@@ -1,0 +1,13 @@
+Tests stepping into explicit resource management.
+debugger;                 // Break 0
+f();                      // Break 1
+  let a = 1;  // Break 2
+    using b = { // Break 3
+    using c = { // Break 4
+        console.log(43);  // Break 5
+      }  // Break 6
+        console.log(42);  // Break 7
+      }  // Break 8
+  let d = 4;  // Break 9
+};  // Break 10
+let finished = true;      // Break 11

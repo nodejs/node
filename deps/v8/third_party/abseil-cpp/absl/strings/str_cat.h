@@ -321,21 +321,11 @@ struct Dec {
 // HighPrecision is conisderably slower than the default formatting, so only use
 // it if you need the string to convert back to the same floating-point value.
 
-inline strings_internal::AlphaNumBuffer<numbers_internal::kFastToBufferSize>
-HighPrecision(float f) {
-  strings_internal::AlphaNumBuffer<numbers_internal::kFastToBufferSize> result;
-  result.size =
-      strlen(numbers_internal::RoundTripFloatToBuffer(f, &result.data[0]));
-  return result;
-}
+strings_internal::AlphaNumBuffer<numbers_internal::kFastToBufferSize>
+HighPrecision(float f);
 
-inline strings_internal::AlphaNumBuffer<numbers_internal::kFastToBufferSize>
-HighPrecision(double d) {
-  strings_internal::AlphaNumBuffer<numbers_internal::kFastToBufferSize> result;
-  result.size =
-      strlen(numbers_internal::RoundTripDoubleToBuffer(d, &result.data[0]));
-  return result;
-}
+strings_internal::AlphaNumBuffer<numbers_internal::kFastToBufferSize>
+HighPrecision(double d);
 
 // -----------------------------------------------------------------------------
 // AlphaNum
@@ -496,58 +486,22 @@ std::string CatPieces(std::initializer_list<absl::string_view> pieces);
 void AppendPieces(std::string* absl_nonnull dest,
                   std::initializer_list<absl::string_view> pieces);
 
-template <typename Integer>
-std::string IntegerToString(Integer i) {
-  // Any integer (signed/unsigned) up to 64 bits can be formatted into a buffer
-  // with 22 bytes (including NULL at the end).
-  constexpr size_t kMaxDigits10 = 22;
-  std::string result;
-  StringResizeAndOverwrite(
-      result, kMaxDigits10, [i](char* start, size_t buf_size) {
-        // Note: This can be optimized to not write last zero.
-        char* end = numbers_internal::FastIntToBuffer(i, start);
-        auto size = static_cast<size_t>(end - start);
-        ABSL_ASSERT(size < buf_size);
-        return size;
-      });
-  return result;
-}
-
-template <typename Float>
-std::string FloatToString(Float f) {
-  std::string result;
-  StringResizeAndOverwrite(result, numbers_internal::kSixDigitsToBufferSize,
-                           [f](char* start, size_t buf_size) {
-                             size_t size = numbers_internal::SixDigitsToBuffer(
-                                 static_cast<double>(f), start);
-                             ABSL_ASSERT(size < buf_size);
-                             return size;
-                           });
-  return result;
-}
-
 // `SingleArgStrCat` overloads take built-in `int`, `long` and `long long` types
 // (signed / unsigned) to avoid ambiguity on the call side. If we used int32_t
 // and int64_t, then at least one of the three (`int` / `long` / `long long`)
 // would have been ambiguous when passed to `SingleArgStrCat`.
-inline std::string SingleArgStrCat(int x) { return IntegerToString(x); }
-inline std::string SingleArgStrCat(unsigned int x) {
-  return IntegerToString(x);
-}
+std::string SingleArgStrCat(int x);
+std::string SingleArgStrCat(unsigned int x);
 // NOLINTNEXTLINE
-inline std::string SingleArgStrCat(long x) { return IntegerToString(x); }
+std::string SingleArgStrCat(long x);
 // NOLINTNEXTLINE
-inline std::string SingleArgStrCat(unsigned long x) {
-  return IntegerToString(x);
-}
+std::string SingleArgStrCat(unsigned long x);
 // NOLINTNEXTLINE
-inline std::string SingleArgStrCat(long long x) { return IntegerToString(x); }
+std::string SingleArgStrCat(long long x);
 // NOLINTNEXTLINE
-inline std::string SingleArgStrCat(unsigned long long x) {
-  return IntegerToString(x);
-}
-inline std::string SingleArgStrCat(float x) { return FloatToString(x); }
-inline std::string SingleArgStrCat(double x) { return FloatToString(x); }
+std::string SingleArgStrCat(unsigned long long x);
+std::string SingleArgStrCat(float x);
+std::string SingleArgStrCat(double x);
 
 // As of September 2023, the SingleArgStrCat() optimization is only enabled for
 // libc++. The reasons for this are:
@@ -648,14 +602,8 @@ inline void StrAppend(std::string* absl_nonnull dest, const AlphaNum& a,
 
 // Helper function for the future StrCat default floating-point format, %.6g
 // This is fast.
-inline strings_internal::AlphaNumBuffer<
-    numbers_internal::kSixDigitsToBufferSize>
-SixDigits(double d) {
-  strings_internal::AlphaNumBuffer<numbers_internal::kSixDigitsToBufferSize>
-      result;
-  result.size = numbers_internal::SixDigitsToBuffer(d, &result.data[0]);
-  return result;
-}
+strings_internal::AlphaNumBuffer<numbers_internal::kSixDigitsToBufferSize>
+SixDigits(double d);
 
 ABSL_NAMESPACE_END
 }  // namespace absl

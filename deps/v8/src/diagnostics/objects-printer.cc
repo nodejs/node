@@ -32,7 +32,6 @@
 #include "src/objects/instance-type.h"
 #include "src/objects/js-function-inl.h"
 #include "src/objects/js-objects.h"
-#include "src/objects/js-shared-array.h"
 #include "src/objects/shared-function-info-inl.h"
 #include "src/objects/struct.h"
 #include "src/regexp/regexp.h"
@@ -109,6 +108,21 @@ const char* JSIteratorZipHelperModeToString(JSIteratorZipHelperMode mode) {
 
 std::ostream& operator<<(std::ostream& os, JSIteratorZipHelperMode mode) {
   return os << JSIteratorZipHelperModeToString(mode);
+}
+
+const char* JSIteratorWindowsHelperModeToString(
+    JSIteratorWindowsHelperMode mode) {
+  switch (mode) {
+    case JSIteratorWindowsHelperMode::kOnlyFull:
+      return "ONLY_FULL";
+    case JSIteratorWindowsHelperMode::kAllowPartial:
+      return "ALLOW_PARTIAL";
+  }
+  UNREACHABLE();
+}
+
+std::ostream& operator<<(std::ostream& os, JSIteratorWindowsHelperMode mode) {
+  return os << JSIteratorWindowsHelperModeToString(mode);
 }
 
 void Print(Tagged<Object> obj) {
@@ -707,14 +721,15 @@ void PrintTypedArrayElements(std::ostream& os, const ElementType* data_ptr,
 template <typename T>
 void PrintFixedArrayElements(std::ostream& os, Tagged<T> array,
                              uint32_t capacity,
-                             Tagged<Object> (*get)(Tagged<T>, uint32_t)) {
+                             Tagged<Object> (*get)(Tagged<T>, uint32_t),
+                             uint32_t start_index = 0) {
   // Print in array notation for non-sparse arrays.
-  if (capacity == 0) return;
-  Tagged<Object> previous_value = get(array, 0);
+  if (start_index >= capacity) return;
+  Tagged<Object> previous_value = get(array, start_index);
   Tagged<Object> value;
-  uint32_t previous_index = 0;
+  uint32_t previous_index = start_index;
   uint32_t i;
-  for (i = 1; i <= capacity; i++) {
+  for (i = start_index + 1; i <= capacity; i++) {
     if (i < capacity) value = get(array, i);
     if (previous_value == value && i != capacity) {
       continue;
@@ -1261,18 +1276,6 @@ void RegExpBoilerplateDescription::RegExpBoilerplateDescriptionPrint(
   os << "\n";
 }
 
-void EmbedderDataArray::EmbedderDataArrayPrint(std::ostream& os) {
-  PrintHeader(os, "EmbedderDataArray");
-  os << "\n - length: " << length();
-  EmbedderDataSlot start(this, 0);
-  EmbedderDataSlot end(this, length());
-  for (EmbedderDataSlot slot = start; slot < end; ++slot) {
-    os << "\n    ";
-    PrintEmbedderData(Isolate::Current(), os, slot);
-  }
-  os << "\n";
-}
-
 void FixedArray::FixedArrayPrint(std::ostream& os) {
   PrintFixedArrayWithHeader(os, this, "FixedArray");
 }
@@ -1575,11 +1578,33 @@ void Context::PrintContextWithHeader(std::ostream& os, const char* type) {
   }
   os << "\n - length: " << length();
   os << "\n - elements:";
-  PrintFixedArrayElements<Context>(
-      os, this, static_cast<uint32_t>(length()),
-      [](Tagged<Context> xs, uint32_t i) {
-        return Cast<Object>(xs->get(i, kRelaxedLoad));
-      });
+  auto get_element = [](Tagged<Context> xs, uint32_t i) -> Tagged<Object> {
+    return Cast<Object>(xs->get(i, kRelaxedLoad));
+  };
+  if (Is<NativeContext>(this)) {
+    PrintFixedArrayElements<Context>(os, this, FIRST_EMBEDDER_DATA_INDEX,
+                                     get_element);
+    for (int i = 0; i < V8_EMBEDDER_DATA_ARRAY_SIZE; i++) {
+      os << "\n";
+      std::stringstream ss;
+      int slot_index =
+          FIRST_EMBEDDER_DATA_INDEX + i * kEmbedderDataSlotSizeInTaggedSlots;
+      if (kEmbedderDataSlotSizeInTaggedSlots > 1) {
+        ss << slot_index << '-'
+           << (slot_index + kEmbedderDataSlotSizeInTaggedSlots - 1);
+      } else {
+        ss << slot_index;
+      }
+      os << std::setw(12) << ss.str() << ": ";
+      PrintEmbedderData(Isolate::Current(), os,
+                        EmbedderDataSlot(Cast<NativeContext>(this), i));
+    }
+    PrintFixedArrayElements<Context>(os, this, static_cast<uint32_t>(length()),
+                                     get_element, LAST_EMBEDDER_DATA_INDEX + 1);
+  } else {
+    PrintFixedArrayElements<Context>(os, this, static_cast<uint32_t>(length()),
+                                     get_element);
+  }
   os << "\n";
 }
 
@@ -2408,22 +2433,6 @@ void JSFinalizationRegistry::JSFinalizationRegistryPrint(std::ostream& os) {
   JSObjectPrintBody(os, this);
 }
 
-void JSSharedArray::JSSharedArrayPrint(std::ostream& os) {
-  JSObjectPrintHeader(os, this, "JSSharedArray");
-  if (HeapLayout::InWritableSharedSpace(Tagged<HeapObject>(this))) {
-    os << " (shared)";
-  }
-  JSObjectPrintBody(os, this);
-}
-
-void JSSharedStruct::JSSharedStructPrint(std::ostream& os) {
-  JSObjectPrintHeader(os, this, "JSSharedStruct");
-  if (HeapLayout::InWritableSharedSpace(Tagged<HeapObject>(this))) {
-    os << " (shared)";
-  }
-  JSObjectPrintBody(os, this);
-}
-
 std::ostream& operator<<(std::ostream& os, DisposableStackState state) {
   switch (state) {
     case DisposableStackState::kPending:
@@ -2537,6 +2546,22 @@ void JSIteratorZipHelper::JSIteratorZipHelperPrint(std::ostream& os) {
 void JSIteratorZipKeyedHelper::JSIteratorZipKeyedHelperPrint(std::ostream& os) {
   JSIteratorZipHelperPrintHeader(os, "JSIteratorZipKeyedHelper");
   os << "\n - keys: " << Brief(keys());
+  JSObjectPrintBody(os, this);
+}
+
+void JSIteratorChunksHelper::JSIteratorChunksHelperPrint(std::ostream& os) {
+  JSIteratorHelperSimplePrintHeader(os, "JSIteratorChunksHelper");
+  os << "\n - chunk_size: " << chunk_size();
+  JSObjectPrintBody(os, this);
+}
+
+void JSIteratorWindowsHelper::JSIteratorWindowsHelperPrint(std::ostream& os) {
+  JSIteratorHelperSimplePrintHeader(os, "JSIteratorWindowsHelper");
+  os << "\n - window_size: " << window_size();
+  os << "\n - mode: " << mode();
+  os << "\n - buffer: " << Brief(buffer());
+  os << "\n - element_count: " << element_count();
+  os << "\n - start_index: " << start_index();
   JSObjectPrintBody(os, this);
 }
 
@@ -2687,7 +2712,7 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {
   // Print Builtin name for builtin functions
   Builtin builtin = code(isolate)->builtin_id();
   if (Builtins::IsBuiltinId(builtin)) {
-    os << "\n - builtin: " << isolate->builtins()->name(builtin);
+    os << "\n - builtin: " << Builtins::name(builtin);
   }
 
   os << "\n - formal_parameter_count: ";
@@ -3482,7 +3507,7 @@ void WasmTrustedInstanceData::WasmTrustedInstanceDataPrint(std::ostream& os) {
   PRINT_WASM_INSTANCE_FIELD(tiering_budget_array, to_void_ptr);
   PRINT_WASM_INSTANCE_FIELD(memory_bases_and_sizes, Brief);
   PRINT_WASM_INSTANCE_FIELD(shared_memory_backing_stores, Brief);
-  PRINT_WASM_INSTANCE_FIELD(break_on_entry, static_cast<int>);
+  PRINT_WASM_INSTANCE_FIELD(break_on_entry, bool);
   os << "\n";
 
 #undef PRINT_OPTIONAL_WASM_INSTANCE_FIELD
@@ -3810,18 +3835,8 @@ void StoreHandler::StoreHandlerPrint(std::ostream& os) {
 
 void AllocationSite::AllocationSitePrint(std::ostream& os) {
   PrintHeader(os, "AllocationSite");
-  if (this->HasWeakNext()) {
-    os << "\n - weak_next: "
-       << Brief(Cast<AllocationSiteWithWeakNext>(this)->weak_next());
-  }
   os << "\n - dependent code: " << Brief(dependent_code());
   os << "\n - nested site: " << Brief(nested_site());
-  os << "\n - memento found count: "
-     << Brief(Smi::FromInt(memento_found_count()));
-  os << "\n - memento create count: "
-     << Brief(Smi::FromInt(memento_create_count()));
-  os << "\n - pretenure decision: "
-     << Brief(Smi::FromInt(pretenure_decision()));
   os << "\n - transition_info: ";
   if (!PointsToLiteral()) {
     ElementsKind kind = GetElementsKind();
@@ -3832,12 +3847,6 @@ void AllocationSite::AllocationSitePrint(std::ostream& os) {
     os << "Object literal with boilerplate " << Brief(boilerplate());
   }
   os << "\n";
-}
-
-void AllocationMemento::AllocationMementoPrint(std::ostream& os) {
-  PrintHeader(os, "AllocationMemento");
-  os << "\n - allocation site: ";
-  GetAllocationSite()->AllocationSitePrint(os);
 }
 
 void ScriptOrModule::ScriptOrModulePrint(std::ostream& os) {
@@ -3949,7 +3958,6 @@ void Script::ScriptPrint(std::ostream& os) {
   os << "\n - name: " << Brief(name());
   os << "\n - line_offset: " << line_offset();
   os << "\n - column_offset: " << column_offset();
-  os << "\n - context data: " << Brief(context_data());
   os << "\n - type: " << static_cast<int>(type());
   os << "\n - line ends: " << Brief(line_ends());
   if (!has_line_ends()) os << " (not set)";
@@ -4811,6 +4819,9 @@ void Symbol::SymbolShortPrint(std::ostream& os) {
 void Map::PrintMapDetails(std::ostream& os) {
   DisallowGarbageCollection no_gc;
   this->MapPrint(os);
+#if V8_ENABLE_WEBASSEMBLY
+  if (IsAnyWasmObjectMap(this)) return;
+#endif  // V8_ENABLE_WEBASSEMBLY
   instance_descriptors()->PrintDescriptors(os);
 }
 

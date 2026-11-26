@@ -18,6 +18,7 @@
 #include <atomic>
 
 #include "src/base/platform/memory-protection-key.h"
+#include "src/base/platform/time.h"
 
 #if !V8_OS_QNX && !V8_OS_AIX && !V8_OS_ZOS
 #include <sys/syscall.h>
@@ -43,21 +44,6 @@
 #include <zircon/syscalls.h>
 #include <zircon/syscalls/debug.h>
 #include <zircon/types.h>
-
-// TODO(wez): Remove this once the Fuchsia SDK has rolled.
-#if defined(ZX_THREAD_STATE_REGSET0)
-#define ZX_THREAD_STATE_GENERAL_REGS ZX_THREAD_STATE_REGSET0
-zx_status_t zx_thread_read_state(zx_handle_t h, uint32_t k, void* b, size_t l) {
-  uint32_t dummy_out_len = 0;
-  return zx_thread_read_state(h, k, b, static_cast<uint32_t>(l),
-                              &dummy_out_len);
-}
-#if defined(__x86_64__)
-using zx_thread_state_general_regs_t = zx_x86_64_general_regs_t;
-#else
-using zx_thread_state_general_regs_t = zx_arm64_general_regs_t;
-#endif
-#endif  // !defined(ZX_THREAD_STATE_GENERAL_REGS)
 
 #endif
 
@@ -199,16 +185,40 @@ AtomicGuard::~AtomicGuard() {
 
 bool AtomicGuard::is_success() const { return is_success_; }
 
+namespace {
+// Tracks whether a SIGPROF sent by Sampler::DoSample() is currently in flight
+// for this target thread. Standard SIGPROF signals do not queue in the kernel:
+// multiple pthread_kill(tid, SIGPROF) calls to the same thread (e.g., from
+// back-to-back DoSample() calls or multiple Samplers attached to the same
+// thread) before HandleProfilerSignal runs coalesce into a single signal
+// delivery. Tracking pending state per target thread ensures at most one
+// in-flight SIGPROF per thread and a strict 1-to-1 match between
+// pending_signals_ increments and HandleProfilerSignal deliveries.
+//
+// Sampler::PlatformData() is constructed on the target VM thread and captures
+// the address of this thread_local variable so that:
+// 1. The sampler thread can access the target thread's flag via
+//    platform_data()->signal_pending().
+// 2. HandleProfilerSignal (running on the target thread) can access
+//    signal_pending_on_thread directly without locking or lazy TLS
+//    initialization inside the signal handler.
+constinit thread_local std::atomic_bool signal_pending_on_thread{false};
+}  // namespace
+
 class Sampler::PlatformData {
  public:
   PlatformData()
-      : vm_tid_(base::OS::GetCurrentThreadId()), vm_tself_(pthread_self()) {}
+      : vm_tid_(base::OS::GetCurrentThreadId()),
+        vm_tself_(pthread_self()),
+        signal_pending_(&signal_pending_on_thread) {}
   int vm_tid() const { return vm_tid_; }
   pthread_t vm_tself() const { return vm_tself_; }
+  std::atomic_bool* signal_pending() const { return signal_pending_; }
 
  private:
   int vm_tid_;
   pthread_t vm_tself_;
+  std::atomic_bool* signal_pending_;
 };
 
 void SamplerManager::AddSampler(Sampler* sampler) {
@@ -321,6 +331,8 @@ class Sampler::PlatformData {
 #endif  // USE_SIGNALS
 
 #if defined(USE_SIGNALS)
+namespace {
+
 class SignalHandler {
  public:
   static void IncreaseSamplerCount() {
@@ -330,6 +342,16 @@ class SignalHandler {
 
   static void DecreaseSamplerCount() {
     base::RecursiveMutexGuard lock_guard(mutex_.Pointer());
+    // Wait (holding mutex_, so no new SIGPROF can be sent) until every
+    // in-flight SIGPROF has finished HandleProfilerSignal(). This ensures no
+    // handler still uses this sampler after Stop() returns, and that the old
+    // handler is never restored while our SIGPROF is pending (SIG_DFL would
+    // kill the process, https://crbug.com/573397777). Flushing via SIG_IGN is
+    // not an option on macOS (https://crbug.com/575305420).
+    while (pending_signals_.load(std::memory_order_acquire) > 0) {
+      base::OS::Sleep(base::TimeDelta::FromMicroseconds(1));
+    }
+    DCHECK_GT(client_count_, 0);
     if (--client_count_ == 0) Restore();
   }
 
@@ -337,6 +359,29 @@ class SignalHandler {
     // mutex_ will also be used in Sampler::DoSample to guard the state below.
     base::RecursiveMutexGuard lock_guard(mutex_.Pointer());
     return signal_handler_installed_;
+  }
+
+  static void SendProfilingSignal(pthread_t thread,
+                                  std::atomic_bool* signal_pending) {
+    DCHECK(signal_handler_installed_);
+    // Only send SIGPROF if no signal is already in flight for this target
+    // thread. This prevents the kernel from coalescing multiple SIGPROF signals
+    // into one delivery, keeping pending_signals_ accurate. Because the caller
+    // set record_sample_ with seq_cst beforehand and HandleProfilerSignal
+    // clears signal_pending_on_thread with seq_cst before reading
+    // record_sample_, an already in-flight signal is guaranteed to observe
+    // record_sample_.
+    bool expected = false;
+    if (!signal_pending->compare_exchange_strong(expected, true,
+                                                 std::memory_order_seq_cst)) {
+      return;
+    }
+    pending_signals_.fetch_add(1, std::memory_order_relaxed);
+    if (pthread_kill(thread, SIGPROF) != 0) {
+      if (signal_pending->exchange(false, std::memory_order_seq_cst)) {
+        pending_signals_.fetch_sub(1, std::memory_order_release);
+      }
+    }
   }
 
   static v8::base::RecursiveMutex* mutex() { return mutex_.Pointer(); }
@@ -357,16 +402,11 @@ class SignalHandler {
 
   static void Restore() {
     if (signal_handler_installed_) {
+      // DecreaseSamplerCount() already drained pending_signals_ to 0 while
+      // holding mutex_, so no SIGPROF is pending or mid-delivery when we
+      // restore the previous signal handler.
+      DCHECK_EQ(0, pending_signals_.load(std::memory_order_relaxed));
       signal_handler_installed_ = false;
-      // Setting SIG_IGN discards any pending SIGPROF signals on all threads in
-      // the process (POSIX.1) before restoring the previous disposition, which
-      // may be SIG_DFL and would otherwise terminate the process if a signal
-      // sent by DoSample() is still pending.
-      struct sigaction sa;
-      sa.sa_handler = SIG_IGN;
-      sigemptyset(&sa.sa_mask);
-      sa.sa_flags = 0;
-      sigaction(SIGPROF, &sa, nullptr);
       sigaction(SIGPROF, &old_signal_handler_, nullptr);
     }
   }
@@ -374,11 +414,15 @@ class SignalHandler {
   static void FillRegisterState(void* context, RegisterState* regs);
   static void HandleProfilerSignal(int signal, siginfo_t* info, void* context);
 
-  // Protects the process wide state below.
+  // Protects the process wide state below (except pending_signals_, which is
+  // updated atomically so HandleProfilerSignal stays lock-free).
   static base::LazyRecursiveMutex mutex_;
   static int client_count_;
   static bool signal_handler_installed_;
   static struct sigaction old_signal_handler_;
+  // Number of target threads that currently have an in-flight SIGPROF sent by
+  // SendProfilingSignal().
+  static std::atomic_int pending_signals_;
 };
 
 base::LazyRecursiveMutex SignalHandler::mutex_ =
@@ -387,11 +431,19 @@ base::LazyRecursiveMutex SignalHandler::mutex_ =
 int SignalHandler::client_count_ = 0;
 struct sigaction SignalHandler::old_signal_handler_;
 bool SignalHandler::signal_handler_installed_ = false;
+std::atomic_int SignalHandler::pending_signals_{0};
 
 void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
                                          void* context) {
   USE(info);
   if (signal != SIGPROF) return;
+  const int saved_errno = errno;
+  // Clear signal_pending_on_thread with seq_cst *before* SamplerManager::
+  // DoSample() consumes record_sample_ so that any concurrent Sampler::
+  // DoSample() call that sets record_sample_ after DoSample() has checked this
+  // sampler will see signal_pending_on_thread == false and send a new SIGPROF.
+  const bool was_pending =
+      signal_pending_on_thread.exchange(false, std::memory_order_seq_cst);
 
 #if V8_HAS_PKU_SUPPORT
   base::MemoryProtectionKey::SetDefaultPermissionsForAllKeysInSignalHandler();
@@ -400,6 +452,14 @@ void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
   v8::RegisterState state;
   FillRegisterState(context, &state);
   SamplerManager::instance()->DoSample(state);
+
+  // Decrement pending_signals_ only after SamplerManager::DoSample() completes,
+  // and only if this SIGPROF was sent by SendProfilingSignal() (guarded by
+  // was_pending in case an external SIGPROF arrives).
+  if (was_pending) {
+    pending_signals_.fetch_sub(1, std::memory_order_release);
+  }
+  errno = saved_errno;
 }
 
 void SignalHandler::FillRegisterState(void* context, RegisterState* state) {
@@ -572,6 +632,7 @@ void SignalHandler::FillRegisterState(void* context, RegisterState* state) {
 #endif  // V8_OS_AIX
 }
 
+}  // namespace
 #endif  // USE_SIGNALS
 
 Sampler::Sampler(Isolate* isolate)
@@ -602,19 +663,25 @@ void Sampler::Start() {
 void Sampler::Stop() {
 #if defined(USE_SIGNALS)
   SamplerManager::instance()->RemoveSampler(this);
-  SignalHandler::DecreaseSamplerCount();
 #endif
   DCHECK(IsActive());
+  // Clear active_ before DecreaseSamplerCount() so that a concurrent
+  // Sampler::DoSample() on this sampler cannot send a new SIGPROF even if
+  // another active sampler keeps SignalHandler::Installed() true.
   SetActive(false);
+#if defined(USE_SIGNALS)
+  SignalHandler::DecreaseSamplerCount();
+#endif
 }
 
 #if defined(USE_SIGNALS)
 
 void Sampler::DoSample() {
   base::RecursiveMutexGuard lock_guard(SignalHandler::mutex());
-  if (!SignalHandler::Installed()) return;
+  if (!SignalHandler::Installed() || !IsActive()) return;
   SetShouldRecordSample();
-  pthread_kill(platform_data()->vm_tself(), SIGPROF);
+  SignalHandler::SendProfilingSignal(platform_data()->vm_tself(),
+                                     platform_data()->signal_pending());
 }
 
 #elif V8_OS_WIN || V8_OS_CYGWIN
@@ -692,11 +759,6 @@ void Sampler::DoSample() {
 
   zx_handle_close(suspend_token);
 }
-
-// TODO(wez): Remove this once the Fuchsia SDK has rolled.
-#if defined(ZX_THREAD_STATE_REGSET0)
-#undef ZX_THREAD_STATE_GENERAL_REGS
-#endif
 
 #endif  // USE_SIGNALS
 

@@ -917,6 +917,7 @@ DirectHandle<WasmValueObject> WasmValueObject::New(Isolate* isolate,
   }
   DirectHandle<Map> value_map(Cast<Map>(maps->get(kWasmValueMapIndex)),
                               isolate);
+  DCHECK(Is<JSAny>(*value));
   auto object =
       Cast<WasmValueObject>(isolate->factory()->NewJSObjectFromMap(value_map));
   object->set_type(*type);
@@ -1054,19 +1055,18 @@ DirectHandle<WasmValueObject> WasmValueObject::New(
     case wasm::kRefNull:
     case wasm::kRef: {
       DirectHandle<Object> ref = value.to_ref();
+      if (IsWasmNull(*ref)) {
+        v = isolate->factory()->null_value();
+        t = GetRefTypeName(isolate, value.type());
+        break;
+      }
 #ifdef V8_IS_TSAN
       if (IsHeapObject(*ref) &&
           HeapLayout::InWritableSharedSpace(Cast<HeapObject>(*ref))) {
         TSAN_ACQUIRE(Cast<HeapObject>(*ref).address());
       }
 #endif
-      if (value.type().is_reference_to(wasm::GenericKind::kExn)) {
-        t = isolate->factory()->InternalizeString("exnref");
-        v = ref;
-      } else if (IsWasmNull(*ref)) {
-        v = isolate->factory()->null_value();
-        t = GetRefTypeName(isolate, value.type());
-      } else if (IsWasmStruct(*ref)) {
+      if (IsWasmStruct(*ref)) {
         Tagged<WasmTypeInfo> type_info =
             Cast<HeapObject>(*ref)->map()->wasm_type_info();
         t = GetRefTypeName(isolate, type_info->type());
@@ -1089,7 +1089,8 @@ DirectHandle<WasmValueObject> WasmValueObject::New(
       } else if (IsJSFunction(*ref) || IsSmi(*ref) || IsNull(*ref) ||
                  IsString(*ref) ||
                  value.type().is_reference_to(wasm::GenericKind::kExtern) ||
-                 value.type().is_reference_to(wasm::GenericKind::kAny)) {
+                 value.type().is_reference_to(wasm::GenericKind::kAny) ||
+                 value.type().is_reference_to(wasm::GenericKind::kExn)) {
         t = GetRefTypeName(isolate, value.type());
         v = ref;
       } else {

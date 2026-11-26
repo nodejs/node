@@ -104,6 +104,7 @@ void ProcessorImpl::InvertNewton(RWDigits Z, Digits V, RWDigits scratch) {
   uint32_t initial_digits = DIV_CEIL(k + 1, kDigitBits);
   Digits top_part_of_v(V, vn - initial_digits, initial_digits);
   InvertBasecase(Z, top_part_of_v, scratch);
+  if (should_terminate()) return;
   Z[initial_digits] = Z[initial_digits] + 1;  // Implicit top digit.
   // From now on, we'll keep Z.len updated to the part that's already computed.
   Z.set_len(initial_digits + 1);
@@ -203,6 +204,7 @@ void ProcessorImpl::Invert(RWDigits Z, Digits V, RWDigits scratch) {
     Z[1] = 0;
   } else {
     InvertBasecase(Z, V, scratch);
+    if (should_terminate()) return;
     if (Z[vn] == 1) {
       for (uint32_t i = 0; i < vn; i++) Z[i] = ~digit_t{0};
       Z[vn] = 0;
@@ -350,8 +352,8 @@ void ProcessorImpl::DivideBarrett(RWDigits Q, RWDigits R, Digits A, Digits B) {
       PutAt(Z, A + n * i, n);
       // (8a): Compute Qi, Ri such that Zi = B*Qi + Ri.
       DivideBarrett(Qi, Ri, Z, B, I, scratch);
-      DCHECK(Qi[qi_len - 1] == 0);
       if (should_terminate()) return;
+      DCHECK(Qi[qi_len - 1] == 0);
       // (9): Return Q = [Q_(t-2), ..., Q_0]...
       PutAt(Q + n * i, Qi, n);
     }

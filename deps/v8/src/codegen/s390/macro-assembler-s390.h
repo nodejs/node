@@ -215,6 +215,14 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                               const Operand& startBit, const Operand& endBit,
                               const Operand& shiftAmt, bool zeroBits);
 
+  void RotateLeft(Register dst, Register src, Register shiftReg,
+                  const Operand& shiftAmt = Operand::Zero());
+  void RotateLeft(Register dst, Register src, const Operand& shiftAmt);
+
+  void RotateRight(Register dst, Register src, Register shiftReg,
+                   const Operand& shiftAmt = Operand::Zero());
+  void RotateRight(Register dst, Register src, const Operand& shiftAmt);
+
   void BranchRelativeOnIdxHighP(Register dst, Register inc, Label* L);
 
   void MaybeSaveRegisters(RegList registers);
@@ -1141,6 +1149,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void CheckPageFlag(Register object, Register scratch, int mask, Condition cc,
                      Label* condition_met);
 
+  void JumpIfMarking(Label* is_marking);
+
   void PreCheckSkippedWriteBarrier(Register object, Register value,
                                    Register scratch, Label* ok);
 
@@ -1550,6 +1560,12 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void DecompressTagged(Register destination, MemOperand field_operand);
   void DecompressTagged(Register destination, Register source);
   void DecompressTagged(const Register& destination, Tagged_t immediate);
+
+  // Loads a field containing an off-heap ("external") pointer and untags it if
+  // necessary.
+  void LoadExternalPointerField(Register destination, MemOperand field_operand,
+                                ExternalPointerTagRange tag_range,
+                                Register isolate_root = no_reg);
 
   // CountLeadingZeros will corrupt the scratch register pair (eg. r0:r1)
   void CountLeadingZerosU32(Register dst, Register src,

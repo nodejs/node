@@ -1019,8 +1019,6 @@ Response V8DebuggerAgentImpl::getPossibleBreakpoints(
   *locations =
       std::make_unique<protocol::Array<protocol::Debugger::BreakLocation>>();
 
-  // TODO(1106269): Return an error instead of capping the number of
-  // breakpoints.
   const size_t numBreakpointsToSend =
       std::min(v8Locations.size(), kMaxNumBreakpoints);
   for (size_t i = 0; i < numBreakpointsToSend; ++i) {
@@ -1036,6 +1034,24 @@ Response V8DebuggerAgentImpl::getPossibleBreakpoints(
     (*locations)->emplace_back(std::move(breakLocation));
   }
   return Response::Success();
+}
+
+Response V8DebuggerAgentImpl::getScopeChain(
+    const String16& callFrameId, std::unique_ptr<Array<Scope>>* scopeChain) {
+  if (!enabled()) return Response::ServerError(kDebuggerNotEnabled);
+  if (!isPaused()) return Response::ServerError(kDebuggerNotPaused);
+  InjectedScript::CallFrameScope scope(m_session, callFrameId);
+  Response response = scope.initialize();
+  if (!response.IsSuccess()) return response;
+
+  int frameOrdinal = static_cast<int>(scope.frameOrdinal());
+  auto it = v8::debug::StackTraceIterator::Create(m_isolate, frameOrdinal);
+  if (it->Done()) {
+    return Response::ServerError("Could not find call frame with given id");
+  }
+  auto scopeIterator = it->GetScopeIterator();
+  return buildScopes(m_isolate, scopeIterator.get(), scope.injectedScript(),
+                     scopeChain);
 }
 
 Response V8DebuggerAgentImpl::continueToLocation(
@@ -1062,10 +1078,16 @@ Response V8DebuggerAgentImpl::continueToLocation(
   m_skipList.clear();
   v8::HandleScope handleScope(m_isolate);
   v8::Context::Scope contextScope(inspected->context());
-  return m_debugger->continueToLocation(
+  bool wasInstrumentationFinished = m_instrumentationFinished;
+  m_instrumentationFinished = true;
+  Response response = m_debugger->continueToLocation(
       m_session->contextGroupId(), script.get(), std::move(location),
       targetCallFrames.value_or(
           protocol::Debugger::ContinueToLocation::TargetCallFramesEnum::Any));
+  if (!response.IsSuccess()) {
+    m_instrumentationFinished = wasInstrumentationFinished;
+  }
+  return response;
 }
 
 Response V8DebuggerAgentImpl::getStackTrace(
@@ -1295,6 +1317,8 @@ Response V8DebuggerAgentImpl::restartFrame(
   }
   m_skipList.clear();
   m_session->releaseObjectGroup(kBacktraceObjectGroup);
+  m_instrumentationFinished = true;
+  m_debugger->continueProgram(m_session->contextGroupId());
   *newCallFrames = std::make_unique<Array<CallFrame>>();
   return Response::Success();
 }
@@ -1613,6 +1637,7 @@ Response V8DebuggerAgentImpl::stepOver(
   m_enterRanges = std::move(enterRanges);
 
   m_session->releaseObjectGroup(kBacktraceObjectGroup);
+  m_instrumentationFinished = true;
   m_debugger->stepOverStatement(m_session->contextGroupId(),
                                 !m_enterRanges.empty());
   return Response::Success();
@@ -1632,6 +1657,7 @@ Response V8DebuggerAgentImpl::stepInto(
   }
 
   m_session->releaseObjectGroup(kBacktraceObjectGroup);
+  m_instrumentationFinished = true;
   m_debugger->stepIntoStatement(m_session->contextGroupId(),
                                 inBreakOnAsyncCall.value_or(false));
   return Response::Success();
@@ -1641,6 +1667,7 @@ Response V8DebuggerAgentImpl::stepOut() {
   if (!isPaused()) return Response::ServerError(kDebuggerNotPaused);
   m_skipList.clear();
   m_session->releaseObjectGroup(kBacktraceObjectGroup);
+  m_instrumentationFinished = true;
   m_debugger->stepOutOfFunction(m_session->contextGroupId());
   return Response::Success();
 }

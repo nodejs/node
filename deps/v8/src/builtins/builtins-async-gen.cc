@@ -145,6 +145,14 @@ TNode<Object> AsyncBuiltinsAssembler::Await(TNode<Context> context,
   TNode<BoolT> bypass_closures = Int32FalseConstant();
   if (await_behavior == AwaitBehavior::kResumeOnly) {
     bypass_closures = Word32BinaryNot(has_instrumentation);
+#ifdef V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS
+    // With context promise hooks there is a throwaway promise (see below),
+    // which a reaction job only resolves, firing its hooks, when its handler
+    // is a closure.
+    bypass_closures = Word32And(
+        bypass_closures,
+        Word32BinaryNot(IsContextPromiseHookEnabled(promiseHookFlags)));
+#endif  // V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS
   }
 
   // Fast path for non-thenable values: skip creating a wrapper promise and
@@ -375,7 +383,7 @@ TNode<Object> AsyncBuiltinsAssembler::AwaitWithReusableClosures(
         BIND(&closures_ready);
         return std::make_pair(var_on_resolve.value(), var_on_reject.value());
       },
-      AwaitBehavior::kNormal);
+      AwaitBehavior::kResumeOnly);
 }
 
 TNode<JSFunction> AsyncBuiltinsAssembler::CreateUnwrapClosure(

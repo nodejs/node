@@ -70,17 +70,6 @@ class V8_GSL_POINTER TaggedMember : public TaggedMemberBase {
                             WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline void Release_Store_no_write_barrier(Tagged<T> value);
 
-  inline Tagged<T> SeqCst_Load() const;
-  inline void SeqCst_Store(HeapObject* host, Tagged<T> value,
-                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline void SeqCst_Store_no_write_barrier(Tagged<T> value);
-
-  inline Tagged<T> SeqCst_Swap(HeapObject* host, Tagged<T> value,
-                               WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline Tagged<T> SeqCst_CompareAndSwap(
-      HeapObject* host, Tagged<T> expected_value, Tagged<T> value,
-      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-
  private:
   inline void WriteBarrier(HeapObject* host, Tagged<T> value,
                            WriteBarrierMode mode);
@@ -99,6 +88,8 @@ class SmiBitFieldMember : private TaggedMember<Smi> {
   static_assert(std::is_base_of_v<BitFieldGroup<Group, uint32_t>, Group>);
 
   constexpr SmiBitFieldMember() = default;
+  inline explicit SmiBitFieldMember(Group value);
+  inline SmiBitFieldMember(Group value, RelaxedStoreTag);
 
   inline Group load() const;
   inline void store(Group value);
@@ -288,20 +279,10 @@ class TaggedField : public AllStatic {
   static inline void Release_Store(Tagged<HeapObject> host, int offset,
                                    PtrType value);
 
-  static inline void SeqCst_Store(Tagged<HeapObject> host, PtrType value);
-  static inline void SeqCst_Store(Tagged<HeapObject> host, int offset,
-                                  PtrType value);
-
-  static inline PtrType SeqCst_Swap(Tagged<HeapObject> host, int offset,
-                                    PtrType value);
-
   static inline Tagged_t Release_CompareAndSwap(Tagged<HeapObject> host,
                                                 PtrType old, PtrType value);
   static inline Tagged_t Relaxed_CompareAndSwap(Tagged<HeapObject> host,
                                                 PtrType old, PtrType value);
-  static inline PtrType SeqCst_CompareAndSwap(Tagged<HeapObject> host,
-                                              int offset, PtrType old,
-                                              PtrType value);
 
   // Note: Use these *_Map_Word methods only when loading a MapWord from a
   // MapField.

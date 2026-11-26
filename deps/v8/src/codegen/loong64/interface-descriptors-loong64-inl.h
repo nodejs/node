@@ -155,9 +155,6 @@ constexpr Register BaselineLeaveFrameDescriptor::ParamsSizeRegister() {
 }
 
 // static
-constexpr Register BaselineLeaveFrameDescriptor::WeightRegister() { return a3; }
-
-// static
 constexpr Register TypeConversionDescriptor::ArgumentRegister() { return a0; }
 
 // static

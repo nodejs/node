@@ -122,7 +122,7 @@ LIBC_INLINE float asinf(float x) {
 
   xbits.set_sign(Sign::POS);
   double sign_two = TWO[x_sign]; // sign * (-2)
-  double uf = fputil::multiply_add(-0.5f, xbits.get_val(), 0.5f);
+  double uf = fputil::sub_multiply(0.5f, 0.5f, xbits.get_val());
   double u = static_cast<double>(uf);
   double c1 = sign_two * fputil::sqrt<double>(u);
   double c2 = fputil::multiply_add(sign_two, M_PI_OVER_4, c1);

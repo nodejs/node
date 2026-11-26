@@ -196,3 +196,9 @@ functions:
     return_type: int
     arguments:
       - type: void
+  - name: unshare
+    standards:
+      - linux
+    return_type: int
+    arguments:
+      - type: int

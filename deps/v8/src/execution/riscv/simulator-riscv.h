@@ -286,6 +286,15 @@ class SimInstructionBase : public InstructionBase {
   inline Instruction* instr() const { return instr_; }
   inline int32_t operand() const { return operand_; }
 
+  // These hide the InstructionBase versions: operand_ already has the upper
+  // half cleared for a 16-bit instruction, so a field read needs no test of
+  // the instruction size.
+  inline Instr InstructionBits() const { return operand_; }
+  inline int Bit(int nr) const { return (InstructionBits() >> nr) & 1; }
+  inline int Bits(int hi, int lo) const {
+    return (InstructionBits() >> lo) & ((2U << (hi - lo)) - 1);
+  }
+
  protected:
   SimInstructionBase() : operand_(-1), instr_(nullptr), type_(kUnsupported) {}
   explicit SimInstructionBase(Instruction* instr) {}
@@ -300,14 +309,23 @@ class SimInstructionBase : public InstructionBase {
 
 class SimInstruction : public InstructionGetters<SimInstructionBase> {
  public:
+  // The encoding types of the 32-bit instructions by major opcode bits 6..2.
+  static constexpr auto kBaseOpcodeTypes = [] {
+    std::array<Type, 32> types{};
+    for (Instr i = 0; i < 32; i++) types[i] = BaseOpcodeType((i << 2) | 3);
+    return types;
+  }();
+
   SimInstruction() {}
 
   explicit SimInstruction(Instruction* instr) { *this = instr; }
 
   SimInstruction& operator=(Instruction* instr) {
-    operand_ = *reinterpret_cast<const int32_t*>(instr);
+    operand_ = instr->InstructionBits();
     instr_ = instr;
-    type_ = InstructionBase::InstructionType();
+    type_ = IsShortInstruction()
+                ? InstructionBase::InstructionType()
+                : kBaseOpcodeTypes[(operand_ & kBaseOpcodeMask) >> 2];
     DCHECK(reinterpret_cast<void*>(&operand_) == this);
     return *this;
   }
@@ -672,6 +690,17 @@ class Simulator : public SimulatorBase {
   uintptr_t PopShadowStack(uintptr_t value);
   uintptr_t SwapShadowStack(uintptr_t value, int nest);
 
+  // Manage instruction tracing.
+  bool InstructionTracingEnabled() const { return instruction_tracing_; }
+  void SetInstructionTracing(bool enabled) {
+    instruction_tracing_ = enabled;
+    UpdateInstructionChecks();
+  }
+  void ToggleInstructionTracing() {
+    instruction_tracing_ = !instruction_tracing_;
+    UpdateInstructionChecks();
+  }
+
  private:
   enum special_values {
     // Known bad pc value to ensure that the simulator does not execute
@@ -968,7 +997,7 @@ class Simulator : public SimulatorBase {
   }
 
   inline void rvv_trace_vd() {
-    if (v8_flags.trace_sim) {
+    if (InstructionTracingEnabled()) {
       int offset = snprintf_vreg(rvv_vd_reg());
       SNPrintF(base::VectorOf(trace_buf_).SubVector(offset, trace_buf_.size()),
                " (%" PRId64 ")", icount_);
@@ -976,24 +1005,24 @@ class Simulator : public SimulatorBase {
   }
 
   inline void rvv_trace_vs1() {
-    if (v8_flags.trace_sim) {
+    if (InstructionTracingEnabled()) {
       printf_vreg(rvv_vs1_reg());
     }
   }
 
   inline void rvv_trace_vs2() {
-    if (v8_flags.trace_sim) {
+    if (InstructionTracingEnabled()) {
       printf_vreg(rvv_vs2_reg());
     }
   }
   inline void rvv_trace_v0() {
-    if (v8_flags.trace_sim) {
+    if (InstructionTracingEnabled()) {
       printf_vreg(v0);
     }
   }
 
   inline void rvv_trace_rs1() {
-    if (v8_flags.trace_sim) {
+    if (InstructionTracingEnabled()) {
       PrintF("\t%s:0x%016" PRIx64 "\n",
              v8::internal::Registers::Name(static_cast<int>(rs1_reg())),
              (uint64_t)(get_register(rs1_reg())));
@@ -1001,7 +1030,7 @@ class Simulator : public SimulatorBase {
   }
 
   inline void rvv_trace_status() {
-    if (v8_flags.trace_sim) {
+    if (InstructionTracingEnabled()) {
       size_t i = 0;
       for (; i < trace_buf_.size(); i++) {
         if (trace_buf_[i] == '\0') break;
@@ -1264,6 +1293,10 @@ class Simulator : public SimulatorBase {
 
   // Executes one instruction.
   void InstructionDecode(Instruction* instr);
+  void DecodeInstruction(Instruction* instr);
+  void ExecuteWithChecks(Instruction* instr);
+  // Sets instruction_checks_, which Execute tests before each instruction.
+  void UpdateInstructionChecks();
 
   // ICache.
   static void CheckICache(base::CustomMatcherHashMap* i_cache,
@@ -1340,6 +1373,10 @@ class Simulator : public SimulatorBase {
   static const int kAdditionalStackMargin = 20 * KB;
 
   bool pc_modified_;
+  // Take a copy of the v8 simulator tracing flag because flags are frozen after
+  // start.
+  bool instruction_tracing_ = v8_flags.trace_sim;
+  bool instruction_checks_ = true;
   int64_t icount_;
   sreg_t* watch_address_ = nullptr;
   sreg_t watch_value_ = 0;

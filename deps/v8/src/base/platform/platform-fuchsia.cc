@@ -64,6 +64,24 @@ zx_vm_option_t GetProtectionFromMemoryPermission(OS::MemoryPermission access) {
   UNREACHABLE();
 }
 
+zx_vm_option_t GetVmarPermissionsFromMemoryPermission(
+    OS::MemoryPermission max_permission) {
+  switch (max_permission) {
+    case OS::MemoryPermission::kNoAccess:
+      return 0;
+    case OS::MemoryPermission::kRead:
+      return ZX_VM_CAN_MAP_READ;
+    case OS::MemoryPermission::kReadWrite:
+      return ZX_VM_CAN_MAP_READ | ZX_VM_CAN_MAP_WRITE;
+    case OS::MemoryPermission::kReadWriteExecute:
+    case OS::MemoryPermission::kNoAccessWillJitLater:
+      return ZX_VM_CAN_MAP_READ | ZX_VM_CAN_MAP_WRITE | ZX_VM_CAN_MAP_EXECUTE;
+    case OS::MemoryPermission::kReadExecute:
+      return ZX_VM_CAN_MAP_READ | ZX_VM_CAN_MAP_EXECUTE;
+  }
+  UNREACHABLE();
+}
+
 // Determine ZX_VM_ALIGN_X constant corresponding to the specified alignment.
 // Returns 0 if there is none.
 zx_vm_option_t GetAlignmentOptionFromAlignment(size_t alignment) {
@@ -125,7 +143,8 @@ void* MapVmo(const zx::vmar& vmar, void* vmar_base, size_t page_size,
   }
 
   zx_vaddr_t result;
-  zx_status_t status = vmar.map(options, vmar_offset, vmo, 0, size, &result);
+  zx_status_t status =
+      vmar.map(options, vmar_offset, vmo, offset, size, &result);
 
   if (status == ZX_OK) {
     DCHECK_EQ(result % alignment, 0);
@@ -181,13 +200,13 @@ void* CreateAndMapVmo(const zx::vmar& vmar, void* vmar_base, size_t page_size,
   vmo.set_property(ZX_PROP_NAME, kVirtualMemoryName,
                    strlen(kVirtualMemoryName));
 
-  // Always call zx_vmo_replace_as_executable() in case the memory will need
-  // to be marked as executable in the future.
-  // TOOD(https://crbug.com/v8/8899): Only call this when we know that the
-  // region will need to be marked as executable in the future.
-  zx::unowned_resource vmex(g_vmex_resource);
-  if (vmo.replace_as_executable(*vmex, &vmo) != ZX_OK) {
-    return nullptr;
+  if (access == OS::MemoryPermission::kNoAccessWillJitLater ||
+      access == OS::MemoryPermission::kReadWriteExecute ||
+      access == OS::MemoryPermission::kReadExecute) {
+    zx::unowned_resource vmex(g_vmex_resource);
+    if (vmo.replace_as_executable(*vmex, &vmo) != ZX_OK) {
+      return nullptr;
+    }
   }
 
   size_t request_size = size;
@@ -221,6 +240,15 @@ bool UnmapVmo(const zx::vmar& vmar, size_t page_size, void* address,
   return vmar.unmap(reinterpret_cast<uintptr_t>(address), size) == ZX_OK;
 }
 
+bool DiscardSystemPagesInternal(const zx::vmar& vmar, size_t page_size,
+                                void* address, size_t size) {
+  DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % page_size);
+  DCHECK_EQ(0, size % page_size);
+  uint64_t address_int = reinterpret_cast<uint64_t>(address);
+  return vmar.op_range(ZX_VMO_OP_DECOMMIT, address_int, size,
+                       /*buffer=*/nullptr, /*buffer_size=*/0) == ZX_OK;
+}
+
 bool SetPermissionsInternal(const zx::vmar& vmar, size_t page_size,
                             void* address, size_t size,
                             OS::MemoryPermission access) {
@@ -236,16 +264,26 @@ bool SetPermissionsInternal(const zx::vmar& vmar, size_t page_size,
   // zx_vmar_protect cannot return ZX_ERR_NO_MEMORY, so any error here is
   // unexpected.
   CHECK_EQ(status, ZX_OK);
+
+  if (access == OS::MemoryPermission::kNoAccess) {
+    // This is advisory; ignore errors and continue execution.
+    USE(DiscardSystemPagesInternal(vmar, page_size, address, size));
+  }
+
   return status == ZX_OK;
 }
 
-bool DiscardSystemPagesInternal(const zx::vmar& vmar, size_t page_size,
-                                void* address, size_t size) {
+bool DecommitPagesInternal(const zx::vmar& vmar, size_t page_size,
+                           void* address, size_t size) {
   DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % page_size);
   DCHECK_EQ(0, size % page_size);
-  uint64_t address_int = reinterpret_cast<uint64_t>(address);
-  return vmar.op_range(ZX_VMO_OP_DECOMMIT, address_int, size, nullptr, 0) ==
-         ZX_OK;
+  zx_status_t status =
+      vmar.protect(/*options=*/0, reinterpret_cast<uintptr_t>(address), size);
+  CHECK_EQ(status, ZX_OK);
+  // We rely on DiscardSystemPagesInternal decommitting the pages immediately
+  // (via ZX_VMO_OP_DECOMMIT) so that they are guaranteed to be zero-initialized
+  // should they be accessed again later on.
+  return DiscardSystemPagesInternal(vmar, page_size, address, size);
 }
 
 zx_status_t CreateAddressSpaceReservationInternal(
@@ -258,9 +296,9 @@ zx_status_t CreateAddressSpaceReservationInternal(
   DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % alignment);
   DCHECK_IMPLIES(placement != PlacementMode::kAnywhere, address != nullptr);
 
-  // TODO(v8) determine these based on max_permission.
-  zx_vm_option_t options = ZX_VM_CAN_MAP_READ | ZX_VM_CAN_MAP_WRITE |
-                           ZX_VM_CAN_MAP_EXECUTE | ZX_VM_CAN_MAP_SPECIFIC;
+  zx_vm_option_t options =
+      GetVmarPermissionsFromMemoryPermission(max_permission) |
+      ZX_VM_CAN_MAP_SPECIFIC;
 
   zx_vm_option_t alignment_option = GetAlignmentOptionFromAlignment(alignment);
   CHECK_NE(0, alignment_option);  // Invalid alignment specified
@@ -377,11 +415,8 @@ bool OS::DiscardSystemPages(void* address, size_t size) {
 
 // static
 bool OS::DecommitPages(void* address, size_t size) {
-  // We rely on DiscardSystemPages decommitting the pages immediately (via
-  // ZX_VMO_OP_DECOMMIT) so that they are guaranteed to be zero-initialized
-  // should they be accessed again later on.
-  return SetPermissions(address, size, MemoryPermission::kNoAccess) &&
-         DiscardSystemPages(address, size);
+  return DecommitPagesInternal(*zx::vmar::root_self(), CommitPageSize(),
+                               address, size);
 }
 
 // static
@@ -546,9 +581,8 @@ bool AddressSpaceReservation::DiscardSystemPages(void* address, size_t size) {
 
 bool AddressSpaceReservation::DecommitPages(void* address, size_t size) {
   DCHECK(Contains(address, size));
-  // See comment in OS::DecommitPages.
-  return SetPermissions(address, size, OS::MemoryPermission::kNoAccess) &&
-         DiscardSystemPages(address, size);
+  return DecommitPagesInternal(*zx::unowned_vmar(vmar_), OS::CommitPageSize(),
+                               address, size);
 }
 
 }  // namespace base

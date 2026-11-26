@@ -1131,6 +1131,7 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   void PrintCurrentBlock(std::ostream& os);
 #endif  // DEBUG
   bool InsideBlock();
+  bool IsAtStart() const;
 
   // Add success / exception successor blocks and ends the current block ending
   // in a potentially throwing call node.
@@ -1186,15 +1187,11 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   // If we're generating the code for one of these special builtins, this
   // function will return a node containing the actual JS parameter count.
   // Otherwise it will be nullptr.
-  //
-  // TODO(saelo): it would be a bit nicer if we could automatically determine
-  // that the dynamic parameter count is required (for example from the call
-  // descriptor) and then directly fetch it in the prologue and use it in the
-  // epilogue without the higher-level assemblers having to get involved. It's
-  // not clear if it's worth the effort though for the handful of builtins that
-  // work this way though.
   Node* dynamic_js_parameter_count() { return dynamic_js_parameter_count_; }
   void set_dynamic_js_parameter_count(Node* parameter_count) {
+    // Must be set at the start of the builtin before any call/GC can sweep an
+    // unrooted dispatch table entry.
+    DCHECK(IsAtStart());
     dynamic_js_parameter_count_ = parameter_count;
   }
 

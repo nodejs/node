@@ -115,10 +115,10 @@ LIBC_INLINE float cosf(float x) {
     // double for intermediate results as it is more efficient than using an
     // emulated version of FMA.
 #if defined(LIBC_TARGET_CPU_HAS_FMA_FLOAT)
-    return fputil::multiply_add(xbits.get_val(), -0x1.0p-25f, 1.0f);
+    return fputil::sub_multiply(1.0f, xbits.get_val(), 0x1.0p-25f);
 #else  // !LIBC_TARGET_CPU_HAS_FMA_FLOAT
     double xd = static_cast<double>(xbits.get_val());
-    return static_cast<float>(fputil::multiply_add(xd, -0x1.0p-25, 1.0));
+    return static_cast<float>(fputil::sub_multiply(1.0, xd, 0x1.0p-25));
 #endif // LIBC_TARGET_CPU_HAS_FMA_FLOAT
   }
 
@@ -150,8 +150,8 @@ LIBC_INLINE float cosf(float x) {
 
   sincosf_eval(xd, x_abs, sin_k, cos_k, sin_y, cosm1_y);
 
-  return static_cast<float>(fputil::multiply_add(
-      sin_y, -sin_k, fputil::multiply_add(cosm1_y, cos_k, cos_k)));
+  return static_cast<float>(fputil::sub_multiply(
+      fputil::multiply_add(cosm1_y, cos_k, cos_k), sin_y, sin_k));
 }
 
 } // namespace double_eval

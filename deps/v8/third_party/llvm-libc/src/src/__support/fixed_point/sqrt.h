@@ -13,11 +13,11 @@
 #include "src/__support/CPP/bit.h"
 #include "src/__support/CPP/limits.h" // CHAR_BIT
 #include "src/__support/CPP/type_traits.h"
-#include "src/__support/macros/attributes.h"   // LIBC_INLINE
+#include "src/__support/fixed_point/fx_rep.h"
+#include "src/__support/macros/attributes.h" // LIBC_INLINE
 #include "src/__support/macros/config.h"
 #include "src/__support/macros/optimization.h" // LIBC_UNLIKELY
-
-#include "fx_rep.h"
+#include "src/__support/uint128.h"
 
 #ifdef LIBC_COMPILER_HAS_FIXED_POINT
 
@@ -131,9 +131,6 @@ template <> struct SqrtConfig<unsigned int> {
   using HalfType = unsigned short;
 };
 
-// TODO: unsigned long accum type is 64-bit, and will need 64-bit fract type.
-// Probably we will use DyadicFloat<64> for intermediate computations instead.
-
 } // namespace internal
 
 // Core computation for sqrt with normalized inputs (0.25 <= x < 1).
@@ -147,7 +144,7 @@ sqrt_core(typename Config::Type x_frac) {
   if (x_frac == FXRep::ONE_FOURTH())
     return FXRep::ONE_HALF();
 
-  // Use use Newton method to approximate sqrt(a):
+  // Use Newton method to approximate sqrt(a):
   //   x_{n + 1} = 1/2 (x_n + a / x_n)
   // For the initial values, we choose x_0
 
@@ -195,17 +192,47 @@ LIBC_INLINE constexpr cpp::enable_if_t<cpp::is_fixed_point_v<T>, T> sqrt(T x) {
   int shift = EXP_ADJUSTMENT - 1 - (x_exp & (~1));
   // Normalize.
   x_bit <<= shift;
-  using FracType = typename internal::SqrtConfig<T>::Type;
-  FracType x_frac = cpp::bit_cast<FracType>(x_bit);
 
-  // Compute sqrt(x_frac) using Newton-method.
-  FracType r = sqrt_core<internal::SqrtConfig<T>>(x_frac);
+  if constexpr (STORAGE_LENGTH > 32) {
+    using SeedConfig = internal::SqrtConfig<unsigned long fract>;
+    using SeedType = SeedConfig::Type;
+    using SeedStorageType = typename FXRep<SeedType>::StorageType;
+    constexpr int SEED_LENGTH = sizeof(SeedStorageType) * CHAR_BIT;
 
-  // Re-scaling
-  r >>= EXP_ADJUSTMENT - (x_exp >> 1);
+    static_assert(STORAGE_LENGTH <= 2 * SEED_LENGTH,
+                  "Output storage type has to be lesser than or equal to "
+                  "double the seed table's width for accurate results.");
 
-  // Return result.
-  return cpp::bit_cast<T>(r);
+    // Seed from the widest available table using the top half of x, then
+    // widen to full precision. No native fract type exists at this storage
+    // width to build a table for directly.
+    SeedStorageType x_top_half =
+        static_cast<SeedStorageType>(x_bit >> SEED_LENGTH);
+    SeedType x_seed = cpp::bit_cast<SeedType>(x_top_half);
+    SeedType r_seed = sqrt_core<SeedConfig>(x_seed);
+
+    UInt128 r0 = static_cast<UInt128>(cpp::bit_cast<SeedStorageType>(r_seed))
+                 << SEED_LENGTH;
+
+    UInt128 x_wide = static_cast<UInt128>(x_bit) << STORAGE_LENGTH;
+    UInt128 r1 = (r0 + x_wide / r0) >> 1;
+
+    r1 >>= EXP_ADJUSTMENT - (x_exp >> 1);
+    BitType r_bits = static_cast<BitType>(r1);
+    return cpp::bit_cast<T>(r_bits);
+  } else {
+    using FracType = typename internal::SqrtConfig<T>::Type;
+    FracType x_frac = cpp::bit_cast<FracType>(x_bit);
+
+    // Compute sqrt(x_frac) using Newton-method.
+    FracType r = sqrt_core<internal::SqrtConfig<T>>(x_frac);
+
+    // Re-scaling
+    r >>= EXP_ADJUSTMENT - (x_exp >> 1);
+
+    // Return result.
+    return cpp::bit_cast<T>(r);
+  }
 }
 
 // Integer square root - Accurate version:

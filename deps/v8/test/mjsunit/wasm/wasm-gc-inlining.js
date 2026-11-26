@@ -730,3 +730,182 @@ function testStackTrace(error, expected) {
     }
   }
 })();
+
+(function TestInliningRefTest() {
+  print(arguments.callee.name);
+  const builder = new WasmModuleBuilder();
+  const base = builder.addStruct({fields: [], final: false});
+  const derived =
+      builder.addStruct({fields: [], supertype: base, final: false});
+  const middle =
+      builder.addStruct({fields: [], supertype: derived, final: false});
+  // Depth 3 is the first target requiring a supertype-array length check.
+  const deep =
+      builder.addStruct({fields: [], supertype: middle, final: false});
+  const leaf = builder.addStruct({fields: [], supertype: deep, final: true});
+  const unrelated = builder.addStruct([makeField(kWasmI32, true)]);
+  const array = builder.addArray(kWasmI32);
+  const otherArray = builder.addArray(kWasmI64);
+
+  for (const [name, type] of [
+    ['createBase', base], ['createDerived', derived],
+    ['createMiddle', middle], ['createDeep', deep], ['createLeaf', leaf],
+    ['createUnrelated', unrelated],
+  ]) {
+    builder.addFunction(name, kSig_r_v).addBody([
+      kGCPrefix, kExprStructNewDefault, type,
+      kGCPrefix, kExprExternConvertAny,
+    ]).exportFunc();
+  }
+  for (const [name, type] of [
+    ['createArray', array], ['createOtherArray', otherArray],
+  ]) {
+    builder.addFunction(name, kSig_r_v).addBody([
+      ...wasmI32Const(0), kGCPrefix, kExprArrayNewDefault, type,
+      kGCPrefix, kExprExternConvertAny,
+    ]).exportFunc();
+  }
+
+  const targets = [
+    ['base', base], ['derived', derived], ['deep', deep],
+    ['unrelated', unrelated],
+    ['array', array], ['otherArray', otherArray],
+    ['i31', kI31RefCode], ['eq', kEqRefCode],
+    ['struct', kStructRefCode], ['arrayRef', kArrayRefCode],
+    ['none', kNullRefCode],
+  ];
+  const sourceTypes = [
+    ['any', kAnyRefCode], ['eq', kEqRefCode],
+    ['struct', kStructRefCode], ['base', base],
+  ];
+  for (const [source, sourceType] of sourceTypes) {
+    for (const [target, targetType] of targets) {
+      for (const nullSucceeds of [false, true]) {
+        const name = source + '_' + target + (nullSucceeds ? 'Null' : '');
+        builder.addFunction(name, kSig_i_r).addBody([
+          kExprLocalGet, 0, kGCPrefix, kExprAnyConvertExtern,
+          ...(source === 'any' ? [] :
+              [kGCPrefix, kExprRefCastNull, sourceType]),
+          kGCPrefix, nullSucceeds ? kExprRefTestNull : kExprRefTest, targetType,
+        ]).exportFunc();
+      }
+    }
+  }
+
+  const wasm = builder.instantiate({}).exports;
+  const sources = [
+    [null, []], [{}, []], [undefined, []],
+    [0, ['i31', 'eq']], [-1, ['i31', 'eq']],
+    [0x3fffffff, ['i31', 'eq']], [-0x40000000, ['i31', 'eq']],
+    [0x40000000, []], [-0x40000001, []], [-0, []],
+    [1.5, []],
+    [(() => { let x = 5.5; return x + x; })(), ['i31', 'eq']],
+    ['str', []], [() => {}, []], [Symbol(), []],
+    [wasm.createBase(), ['base', 'eq', 'struct']],
+    [wasm.createDerived(), ['base', 'derived', 'eq', 'struct']],
+    [wasm.createMiddle(), ['base', 'derived', 'eq', 'struct']],
+    [wasm.createDeep(), ['base', 'derived', 'deep', 'eq', 'struct']],
+    [wasm.createLeaf(), ['base', 'derived', 'deep', 'eq', 'struct']],
+    [wasm.createUnrelated(), ['unrelated', 'eq', 'struct']],
+    [wasm.createArray(), ['array', 'eq', 'arrayRef']],
+    [wasm.createOtherArray(), ['otherArray', 'eq', 'arrayRef']],
+  ];
+  for (const [source] of sourceTypes) {
+    for (const [target] of targets) {
+      for (const nullSucceeds of [false, true]) {
+        const name = source + '_' + target + (nullSucceeds ? 'Null' : '');
+        // Give each export its own call site matching --turbo-filter=js_*.
+        const test = eval(
+            `(function js_${name}(value) { return wasm.${name}(value); })`);
+        testOptimized(() => {
+          for (const [value, matches] of sources) {
+            if (source !== 'any' && value !== null &&
+                !matches.includes(source)) {
+              continue;
+            }
+            const expected =
+                value === null ? nullSucceeds : matches.includes(target);
+            assertEquals(Number(expected), test(value), name);
+          }
+        }, test);
+      }
+    }
+  }
+})();
+
+(function TestInliningRefTestFuncAndExtern() {
+  print(arguments.callee.name);
+  const builder = new WasmModuleBuilder();
+  const sig = builder.addType(kSig_v_v, kNoSuperType, false);
+  const subSig = builder.addType(kSig_v_v, sig);
+  builder.addFunction('baseFunc', sig).addBody([]).exportFunc();
+  builder.addFunction('derivedFunc', subSig).addBody([]).exportFunc();
+  builder.addFunction('otherFunc', kSig_i_v).addBody([
+    ...wasmI32Const(42),
+  ]).exportFunc();
+  const globalFuncRef =
+      builder.addGlobal(kWasmFuncRef, true, false).exportAs('globalFuncRef');
+  const funcTargets = [
+    ['sig', sig], ['subSig', subSig],
+    ['func', kFuncRefCode], ['noFunc', kNullFuncRefCode],
+  ];
+  const externTargets = [
+    ['extern', kExternRefCode], ['noExtern', kNullExternRefCode],
+  ];
+  for (const [name, type] of funcTargets) {
+    for (const nullSucceeds of [false, true]) {
+      builder.addFunction(name + (nullSucceeds ? 'Null' : ''), kSig_i_v)
+          .addBody([
+            kExprGlobalGet, globalFuncRef.index,
+            kGCPrefix, nullSucceeds ? kExprRefTestNull : kExprRefTest, type,
+          ]).exportFunc();
+    }
+  }
+  for (const [name, type] of externTargets) {
+    for (const nullSucceeds of [false, true]) {
+      builder.addFunction(name + (nullSucceeds ? 'Null' : ''), kSig_i_r)
+          .addBody([
+            kExprLocalGet, 0,
+            kGCPrefix, nullSucceeds ? kExprRefTestNull : kExprRefTest, type,
+          ]).exportFunc();
+    }
+  }
+
+  const wasm = builder.instantiate({}).exports;
+  const funcSources = [
+    [null, []],
+    [wasm.baseFunc, ['sig', 'func']],
+    [wasm.derivedFunc, ['sig', 'subSig', 'func']],
+    [wasm.otherFunc, ['func']],
+  ];
+  for (const [target] of funcTargets) {
+    for (const nullSucceeds of [false, true]) {
+      const name = target + (nullSucceeds ? 'Null' : '');
+      const test = eval(
+          `(function js_${name}() { return wasm.${name}(); })`);
+      testOptimized(() => {
+        for (const [value, matches] of funcSources) {
+          wasm.globalFuncRef.value = value;
+          const expected =
+              value === null ? nullSucceeds : matches.includes(target);
+          assertEquals(Number(expected), test(), name);
+        }
+      }, test);
+    }
+  }
+
+  const externSources = [null, undefined, {}, 0, 'str', () => {}, Symbol()];
+  for (const [target] of externTargets) {
+    for (const nullSucceeds of [false, true]) {
+      const name = target + (nullSucceeds ? 'Null' : '');
+      const test = eval(
+          `(function js_${name}(value) { return wasm.${name}(value); })`);
+      testOptimized(() => {
+        for (const value of externSources) {
+          const expected = value === null ? nullSucceeds : target === 'extern';
+          assertEquals(Number(expected), test(value), name);
+        }
+      }, test);
+    }
+  }
+})();

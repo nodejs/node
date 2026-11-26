@@ -7,8 +7,10 @@
 
 #include <stdint.h>
 
+#include <map>
 #include <memory>
 #include <span>
+#include <unordered_set>
 #include <vector>
 
 #include "include/v8-callbacks.h"
@@ -18,6 +20,7 @@
 #include "include/v8-isolate.h"
 #include "include/v8-local-handle.h"
 #include "include/v8-promise.h"
+#include "include/v8-regexp.h"
 #include "include/v8-script.h"
 #include "include/v8-util.h"
 #include "src/base/enum-set.h"
@@ -45,23 +48,26 @@ class Script;
 
 namespace debug {
 
-void SetContextId(Local<Context> context, int id);
-int GetContextId(Local<Context> context);
+V8_EXPORT_PRIVATE void SetContextId(Local<Context> context, int id);
+V8_EXPORT_PRIVATE int GetContextId(Local<Context> context);
 
 void SetInspector(Isolate* isolate, v8_inspector::V8Inspector*);
 v8_inspector::V8Inspector* GetInspector(Isolate* isolate);
 
 // Returns a debug string representation of the bigint without tailing `n`.
-Local<String> GetBigIntStringValue(Isolate* isolate, Local<BigInt> bigint);
+V8_EXPORT_PRIVATE Local<String> GetBigIntStringValue(Isolate* isolate,
+                                                     Local<BigInt> bigint);
 
 // Returns a debug string representation of the bigint.
-Local<String> GetBigIntDescription(Isolate* isolate, Local<BigInt> bigint);
+V8_EXPORT_PRIVATE Local<String> GetBigIntDescription(Isolate* isolate,
+                                                     Local<BigInt> bigint);
 
 // Returns a debug string representation of the date.
 Local<String> GetDateDescription(Local<Date> date);
 
 // Returns a debug string representation of the function.
-Local<String> GetFunctionDescription(Local<Function> function);
+V8_EXPORT_PRIVATE Local<String> GetFunctionDescription(
+    Local<Function> function);
 
 // Schedule a debugger break to happen when function is called inside given
 // isolate.
@@ -151,7 +157,11 @@ V8_EXPORT_PRIVATE void PrepareStep(Isolate* isolate, StepAction action,
                                    bool enter_functions = false);
 bool PrepareRestartFrame(Isolate* isolate, int callFrameOrdinal);
 void ClearStepping(Isolate* isolate);
-V8_EXPORT_PRIVATE void BreakRightNow(
+// Breaks execution at the current statement if possible, or schedules a break
+// on function entry / next function call. Returns true if the break was
+// delivered or scheduled; false if it was dropped (e.g. breaks disabled,
+// ignore_events, or stack overflow).
+V8_EXPORT_PRIVATE bool BreakRightNow(
     Isolate* isolate, base::EnumSet<BreakReason> break_reason = {});
 
 // Use `SetTerminateOnResume` to indicate that an TerminateExecution interrupt
@@ -195,6 +205,8 @@ class V8_EXPORT_PRIVATE Script {
  public:
   ScriptOriginOptions OriginOptions() const;
   bool WasCompiled() const;
+  // Whether the script was baked into the startup snapshot by the
+  // StartupSerializer. Intentionally preserved through the code cache.
   bool IsEmbedded() const;
   int Id() const;
   int StartLine() const;
@@ -206,7 +218,6 @@ class V8_EXPORT_PRIVATE Script {
   MaybeLocal<String> SourceMappingURL() const;
   MaybeLocal<String> DebugId() const;
   MaybeLocal<String> GetSha256Hash() const;
-  Maybe<int> ContextId() const;
   Local<ScriptSource> Source() const;
   bool IsModule() const;
   bool GetPossibleBreakpoints(
@@ -274,6 +285,8 @@ void Disassemble(base::Vector<const uint8_t> wire_bytes,
 
 V8_EXPORT_PRIVATE void GetLoadedScripts(
     Isolate* isolate, std::vector<v8::Global<Script>>& scripts);
+V8_EXPORT_PRIVATE void GetContextScripts(
+    Isolate* isolate, std::map<int, std::unordered_set<int>>& context_scripts);
 
 V8_EXPORT_PRIVATE std::optional<v8::ScriptOrigin> GetScriptOrigin(
     Isolate* v8_isolate, int script_id);
@@ -548,6 +561,8 @@ class V8_EXPORT_PRIVATE StackTraceIterator {
 };
 
 V8_EXPORT_PRIVATE bool IsAPIFunctionWithSideEffects(v8::Local<v8::Value> value);
+V8_EXPORT_PRIVATE bool IsBuiltinOrApiFunction(v8::Local<v8::Function> function);
+V8_EXPORT_PRIVATE bool IsBuiltinOrApiFunction(v8::Local<v8::Value> value);
 
 void GlobalLexicalScopeNames(v8::Local<v8::Context> context,
                              std::vector<v8::Global<v8::String>>* names);
@@ -567,6 +582,8 @@ MaybeLocal<Value> CallFunctionOn(Local<Context> context,
                                  Local<Function> function, Local<Value> recv,
                                  base::Vector<Local<Value>> args,
                                  bool throw_on_side_effect);
+
+V8_EXPORT_PRIVATE void ThrowSideEffectError(Local<Context> context);
 
 enum class EvaluateGlobalMode {
   kDefault,
@@ -733,6 +750,22 @@ void RecordAsyncStackTaggingCreateTaskCall(v8::Isolate* isolate);
 
 uint64_t GetIsolateId(v8::Isolate* isolate);
 void SetIsolateId(v8::Isolate* isolate, uint64_t id);
+
+// Returns whether JavaScript execution is currently allowed on `isolate`.
+V8_EXPORT_PRIVATE bool IsJavascriptExecutionAllowed(v8::Isolate* isolate);
+
+// Creates a minimal Context without installing V8 extensions so no JavaScript
+// runs during context creation (safe under DisallowJavascriptExecution).
+V8_EXPORT_PRIVATE MaybeLocal<Context> CreateBareContext(v8::Isolate* isolate);
+
+// Executes a RegExp directly via C++/Irregexp without entering JavaScript.
+// Returns the match start offset, or -1 if no match is found, or Nothing<int>()
+// if an exception (such as stack overflow or termination) occurred.
+V8_EXPORT_PRIVATE Maybe<int> ExecRegExp(v8::Isolate* isolate,
+                                        v8::Local<v8::Context> context,
+                                        v8::Local<v8::RegExp> regexp,
+                                        v8::Local<v8::String> subject,
+                                        int* match_length);
 
 }  // namespace debug
 }  // namespace v8

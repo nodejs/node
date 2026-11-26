@@ -1,0 +1,41 @@
+Tests debug-evaluate-no-side-effect-ops.
+Object == {}: false
+Object === {}: false
+Object != {}: true
+Object !== {}: true
+'s' == string: true
+'s' === string: true
+1 < Math.cos(0) * 2: true
+1 < string: false
+'a' < string: true
+string[0]: "s"
+[0][0]: 0
+T^F: 1
+T&F: 0
+T|F: 1
+T&&F: false
+T||F: true
+T?F:T: false
+!T: false
++one: 1
+-one: -1
+~one: -2
+one << two: 4
+two >> one: 1
+two >>> one: 1
+two + one: 3
+two * one: 2
+one / two: 0.5
+(one / two) | 0: 0
+one ** two: 1
+string * two: NaN
+string + two: "s2"
+string + two: "s2"
+[...array]: [1,2,3]
+max(...array): 3
+({[string]:1}): {"s":1}
+[a, b] = [1, 2]: EvalError
+def(2): 2
+def(): 1
+d1(['a']): "ab"
+d2({x:'X', y:'Y'}): "XYz"

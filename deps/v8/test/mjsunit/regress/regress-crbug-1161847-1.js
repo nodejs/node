@@ -10,6 +10,11 @@ function foo(first_run) {
   Object.defineProperty(o, 'x', { writable: false });
   delete o.x;
   o.x = 23;
+  if (%IsDictPropertyConstTrackingEnabled() && !%HasFastProperties(o)) {
+    // Adding a property to a dictionary-mode object initializes it as constant
+    // when V8_DICT_PROPERTY_CONST_TRACKING is enabled.
+    return;
+  }
   if (first_run) assertFalse(%HasOwnConstDataProperty(o, 'x'));
 }
 %PrepareFunctionForOptimization(foo);

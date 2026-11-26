@@ -164,6 +164,29 @@ class SimplifiedOptimizationReducer : public Next {
     goto no_change;
   }
 
+  V<Object> REDUCE(Convert)(V<Object> input, ConvertOp::Kind from,
+                            ConvertOp::Kind to) {
+    LABEL_BLOCK(no_change) { return Next::ReduceConvert(input, from, to); }
+    if (ShouldSkipOptimizationStep()) goto no_change;
+
+    if (to == ConvertOp::Kind::kHeapObject) {
+      switch (__ DecideObjectIsSmi(input)) {
+        case IsSmiDecision::kFalse:
+          return input;
+        case IsSmiDecision::kTrue:
+          return __ ConvertInt32ToHeapNumber(__ UntagSmi(V<Smi>::Cast(input)));
+        case IsSmiDecision::kUnknown:
+          break;
+      }
+    }
+    if (to == ConvertOp::Kind::kSmi &&
+        __ DecideObjectIsSmi(input) == IsSmiDecision::kTrue) {
+      return input;
+    }
+
+    goto no_change;
+  }
+
   OpIndex REDUCE(ObjectIs)(V<Object> input, ObjectIsOp::Kind kind,
                            ObjectIsOp::InputAssumptions input_assumptions) {
     LABEL_BLOCK(no_change) {

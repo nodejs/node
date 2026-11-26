@@ -29,6 +29,8 @@ struct ComponentStats {
   std::atomic<uint64_t> time_us{0};      // time spent inside the component
   // New deterministic edges of the corpus programs credited to the component.
   std::atomic<uint64_t> new_edges{0};
+  // Change-based fuzzing: the target features among those new edges.
+  std::atomic<uint64_t> new_targets{0};
   // All target executions the component caused: its results, the instrumented
   // runs of a runtime-assisted mutator, and the determinism re-runs and
   // minimizer probes of its candidates (the engine decides what it credits).

@@ -154,11 +154,6 @@ constexpr Register BaselineLeaveFrameDescriptor::ParamsSizeRegister() {
   // TODO(v8:11421): Implement on this platform.
   return r5;
 }
-// static
-constexpr Register BaselineLeaveFrameDescriptor::WeightRegister() {
-  // TODO(v8:11421): Implement on this platform.
-  return r6;
-}
 
 // static
 // static

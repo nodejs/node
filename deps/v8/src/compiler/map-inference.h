@@ -41,12 +41,14 @@ class MapInference {
   // Is there any information at all?
   V8_WARN_UNUSED_RESULT bool HaveMaps() const;
 
-  // These queries don't require a guard.
-  //
+  // This query doesn't require a guard.
   V8_WARN_UNUSED_RESULT bool AllOfInstanceTypesAreJSReceiver() const;
-  // Here, {type} must not be a String type.
-  V8_WARN_UNUSED_RESULT bool AllOfInstanceTypesAre(InstanceType type) const;
-  V8_WARN_UNUSED_RESULT bool AnyOfInstanceTypesAre(InstanceType type) const;
+
+  // These queries require a guard iff {type} is a JSTypedArray type, as
+  // detaching an ArrayBuffer can change the instance type of its view in place.
+  // {type} must not be a String type.
+  V8_WARN_UNUSED_RESULT bool AllOfInstanceTypesAre(InstanceType type);
+  V8_WARN_UNUSED_RESULT bool AnyOfInstanceTypesAre(InstanceType type);
 
   // These queries require a guard. (Even instance types are generally not
   // reliable because of how the representation of a string can change.)

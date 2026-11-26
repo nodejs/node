@@ -141,7 +141,7 @@ int LiftoffAssembler::PrepareStackFrame() {
   return offset;
 }
 
-void LiftoffAssembler::CallFrameSetupStub(int declared_function_index) {
+void LiftoffAssembler::CallFrameSetupStub(int defined_function_index) {
 // The standard library used by gcc tryjobs does not consider `std::find` to be
 // `constexpr`, so wrap it in a `#ifdef __clang__` block.
 #ifdef __clang__
@@ -156,7 +156,7 @@ void LiftoffAssembler::CallFrameSetupStub(int declared_function_index) {
   mov(scratch, Operand(StackFrame::TypeToMarker(StackFrame::WASM)));
   PushCommonFrame(scratch);
   LoadConstant(LiftoffRegister(kLiftoffFrameSetupFunctionReg),
-               WasmValue(declared_function_index));
+               WasmValue(defined_function_index));
   CallBuiltin(Builtin::kWasmLiftoffFrameSetup);
 }
 
@@ -320,7 +320,7 @@ bool LiftoffAssembler::NeedsAlignment(ValueKind kind) {
   return (kind == kS128 || is_reference(kind));
 }
 
-void LiftoffAssembler::CheckTierUp(int declared_func_index, int budget_used,
+void LiftoffAssembler::CheckTierUp(int defined_func_index, int budget_used,
                                    Label* ool_label,
                                    const FreezeCacheState& frozen) {
   UseScratchRegisterScope temps(this);
@@ -336,7 +336,7 @@ void LiftoffAssembler::CheckTierUp(int declared_func_index, int budget_used,
           FieldMemOperand(instance_data,
                           WasmTrustedInstanceData::kTieringBudgetArrayOffset));
 
-  int budget_arr_offset = kInt32Size * declared_func_index;
+  int budget_arr_offset = kInt32Size * defined_func_index;
   // Pick a random register from kLiftoffAssemblerGpCacheRegs.
   // TODO(miladfarca): Use ScratchRegisterScope when available.
   Register budget = r15;
@@ -1888,13 +1888,15 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
     }
     case kExprI32UConvertF64:
     case kExprI32UConvertF32: {
+      UseScratchRegisterScope temps(this);
+      Register scratch = temps.Acquire();
       mtfsb0(VXCVI);  // clear FPSCR:VXCVI bit
-      ConvertDoubleToUnsignedInt64(src.fp(), r0, kScratchDoubleReg,
+      ConvertDoubleToUnsignedInt64(src.fp(), scratch, kScratchDoubleReg,
                                    kRoundToZero);
       mcrfs(cr0, VXCVI);  // extract FPSCR field containing VXCVI into cr0
       boverflow(trap, cr0);
-      ZeroExtWord32(dst.gp(), r0);
-      CmpU64(dst.gp(), r0);
+      ZeroExtWord32(dst.gp(), scratch);
+      CmpU64(dst.gp(), scratch);
       bne(trap);
       return true;
     }
@@ -2427,12 +2429,13 @@ SIMD_UNOP_WITH_SCRATCH_LIST(EMIT_SIMD_UNOP_WITH_SCRATCH)
   V(i32x4_alltrue, I32x4AllTrue) \
   V(i16x8_alltrue, I16x8AllTrue) \
   V(i8x16_alltrue, I8x16AllTrue)
-#define EMIT_SIMD_ALL_TRUE(name, op)                              \
-  void LiftoffAssembler::emit_##name(LiftoffRegister dst,         \
-                                     LiftoffRegister src) {       \
-    UseScratchRegisterScope temps(this);                          \
-    Register scratch = temps.Acquire();                           \
-    op(dst.gp(), src.simd128(), r0, scratch, kScratchSimd128Reg); \
+#define EMIT_SIMD_ALL_TRUE(name, op)                                    \
+  void LiftoffAssembler::emit_##name(LiftoffRegister dst,               \
+                                     LiftoffRegister src) {             \
+    UseScratchRegisterScope temps(this);                                \
+    Register scratch = temps.Acquire();                                 \
+    Register scratch2 = temps.Acquire();                                \
+    op(dst.gp(), src.simd128(), scratch, scratch2, kScratchSimd128Reg); \
   }
 SIMD_ALL_TRUE_LIST(EMIT_SIMD_ALL_TRUE)
 #undef EMIT_SIMD_ALL_TRUE
@@ -2887,7 +2890,10 @@ void LiftoffAssembler::emit_i64x2_uconvert_i32x4_low(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i64x2_uconvert_i32x4_high(LiftoffRegister dst,
                                                       LiftoffRegister src) {
-  I64x2UConvertI32x4High(dst.simd128(), src.simd128(), r0, kScratchSimd128Reg);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  I64x2UConvertI32x4High(dst.simd128(), src.simd128(), scratch,
+                         kScratchSimd128Reg);
 }
 
 void LiftoffAssembler::emit_i32x4_bitmask(LiftoffRegister dst,

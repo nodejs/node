@@ -247,7 +247,7 @@ void ArrayBuiltinsAssembler::VisitAllTypedArrayElements(
         Label process(this);
         if (is_rab_gsab) {
           // If `index` is out of bounds, Get returns undefined.
-          CheckJSTypedArrayIndex(typed_array, index, &detached);
+          CheckIsValidIntegerIndex(typed_array, index, &detached);
         } else {
           GotoIf(IsDetachedBuffer(array_buffer), &detached);
         }
@@ -1087,8 +1087,8 @@ void ArrayIncludesIndexofAssembler::GenerateSmiOrObject(
     TNode<HeapObject> ho_element_k = UncheckedCast<HeapObject>(element_k);
     GotoIf(IsTheHole(ho_element_k), &continue_loop);
     GotoIfNot(IsBigInt(ho_element_k), &continue_loop);
-    TNode<Object> result = CallRuntime(Runtime::kBigIntEqualToBigInt, context,
-                                       search_element, element_k);
+    TNode<Object> result = CallBuiltin(
+        Builtin::kBigIntEqual, NoContextConstant(), search_element, element_k);
     Branch(TaggedEqual(result, TrueConstant()), &return_found, &continue_loop);
 
     BIND(&continue_loop);
@@ -2290,8 +2290,7 @@ TF_BUILTIN(CreateObjectFromSlowBoilerplateHelper,
   ConstructorBuiltinsAssembler constructor_assembler(state());
   TNode<JSObject> object =
       CAST(constructor_assembler.CreateShallowObjectLiteral(
-          allocation_site, boilerplate, &bailout,
-          kBailoutIfDictionaryPropertiesTrue));
+          boilerplate, &bailout, kBailoutIfDictionaryPropertiesTrue));
 
   // Fix up the object properties and elements and consume the correct amount of
   // AllocationSites. To iterate the AllocationSites in the correct order, we

@@ -20,6 +20,7 @@
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parser.h"
 #include "src/parsing/preparse-data.h"
+#include "src/sandbox/check.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
@@ -34,15 +35,16 @@ namespace internal {
 //       use. Because a Variable holding a handle with the same location exists
 //       this is ensured.
 
-static_assert(sizeof(VariableMap) == (sizeof(void*) + 2 * sizeof(uint32_t) +
-                                      sizeof(ZoneAllocationPolicy)),
+static_assert(sizeof(VariableMap) ==
+                  (sizeof(void*) + 2 * sizeof(uint32_t) +
+                   sizeof(ZoneAllocationPolicy) + sizeof(uint64_t)),
               "Empty base optimization didn't kick in for VariableMap");
 
 VariableMap::VariableMap(Zone* zone)
     : ZoneHashMap(8, ZoneAllocationPolicy(zone)) {}
 
 VariableMap::VariableMap(const VariableMap& other, Zone* zone)
-    : ZoneHashMap(other, ZoneAllocationPolicy(zone)) {}
+    : ZoneHashMap(other, ZoneAllocationPolicy(zone)), filter_(other.filter_) {}
 
 Variable* VariableMap::Declare(Zone* zone, Scope* scope,
                                const AstRawString* name, VariableMode mode,
@@ -64,6 +66,7 @@ Variable* VariableMap::Declare(Zone* zone, Scope* scope,
         zone->New<Variable>(scope, name, mode, kind, initialization_flag,
                             maybe_assigned_flag, is_static_flag);
     p->value = variable;
+    AddToFilter(name);
   }
   return reinterpret_cast<Variable*>(p->value);
 }
@@ -92,9 +95,11 @@ void VariableMap::Add(Variable* var) {
   DCHECK_NULL(p->value);
   DCHECK_EQ(name, p->key);
   p->value = var;
+  AddToFilter(name);
 }
 
 Variable* VariableMap::Lookup(const AstRawString* name) {
+  if (!MayContain(name)) return nullptr;
   Entry* p = ZoneHashMap::Lookup(const_cast<AstRawString*>(name), name->Hash());
   if (p != nullptr) {
     DCHECK(reinterpret_cast<const AstRawString*>(p->key) == name);
@@ -313,9 +318,6 @@ DeclarationScope::DeclarationScope(Zone* zone, ScopeType scope_type,
   if (is_function_scope() && !scope_info->HasSimpleParameters()) {
     SetHasNonSimpleParameters();
   }
-  if (V8_UNLIKELY(private_name_lookup_skips_outer_class())) {
-    RecordNeedsPrivateNameContextChainRecalc();
-  }
 }
 
 Scope::Scope(Zone* zone, const AstRawString* catch_variable_name,
@@ -337,7 +339,6 @@ void DeclarationScope::SetDefaults() {
   set_has_simple_parameters(true);
   set_force_eager_compilation(false);
   set_has_rest(false);
-  set_has_arguments_parameter(false);
   set_uses_super_property(false);
   set_should_eager_compile(false);
   set_was_lazily_parsed(false);
@@ -658,6 +659,27 @@ void DeclarationScope::DeclareSloppyBlockFunction(
   sloppy_block_functions_.Add(sloppy_block_function);
 }
 
+namespace {
+
+// Whether {var}, a binding in {scope}, conflicts with a var declaration of the
+// same name in {scope} or an inner scope. Besides lexical bindings, this is the
+// case for the implicit 'arguments' binding in the parameter scope of a
+// function with non-simple parameters: it has kVar mode, but var declarations
+// in direct eval inside parameter initializers conflict with it.
+bool ConflictsWithVarDeclaration(Scope* scope, Variable* var) {
+  if (IsLexicalVariableMode(var->mode())) return true;
+  if (var->mode() == VariableMode::kVar && scope->is_function_scope() &&
+      !scope->AsDeclarationScope()->has_simple_parameters()) {
+    // Formal parameters were made lexical by MakeParametersNonSimple and
+    // body-level vars live in the inner var block scope.
+    DCHECK(var->raw_name()->IsOneByteEqualTo("arguments"));
+    return true;
+  }
+  return false;
+}
+
+}  // namespace
+
 void DeclarationScope::HoistSloppyBlockFunctions(AstNodeFactory* factory) {
   DCHECK(is_sloppy(language_mode()));
   DCHECK(is_function_scope() || is_eval_scope() || is_script_scope() ||
@@ -703,7 +725,7 @@ void DeclarationScope::HoistSloppyBlockFunctions(AstNodeFactory* factory) {
     // scope and we terminate the iteration there anyway.
     do {
       Variable* var = query_scope->LookupInScopeOrScopeInfo(name, query_scope);
-      if (var != nullptr && IsLexicalVariableMode(var->mode()) &&
+      if (var != nullptr && ConflictsWithVarDeclaration(query_scope, var) &&
           !var->is_sloppy_block_function()) {
         should_hoist = false;
         break;
@@ -855,14 +877,16 @@ void DeclarationScope::DeclareArguments(AstValueFactory* ast_value_factory) {
   arguments_ =
       Declare(zone(), ast_value_factory->arguments_string(), VariableMode::kVar,
               NORMAL_VARIABLE, kCreatedInitialized, kNotAssigned, &was_added);
-  // According to https://tc39.es/ecma262/#sec-functiondeclarationinstantiation
-  // step 18 we should set argumentsObjectNeeded to false if has lexical
-  // declared arguments only when hasParameterExpressions is false
+  // According to https://tc39.es/ecma262/#sec-functiondeclarationinstantiation,
+  // argumentsObjectNeeded is false if "arguments" is an element of
+  // parameterNames or (when hasParameterExpressions is false) an element of
+  // lexicalNames. In those cases, clear `arguments_` to avoid creating an
+  // arguments object or marking a shadowing parameter/lexical binding as
+  // maybe-assigned. Check `is_parameter()` explicitly because PreParser does
+  // not convert non-simple parameters to lexical mode.
   if (!was_added) {
-    if (IsLexicalVariableMode(arguments_->mode()) && has_simple_parameters()) {
-      // Check if there's lexically declared variable named arguments to avoid
-      // redeclaration. See
-      // https://tc39.es/ecma262/#sec-functiondeclarationinstantiation, step 20.
+    if (IsLexicalVariableMode(arguments_->mode()) ||
+        arguments_->is_parameter()) {
       arguments_ = nullptr;
     } else {
       arguments_->SetMaybeAssigned();
@@ -1123,7 +1147,6 @@ Variable* Scope::LookupInScopeInfo(const AstRawString* name, Scope* cache) {
 Variable* DeclarationScope::DeclareParameter(const AstRawString* name,
                                              VariableMode mode,
                                              bool is_optional, bool is_rest,
-                                             AstValueFactory* ast_value_factory,
                                              int position) {
   DCHECK(!already_resolved_);
   DCHECK(is_function_scope() || is_module_scope());
@@ -1143,9 +1166,6 @@ Variable* DeclarationScope::DeclareParameter(const AstRawString* name,
   var->set_initializer_position(position);
   params_.Add(var, zone());
   if (!is_rest) ++num_parameters_;
-  if (name == ast_value_factory->arguments_string()) {
-    set_has_arguments_parameter(true);
-  }
   return var;
 }
 
@@ -1411,45 +1431,16 @@ Declaration* DeclarationScope::CheckConflictingVarDeclarations(
       Variable* other_var =
           current->LookupInScopeOrScopeInfo(decl->var()->raw_name(), current);
       if (other_var != nullptr && !current->is_catch_scope()) {
-        // If this is a VAR, then we know that it doesn't conflict with
-        // anything, so we can't conflict with anything either. The two
-        // exceptions are:
-        // - the binding variable in catch scopes, which is handled by the if
-        //   above, and
-        // - the implicit 'arguments' binding in the parameter scope of a
-        //   function with non-simple parameters, which has kVar mode even
-        //   though var declarations in direct eval inside parameter
-        //   initializers conflict with it.
-        if (!IsLexicalVariableMode(other_var->mode()) &&
-            !(current->is_function_scope() &&
-              !current->AsDeclarationScope()->has_simple_parameters())) {
-          break;
-        }
-        return decl;
+        if (ConflictsWithVarDeclaration(current, other_var)) return decl;
+        // Otherwise {other_var} is a var-like binding that does not conflict
+        // with anything, so neither can {decl}. Catch scope bindings are
+        // handled by the if above.
+        break;
       }
       current = current->outer_scope();
     } while (current != end);
   }
   return nullptr;
-}
-
-bool DeclarationScope::HasConflictingArgumentsVarDeclaration(
-    AstValueFactory* ast_value_factory) {
-  DCHECK(is_eval_scope());
-  if (!is_sloppy(language_mode())) return false;
-
-  Variable* var = LookupLocal(ast_value_factory->arguments_string());
-  if (var == nullptr || IsLexicalVariableMode(var->mode())) return false;
-
-  // During parameter initialization, the parameter environment of a
-  // non-arrow function with non-simple parameters contains an implicit
-  // `arguments` binding between the eval's lexical and variable environments.
-  DeclarationScope* var_scope = outer_scope()->GetNonEvalDeclarationScope();
-  if (!var_scope->is_function_scope() || var_scope->is_arrow_scope()) {
-    return false;
-  }
-  DCHECK(var_scope->from_scope_info());
-  return !var_scope->scope_info()->HasSimpleParameters();
 }
 
 const AstRawString* Scope::FindVariableDeclaredIn(Scope* scope,
@@ -1669,6 +1660,30 @@ Scope* Scope::GetHomeObjectScope() {
   return outer_scope;
 }
 
+void Scope::RecordSuperPropertyUsage(DeclarationScope* receiver_scope) {
+  if (receiver_scope == nullptr) {
+    receiver_scope = GetReceiverScope();
+  } else {
+    DCHECK_EQ(receiver_scope, GetReceiverScope());
+  }
+  // `uses_super_property` can come from untrusted in-sandbox PreparseData when
+  // skipping inner arrow functions in Parser::SkipFunction.
+  SBXCHECK(BindsSuper(receiver_scope->function_kind()));
+  receiver_scope->set_uses_super_property(true);
+  DCHECK_NOT_NULL(receiver_scope->outer_scope());
+  DCHECK_IMPLIES(!receiver_scope->from_scope_info(),
+                 receiver_scope->outer_scope()->is_home_object_scope());
+  receiver_scope->outer_scope()->set_needs_home_object();
+  // Mark enclosing non-deserialized arrow scopes up to `receiver_scope` so
+  // PreparseData records UsesSuperField on skippable arrow boundaries; stop at
+  // `from_scope_info()` scopes since outer compiled scopes are already fixed.
+  for (DeclarationScope* arrow_scope = GetClosureScope();
+       arrow_scope != receiver_scope && !arrow_scope->from_scope_info();
+       arrow_scope = arrow_scope->outer_scope()->GetClosureScope()) {
+    arrow_scope->set_uses_super_property(true);
+  }
+}
+
 DeclarationScope* Scope::GetScriptScope() {
   Scope* scope = this;
   while (!scope->is_script_scope()) {
@@ -1826,15 +1841,14 @@ void DeclarationScope::ResetAfterPreparsing(AstValueFactory* ast_value_factory,
 }
 
 bool Scope::IsSkippableFunctionScope() {
-  // Lazy non-arrow function scopes are skippable. Lazy functions are exactly
-  // those Scopes which have their own PreparseDataBuilder object. This
-  // logic ensures that the scope allocation data is consistent with the
+  // Lazy function scopes (including simple-parameter block-body arrow function
+  // scopes) are skippable iff they have their own PreparseDataBuilder object.
+  // This logic ensures that the scope allocation data is consistent with the
   // skippable function data (both agree on where the lazy function boundaries
   // are).
   if (!is_function_scope()) return false;
   DeclarationScope* declaration_scope = AsDeclarationScope();
-  return !declaration_scope->is_arrow_scope() &&
-         declaration_scope->preparse_data_builder() != nullptr;
+  return declaration_scope->preparse_data_builder() != nullptr;
 }
 
 void Scope::SavePreparseData(Parser* parser) {
@@ -2650,12 +2664,11 @@ void DeclarationScope::AllocateParameterLocals() {
   bool has_mapped_arguments = false;
   if (arguments_ != nullptr) {
     DCHECK(!is_arrow_scope());
+    DCHECK(!arguments_->is_parameter());
     MarkMaybeAssignedIfEval(arguments_);
-    if (MustAllocate(arguments_) && !has_arguments_parameter()) {
-      // 'arguments' is used and does not refer to a function
-      // parameter of the same name. If the arguments object
-      // aliases formal parameters, we conservatively allocate
-      // them specially in the loop below.
+    if (MustAllocate(arguments_)) {
+      // 'arguments' is used. If the arguments object aliases formal parameters,
+      // we conservatively allocate them specially in the loop below.
       has_mapped_arguments =
           GetArgumentsType() == CreateArgumentsType::kMappedArguments;
     } else {

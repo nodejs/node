@@ -1,0 +1,7 @@
+Tests regress-662935.
+{
+    result : {
+        type : boolean
+        value : true
+    }
+}

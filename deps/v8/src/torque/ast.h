@@ -600,12 +600,10 @@ struct AssumeTypeImpossibleExpression : Expression {
 struct NewExpression : Expression {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(NewExpression)
   NewExpression(SourcePosition pos, TypeExpression* type,
-                std::vector<NameAndExpression> initializers, bool pretenured,
-                bool clear_padding)
+                std::vector<NameAndExpression> initializers, bool clear_padding)
       : Expression(kKind, pos),
         type(type),
         initializers(std::move(initializers)),
-        pretenured(pretenured),
         clear_padding(clear_padding) {}
 
   void VisitAllSubExpressions(VisitCallback callback) override {
@@ -617,7 +615,6 @@ struct NewExpression : Expression {
 
   TypeExpression* type;
   std::vector<NameAndExpression> initializers;
-  bool pretenured;
   bool clear_padding;
 };
 
@@ -1315,7 +1312,11 @@ bool AstNodeClassCheck::IsInstanceOf(AstNode* node) {
 
 inline bool IsDeferred(Statement* stmt) {
   if (auto* block = BlockStatement::DynamicCast(stmt)) {
-    return block->deferred;
+    return block->deferred ||
+           (block->statements.size() == 1 && IsDeferred(block->statements[0]));
+  }
+  if (auto* debug = DebugStatement::DynamicCast(stmt)) {
+    return debug->kind == DebugStatement::Kind::kUnreachable;
   }
   return false;
 }

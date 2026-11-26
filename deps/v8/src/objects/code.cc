@@ -15,6 +15,10 @@
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/objects/code-inl.h"
 
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/wasm-objects-inl.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 #ifdef ENABLE_DISASSEMBLER
 #include "src/diagnostics/disassembler.h"
 #include "src/diagnostics/eh-frame.h"
@@ -47,7 +51,8 @@ void Code::ClearEmbeddedObjectsAndJSDispatchHandles(Heap* heap) {
          !it.done(); it.next()) {
       const auto mode = it.rinfo()->rmode();
       if (RelocInfo::IsEmbeddedObjectMode(mode)) {
-        it.rinfo()->set_target_object(istream, undefined, SKIP_WRITE_BARRIER);
+        it.rinfo()->set_target_object(heap->isolate(), istream, undefined,
+                                      SKIP_WRITE_BARRIER);
       } else {
         it.rinfo()->set_js_dispatch_handle(istream, kNullJSDispatchHandle,
                                            SKIP_WRITE_BARRIER);
@@ -163,6 +168,31 @@ bool Code::Inlines(Tagged<SharedFunctionInfo> sfi) {
   return false;
 }
 
+#if V8_ENABLE_WEBASSEMBLY
+bool Code::InlinesWasmFunction(const wasm::NativeModule* native_module,
+                               int func_index) {
+  DCHECK(is_optimized_code());
+  DisallowGarbageCollection no_gc;
+  Tagged<DeoptimizationData> const data = deoptimization_data();
+  if (data->ulength().value() == 0) return false;
+  IsolateForSandbox isolate = GetCurrentIsolateForSandbox();
+  Tagged<DeoptimizationLiteralArray> const literals = data->LiteralArray();
+  int const inlined_count = data->InlinedFunctionCount().value();
+  for (int i = 0; i < inlined_count; ++i) {
+    Tagged<SharedFunctionInfo> sfi = Cast<SharedFunctionInfo>(literals->get(i));
+    if (sfi->HasWasmExportedFunctionData(isolate)) {
+      Tagged<WasmExportedFunctionData> wasm_data =
+          sfi->wasm_exported_function_data();
+      if (wasm_data->instance_data()->native_module() == native_module &&
+          (func_index < 0 || wasm_data->function_index() == func_index)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 void Code::SetMarkedForDeoptimization(Isolate* isolate,
                                       LazyDeoptimizeReason reason) {
   // We've already marked for deoptimization, return.
@@ -191,7 +221,6 @@ void Code::SetMarkedForDeoptimization(Isolate* isolate,
         // dependencies we create in the compilers to require less of these
         // quick re-compilations.
         switch (reason) {
-          case LazyDeoptimizeReason::kAllocationSiteTenuringChange:
           case LazyDeoptimizeReason::kAllocationSiteTransitionChange:
           case LazyDeoptimizeReason::kEmptyContextExtensionChange:
           case LazyDeoptimizeReason::kFrameValueMaterialized:
@@ -224,13 +253,22 @@ void Code::SetMarkedForDeoptimization(Isolate* isolate,
     // Ensure we don't try to patch the entry multiple times.
     set_js_dispatch_handle(kNullJSDispatchHandle);
   }
-  Tagged<ProtectedFixedArray> tmp = deoptimization_data();
   // TODO(422951610): Zapping code discovered a bug in
   // --maglev-inline-api-calls. Remove the flag check here once the bug is
   // fixed.
-  if (tmp->ulength().value() > 0 && !v8_flags.maglev_inline_api_calls) {
+  if (!v8_flags.maglev_inline_api_calls) {
+    // Zap the executable instructions of the code object so that execution
+    // traps immediately if deoptimization fails to happen, but keep the
+    // deoptimization exits (emitted at the end of the instruction stream for
+    // optimized code) intact so active stack frames can still lazy-deoptimize.
     Address start = instruction_start();
-    Address end = start + deoptimization_data()->DeoptExitStart().value();
+    Address end = instruction_end();
+    if (uses_deoptimization_data()) {
+      Tagged<DeoptimizationData> data = deoptimization_data();
+      if (data->ulength().value() > 0) {
+        end = start + data->DeoptExitStart().value();
+      }
+    }
     RelocIterator it(instruction_stream(), RelocIterator::kAllModesMask);
     Deoptimizer::ZapCode(start, end, it);
   }

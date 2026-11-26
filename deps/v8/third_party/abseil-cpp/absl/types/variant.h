@@ -38,7 +38,7 @@ using bad_variant_access ABSL_REFACTOR_INLINE
     = std::bad_variant_access;
 
 template <size_t I, typename... Args>
-constexpr auto get(Args&&... args)
+[[deprecated]] constexpr auto get(Args&&... args)
     -> decltype(std::get<I>(std::forward<Args>(args)...)) {
   return std::get<I>(std::forward<Args>(args)...);
 }

@@ -15,6 +15,7 @@
 #include "src/base/bit-field.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
+#include "src/objects/bit-field-group.h"
 #include "src/objects/managed.h"
 #include "src/objects/objects.h"
 #include "unicode/uversion.h"
@@ -66,9 +67,6 @@ V8_OBJECT class JSListFormat : public JSObject {
   inline void set_icu_formatter(Tagged<Managed<icu::ListFormatter>> value,
                                 WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline int flags() const;
-  inline void set_flags(int value);
-
   // Style: identifying the relative time format style used.
   //
   // https://tc39.es/ecma402/#sec-properties-of-intl-listformat-instances
@@ -91,16 +89,25 @@ V8_OBJECT class JSListFormat : public JSObject {
   inline void set_type(Type type);
   inline Type type() const;
 
-  // Bit positions in |flags|.
-  using StyleBits = base::BitField<JSListFormat::Style, 0, 2, uint32_t>;
-  using TypeBits = StyleBits::Next<JSListFormat::Type, 2>;
+  struct Flags : BitFieldGroup<Flags, uint32_t> {
+    using BitFieldGroup::BitFieldGroup;
 
-  static_assert(StyleBits::is_valid(Style::LONG));
-  static_assert(StyleBits::is_valid(Style::SHORT));
-  static_assert(StyleBits::is_valid(Style::NARROW));
-  static_assert(TypeBits::is_valid(Type::CONJUNCTION));
-  static_assert(TypeBits::is_valid(Type::DISJUNCTION));
-  static_assert(TypeBits::is_valid(Type::UNIT));
+    using StyleBits = First<JSListFormat::Style, 2>;
+    using TypeBits = StyleBits::Next<JSListFormat::Type, 2>;
+
+    BIT_FIELD_GROUP_ACCESSORS(style, StyleBits)
+    BIT_FIELD_GROUP_ACCESSORS(type, TypeBits)
+  };
+
+  inline Flags flags() const;
+  inline void set_flags(Flags value);
+
+  static_assert(Flags::StyleBits::is_valid(Style::LONG));
+  static_assert(Flags::StyleBits::is_valid(Style::SHORT));
+  static_assert(Flags::StyleBits::is_valid(Style::NARROW));
+  static_assert(Flags::TypeBits::is_valid(Type::CONJUNCTION));
+  static_assert(Flags::TypeBits::is_valid(Type::DISJUNCTION));
+  static_assert(Flags::TypeBits::is_valid(Type::UNIT));
 
   DECL_PRINTER(JSListFormat)
   DECL_VERIFIER(JSListFormat)
@@ -110,7 +117,7 @@ V8_OBJECT class JSListFormat : public JSObject {
  public:
   TaggedMember<String> locale_;
   TaggedMember<Foreign> icu_formatter_;
-  TaggedMember<Smi> flags_ V8_TQ_TYPE(SmiTagged<JSListFormatFlags>);
+  SmiBitFieldMember<Flags> flags_;
 } V8_OBJECT_END;
 
 inline constexpr int JSListFormat::kHeaderSize = sizeof(JSListFormat);

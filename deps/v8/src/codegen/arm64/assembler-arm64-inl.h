@@ -927,10 +927,6 @@ int Assembler::LinkAndGetBranchInstructionOffsetTo(Label* label) {
   DCHECK_EQ(kStartOfLabelLinkChain, 0);
   int offset = LinkAndGetByteOffsetTo(label);
   DCHECK(IsAligned(offset, kInstrSize));
-  if (label->is_linked() && (offset != kStartOfLabelLinkChain)) {
-    branch_link_chain_back_edge_.emplace(
-        std::pair<int, int>(pc_offset() + offset, pc_offset()));
-  }
   return offset >> kInstrSizeLog2;
 }
 
@@ -1086,6 +1082,12 @@ Instr Assembler::ImmShiftLS(unsigned shift_amount) {
 Instr Assembler::ImmException(int imm16) {
   DCHECK(is_uint16(imm16));
   return imm16 << ImmException_offset;
+}
+
+// udf is reserved for the constant pool marker, see IsConstantPoolAt.
+Instr Assembler::ImmUdf(int imm16) {
+  CHECK(is_uint16(imm16));
+  return imm16 << ImmUdf_offset;
 }
 
 Instr Assembler::ImmSystemRegister(int imm15) {

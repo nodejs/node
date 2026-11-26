@@ -9,6 +9,7 @@
 #ifndef LLVM_LIBC_SRC___SUPPORT_FPUTIL_SQRT_H
 #define LLVM_LIBC_SRC___SUPPORT_FPUTIL_SQRT_H
 
+#include "src/__support/CPP/type_traits.h"
 #include "src/__support/macros/properties/architectures.h"
 #include "src/__support/macros/properties/cpu_features.h"
 
@@ -24,22 +25,36 @@ namespace LIBC_NAMESPACE_DECL {
 namespace fputil {
 
 #ifdef LIBC_TARGET_CPU_HAS_FPU_FLOAT
-template <> LIBC_INLINE float sqrt<float>(float x) {
-  return __builtin_elementwise_sqrt(x);
+template <> LIBC_INLINE LIBC_CONSTEXPR_DEFAULT float sqrt<float>(float x) {
+  if (cpp::is_constant_evaluated()) {
+    return generic::sqrt<float>(x);
+  } else {
+    return __builtin_elementwise_sqrt(x);
+  }
 }
 #endif // LIBC_TARGET_CPU_HAS_FPU_FLOAT
 
 #ifdef LIBC_TARGET_CPU_HAS_FPU_DOUBLE
-template <> LIBC_INLINE double sqrt<double>(double x) {
-  return __builtin_elementwise_sqrt(x);
+template <> LIBC_INLINE LIBC_CONSTEXPR_DEFAULT double sqrt<double>(double x) {
+  if (cpp::is_constant_evaluated()) {
+    return generic::sqrt<double>(x);
+  } else {
+    return __builtin_elementwise_sqrt(x);
+  }
 }
 #endif // LIBC_TARGET_CPU_HAS_FPU_DOUBLE
 
 // Use 80-bit long double instruction on x86.
 // https://godbolt.org/z/oWEaj6hxK
 #ifdef LIBC_TYPES_LONG_DOUBLE_IS_X86_FLOAT80
-template <> LIBC_INLINE long double sqrt<long double>(long double x) {
-  return __builtin_elementwise_sqrt(x);
+template <>
+LIBC_INLINE LIBC_CONSTEXPR_DEFAULT long double
+sqrt<long double>(long double x) {
+  if (cpp::is_constant_evaluated()) {
+    return generic::sqrt<long double>(x);
+  } else {
+    return __builtin_elementwise_sqrt(x);
+  }
 }
 #endif // LIBC_TYPES_LONG_DOUBLE_IS_X86_FLOAT80
 

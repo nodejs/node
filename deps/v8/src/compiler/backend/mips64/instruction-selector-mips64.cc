@@ -1123,10 +1123,6 @@ void InstructionSelector::VisitTryTruncateFloat64ToUint32(OpIndex node) {
   Emit(kMips64TruncUwD, output_count, outputs, 1, inputs);
 }
 
-void InstructionSelector::VisitBitcastWord32ToWord64(OpIndex node) {
-  UNIMPLEMENTED();
-}
-
 void InstructionSelector::VisitChangeInt32ToInt64(OpIndex node) {
   Mips64OperandGenerator g(this);
   const ChangeOp& change_op = this->Get(node).template Cast<ChangeOp>();

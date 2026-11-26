@@ -159,7 +159,8 @@ struct HeapAddresses {
   //    the stack, or it might be accessible from thread-local storage with the
   //    key stored in v8::internal::Isolate::isolate_key_.
   // 2. Get isolate->heap_.map_space_->memory_chunk_list_.front_ and similar for
-  //    old_space_ and read_only_space_.
+  //    old_space_ and read_only_space_. If those aren't available, set isolate,
+  //    and the debug helper will read them from the roots table.
   uintptr_t map_space_first_page;
   uintptr_t old_space_first_page;
   uintptr_t read_only_space_first_page;
@@ -179,6 +180,11 @@ struct HeapAddresses {
   // If zero, the library will attempt to use Isolate::FromHeap() which may
   // fail if the offset differs between the debugger build and target build.
   uintptr_t isolate_heap_member_offset;
+
+  // The Isolate, if available. This allows the helper to locate the heap spaces
+  // from the roots table when they cannot be derived from a pointer compression
+  // cage.
+  uintptr_t isolate;
 };
 
 }  // namespace debug_helper

@@ -31,7 +31,11 @@ Decision DecideObjectIsSmi(Node* const input) {
   }
   if (m.IsAllocate()) return Decision::kFalse;
   if (m.IsChangeBitToTagged()) return Decision::kFalse;
+  if (m.IsChangeFloat64OrUndefinedToTagged()) return Decision::kFalse;
+  if (m.IsChangeFloat64ToTaggedPointer()) return Decision::kFalse;
+  if (m.IsChangeTaggedToTaggedPointer()) return Decision::kFalse;
   if (m.IsChangeInt31ToTaggedSigned()) return Decision::kTrue;
+  if (m.IsChangeTaggedToTaggedSigned()) return Decision::kTrue;
   if (m.IsHeapConstant()) return Decision::kFalse;
   return Decision::kUnknown;
 }
@@ -76,9 +80,7 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
     case IrOpcode::kChangeTaggedToBit: {
       HeapObjectMatcher m(node->InputAt(0));
       if (m.HasResolvedValue()) {
-        std::optional<bool> maybe_result =
-            m.Ref(broker()).TryGetBooleanValue(broker());
-        if (maybe_result.has_value()) return ReplaceInt32(*maybe_result);
+        return ReplaceInt32(m.Is(factory()->true_value()));
       }
       if (m.IsChangeBitToTagged()) return Replace(m.InputAt(0));
       break;
@@ -237,6 +239,13 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
       }
       break;
     }
+    case IrOpcode::kChangeTaggedToTaggedPointer: {
+      Node* const input = node->InputAt(0);
+      if (DecideObjectIsSmi(input) == Decision::kFalse) {
+        return Replace(input);
+      }
+      break;
+    }
     case IrOpcode::kCheckedTaggedToTaggedPointer: {
       Node* const input = node->InputAt(0);
       switch (DecideObjectIsSmi(input)) {
@@ -381,11 +390,11 @@ Reduction SimplifiedOperatorReducer::ReplaceInt32(int32_t value) {
 }
 
 Reduction SimplifiedOperatorReducer::ReplaceNumber(double value) {
-  return Replace(jsgraph()->ConstantMaybeHole(value));
+  return Replace(jsgraph()->ConstantNoHole(value));
 }
 
 Reduction SimplifiedOperatorReducer::ReplaceNumber(Float64 value) {
-  return Replace(jsgraph()->ConstantMaybeHole(value));
+  return Replace(jsgraph()->ConstantNoHole(value));
 }
 
 Reduction SimplifiedOperatorReducer::ReplaceNumber(int32_t value) {

@@ -267,6 +267,8 @@ void SwissNameDictionary::SetKey(uint32_t entry, Tagged<Object> key) {
 void SwissNameDictionary::DetailsAtPut(uint32_t entry,
                                        PropertyDetails details) {
   DCHECK_LT(entry, Capacity());
+  DCHECK_IMPLIES(NameAt(InternalIndex(entry))->IsAnyPrivate(),
+                 !details.IsEnumerable());
   uint8_t encoded_details = details.ToByte();
   PropertyDetailsTable()[entry] = encoded_details;
 }

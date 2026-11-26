@@ -144,6 +144,21 @@
 #define V8_DEBUGGING_EXPORT
 #endif
 
+// Annotates a return statement indicating that the compiler must convert it to
+// a tail call. Can only be used on return statements where caller and callee
+// have compatible signatures and calling conventions.
+// Disabled on PowerPC and MIPS where non-local/template calls cannot be
+// tail-called (PPC ELFv2 TOC-pointer restoration; MIPS backend limitation).
+#if defined(__clang__) && defined(__has_cpp_attribute) && \
+    !defined(V8_HOST_ARCH_PPC64) && !defined(V8_HOST_ARCH_MIPS64)
+#if __has_cpp_attribute(clang::musttail)
+#define V8_MUSTTAIL [[clang::musttail]]
+#endif
+#endif
+#ifndef V8_MUSTTAIL
+#define V8_MUSTTAIL
+#endif
+
 #if __cplusplus >= 202002L
 #define HAS_CPP_CLASS_TYPES_AS_TEMPLATE_ARGS 1
 #endif

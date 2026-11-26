@@ -2115,9 +2115,10 @@ TEST_F(ReducerTest, AtomicTrappingLoadReplace) {
     V<WordPtr> index = __ BitcastTaggedToWordPtr(Asm.GetParameter(1));
     V<Simd128> into =
         __ Simd128Splat(__ Word32Constant(16), Simd128SplatOp::Kind::kI8x16);
-    V<Word32> new_lane = __ Load(base, index, LoadOp::Kind::Trapping().Atomic(),
-                                 MemoryRepresentation::Int16(),
-                                 RegisterRepresentation::Word32(), 8);
+    V<Word32> new_lane = __ Load(
+        base, index,
+        LoadOp::Kind::Trapping().Atomic(AtomicMemoryOrder::kSeqCst),
+        MemoryRepresentation::Int16(), RegisterRepresentation::Word32(), 8);
     V<Simd128> replace = __ Simd128ReplaceLane(
         into, new_lane, Simd128ReplaceLaneOp::Kind::kI16x8, 1);
     V<Any> extract =

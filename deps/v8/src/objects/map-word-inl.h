@@ -12,6 +12,7 @@
 #include "src/objects/casting.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/smi-inl.h"
+#include "src/objects/tagged-impl-inl.h"
 #include "src/objects/tagged.h"
 
 namespace v8::internal {
@@ -71,7 +72,13 @@ Tagged<HeapObject> MapWord::ToForwardingAddress(
   intptr_t diff =
       static_cast<intptr_t>(Tagged<Smi>(value_).value()) * kObjectAlignment;
   Address address = map_word_host.address() + diff;
-  return HeapObject::FromAddress(address);
+  Tagged<HeapObject> heap_object = HeapObject::FromAddress(address);
+  // Forwarding cannot move an object out of the main pointer compression cage.
+  // This cannot use SBXCHECK because ToForwardingAddress can be called from
+  // Cast() while an AllowSandboxAccess scope is active.
+  CHECK_IMPLIES(map_word_host.IsInMainCageBase(),
+                heap_object.IsInMainCageBase());
+  return heap_object;
 #else
   // The sandbox requires the external code space.
   DCHECK(!V8_ENABLE_SANDBOX_BOOL);

@@ -149,10 +149,6 @@ constexpr Register GrowArrayElementsDescriptor::KeyRegister() { return ecx; }
 constexpr Register BaselineLeaveFrameDescriptor::ParamsSizeRegister() {
   return esi;
 }
-// static
-constexpr Register BaselineLeaveFrameDescriptor::WeightRegister() {
-  return edi;
-}
 
 // static
 constexpr Register TypeConversionDescriptor::ArgumentRegister() { return eax; }

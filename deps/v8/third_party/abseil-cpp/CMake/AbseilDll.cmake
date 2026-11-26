@@ -157,6 +157,7 @@ set(ABSL_INTERNAL_DLL_FILES
   "functional/internal/function_ref.h"
   "functional/overload.h"
   "hash/hash.h"
+  "hash/internal/canonical_hash.h"
   "hash/internal/city.cc"
   "hash/internal/city.h"
   "hash/internal/hash.cc"
@@ -512,6 +513,7 @@ set(ABSL_INTERNAL_TEST_DLL_FILES
   "random/internal/distribution_test_util.h"
   "random/internal/mock_helpers.h"
   "random/internal/mock_overload_set.h"
+  "random/internal/mock_validators.h"
   "random/mocking_bit_gen.h"
   "random/mock_distributions.h"
   "status/status_matchers.h"
@@ -519,6 +521,7 @@ set(ABSL_INTERNAL_TEST_DLL_FILES
   "status/internal/status_matchers.h"
   "strings/cordz_test_helpers.h"
   "strings/cord_test_helpers.h"
+  "time/mock_clock.h"
 )
 
 if(DEFINED CMAKE_CXX_STANDARD AND CMAKE_CXX_STANDARD_REQUIRED)

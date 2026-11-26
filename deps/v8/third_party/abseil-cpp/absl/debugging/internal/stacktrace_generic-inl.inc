@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
-// Portable implementation - just use glibc
+// Portable implementation using <execinfo.h> backtrace()
 //
 // Note:  The glibc implementation may cause a call to malloc.
 // This can cause a deadlock in HeapProfiler.
@@ -38,17 +38,34 @@
 // can not call anything which might call malloc or mmap itself.
 static __thread int recursive = 0;
 
-// The stack trace function might be invoked very early in the program's
-// execution (e.g. from the very first malloc if using tcmalloc). Also, the
-// glibc implementation itself will trigger malloc the first time it is called.
-// As such, we suppress usage of backtrace during this early stage of execution.
+#if defined(__GLIBC__)
+// glibc's backtrace() lazily dlopen()s libgcc_s on first use, which
+// allocates. If that first call happens very early (e.g. from the first
+// malloc when using tcmalloc), it can recurse into an uninitialized
+// allocator. Suppress stack traces until static initialization has run.
+// Other libcs that use this file (bionic, Apple) don't lazy-load.
 static std::atomic<bool> disable_stacktraces(true);  // Disabled until healthy.
+// This file is included into stacktrace.cc so this will only run once.
+[[maybe_unused]] static int stacktraces_enabler = []() {
+  void* unused_stack[1];
+  // Force the first backtrace to happen early to get the one-time shared lib
+  // loading (allocation) out of the way. After the first call it is much safer
+  // to use backtrace from a signal handler if we crash somewhere later.
+  backtrace(unused_stack, 1);
+  disable_stacktraces.store(false, std::memory_order_relaxed);
+  return 0;
+}();
+#endif  // defined(__GLIBC__)
 
 template <bool IS_STACK_FRAMES, bool IS_WITH_CONTEXT>
 static int UnwindImpl(void** result, uintptr_t* frames, int* sizes,
                       int max_depth, int skip_count, const void* ucp,
                       int* min_dropped_frames) {
-  if (recursive || disable_stacktraces.load(std::memory_order_relaxed)) {
+  if (recursive
+#if defined(__GLIBC__)
+      || disable_stacktraces.load(std::memory_order_relaxed)
+#endif
+  ) {
     return 0;
   }
   ++recursive;
@@ -101,7 +118,7 @@ namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace debugging_internal {
 bool StackTraceWorksForTest() {
-  return false;
+  return true;
 }
 }  // namespace debugging_internal
 ABSL_NAMESPACE_END

@@ -6,6 +6,7 @@
 
 #include <sstream>
 
+#include "src/codegen/cpu-features.h"
 #include "src/execution/frames.h"
 #include "src/flags/flags.h"
 #include "src/heap/factory.h"
@@ -45,9 +46,9 @@ class WasmTracingTest : public TestWithContextAndZone {
     HandleScope handle_scope(v8_isolate);
 
     DirectHandle<WasmInstanceObject> instance_a =
-        CompileAndRun(sigs_.v_v(), code_a, nullptr);
+        CompileAndRun(TestSignatures::v_v(), code_a, nullptr);
     DirectHandle<WasmInstanceObject> instance_b =
-        CompileAndRun(sigs_.v_v(), code_b, nullptr);
+        CompileAndRun(TestSignatures::v_v(), code_b, nullptr);
 
     Tagged<WasmTrustedInstanceData> instance_data_a =
         instance_a->trusted_data(v8_isolate);
@@ -78,14 +79,14 @@ class WasmTracingTest : public TestWithContextAndZone {
     traces.should_store_trace = true;
 
     std::optional<CppGCManaged<NativeModule>::Ptr> native_module;
-    CompileAndRun(sigs_.v_v(), code_a, &native_module);
+    CompileAndRun(TestSignatures::v_v(), code_a, &native_module);
 
     MemoryTrace memory_trace_a = std::move(traces.memory_trace);
     GlobalTrace global_trace_a = std::move(traces.global_trace);
     traces.memory_trace.clear();
     traces.global_trace.clear();
 
-    CompileAndRun(sigs_.v_v(), code_b, nullptr);
+    CompileAndRun(TestSignatures::v_v(), code_b, nullptr);
 
     MemoryTrace memory_trace_b = std::move(traces.memory_trace);
     GlobalTrace global_trace_b = std::move(traces.global_trace);
@@ -162,7 +163,6 @@ class WasmTracingTest : public TestWithContextAndZone {
     return instance;
   }
 
-  TestSignatures sigs_;
 };
 
 TEST_F(WasmTracingTest, TestTracingNoDiff) {
@@ -361,6 +361,81 @@ TEST_F(WasmTracingTest, TestTracingManyMismatches) {
   EXPECT_THAT(result.memory_trace, HasSubstr("[...]\nMismatch at line 71"));
   EXPECT_THAT(result.memory_trace,
               HasSubstr("[... 15 more mismatches not shown]"));
+}
+
+namespace {
+
+struct V8_NODISCARD TraceStorageScope {
+  explicit TraceStorageScope(WasmTracesForTesting& traces) : traces_(traces) {
+    traces_.memory_trace.clear();
+    traces_.global_trace.clear();
+    traces_.should_store_trace = true;
+  }
+  ~TraceStorageScope() {
+    traces_.should_store_trace = false;
+    traces_.memory_trace.clear();
+    traces_.global_trace.clear();
+  }
+  WasmTracesForTesting& traces_;
+};
+
+#ifdef V8_TARGET_ARCH_X64
+struct V8_NODISCARD DisableF16CScope {
+  DisableF16CScope() : had_f16c_(CpuFeatures::IsSupported(F16C)) {
+    if (had_f16c_) CpuFeatures::SetUnsupported(F16C);
+  }
+  ~DisableF16CScope() {
+    if (had_f16c_) CpuFeatures::SetSupported(F16C);
+  }
+  bool had_f16c_;
+};
+#endif  // V8_TARGET_ARCH_X64
+
+}  // namespace
+
+TEST_F(WasmTracingTest, LiftoffLoadF16DynamicOffsetTrace) {
+  FlagScope<bool> enable_fp16(&v8_flags.wasm_fp16, true);
+  FlagScope<bool> enable_liftoff(&v8_flags.liftoff, true);
+  FlagScope<bool> disable_tier_up(&v8_flags.wasm_tier_up, false);
+  FlagScope<bool> enable_tracing(&v8_flags.trace_wasm_memory, true);
+  FlagScope<bool> disable_cache(&v8_flags.wasm_native_module_cache, false);
+#ifdef V8_TARGET_ARCH_X64
+  DisableF16CScope disable_f16c;
+#endif  // V8_TARGET_ARCH_X64
+
+  WasmModuleBuilder builder(zone());
+  builder.AddMemory(1);
+  // IEEE 754 binary16 encoding of 1.5f (0x3e00) at offset 16.
+  const uint8_t f16_one_point_five[] = {0x00, 0x3e};
+  builder.AddDataSegment(f16_one_point_five, sizeof(f16_one_point_five), 16);
+  WasmFunctionBuilder* f = builder.AddFunction(TestSignatures::i_i());
+  f->builder()->AddExport("load_f16", f);
+  uint8_t code[] = {
+      WASM_I32_REINTERPRET_F32(WASM_F16_LOAD_MEM(WASM_LOCAL_GET(0))), kExprEnd};
+  f->EmitCode(code, sizeof(code));
+
+  ZoneBuffer buffer(zone());
+  builder.WriteTo(&buffer);
+
+  Isolate* v8_isolate = reinterpret_cast<Isolate*>(isolate());
+  HandleScope handle_scope(v8_isolate);
+  ErrorThrower thrower(v8_isolate, "LiftoffLoadF16DynamicOffsetTrace");
+  DirectHandle<WasmInstanceObject> instance =
+      testing::CompileAndInstantiateForTesting(v8_isolate, &thrower,
+                                               base::VectorOf(buffer))
+          .ToHandleChecked();
+  CHECK(!thrower.error());
+
+  WasmTracesForTesting& traces = GetWasmTracesForTesting();
+  TraceStorageScope trace_scope(traces);
+  DirectHandle<Object> args[] = {direct_handle(Smi::FromInt(16), v8_isolate)};
+  int32_t result = testing::CallWasmFunctionForTesting(
+      v8_isolate, instance, "load_f16", base::VectorOf(args));
+
+  // IEEE 754 binary32 encoding of 1.5f.
+  EXPECT_EQ(0x3fc00000, result);
+  ASSERT_EQ(1u, traces.memory_trace.size());
+  EXPECT_EQ(16u, traces.memory_trace[0].offset);
 }
 
 }  // namespace v8::internal::wasm

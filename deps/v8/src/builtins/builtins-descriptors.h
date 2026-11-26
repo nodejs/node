@@ -16,8 +16,7 @@ namespace internal {
 #define DEFINE_TFJ_PARAMETER_INDICES(...)     \
   enum ParameterIndices {                     \
     kJSTarget = kJSCallClosureParameterIndex, \
-    ##__VA_ARGS__,                            \
-    kJSNewTarget,                             \
+    __VA_OPT__(__VA_ARGS__, ) kJSNewTarget,   \
     kJSActualArgumentsCount,                  \
     kJSDispatchHandle,                        \
     kContext,                                 \
@@ -28,8 +27,7 @@ constexpr size_t kJSBuiltinBaseParameterCount = 4;
 #define DEFINE_TFJ_PARAMETER_INDICES(...)     \
   enum ParameterIndices {                     \
     kJSTarget = kJSCallClosureParameterIndex, \
-    ##__VA_ARGS__,                            \
-    kJSNewTarget,                             \
+    __VA_OPT__(__VA_ARGS__, ) kJSNewTarget,   \
     kJSActualArgumentsCount,                  \
     kContext,                                 \
     kParameterCount,                          \

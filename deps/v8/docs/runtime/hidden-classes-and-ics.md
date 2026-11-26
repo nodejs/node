@@ -1,128 +1,140 @@
-# Hidden Classes and Inline Caches in V8
+# Hidden Classes (`Map`) and Inline Caches (ICs)
 
-V8 uses a combination of **Hidden Classes (Maps)** and **Inline Caches (ICs)** to achieve high performance in property access and method calls, despite JavaScript being a dynamic language.
+## Conceptual Overview
 
-## Hidden Classes (Maps)
+JavaScript is dynamically typed and classless at the object level: two objects `{ x: 1, y: 2 }` and `{ x: 10, y: 20 }` have no static C++ struct declaration, and properties can be added at any time. If V8 looked up `"y"` in a hash table every time `point.y` executed, property access would be an order of magnitude slower than C++ struct field access.
 
-As detailed in [Objects and Maps](../heap/objects-and-maps.md), V8 attaches a `Map` (hidden class) to every JavaScript object. The Map defines the shape of the object, mapping property names to their offsets in memory.
+V8 bridges this gap with two tightly coupled mechanisms:
+1. **Hidden Classes (`Map`s)**: Every `HeapObject` begins with a pointer to a `Map` that describes its exact layout (its `InstanceType`, in-object property count, `ElementsKind`, prototype pointer, and `DescriptorArray`). Objects created in the same way follow the same **Transition Tree** of `Map`s and end up sharing the exact same final `Map`, guaranteeing that property `y` lives at the exact same memory offset in all of them.
+2. **Inline Caches (ICs)**: Every property load (`LoadIC`), store (`StoreIC`), or element access (`KeyedLoadIC`, `KeyedStoreIC`) in bytecode has an associated slot in the function's **`FeedbackVector`**. On the first execution, the IC performs a full property lookup (`LookupIterator`), computes a compact **Handler** describing how to read or write the property (for example, "read in-object field at word offset 3"), and caches the `(Map, Handler)` pair in the `FeedbackVector` slot. Subsequent executions check `obj->map() == cached_map` and execute the handler directly in a few instructions!
 
-When objects share the same structure (same properties added in the same order), they share the same Map. This sharing is key to the effectiveness of Inline Caches.
+*(For a step-by-step introductory walkthrough of how transition trees evolve, see the [Hidden Classes Tutorial](hidden-classes-tutorial.md). For deep dives into `DescriptorArray`, `TransitionArray`, and `SwissNameDictionary`, see [Descriptor and Transition Arrays](../objects/descriptor-and-transition-arrays.md) and [Fields and Elements](../objects/fields-and-elements.md).)*
 
-### Map Transition Tree
+---
 
-Adding properties to an object transitions it to a new Map. V8 builds a transition tree to reuse Maps when objects follow the same transition path. Note that the order of property addition matters:
+## 1. The IC State Lattice (`InlineCacheState`)
 
-```dot
-digraph G {
-    rankdir=TB;
-    newrank=true;
-    node [shape=record];
-    edge [];
+Each IC slot in a `FeedbackVector` occupies **2 tagged words** (configured by `FeedbackSlotKind` in `src/objects/feedback-vector.h`) and progresses monotonically through a lattice of states (`src/common/globals.h`):
 
-    Empty [label="Map 0: {}", class="start"];
-    MapA [label="Map 1: {a: @0}", class="branch"];
-    MapAB [label="Map 2: {a: @0, b: @1}", class="leaf"];
-    MapB [label="Map 3: {b: @0}", class="branch"];
-    MapBA [label="Map 4: {b: @0, a: @1}", class="leaf"];
-
-    Empty -> MapA [label="+a"];
-    MapA -> MapAB [label="+b"];
-    
-    Empty -> MapB [label="+b"];
-    MapB -> MapBA [label="+a"];
-}
+```mermaid
+graph LR
+    U["UNINITIALIZED<br/>(uninitialized_sentinel)"] --> M["MONOMORPHIC<br/>[Weak&lt;Map&gt;, Handler]"]
+    M --> P["POLYMORPHIC<br/>[WeakFixedArray of (Map, Handler), ...]"]
+    P --> Mega["MEGAMORPHIC<br/>[megamorphic_symbol, Smi::zero()]"]
+    M --> Mega
+    Mega --> G["GENERIC<br/>(Fallback runtime/generic path)"]
 ```
 
-## Inline Caches (ICs)
+| State | `FeedbackVector` Slot `[0]` & `[1]` | Behavior |
+| :--- | :--- | :--- |
+| **`UNINITIALIZED`** | `[uninitialized_symbol, Smi::zero()]` | Never executed. Calls into the IC miss builtin/runtime to initialize. |
+| **`MONOMORPHIC`** | `[Weak<Map>, Handler]` (or `[Name, WeakFixedArray]` for keyed access to a single dynamic property name) | Seen **1** receiver `Map`. Checks `receiver->map() == expected_map` and runs `Handler`. Fastest path; directly inlined as a single `CheckMaps` + field load by Maglev and TurboFan. |
+| **`POLYMORPHIC`** | `[WeakFixedArray, uninitialized_symbol / Name]` | Seen **2 to `kMaxPolymorphicMapCount` (`4`)** distinct receiver `Map`s. The `WeakFixedArray` stores interleaved `[Weak<Map_1>, Handler_1, Weak<Map_2>, Handler_2, ...]`. Baseline/JIT code emits a linear switch over the maps. |
+| **`MEGAMORPHIC`** | `[megamorphic_symbol, Smi]` | Seen **more than 4** receiver `Map`s. Stops recording per-site maps and probes the isolate-wide **`StubCache`** (`load_stub_cache_`, `store_stub_cache_`, or `define_own_stub_cache_`). |
 
-Inline Caching is a technique for optimizing dynamic property lookups. Without ICs, V8 would have to perform a dictionary lookup or search the descriptor array of the map every time a property is accessed (e.g., `obj.x`).
+---
 
-### How ICs Work
+## 2. Handler Configurations: `LoadHandler`, `StoreHandler`, and `DataHandler`
 
-An IC caches the result of a property lookup at the specific location in the code (the call site) where the access occurs.
+What is the `Handler` stored in slot `[1]` of a monomorphic IC (or odd indices of a polymorphic `WeakFixedArray`)? Depending on the complexity of the lookup, a handler is one of three things:
 
-1.  **Uninitialized State**: When a line of code like `return obj.x` is executed for the first time, the IC at that site is `UNINITIALIZED`.
-2.  **First Access (Miss)**: V8 performs a slow lookup. It checks the object's Map, finds property `x` in the `DescriptorArray`, and gets its offset.
-3.  **Caching**: V8 records the object's current Map and the calculated handler (e.g., the field offset or a getter function) in the **Feedback Vector** associated with the current function. The IC transitions to the `MONOMORPHIC` state.
-4.  **Subsequent Accesses (Hit)**: The next time this code is executed:
-    *   V8 compares the object's current Map with the Map stored in the IC.
-    *   If they match (a Hit), V8 uses the cached handler directly to access the property. This is extremely fast.
-    *   If they don't match (a Miss), V8 falls back to a slower lookup and updates the IC.
+### 1. Smi-Encoded Bitfield (`LoadHandler` / `StoreHandler` in `src/ic/handler-configuration.h`)
+For the most common fast paths (loading or storing an in-object or `PropertyArray` field on the receiver, loading a constant descriptor, reading `Array.length`, or loading an element), the entire handler fits into a **single 31-bit `Smi`**!
 
-### IC States
+#### `LoadHandler` Bitfield Layout (`kField` / General Kinds)
+`LoadHandler::Kind` occupies bits `0..3` (`KindBits`, 4 bits):
+- `kElement`, `kIndexedString`, `kNormal` (dictionary mode), `kGlobal`, `kField`, `kConstantFromPrototype`, `kAccessorFromPrototype`, `kNativeDataProperty`, `kApiGetter`, `kInterceptor`, `kProxy`, `kNonExistent`, `kModuleExport`.
 
-An IC call site can be in one of several states (defined in `src/common/globals.h` as `InlineCacheState`):
+When `Kind == LoadHandler::Kind::kField`, the remaining bits of the `Smi` encode the exact memory layout of the field (`src/ic/handler-configuration.h`):
 
-*   **`NO_FEEDBACK`**: Used when no feedback should be collected (e.g., in certain debugger scenarios or for always-slow operations).
-*   **`UNINITIALIZED`**: The call site has never been executed.
-*   **`MONOMORPHIC`**: The IC has seen only one receiver Map. This is the most optimized state.
-*   **`RECOMPUTE_HANDLER`**: Check failed due to prototype (or map deprecation).
-*   **`POLYMORPHIC`**: The IC has seen a small number of different receiver Maps (typically up to 4). It stores a list of Map-handler pairs and checks them linearly.
-*   **`MEGADOM`**: Many DOM receiver types have been seen for the same accessor.
-*   **`HOMOMORPHIC`**: Many receiver types have been seen with the same handler.
-*   **`MEGAMORPHIC`**: The IC has seen many different receiver Maps. It falls back to a global stub cache or a slower, generic lookup path to avoid excessive memory use in the feedback vector.
-*   **`GENERIC`**: A generic handler is installed and no extra typefeedback is recorded.
+```text
+30               19        18          17                      6                     5                            4     3      0
++------------------+---------+-----------+----------------------+---------------------+----------------------------+------------+
+| DescriptorIndex  |IsDouble |IsInobject | StorageOffsetInWords | LookupOnLookupStart | DoAccessCheckOnLookupStart |  KindBits  |
+|    (11 bits)     | (1 bit) |  (1 bit)  |      (11 bits)       |       (1 bit)       |          (1 bit)           |  (4 bits)  |
++------------------+---------+-----------+----------------------+---------------------+----------------------------+------------+
+```
 
-## The Feedback Vector and Slots
+- **`KindBits` (4 bits)**: `LoadHandler::Kind::kField`.
+- **`DoAccessCheckOnLookupStartObjectBits` (1 bit)**: Set if the receiver/lookup-start object requires a cross-origin security access check before reading.
+- **`LookupOnLookupStartObjectBits` (1 bit)**: Set for `LoadSuperIC` (`super.prop`) when the property lookup started on the prototype chain rather than the receiver.
+- **`StorageOffsetInWordsBits` (11 bits)**: The offset in `kTaggedSize` words, either directly from the `JSObject` header (if `IsInobject == 1`) or inside `obj->property_array()` (if `IsInobject == 0`).
+- **`IsInobjectBits` (1 bit)**: `1` for in-object fields, `0` for out-of-object `PropertyArray` fields.
+- **`IsDoubleBits` (1 bit)**: `1` if the field has `Representation::Double()` (meaning the slot holds a mutable `HeapNumber` whose float64 value must be unboxed or copied into a fresh `HeapNumber` upon load so subsequent in-place mutations to the field do not mutate the returned number!).
+- **`DescriptorIndexBits` (11 bits)**: Index into `DescriptorArray` (used when needed for metadata/accessors).
 
-As mentioned above, IC state is stored in the `FeedbackVector`.
+*(Similarly, `StoreHandler::Kind` encodes `kField`, `kConstField`, `kNormal`, `kProxy`, `kGlobalProxy`, `kSharedStructField`, `kSlow`, and `RepresentationBits` (`kSmi`, `kDouble`, `kHeapObject`, `kTagged`) so the store IC stub validates the incoming value's representation before writing!)*
 
-### Structure
-*   A `FeedbackVector` is associated with a `JSFunction` (instance).
-*   The `SharedFunctionInfo` (shared across instances) contains `FeedbackMetadata` which describes the layout of the vector.
-*   It contains an array of slots (`raw_feedback_slots`), defined in `src/objects/feedback-vector.tq`.
-*   Each IC site in the bytecode has a corresponding slot index in this vector.
+### 2. Heap `DataHandler` (`LoadHandler` / `StoreHandler` : `DataHandler` in `src/objects/data-handler.h`)
+What if a load or store requires **extra object pointers** beyond a 31-bit `Smi` -- for example:
+- Loading a property from a **prototype** (requires checking a prototype **`validity_cell`** and reading from the prototype **`holder`** object), or
+- Performing a **hidden-class transition store** (requires the target **`transition_map`** and prototype **`validity_cell`**), or
+- Executing a fast **`JSProxy` IC** (`kProxyDataFieldCount = 5`)?
 
-### FeedbackNexus
-To avoid manual bit-twiddling and handle the complexity of different slot kinds, V8 uses `FeedbackNexus` (defined in `src/objects/feedback-vector.h`). This is a helper class that knows how to read and write feedback for a specific slot.
+In these cases, the IC allocates a variable-length **`DataHandler`** heap object (`LoadHandler` or `StoreHandler` subclassing `DataHandler`, `src/objects/data-handler.h`):
 
-## Handler Encoding
+```text
++-------------------------------------------------------------------+
+| Map (load_handler1_map / load_handler2_map / load_handler3_map...)|
++-------------------------------------------------------------------+
+| smi_handler_   (Tagged<UnionOf<Smi, Code>>: Smi bitfield or stub) |
++-------------------------------------------------------------------+
+| validity_cell_ (Tagged<UnionOf<Smi, Cell>>: prototype guard cell) |
++-------------------------------------------------------------------+
+| data1          (Optional: e.g. Weak<Holder>, Weak<TransitionMap>) |
+| data2          (Optional: e.g. AccessorPair / PropertyCell)       |
+| data3..data5   (Optional: e.g. Proxy target/handler fields)       |
++-------------------------------------------------------------------+
+```
 
-A common misconception is that Inline Caches always cache a pointer to a generated machine code stub. In modern V8, this is often not the case to save memory. Instead, V8 uses **Handlers** which can be encoded in different ways:
+### 3. Direct `Code` Handler (`Builtin` / IC Trampoline)
+For specialized element accesses or slow paths, the handler slot (or `DataHandler::smi_handler_`) can point directly to a trusted `Code` object (such as a dynamically selected element-load or transition stub).
 
-### 1. Smi Handlers
-For simple field accesses, the handler is often just a tagged integer (Smi). The encoding depends on the `Kind` of access. For a simple field load (`kField`), the bits of the Smi encode:
-*   **Kind**: Encoded in the lowest bits (e.g., `kField`).
-*   **IsWasmStruct**: Distinguishes JS objects from Wasm structs.
-*   **Storage Offset**: The offset of the field in words.
-*   **In-object vs. Out-of-object**: Whether the property is stored directly in the object or in the properties backing store (`IsInobjectBits`).
-*   **IsDouble**: Whether the field stores a double value.
-*   **Descriptor Index**: The index in the descriptor array.
+---
 
-The `AccessorAssembler` (CSA) decodes these Smis directly in assembly to perform the access.
+## 3. Prototype Validity Cells (`Map::GetOrCreatePrototypeChainValidityCell`)
 
-### 2. DataHandler Objects
-For more complex scenarios, such as accessing a property on a prototype object, V8 uses a `DataHandler` heap object (defined in `src/objects/data-handler.tq` and `src/objects/data-handler.h`). This object extends `Struct` and has a variable size to store optional data fields. It contains:
-*   `smi_handler`: A Smi encoding the handler (like above) or a `Code` object.
-*   `validity_cell`: A Smi or a `Cell` to check if the prototype chain is still valid.
-*   `data1`, `data2`, `data3`: Optional data fields (flexible array member in C++) depending on the handler kind.
+Suppose `obj` has hidden class `Map_Obj`, its prototype `proto` has `Map_Proto`, and `proto.toString` lives on `Object.prototype` (`Map_ObjProto`).
+Without prototype validity cells, a monomorphic load `obj.toString()` would have to check **every `Map` along the prototype chain** (`obj->map() == Map_Obj && proto->map() == Map_Proto && objProto->map() == Map_ObjProto`) on every call, because someone might have added a shadowing `proto.toString` property!
 
-For prototype loads, `LoadHandler::LoadFromPrototype` creates a `LoadHandler` (which extends `DataHandler`) and typically stores:
-*   The **holder** object in the `data1` field (as a weak reference).
-*   The final access handler in `smi_handler`.
+V8 reduces this $O(\text{depth})$ prototype walk to a **single `Cell` load**:
+1. Every prototype `Map` (`map->is_prototype_map()`) has a `PrototypeInfo` holding a **`validity_cell`** (`Cell` containing `Map::kPrototypeChainValid = Smi::zero()`).
+2. A prototype `DataHandler` stores `validity_cell_` from the receiver's immediate prototype `Map`.
+3. On load, the IC only checks:
+   - `obj->map() == expected_receiver_map`, AND
+   - `handler->validity_cell()->value() == Smi::FromInt(Map::kPrototypeChainValid)`.
+   Then it reads the property directly from `handler->data1()` (the cached prototype `holder`)!
+4. Whenever **any** prototype `Map` is modified (a property is added/reconfigured, a dictionary prototype is mutated, or `__proto__` changes), V8 overwrites its `validity_cell` with `Map::kPrototypeChainInvalid` (`Smi::FromInt(1)`) and invalidates all downstream prototype maps' validity cells via `JSObject::InvalidatePrototypeChains`.
 
-For interceptors, `LoadHandler::LoadInterceptorHolderIsLookupStartupObject` stores the `InterceptorInfo` in the `data2` field.
+---
 
-## The Fast Path: AccessorAssembler
+## 4. Megamorphic `StubCache` Architecture (`src/ic/stub-cache.h`)
 
-The code that actually executes when an IC site is hit is generated by `AccessorAssembler` (defined in `src/ic/accessor-assembler.cc`). This class uses CodeStubAssembler (CSA) to generate highly optimized machine code for:
-*   `LoadIC`, `StoreIC`, `KeyedLoadIC`, `KeyedStoreIC`.
-*   Probing the `FeedbackVector`.
-*   Handling monomorphic and polymorphic cases.
-*   Falling back to the runtime on a miss.
+When an IC site sees more than 4 distinct receiver `Map`s, it transitions to **`MEGAMORPHIC`**. Instead of storing maps in the local `FeedbackVector` slot, megamorphic ICs query an Isolate-wide hash table called the **`StubCache`**.
 
-## Megamorphic Stub Cache
+### Three Separate `StubCache` Instances per `Isolate`
+Each `Isolate` owns **three** independent `StubCache` instances (`src/execution/isolate.h`):
+1. **`load_stub_cache_`**: Queried by megamorphic `LoadIC` and `KeyedLoadIC` sites.
+2. **`store_stub_cache_`**: Queried by megamorphic `StoreIC` and `KeyedStoreIC` sites (regular assignment `obj.x = v`).
+3. **`define_own_stub_cache_`**: Queried by megamorphic `DefineNamedOwnIC` and `DefineKeyedOwnIC` sites (object literals, class fields, and private fields).
 
-When an IC site sees too many different Maps (becomes megamorphic), storing all of them in the `FeedbackVector` would consume too much memory.
+### Two-Level Direct-Mapped Tables (`primary_` and `secondary_`)
+Each `StubCache` consists of two fixed-size direct-mapped arrays of `StubCache::Entry` structs (`{ Tagged<Name> key, Tagged<MaybeObject> value, Tagged<Map> map }`):
+- **`primary_` table**: `kPrimaryTableSize = 1 << 12 = 4096` entries.
+- **`secondary_` table**: `kSecondaryTableSize = 1 << 10 = 1024` entries.
 
-Instead, V8 falls back to a global **Stub Cache** (defined in `src/ic/stub-cache.h`).
-*   It is a fixed-size hash table.
-*   It is keyed by the receiver's **Map** and the property **Name**.
-*   It stores the handler directly.
+When a megamorphic IC executes with `(receiver_map, property_name)` (`src/ic/stub-cache.cc`):
+1. **Probe `primary_`**: Computes `PrimaryOffset(name, map)` (using XOR + shift hashing of the compressed `Name` and `Map` addresses). If `primary_[idx].key == name && primary_[idx].map == map`, it immediately executes `primary_[idx].value` (which holds a `Smi` handler, `DataHandler`, or `Code` handler).
+2. **Probe `secondary_`**: On a primary miss, computes `SecondaryOffset(name, primary_offset)` and checks `secondary_[sec_idx]`.
+3. **Cache Fill (`StubCache::Set`)**: If both miss, the IC falls back to C++ (`Runtime_LoadIC_Miss` / `StoreIC_Miss`), computes the handler, **evicts** the existing `primary_[idx]` entry into `secondary_[sec_idx]`, and writes the new `(name, map, handler)` entry into `primary_[idx]`.
+- Because `StubCache::Entry` holds raw pointers inside the Isolate, both tables are cleared on Garbage Collection (`StubCache::Clear()`).
 
-If the `AccessorAssembler` misses in the `FeedbackVector` for a megamorphic site, it probes this global stub cache. This provides a fast path even for highly polymorphic call sites, without bloating the local feedback vector.
+---
 
-## See Also
--   [Objects and Maps](../heap/objects-and-maps.md)
--   [Descriptor and Transition Arrays](../objects/descriptor-and-transition-arrays.md)
--   [Maps (Hidden Classes) Tutorial](hidden-classes-tutorial.md)
+## Key Source Files
+
+- `src/ic/ic.h` & `src/ic/ic.cc`: `IC`, `LoadIC`, `StoreIC`, `KeyedLoadIC`, `KeyedStoreIC`, `DefineNamedOwnIC`, and state transitions.
+- `src/ic/handler-configuration.h` & `-inl.h`: `LoadHandler` and `StoreHandler` Smi bitfields and `DataHandler` factories.
+- `src/objects/data-handler.h`: `DataHandler` heap object layout (`smi_handler_`, `validity_cell_`, `data1..data5`).
+- `src/ic/stub-cache.h` & `src/ic/stub-cache.cc`: `StubCache` primary/secondary tables and hash functions.
+- `src/ic/accessor-assembler.cc`: CodeStubAssembler fast paths for IC dispatch and `StubCache` probing.

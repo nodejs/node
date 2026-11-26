@@ -84,8 +84,7 @@ void Int32AbsWithOverflow::GenerateCode(MaglevAssembler* masm,
 
   Label done;
   DCHECK(ToRegister(ValueInput()) == out);
-  __ MacroAssembler::Branch(&done, greater_equal, out, Operand(zero_reg),
-                            Label::Distance::kNear);
+  __ MacroAssembler::Branch(&done, greater_equal, out, Operand(zero_reg));
 
   // Output register must not be a register input into the eager deopt info.
   DCHECK_REGLIST_EMPTY(RegList{out} &
@@ -244,8 +243,7 @@ void RestLength::GenerateCode(MaglevAssembler* masm,
   Label done;
   __ Ld_d(length, MemOperand(fp, StandardFrameConstants::kArgCOffset));
   __ Sub_d(length, length, Operand(formal_parameter_count() + 1));
-  __ MacroAssembler::Branch(&done, greater_equal, length, Operand(zero_reg),
-                            Label::Distance::kNear);
+  __ MacroAssembler::Branch(&done, greater_equal, length, Operand(zero_reg));
   __ mov(length, zero_reg);
   __ bind(&done);
   __ UncheckedSmiTagInt32(length);
@@ -524,8 +522,7 @@ void Int32MultiplyWithOverflow::GenerateCode(MaglevAssembler* masm,
 
   // If the result is zero, check if either lhs or rhs is negative.
   Label end;
-  __ MacroAssembler::Branch(&end, ne, res, Operand(zero_reg),
-                            Label::Distance::kNear);
+  __ MacroAssembler::Branch(&end, ne, res, Operand(zero_reg));
   {
     Register maybeNegative = scratch;
     __ add_w(maybeNegative, left, right);
@@ -616,10 +613,6 @@ void Int32ModulusWithOverflow::SetValueLocationConstraints() {
 }
 void Int32ModulusWithOverflow::GenerateCode(MaglevAssembler* masm,
                                             const ProcessingState& state) {
-  // If AreAliased(lhs, rhs):
-  //   deopt if lhs < 0  // Minus zero.
-  //   0
-  //
   // Using same algorithm as in MachineLoweringReducer:
   //   if rhs <= 0 then
   //     rhs = -rhs
@@ -644,16 +637,6 @@ void Int32ModulusWithOverflow::GenerateCode(MaglevAssembler* masm,
 
   // For the modulus algorithm described above, lhs and rhs must not alias
   // each other.
-  if (lhs == rhs) {
-    // TODO(victorgomes): This ideally should be kMinusZero, but Maglev only
-    // allows one deopt reason per IR.
-    Label* deopt = __ GetDeoptLabel(this, DeoptimizeReason::kDivisionByZero);
-    __ RecordComment("-- Jump to eager deopt");
-    __ MacroAssembler::Branch(deopt, lt, lhs, Operand(zero_reg));
-    __ Move(out, zero_reg);
-    return;
-  }
-
   DCHECK(!AreAliased(lhs, rhs));
 
   ZoneLabelRef done(masm);
@@ -689,11 +672,11 @@ void Int32ModulusWithOverflow::GenerateCode(MaglevAssembler* masm,
   Register msk = temps.AcquireScratch();
   __ Sub_w(msk, rhs, Operand(1));
   __ and_(scratch, rhs, msk);
-  __ MacroAssembler::Branch(&rhs_not_power_of_2, ne, scratch, Operand(zero_reg),
-                            Label::kNear);
+  __ MacroAssembler::Branch(&rhs_not_power_of_2, ne, scratch,
+                            Operand(zero_reg));
   // {rhs} is power of 2.
   __ and_(out, lhs, msk);
-  __ MacroAssembler::Branch(*done, Label::kNear);
+  __ Jump(*done);
 
   __ bind(&rhs_not_power_of_2);
   __ mod_w(out, lhs, rhs);
@@ -934,7 +917,7 @@ void Float64Min::GenerateCode(MaglevAssembler* masm,
 
   Label is_nan, done;
   __ Float64Min(out, left, right, &is_nan);
-  __ MacroAssembler::Branch(&done);
+  __ Jump(&done);
   __ bind(&is_nan);
   __ fadd_d(out, left, right);
   __ bind(&done);
@@ -963,7 +946,7 @@ void Float64Max::GenerateCode(MaglevAssembler* masm,
 
   Label is_nan, done;
   __ Float64Max(out, left, right, &is_nan);
-  __ MacroAssembler::Branch(&done);
+  __ Jump(&done);
   __ bind(&is_nan);
   __ fadd_d(out, left, right);
   __ bind(&done);
@@ -1049,11 +1032,9 @@ void CheckJSDataViewBounds::GenerateCode(MaglevAssembler* masm,
   if (element_size > 1) {
     limit = temps.Acquire();
     __ Sub_w(limit, byte_length, Operand(element_size - 1));
-    __ MacroAssembler::Branch(&fail, lt, limit, Operand(zero_reg),
-                              Label::Distance::kNear);
+    __ MacroAssembler::Branch(&fail, lt, limit, Operand(zero_reg));
   }
-  __ MacroAssembler::Branch(&done, ult, index, Operand(limit),
-                            Label::Distance::kNear);
+  __ MacroAssembler::Branch(&done, ult, index, Operand(limit));
   __ bind(&fail);
   __ EmitEagerDeopt(this, DeoptimizeReason::kOutOfBounds);
 
@@ -1094,7 +1075,7 @@ void UnsafeFloat64ToHoleyFloat64::GenerateCode(MaglevAssembler* masm,
 
 namespace {
 
-enum class ReduceInterruptBudgetType { kLoop, kReturn };
+enum class ReduceInterruptBudgetType { kLoop, kEntry };
 
 void HandleInterruptsAndTiering(MaglevAssembler* masm, ZoneLabelRef done,
                                 Node* node, ReduceInterruptBudgetType type,
@@ -1118,7 +1099,7 @@ void HandleInterruptsAndTiering(MaglevAssembler* masm, ZoneLabelRef done,
     __ CallRuntime(Runtime::kBytecodeBudgetLoopInterrupt_Maglev, 2);
     save_register_state.DefineSafepointWithLazyDeopt(node->lazy_deopt_info());
   } else {
-    DCHECK_EQ(type, ReduceInterruptBudgetType::kReturn);
+    DCHECK_EQ(type, ReduceInterruptBudgetType::kEntry);
     SaveRegisterStateForCall save_register_state(masm,
                                                  node->register_snapshot());
     Register function = scratch0;
@@ -1129,7 +1110,7 @@ void HandleInterruptsAndTiering(MaglevAssembler* masm, ZoneLabelRef done,
     __ CallRuntime(Runtime::kBytecodeBudgetInterrupt_Maglev, 1);
     save_register_state.DefineSafepoint();
   }
-  __ MacroAssembler::Branch(*done);
+  __ Jump(*done);
 }
 
 void GenerateReduceInterruptBudget(MaglevAssembler* masm, Node* node,
@@ -1172,16 +1153,16 @@ void ReduceInterruptBudgetForLoop::GenerateCode(MaglevAssembler* masm,
   }
 }
 
-int ReduceInterruptBudgetForReturn::MaxCallStackArgs() const { return 1; }
+int ReduceInterruptBudgetForEntry::MaxCallStackArgs() const { return 1; }
 
-void ReduceInterruptBudgetForReturn::SetValueLocationConstraints() {
+void ReduceInterruptBudgetForEntry::SetValueLocationConstraints() {
   UseRegister(FeedbackCellInput());
   set_temporaries_needed(1);
 }
-void ReduceInterruptBudgetForReturn::GenerateCode(
-    MaglevAssembler* masm, const ProcessingState& state) {
+void ReduceInterruptBudgetForEntry::GenerateCode(MaglevAssembler* masm,
+                                                 const ProcessingState& state) {
   GenerateReduceInterruptBudget(masm, this, ToRegister(FeedbackCellInput()),
-                                ReduceInterruptBudgetType::kReturn, amount());
+                                ReduceInterruptBudgetType::kEntry, amount());
 }
 
 // ---
@@ -1210,16 +1191,20 @@ void Return::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
   // incoming argc's register (if it's still valid).
   __ Ld_d(actual_params_size,
           MemOperand(fp, StandardFrameConstants::kArgCOffset));
-  __ li(params_size, Operand(formal_params_size));
 
   // If actual is bigger than formal, then we should use it to free up the stack
-  // arguments.
-  Label corrected_args_count;
-  __ MacroAssembler::Branch(&corrected_args_count, ge, params_size,
-                            Operand(actual_params_size),
-                            Label::Distance::kNear);
-  __ Move(params_size, actual_params_size);
-  __ bind(&corrected_args_count);
+  // arguments. Both counts include the receiver, so without formal parameters
+  // the actual count is never smaller.
+  if (formal_params_size > 1) {
+    __ li(params_size, Operand(formal_params_size));
+    Label corrected_args_count;
+    __ MacroAssembler::Branch(&corrected_args_count, ge, params_size,
+                              Operand(actual_params_size));
+    __ Move(params_size, actual_params_size);
+    __ bind(&corrected_args_count);
+  } else {
+    params_size = actual_params_size;
+  }
 
   // Leave the frame.
   __ LeaveFrame(StackFrame::MAGLEV);

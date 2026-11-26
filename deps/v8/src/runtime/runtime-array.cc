@@ -121,7 +121,7 @@ RUNTIME_FUNCTION(Runtime_NewArray) {
   initial_map = Map::AsElementsKind(isolate, initial_map, to_kind);
 
   // If we don't care to track arrays of to_kind ElementsKind, then
-  // don't emit a memento for them.
+  // don't pass the allocation site for them.
   MaybeDirectHandle<AllocationSite> allocation_site;
   if (AllocationSite::ShouldTrack(to_kind)) {
     allocation_site = site;
@@ -168,22 +168,11 @@ RUNTIME_FUNCTION(Runtime_GrowArrayElements) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
   DirectHandle<JSObject> object = args.at<JSObject>(0);
-  DirectHandle<Object> key = args.at(1);
   ElementsKind kind = object->GetElementsKind();
   CHECK(IsFastElementsKind(kind));
-  uint32_t index;
-  if (IsSmi(*key)) {
-    int value = Smi::ToInt(*key);
-    if (value < 0) return Smi::zero();
-    index = static_cast<uint32_t>(value);
-  } else {
-    CHECK(IsHeapNumber(*key));
-    double value = Cast<HeapNumber>(*key)->value();
-    if (value < 0 || value > std::numeric_limits<uint32_t>::max()) {
-      return Smi::zero();
-    }
-    index = static_cast<uint32_t>(value);
-  }
+  int value = args.smi_value_at(1);
+  if (value < 0) return Smi::zero();
+  uint32_t index = static_cast<uint32_t>(value);
 
   uint32_t capacity = object->elements()->ulength().value();
 

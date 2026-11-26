@@ -194,7 +194,11 @@ extract_decimal_digit(T &value) {
   // 8, that makes WORD_SIZE/2 a multiple of 4, so that K is a power of 16. And
   // all powers of 16 (larger than 1) are congruent to 6 mod 10, by induction:
   // 16 itself is, and 6^2=36 is also congruent to 6.
-  Word acc_remainder = 0;
+  // Widen the accumulator to at least size_t so narrow Word types neither
+  // wrap around nor require -Wconversion casts after integer promotion.
+  using AccType =
+      cpp::conditional_t<(sizeof(Word) < sizeof(size_t)), size_t, Word>;
+  AccType acc_remainder = 0;
   constexpr Word HALFWORD_BITS = T::WORD_SIZE / 2;
   constexpr Word HALFWORD_MASK = ((Word(1) << HALFWORD_BITS) - 1);
   // Sum both halves of all words except the low one.
@@ -279,7 +283,7 @@ extract_decimal_digit(T &value) {
   // low word of the accumulator to it.
   constexpr Word C = Word(-1) / 5 * 4; // calculate 0xCCCC as 4/5 of 0xFFFF
   Word acc_lo = 0, acc_hi = 0; // accumulator of all the half-products so far
-  Word carry_bit, carry_word = 0;
+  Word carry_bit = 0, carry_word = 0;
 
   for (size_t i = 0; i < T::WORD_COUNT; i++) {
     // Make the two-word product of C with the current input word.

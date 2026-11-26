@@ -1284,8 +1284,8 @@ HeapEntry* V8HeapExplorer::AddEntry(Tagged<HeapObject> object) {
       const char* tag_name = ToString(tag);
       name = names_->GetFormatted("system / Managed (%s)", tag_name);
     } else if (kAnyForeignExternalPointerTagRange.Contains(tag)) {
-      // Only sandbox configurations set tags properly, so we cannot CHECK here
-      // but merely improve the tag if present.
+      // Only pointer-compression configurations set tags properly, so we cannot
+      // CHECK here but merely improve the tag if present.
       const char* tag_name = ToString(tag);
       name = names_->GetFormatted("system / Foreign (%s)", tag_name);
     }
@@ -1431,8 +1431,8 @@ void V8HeapExplorer::PopulateLineEnds() {
   }
 
   for (auto& script : scripts) {
-    snapshot_->AddScriptLineEnds(script->id(),
-                                 Script::GetLineEnds(isolate(), script));
+    DisallowGarbageCollection no_gc;
+    snapshot_->AddScriptLineEnds(script->id(), script->GetLineEnds(no_gc));
   }
 }
 
@@ -1909,6 +1909,7 @@ void V8HeapExplorer::ExtractStringReferences(HeapEntry* entry,
                          offsetof(ThinString, actual_));
   } else if (IsExternalString(string)) {
     Tagged<ExternalString> es = Cast<ExternalString>(string);
+    generator_->GetCppHeapWrappers().insert(es);
     if (const v8::String::ExternalStringResourceBase* resource =
             GetExternalStringResource(es)) {
       ExternalStringRecorder recorder(entry, this, generator_, names_);
@@ -1945,8 +1946,8 @@ void V8HeapExplorer::ExtractEphemeronHashTableReferences(
     Tagged<Object> value = table->get(value_index);
     // This stops auto-generating edges for the key and value from the table.
     // All edges are create by CreateEphmeronEdges() below.
-    MarkVisitedField(table->OffsetOfElementAt(key_index));
-    MarkVisitedField(table->OffsetOfElementAt(value_index));
+    MarkVisitedField(EphemeronHashTable::OffsetOfElementAt(key_index));
+    MarkVisitedField(EphemeronHashTable::OffsetOfElementAt(value_index));
     HeapEntry* key_entry = GetEntry(key);
     HeapEntry* value_entry = GetEntry(value);
     HeapEntry* table_entry = GetEntry(table);
@@ -2017,7 +2018,6 @@ void V8HeapExplorer::ExtractContextReferences(HeapEntry* entry,
 
   if (IsNativeContext(context)) {
     TagObject(context->normalized_map_cache(), "(context norm. map cache)");
-    TagObject(context->embedder_data(), "(context data)");
 
     SetInternalReference(entry, "global_object",
                          context->get(Context::EXTENSION_INDEX, kRelaxedLoad),
@@ -2285,8 +2285,6 @@ void V8HeapExplorer::ExtractScriptReferences(HeapEntry* entry,
   SetInternalReference(entry, "source", script->source(),
                        offsetof(Script, source_));
   SetInternalReference(entry, "name", script->name(), offsetof(Script, name_));
-  SetInternalReference(entry, "context_data", script->context_data(),
-                       offsetof(Script, context_data_));
   TagObject(script->line_ends(), "(script line ends)", HeapEntry::kCode);
   SetInternalReference(entry, "line_ends", script->line_ends(),
                        offsetof(Script, line_ends_));
@@ -2565,7 +2563,8 @@ void V8HeapExplorer::ExtractFixedArrayReferences(HeapEntry* entry,
   uint32_t array_len = array->ulength().value();
   for (uint32_t i = 0, l = array_len; i < l; ++i) {
     DCHECK(!HasWeakHeapObjectTag(array->get(i)));
-    SetInternalReference(entry, i, array->get(i), array->OffsetOfElementAt(i));
+    SetInternalReference(entry, i, array->get(i),
+                         FixedArray::OffsetOfElementAt(i));
   }
 }
 
@@ -2651,6 +2650,10 @@ void V8HeapExplorer::ExtractDescriptorArrayReferences(
     HeapEntry* entry, Tagged<DescriptorArray> array) {
   SetInternalReference(entry, "enum_cache", array->enum_cache(),
                        offsetof(DescriptorArray, enum_cache_));
+#ifdef V8_ADD_DESCRIPTOR_ARRAY_LOOKUP_TABLE
+  SetInternalReference(entry, "lookup_table", array->lookup_table(),
+                       offsetof(DescriptorArray, lookup_table_));
+#endif  // V8_ADD_DESCRIPTOR_ARRAY_LOOKUP_TABLE
   MaybeObjectSlot start = MaybeObjectSlot(array->GetDescriptorSlot(0));
   MaybeObjectSlot end = MaybeObjectSlot(
       array->GetDescriptorSlot(array->number_of_all_descriptors()));
@@ -2731,7 +2734,7 @@ void V8HeapExplorer::ExtractPropertyReferences(Tagged<JSObject> js_obj,
         Cast<JSGlobalObject>(js_obj)->global_dictionary(kAcquireLoad);
     ReadOnlyRoots roots(isolate);
     for (InternalIndex i : dictionary->IterateEntries()) {
-      if (!dictionary->IsKey(roots, dictionary->KeyAt(i))) continue;
+      if (!GlobalDictionary::IsKey(roots, dictionary->KeyAt(i))) continue;
       Tagged<PropertyCell> cell = dictionary->CellAt(i);
       Tagged<Name> name = cell->name();
       Tagged<Object> value = cell->value();
@@ -2748,7 +2751,7 @@ void V8HeapExplorer::ExtractPropertyReferences(Tagged<JSObject> js_obj,
     ReadOnlyRoots roots(isolate);
     for (InternalIndex i : dictionary->IterateEntries()) {
       Tagged<Object> k = dictionary->KeyAt(i);
-      if (!dictionary->IsKey(roots, k)) continue;
+      if (!SwissNameDictionary::IsKey(roots, k)) continue;
       Tagged<Object> value = dictionary->ValueAt(i);
       PropertyDetails details = dictionary->DetailsAt(i);
       SetDataOrAccessorPropertyReference(details.kind(), entry, Cast<Name>(k),
@@ -2759,7 +2762,7 @@ void V8HeapExplorer::ExtractPropertyReferences(Tagged<JSObject> js_obj,
     ReadOnlyRoots roots(isolate);
     for (InternalIndex i : dictionary->IterateEntries()) {
       Tagged<Object> k = dictionary->KeyAt(i);
-      if (!dictionary->IsKey(roots, k)) continue;
+      if (!NameDictionary::IsKey(roots, k)) continue;
       Tagged<Object> value = dictionary->ValueAt(i);
       PropertyDetails details = dictionary->DetailsAt(i);
       SetDataOrAccessorPropertyReference(details.kind(), entry, Cast<Name>(k),
@@ -2802,7 +2805,7 @@ void V8HeapExplorer::ExtractElementReferences(Tagged<JSObject> js_obj,
     Tagged<NumberDictionary> dictionary = js_obj->element_dictionary();
     for (InternalIndex i : dictionary->IterateEntries()) {
       Tagged<Object> k = dictionary->KeyAt(i);
-      if (!dictionary->IsKey(roots, k)) continue;
+      if (!NumberDictionary::IsKey(roots, k)) continue;
       uint32_t index =
           static_cast<uint32_t>(Object::NumberValue(Cast<Number>(k)));
       SetElementReference(entry, index, dictionary->ValueAt(i));
@@ -3188,10 +3191,6 @@ bool V8HeapExplorer::IsEssentialObject(Tagged<Object> object) {
 
 bool V8HeapExplorer::IsEssentialHiddenReference(Tagged<Object> parent,
                                                 int field_offset) {
-  if (IsAllocationSite(parent) &&
-      field_offset == offsetof(AllocationSiteWithWeakNext, weak_next_)) {
-    return false;
-  }
   if (IsContext(parent) &&
       field_offset == Context::OffsetOfElementAt(Context::NEXT_CONTEXT_LINK)) {
     return false;

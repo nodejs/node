@@ -84,9 +84,15 @@ bool InitializeICU(const char* icu_data_file) {
 #if V8_OS_POSIX && !V8_OS_ZOS
   if (g_icu_data_file) return true;
 
+  // Do not use a randomized mmap hint for the ICU data file. On 39-bit
+  // platforms a small random mapping can land inside the contiguous virtual
+  // address range that the V8 sandbox needs to reserve, forcing the sandbox
+  // into the partially-reserved fallback mode. Let the kernel place the file
+  // mapping in the regular mmap region instead.
   std::unique_ptr<base::OS::MemoryMappedFile> file(
       base::OS::MemoryMappedFile::open(
-          icu_data_file, base::OS::MemoryMappedFile::FileMode::kReadOnly));
+          icu_data_file, base::OS::MemoryMappedFile::FileMode::kReadOnly,
+          nullptr));
   // Empty files are opened but not mapped.
   if (!file || !file->memory()) return false;
 

@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "src/base/bit-field.h"
+#include "src/objects/bit-field-group.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/objects.h"
 #include "src/objects/struct.h"
@@ -38,24 +39,38 @@ class ZoneVector;
 // debugged.
 V8_OBJECT class DebugInfo : public ExposedTrustedObject {
  public:
-  // Bit positions in |flags|.
-  using HasBreakInfoBit = base::BitField<bool, 0, 1, uint32_t>;
-  using PreparedForDebugExecutionBit = HasBreakInfoBit::Next<bool, 1>;
-  using HasCoverageInfoBit = PreparedForDebugExecutionBit::Next<bool, 1>;
-  using BreakAtEntryBit = HasCoverageInfoBit::Next<bool, 1>;
-  using CanBreakAtEntryBit = BreakAtEntryBit::Next<bool, 1>;
-  using DebugExecutionModeBit = CanBreakAtEntryBit::Next<bool, 1>;
+  struct Flags : BitFieldGroup<Flags, uint32_t> {
+    using BitFieldGroup::BitFieldGroup;
+
+    using HasBreakInfoBit = First<bool, 1>;
+    using PreparedForDebugExecutionBit = HasBreakInfoBit::Next<bool, 1>;
+    using HasCoverageInfoBit = PreparedForDebugExecutionBit::Next<bool, 1>;
+    using BreakAtEntryBit = HasCoverageInfoBit::Next<bool, 1>;
+    using CanBreakAtEntryBit = BreakAtEntryBit::Next<bool, 1>;
+    using DebugExecutionModeBit = CanBreakAtEntryBit::Next<bool, 1>;
+    using DeoptimizedForBreakInfoBit = DebugExecutionModeBit::Next<bool, 1>;
+
+    BIT_FIELD_GROUP_ACCESSORS(has_break_info, HasBreakInfoBit)
+    BIT_FIELD_GROUP_ACCESSORS(prepared_for_debug_execution,
+                              PreparedForDebugExecutionBit)
+    BIT_FIELD_GROUP_ACCESSORS(has_coverage_info, HasCoverageInfoBit)
+    BIT_FIELD_GROUP_ACCESSORS(break_at_entry, BreakAtEntryBit)
+    BIT_FIELD_GROUP_ACCESSORS(can_break_at_entry, CanBreakAtEntryBit)
+    BIT_FIELD_GROUP_ACCESSORS(debug_execution_mode, DebugExecutionModeBit)
+    BIT_FIELD_GROUP_ACCESSORS(deoptimized_for_break_info,
+                              DeoptimizedForBreakInfoBit)
+  };
   enum Flag : uint32_t {
     kNone = 0,
-    kHasBreakInfo = HasBreakInfoBit::kMask,
-    kPreparedForDebugExecution = PreparedForDebugExecutionBit::kMask,
-    kHasCoverageInfo = HasCoverageInfoBit::kMask,
-    kBreakAtEntry = BreakAtEntryBit::kMask,
-    kCanBreakAtEntry = CanBreakAtEntryBit::kMask,
-    kDebugExecutionMode = DebugExecutionModeBit::kMask,
+    kHasBreakInfo = Flags::HasBreakInfoBit::kMask,
+    kPreparedForDebugExecution = Flags::PreparedForDebugExecutionBit::kMask,
+    kHasCoverageInfo = Flags::HasCoverageInfoBit::kMask,
+    kBreakAtEntry = Flags::BreakAtEntryBit::kMask,
+    kCanBreakAtEntry = Flags::CanBreakAtEntryBit::kMask,
+    kDebugExecutionMode = Flags::DebugExecutionModeBit::kMask,
+    kDeoptimizedForBreakInfo = Flags::DeoptimizedForBreakInfoBit::kMask,
   };
-  using Flags = base::Flags<Flag>;
-  static constexpr int kFlagCount = 6;
+  static constexpr int kFlagCount = 7;
 
   // DebugInfo can be detached from the SharedFunctionInfo iff it is empty.
   bool IsEmpty() const;
@@ -156,11 +171,20 @@ V8_OBJECT class DebugInfo : public ExposedTrustedObject {
   inline int debugging_id() const;
   inline void set_debugging_id(int value);
 
-  // Bit positions in |debugger_hints|.
-  using SideEffectStateBits = base::BitField<int32_t, 0, 2, uint32_t>;
-  using DebugIsBlackboxedBit = SideEffectStateBits::Next<bool, 1>;
-  using ComputedDebugIsBlackboxedBit = DebugIsBlackboxedBit::Next<bool, 1>;
-  using DebuggingIdBits = ComputedDebugIsBlackboxedBit::Next<int32_t, 20>;
+  struct DebuggerHints : BitFieldGroup<DebuggerHints, uint32_t> {
+    using BitFieldGroup::BitFieldGroup;
+
+    using SideEffectStateBits = First<int32_t, 2>;
+    using DebugIsBlackboxedBit = SideEffectStateBits::Next<bool, 1>;
+    using ComputedDebugIsBlackboxedBit = DebugIsBlackboxedBit::Next<bool, 1>;
+    using DebuggingIdBits = ComputedDebugIsBlackboxedBit::Next<int32_t, 20>;
+
+    BIT_FIELD_GROUP_ACCESSORS(side_effect_state, SideEffectStateBits)
+    BIT_FIELD_GROUP_ACCESSORS(debug_is_blackboxed, DebugIsBlackboxedBit)
+    BIT_FIELD_GROUP_ACCESSORS(computed_debug_is_blackboxed,
+                              ComputedDebugIsBlackboxedBit)
+    BIT_FIELD_GROUP_ACCESSORS(debugging_id, DebuggingIdBits)
+  };
 
   static const int kNoDebuggingId = 0;
 
@@ -183,8 +207,8 @@ V8_OBJECT class DebugInfo : public ExposedTrustedObject {
   inline void set_shared(Tagged<SharedFunctionInfo> value,
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline int debugger_hints() const;
-  inline void set_debugger_hints(int value);
+  inline DebuggerHints debugger_hints() const;
+  inline void set_debugger_hints(DebuggerHints value);
 
   inline Tagged<FixedArray> break_points() const;
   inline void set_break_points(Tagged<FixedArray> value,
@@ -203,9 +227,9 @@ V8_OBJECT class DebugInfo : public ExposedTrustedObject {
 
  public:
   TaggedMember<SharedFunctionInfo> shared_;
-  TaggedMember<Smi> debugger_hints_ V8_TQ_TYPE(SmiTagged<DebuggerHints>);
+  SmiBitFieldMember<DebuggerHints> debugger_hints_;
   TaggedMember<FixedArray> break_points_;
-  V8_TQ_RELAXED TaggedMember<Smi> flags_ V8_TQ_TYPE(SmiTagged<DebugInfoFlags>);
+  V8_TQ_RELAXED SmiBitFieldMember<Flags> flags_;
   TaggedMember<UnionOf<CoverageInfo, Undefined>> coverage_info_;
   ProtectedTaggedMember<UnionOf<BytecodeArray, Zero>> original_bytecode_array_
       V8_TQ_TYPE(ProtectedPointer<BytecodeArray>);
@@ -356,10 +380,16 @@ V8_OBJECT class StackFrameInfo : public Struct {
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline Tagged<String> function_name() const;
-  inline int flags() const;
 
-  // Bit positions in |flags|.
-  using IsConstructorBit = base::BitField<bool, 0, 1, uint32_t>;
+  struct Flags : BitFieldGroup<Flags, uint32_t> {
+    using BitFieldGroup::BitFieldGroup;
+
+    using IsConstructorBit = First<bool, 1>;
+
+    BIT_FIELD_GROUP_ACCESSORS(is_constructor, IsConstructorBit)
+  };
+
+  inline Flags flags() const;
 
   using BodyDescriptor = StructBodyDescriptor;
 
@@ -368,7 +398,7 @@ V8_OBJECT class StackFrameInfo : public Struct {
 
   TaggedMember<UnionOf<SharedFunctionInfo, Script>> shared_or_script_;
   const TaggedMember<String> function_name_;
-  const TaggedMember<Smi> flags_ V8_TQ_TYPE(SmiTagged<StackFrameInfoFlags>);
+  const SmiBitFieldMember<Flags> flags_;
   TaggedMember<Smi> bytecode_offset_or_source_position_;
 #if V8_ENABLE_WEBASSEMBLY
   // Wasm wire byte offsets are 0-indexed instruction positions within a module

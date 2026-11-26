@@ -15,9 +15,11 @@
 #define LLVM_LIBC_SRC___SUPPORT_CPP_UNIQUE_PTR_H
 
 #include "hdr/types/size_t.h"
+#include "src/__support/CPP/cstddef/nullptr_t.h"
 #include "src/__support/CPP/new.h"
 #include "src/__support/CPP/type_traits.h"
 #include "src/__support/CPP/utility.h"
+#include "src/__support/libc_assert.h"
 #include "src/__support/macros/attributes.h"
 #include "src/__support/macros/config.h"
 
@@ -65,7 +67,7 @@ public:
   using pointer = T *;
 
   LIBC_INLINE constexpr unique_ptr() = default;
-  LIBC_INLINE constexpr unique_ptr(decltype(nullptr)) : ptr(nullptr) {}
+  LIBC_INLINE constexpr unique_ptr(nullptr_t) : ptr(nullptr) {}
   LIBC_INLINE constexpr explicit unique_ptr(pointer p) : ptr(p) {}
 
   LIBC_INLINE constexpr unique_ptr(pointer p, const deleter_type &d)
@@ -134,9 +136,13 @@ public:
 
   LIBC_INLINE constexpr typename add_lvalue_reference<T>::type
   operator*() const {
+    LIBC_ASSERT(ptr != nullptr);
     return *ptr;
   }
-  LIBC_INLINE constexpr pointer operator->() const { return ptr; }
+  LIBC_INLINE constexpr pointer operator->() const {
+    LIBC_ASSERT(ptr != nullptr);
+    return ptr;
+  }
 };
 
 /// A smart pointer that owns and manages an array of objects through a pointer.
@@ -151,7 +157,7 @@ public:
   using pointer = T *;
 
   LIBC_INLINE constexpr unique_ptr() = default;
-  LIBC_INLINE constexpr unique_ptr(decltype(nullptr)) : ptr(nullptr) {}
+  LIBC_INLINE constexpr unique_ptr(nullptr_t) : ptr(nullptr) {}
   LIBC_INLINE constexpr explicit unique_ptr(pointer p) : ptr(p) {}
 
   LIBC_INLINE constexpr unique_ptr(pointer p, const deleter_type &d)
@@ -199,7 +205,10 @@ public:
       deleter(old_ptr);
   }
 
-  LIBC_INLINE constexpr T &operator[](size_t i) const { return ptr[i]; }
+  LIBC_INLINE constexpr T &operator[](size_t i) const {
+    LIBC_ASSERT(ptr != nullptr);
+    return ptr[i];
+  }
 };
 
 } // namespace cpp

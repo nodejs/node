@@ -1,0 +1,40 @@
+diff --git a/BUILD.gn b/BUILD.gn
+index e6320ff9ee7..87c1bfb7475 100644
+--- a/BUILD.gn
++++ b/BUILD.gn
+@@ -1715,6 +1715,9 @@ config("features") {
+   if (v8_use_zlib) {
+     defines += [ "V8_USE_ZLIB" ]
+   }
++  if (v8_use_highway) {
++    defines += [ "V8_USE_HIGHWAY" ]
++  }
+   if (v8_value_deserializer_hard_fail) {
+     defines += [ "V8_VALUE_DESERIALIZER_HARD_FAIL" ]
+   }
+@@ -7421,8 +7424,10 @@ v8_cluster_source_set("v8_base_without_compiler") {
+     "src/inspector",
+     "//third_party/dragonbox",
+     "//third_party/fast_float",
+-    "//third_party/highway:libhwy",
+   ]
++  if (v8_use_highway) {
++    deps += [ "//third_party/highway:libhwy" ]
++  }
+ 
+   if (current_cpu != "ppc64" && current_cpu != "s390x" &&
+       current_cpu != "loong64") {
+diff --git a/gni/v8.gni b/gni/v8.gni
+index f84e789df70..c01082a52fc 100644
+--- a/gni/v8.gni
++++ b/gni/v8.gni
+@@ -314,6 +314,9 @@ declare_args() {
+   # Currently disabled by default during experimentation to limit binary size
+   # impact (see b/571708639), and enabled on the icu4x CI builder.
+   v8_enable_ecma402_icu4x = false
++
++  # Compile V8 with Highway SIMD support.
++  v8_use_highway = current_cpu != "ppc64" && current_cpu != "s390x"
+ }
+ 
+ assert(!v8_enable_debugging_features || v8_enable_verification_features,

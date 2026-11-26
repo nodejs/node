@@ -201,7 +201,7 @@ struct builtin : CallDescriptorBuilder {
     static constexpr bool kNeedsContext = false;
     static constexpr Operator::Properties kProperties = Operator::kNoProperties;
     static constexpr OpEffects kEffects =
-        base_effects.CanWriteHeapMemory().CanReadMemory();
+        base_effects.CanDeopt().CanWriteHeapMemory().CanReadMemory();
   };
 
   struct ToNumber : public Descriptor<ToNumber> {
@@ -308,10 +308,11 @@ struct builtin : CallDescriptorBuilder {
     static constexpr bool kNeedsContext = true;
     static constexpr Operator::Properties kProperties =
         Operator::kNoThrow | Operator::kNoDeopt;
-    // Looking up a string key can internalize it in place into a ThinString.
+    // Looking up a string key can internalize it in place into a ThinString,
+    // which is unobservable if the lookup result is unused.
     static constexpr OpEffects kEffects = base_effects.AssumesConsistentHeap()
                                               .CanReadMemory()
-                                              .CanWriteHeapMemory()
+                                              .CanWriteHeapMemoryIfUsed()
                                               .CanAllocate();
   };
   using FindOrderedHashMapEntry =
@@ -1144,7 +1145,7 @@ struct BuiltinCallDescriptor {
     static constexpr bool kNeedsFrameState = false;
     static constexpr bool kNeedsContext = false;
     static constexpr Operator::Properties kProperties = Operator::kNoProperties;
-    static constexpr OpEffects kEffects = base_effects.CanChangeControlFlow();
+    static constexpr OpEffects kEffects = base_effects.CanThrowOrTrap();
   };
 
   struct WasmThrowRef : public Descriptor<WasmThrowRef> {
@@ -1446,18 +1447,6 @@ struct BuiltinCallDescriptor {
         base_effects.CanWriteMemory().CanThrowOrTrap();
   };
 
-  struct WasmTableSet : public Descriptor<WasmTableSet> {
-    static constexpr auto kFunction = Builtin::kWasmTableSet;
-    using arguments_t = std::tuple<V<WordPtr>, V<WordPtr>, V<Object>>;
-    using results_t = std::tuple<V<Object>>;
-
-    static constexpr bool kNeedsFrameState = false;
-    static constexpr bool kNeedsContext = false;
-    static constexpr Operator::Properties kProperties = Operator::kNoProperties;
-    static constexpr OpEffects kEffects =
-        base_effects.CanWriteMemory().CanThrowOrTrap();
-  };
-
   struct WasmTableInit : public Descriptor<WasmTableInit> {
     static constexpr auto kFunction = Builtin::kWasmTableInit;
     using arguments_t =
@@ -1558,21 +1547,6 @@ struct BuiltinCallDescriptor {
     static constexpr OpEffects kEffects = base_effects.CanReadMemory()
                                               .CanAllocateWithoutIdentity()
                                               .CanThrowOrTrap();
-  };
-
-  struct WasmStringFromDataSegment
-      : public Descriptor<WasmStringFromDataSegment> {
-    static constexpr auto kFunction = Builtin::kWasmStringFromDataSegment;
-    using arguments_t =
-        std::tuple<V<Word32>, V<Word32>, V<Word32>, V<Smi>, V<Smi>, V<Smi>>;
-    using results_t = std::tuple<V<WasmStringRefNullable>>;
-
-    static constexpr bool kNeedsFrameState = false;
-    static constexpr bool kNeedsContext = false;
-    static constexpr Operator::Properties kProperties = Operator::kNoDeopt;
-    // No "CanReadMemory" because data segments are immutable.
-    static constexpr OpEffects kEffects =
-        base_effects.CanAllocateWithoutIdentity().CanThrowOrTrap();
   };
 
   struct WasmStringConst : public Descriptor<WasmStringConst> {
@@ -1812,8 +1786,13 @@ struct BuiltinCallDescriptor {
 
     static constexpr bool kNeedsFrameState = false;
     static constexpr bool kNeedsContext = false;
-    static constexpr Operator::Properties kProperties = Operator::kEliminatable;
-    static constexpr OpEffects kEffects = base_effects.CanReadMemory();
+    static constexpr Operator::Properties kProperties =
+        Operator::kNoDeopt | Operator::kNoThrow;
+    // Computes and caches the hash in Name::raw_hash_field_. The heap write
+    // must be modeled for load elimination and GVN, but is not observable if
+    // the call is unused, so the operation remains eliminatable.
+    static constexpr OpEffects kEffects =
+        base_effects.CanReadMemory().CanWriteHeapMemoryIfUsed();
   };
 
   struct ThrowDataViewDetachedError

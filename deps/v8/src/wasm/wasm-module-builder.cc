@@ -553,22 +553,35 @@ void WasmModuleBuilder::SetIndirectFunction(uint32_t table_index,
 uint32_t WasmModuleBuilder::AddImport(std::string_view name,
                                       const FunctionSig* sig,
                                       std::string_view module,
-                                      bool force_new_sig) {
+                                      bool force_new_sig,
+                                      ImportEncoding encoding) {
   DCHECK(adding_imports_allowed_);
   ModuleTypeIndex sig_index =
       force_new_sig ? ForceAddSignature(sig, true) : AddSignature(sig, true);
-  function_imports_.push_back(
-      {.module = module, .name = name, .sig_index = sig_index});
+  return AddImport(name, sig_index, module, encoding);
+}
+
+uint32_t WasmModuleBuilder::AddImport(std::string_view name,
+                                      ModuleTypeIndex sig_index,
+                                      std::string_view module,
+                                      ImportEncoding encoding) {
+  DCHECK(adding_imports_allowed_);
+  function_imports_.push_back({.module = module,
+                               .name = name,
+                               .sig_index = sig_index,
+                               .encoding = encoding});
   return static_cast<uint32_t>(function_imports_.size() - 1);
 }
 
 uint32_t WasmModuleBuilder::AddGlobalImport(std::string_view name,
                                             ValueType type, bool mutability,
-                                            std::string_view module) {
+                                            std::string_view module,
+                                            ImportEncoding encoding) {
   global_imports_.push_back({.module = module,
                              .name = name,
                              .type_code = type.value_type_code(),
-                             .mutability = mutability});
+                             .mutability = mutability,
+                             .encoding = encoding});
   return static_cast<uint32_t>(global_imports_.size() - 1);
 }
 
@@ -608,6 +621,91 @@ uint32_t WasmModuleBuilder::AddGlobal(ValueType type, bool mutability,
   globals_.push_back({.type = type, .mutability = mutability, .init = init});
   return static_cast<uint32_t>(globals_.size() - 1);
 }
+
+class WasmModuleBuilder::ImportWriter {
+ public:
+  explicit ImportWriter(ZoneBuffer* buffer) : buffer_(buffer) {}
+
+  template <typename Import>
+  size_t CountGroups(const ZoneVector<Import>& imports) const {
+    size_t count = 0;
+    for (size_t i = 0; i < imports.size(); i = NextGroupEnd(imports, i)) {
+      ++count;
+    }
+    return count;
+  }
+
+  template <typename Import>
+  void Write(const ZoneVector<Import>& imports) {
+    for (size_t i = 0, end = 0; i < imports.size(); i = end) {
+      end = NextGroupEnd(imports, i);
+      const Import& first = imports[i];
+      buffer_->write_string(first.module);  // module name
+      switch (first.encoding) {
+        case ImportEncoding::kRegular:
+          DCHECK_EQ(end, i + 1);
+          buffer_->write_string(first.name);  // field name
+          WriteType(first);
+          break;
+        case ImportEncoding::kCompactByModule:
+          buffer_->write_u8(0);  // empty field name
+          buffer_->write_u8(kCompactImportByModule);
+          buffer_->write_size(end - i);
+          for (size_t j = i; j < end; ++j) {
+            buffer_->write_string(imports[j].name);  // field name
+            WriteType(imports[j]);
+          }
+          break;
+        case ImportEncoding::kCompactByModuleAndType:
+          buffer_->write_u8(0);  // empty field name
+          buffer_->write_u8(kCompactImportByModuleAndType);
+          WriteType(first);
+          buffer_->write_size(end - i);
+          for (size_t j = i; j < end; ++j) {
+            buffer_->write_string(imports[j].name);  // field name
+          }
+          break;
+      }
+    }
+  }
+
+ private:
+  template <typename Import>
+  static size_t NextGroupEnd(const ZoneVector<Import>& imports, size_t i) {
+    const Import& first = imports[i];
+    size_t j = i + 1;
+    if (first.encoding == ImportEncoding::kRegular) return j;
+    while (j < imports.size() && imports[j].encoding == first.encoding &&
+           imports[j].module == first.module &&
+           (first.encoding == ImportEncoding::kCompactByModule ||
+            SameType(imports[j], first))) {
+      ++j;
+    }
+    return j;
+  }
+
+  static bool SameType(const WasmGlobalImport& a, const WasmGlobalImport& b) {
+    return a.type_code == b.type_code && a.mutability == b.mutability;
+  }
+
+  static bool SameType(const WasmFunctionImport& a,
+                       const WasmFunctionImport& b) {
+    return a.sig_index == b.sig_index;
+  }
+
+  void WriteType(const WasmGlobalImport& import) {
+    buffer_->write_u8(kExternalGlobal);
+    buffer_->write_u8(import.type_code);
+    buffer_->write_u8(import.mutability ? 1 : 0);
+  }
+
+  void WriteType(const WasmFunctionImport& import) {
+    buffer_->write_u8(kExternalFunction);
+    buffer_->write_u32v(import.sig_index);
+  }
+
+  ZoneBuffer* buffer_;
+};
 
 void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
   // == Emit magic =============================================================
@@ -720,20 +818,11 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
   // == Emit imports ===========================================================
   if (global_imports_.size() + function_imports_.size() > 0) {
     size_t start = EmitSection(kImportSectionCode, buffer);
-    buffer->write_size(global_imports_.size() + function_imports_.size());
-    for (auto import : global_imports_) {
-      buffer->write_string(import.module);  // module name
-      buffer->write_string(import.name);    // field name
-      buffer->write_u8(kExternalGlobal);
-      buffer->write_u8(import.type_code);
-      buffer->write_u8(import.mutability ? 1 : 0);
-    }
-    for (auto import : function_imports_) {
-      buffer->write_string(import.module);  // module name
-      buffer->write_string(import.name);    // field name
-      buffer->write_u8(kExternalFunction);
-      buffer->write_u32v(import.sig_index);
-    }
+    ImportWriter writer(buffer);
+    buffer->write_size(writer.CountGroups(global_imports_) +
+                       writer.CountGroups(function_imports_));
+    writer.Write(global_imports_);
+    writer.Write(function_imports_);
     FixupSection(buffer, start);
   }
 

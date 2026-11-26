@@ -127,7 +127,7 @@ TEST_F(HeapWriteBarrierTest, WriteBarrier_MarkingExtension) {
   Tagged<JSArrayBuffer> host = Cast<JSArrayBuffer>(objects->get(0));
   EXPECT_TRUE(heap()->marking_state()->IsUnmarked(host));
   EXPECT_FALSE(extension->IsMarked());
-  WriteBarrier::ForArrayBufferExtension(host, extension);
+  WriteBarrier::ForArrayBufferExtension(i_isolate(), host, extension);
   // Concurrent marking barrier should mark the value now.
   EXPECT_TRUE(extension->IsMarked());
   // Keep object alive using the global handle.

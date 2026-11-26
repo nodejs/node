@@ -18,8 +18,15 @@
 #include "src/__support/macros/config.h"
 #include "src/__support/macros/optimization.h"
 
-#include "src/__support/math/exp2_double_eval.h"
+#ifndef LIBC_MATH_EXP2_IMPL
 #define LIBC_MATH_EXP2_IMPL double_eval
+#endif // !LIBC_MATH_EXP2_IMPL
+
+#if LIBC_MATH_IMPL_IS(LIBC_MATH_EXP2_IMPL, double_eval)
+#include "src/__support/math/exp2_double_eval.h"
+#else
+#error "Unsupported LIBC_MATH_EXP2_IMPL"
+#endif // LIBC_MATH_IMPL_IS
 
 namespace LIBC_NAMESPACE_DECL {
 namespace math {

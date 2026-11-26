@@ -1,0 +1,8 @@
+Tests stepping over caught exception in inlined function.
+function f() {
+  #throw new Error();
+}
+
+  } catch (e) {
+    #return 1;  // Break
+  }

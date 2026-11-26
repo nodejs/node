@@ -70,7 +70,8 @@ V8_OBJECT class HeapNumber : public PrimitiveHeapObject {
   friend class compiler::JSContextSpecialization;
   friend class TorqueGeneratedHeapNumberAsserts;
   friend AllocationAlignment HeapObject::RequiredAlignment(
-      InSharedSpace in_shared_space, Tagged<Map> map);
+      InSharedSpace in_shared_space, InTrustedSpace in_trusted_space,
+      Tagged<Map> map);
 
  public:
   UnalignedDoubleMember value_;
@@ -102,7 +103,8 @@ V8_OBJECT class UninitializedHeapNumber : public HeapObject {
   friend struct OffsetsForDebug;
   friend class TorqueGeneratedHeapNumberAsserts;
   friend AllocationAlignment HeapObject::RequiredAlignment(
-      InSharedSpace in_shared_space, Tagged<Map> map);
+      InSharedSpace in_shared_space, InTrustedSpace in_trusted_space,
+      Tagged<Map> map);
 
  public:
   UnalignedDoubleMember value_;

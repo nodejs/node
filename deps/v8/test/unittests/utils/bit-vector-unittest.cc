@@ -350,5 +350,57 @@ TEST_F(BitVectorTest, BoundedAddRemoveAndCopyFrom) {
   }
 }
 
+TEST_F(BitVectorTest, GrowableBitVectorRemove) {
+  GrowableBitVector v;
+  // Removing a value beyond the current length is a no-op.
+  v.Remove(5000);
+  EXPECT_TRUE(v.IsEmpty());
+  v.Add(5, zone());
+  v.Add(5000, zone());
+  v.Remove(5);
+  EXPECT_FALSE(v.Contains(5));
+  EXPECT_TRUE(v.Contains(5000));
+  v.Remove(5000);
+  EXPECT_TRUE(v.IsEmpty());
+}
+
+TEST_F(BitVectorTest, GrowableBitVectorInline) {
+  const size_t allocated = zone()->allocation_size();
+  GrowableBitVector v;
+  v.Add(0, zone());
+  v.Add(BitVector::kDataBits - 1, zone());
+  EXPECT_EQ(BitVector::kDataBits, v.length());
+  EXPECT_TRUE(v.Contains(0));
+  EXPECT_TRUE(v.Contains(BitVector::kDataBits - 1));
+  EXPECT_FALSE(v.Contains(BitVector::kDataBits));
+  // Still inline: nothing allocated in the Zone.
+  EXPECT_EQ(allocated, zone()->allocation_size());
+
+  // Moving an inline vector resets the source to empty inline.
+  GrowableBitVector inline_moved = std::move(v);
+  EXPECT_TRUE(v.IsEmpty());
+  EXPECT_EQ(0, v.length());
+  EXPECT_TRUE(inline_moved.Contains(0));
+  EXPECT_TRUE(inline_moved.Contains(BitVector::kDataBits - 1));
+
+  // Growing out of the inline word preserves existing bits.
+  inline_moved.Add(BitVector::kDataBits, zone());
+  EXPECT_EQ(2 * BitVector::kDataBits, inline_moved.length());
+  inline_moved.Add(300, zone());
+  EXPECT_EQ(512, inline_moved.length());
+  EXPECT_TRUE(inline_moved.Contains(0));
+  EXPECT_TRUE(inline_moved.Contains(BitVector::kDataBits));
+  EXPECT_TRUE(inline_moved.Contains(300));
+
+  // Moving a grown vector leaves it empty without stale pre-growth inline bits.
+  GrowableBitVector grown_moved = std::move(inline_moved);
+  EXPECT_TRUE(inline_moved.IsEmpty());
+  EXPECT_EQ(0, inline_moved.length());
+  EXPECT_TRUE(grown_moved.Contains(0));
+  EXPECT_TRUE(grown_moved.Contains(BitVector::kDataBits - 1));
+  EXPECT_TRUE(grown_moved.Contains(BitVector::kDataBits));
+  EXPECT_TRUE(grown_moved.Contains(300));
+}
+
 }  // namespace internal
 }  // namespace v8

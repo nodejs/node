@@ -6,7 +6,6 @@
 
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/marking-visitor-inl.h"
-#include "src/objects/embedder-data-array-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 
 namespace v8 {

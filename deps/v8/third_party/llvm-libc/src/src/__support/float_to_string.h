@@ -605,10 +605,12 @@ public:
       const int pos_exp = -exponent - 1;
       const uint32_t pos_idx =
           static_cast<uint32_t>(pos_exp + (IDX_SIZE - 1)) / IDX_SIZE;
-      const int32_t pos_len = ((internal::ceil_log10_pow2(pos_idx * IDX_SIZE) -
-                                internal::ceil_log10_pow2(FRACTION_LEN + 1)) /
-                               BLOCK_SIZE) -
-                              1;
+      const int32_t pos_len =
+          ((static_cast<int32_t>(
+                internal::ceil_log10_pow2(pos_idx * IDX_SIZE)) -
+            static_cast<int32_t>(internal::ceil_log10_pow2(FRACTION_LEN + 1))) /
+           static_cast<int32_t>(BLOCK_SIZE)) -
+          1;
       return static_cast<uint32_t>(pos_len > 0 ? pos_len : 0);
     }
     return 0;
@@ -785,10 +787,11 @@ public:
     const int pos_exp = -exponent - 1;
     const uint32_t pos_idx =
         static_cast<uint32_t>(pos_exp + (IDX_SIZE - 1)) / IDX_SIZE;
-    const int32_t pos_len = ((internal::ceil_log10_pow2(pos_idx * IDX_SIZE) -
-                              internal::ceil_log10_pow2(FRACTION_LEN + 1)) /
-                             BLOCK_SIZE) -
-                            1;
+    const int32_t pos_len =
+        ((static_cast<int32_t>(internal::ceil_log10_pow2(pos_idx * IDX_SIZE)) -
+          static_cast<int32_t>(internal::ceil_log10_pow2(FRACTION_LEN + 1))) /
+         static_cast<int32_t>(BLOCK_SIZE)) -
+        1;
     return static_cast<uint32_t>(pos_len > 0 ? pos_len : 0);
 #endif
   }

@@ -313,9 +313,6 @@ bool WasmBytecodeGenerator::DecodeSimdOp(WasmOpcode opcode,
                                   is_rmw ? MemoryAccessImmediate::kAtomicRMW
                                          : MemoryAccessImmediate::kNonAtomic,
                                   Decoder::kNoValidation);
-    if (mem_imm.offset >= ((uint64_t)1 << 48)) {
-      return false;
-    }
     *len += mem_imm.length;
 
     SimdLaneImmediate lane_imm(decoder, code->at(pc + *len), kNoValidate);

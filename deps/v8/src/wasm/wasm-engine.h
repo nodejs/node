@@ -198,13 +198,14 @@ class V8_EXPORT_PRIVATE WasmEngine {
       base::UniqueArray<const uint8_t> bytes,
       // Optional source URL; needed when recompiling on flags mismatch
       // to preserve the original URL.
-      std::string_view source_url = {});
+      std::string_view source_url = {}, MaybeDirectHandle<Map> maybe_map = {});
 
   // Synchronously instantiate the given Wasm module with the given imports.
   MaybeDirectHandle<WasmInstanceObject> SyncInstantiate(
       Isolate* isolate, ErrorThrower* thrower,
       DirectHandle<WasmModuleObject> module_object,
-      MaybeDirectHandle<JSReceiver> imports);
+      MaybeDirectHandle<JSReceiver> imports,
+      MaybeDirectHandle<Map> maybe_instance_map = {});
 
   // Begin an asynchronous compilation of the given bytes that represent an
   // encoded Wasm module.
@@ -374,11 +375,6 @@ class V8_EXPORT_PRIVATE WasmEngine {
   void FreeNativeModule(NativeModule*);
   void ClearWeakScriptHandle(Isolate* isolate,
                              std::unique_ptr<Address*> location);
-
-  // Sample the code size of the given {NativeModule} in all isolates that have
-  // access to it. Call this after top-tier compilation finished.
-  // This will spawn foreground tasks that do *not* keep the NativeModule alive.
-  void SampleTopTierCodeSizeInAllIsolates(const std::shared_ptr<NativeModule>&);
 
   // Called by each Isolate to report its live code for a GC cycle. First
   // version reports an externally determined set of live code (might be empty),

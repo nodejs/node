@@ -23,7 +23,7 @@ namespace {
 
 using ExternalStringTrackerTest = TestWithHeapInternalsAndContext;
 
-// Adapted from cctest/test-api.cc
+// Adapted from test/unittests/api/api-unittest.cc
 class TestOneByteResource : public v8::String::ExternalOneByteStringResource {
  public:
   explicit TestOneByteResource(const char* data, int* counter = nullptr,

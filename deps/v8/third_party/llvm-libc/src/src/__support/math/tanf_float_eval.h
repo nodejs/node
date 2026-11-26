@@ -95,7 +95,7 @@ LIBC_INLINE float tanf(float x) {
   // exactly 0 respectively, so the remaining term is computed with a small
   // relative error.
   float num = fputil::multiply_add(cos_k, t, sin_k);
-  float den = fputil::multiply_add(-sin_k, t, cos_k);
+  float den = fputil::sub_multiply(cos_k, sin_k, t);
   return num / den;
 }
 

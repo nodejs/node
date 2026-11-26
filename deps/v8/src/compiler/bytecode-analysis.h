@@ -129,7 +129,8 @@ struct V8_EXPORT_PRIVATE LoopInfo {
 class V8_EXPORT_PRIVATE BytecodeAnalysis : public ZoneObject {
  public:
   BytecodeAnalysis(Handle<BytecodeArray> bytecode_array, Zone* zone,
-                   BytecodeOffset osr_bailout_id, bool analyze_liveness);
+                   BytecodeOffset osr_bailout_id, bool analyze_liveness,
+                   bool analyze_function_assignments = false);
   BytecodeAnalysis(const BytecodeAnalysis&) = delete;
   BytecodeAnalysis& operator=(const BytecodeAnalysis&) = delete;
 
@@ -176,6 +177,15 @@ class V8_EXPORT_PRIVATE BytecodeAnalysis : public ZoneObject {
   // opposed to the number of bytes in the bytecode).
   int bytecode_count() const { return bytecode_count_; }
 
+  // Return whether the bytecode contains a PushContext.
+  bool has_push_context() const { return has_push_context_; }
+
+  // Return the registers and parameters assigned anywhere in the function.
+  const BytecodeLoopAssignments& function_assignments() const {
+    DCHECK(function_assignments_.has_value());
+    return *function_assignments_;
+  }
+
  private:
   BytecodeLivenessMap& liveness_map() {
     DCHECK(analyze_liveness_);
@@ -195,6 +205,8 @@ class V8_EXPORT_PRIVATE BytecodeAnalysis : public ZoneObject {
   int osr_entry_point_;
   std::optional<BytecodeLivenessMap> liveness_map_;
   int bytecode_count_ = -1;
+  bool has_push_context_ = false;
+  std::optional<BytecodeLoopAssignments> function_assignments_;
 
   class BytecodeAnalysisImpl;
   friend class BytecodeAnalysisImpl;

@@ -22,11 +22,15 @@
 
 #include "absl/base/config.h"
 
-// Disable constexpr support unless we are in C++14 mode.
-#if __cpp_constexpr >= 201304 || (defined(_MSC_VER) && _MSC_VER >= 1910)
-#define CONSTEXPR_D constexpr  // data
-#define CONSTEXPR_F constexpr  // function
-#define CONSTEXPR_M constexpr  // member
+#if __cpp_constexpr >= 201304L || (defined(_MSC_VER) && _MSC_VER >= 1910)
+#if __cpp_inline_variables >= 201606L
+#define INLINE_VAR inline
+#else
+#define INLINE_VAR static
+#endif
+#define CONSTEXPR_D INLINE_VAR constexpr  // data
+#define CONSTEXPR_F constexpr             // function
+#define CONSTEXPR_M constexpr             // member
 #else
 #define CONSTEXPR_D const
 #define CONSTEXPR_F inline
@@ -96,6 +100,11 @@ CONSTEXPR_F int days_per_4years(int yi) noexcept {
 CONSTEXPR_F int days_per_year(year_t y, month_t m) noexcept {
   return is_leap_year(y + (m > 2)) ? 366 : 365;
 }
+
+CONSTEXPR_D int k_days_per_month[1 + 12] = {
+    -1, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31  // non leap year
+};
+
 // The compiler cannot optimize away the check if we use
 // -fsanitize=array-bounds.
 // m is guaranteed to be in [1:12] in the caller, but the compiler cannot
@@ -109,9 +118,6 @@ CONSTEXPR_F int days_per_year(year_t y, month_t m) noexcept {
 #endif
 #endif
 CONSTEXPR_F int days_per_month(year_t y, month_t m) noexcept {
-  CONSTEXPR_D int k_days_per_month[1 + 12] = {
-      -1, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31  // non leap year
-  };
   return k_days_per_month[m] + (m == 2 && is_leap_year(y));
 }
 
@@ -554,38 +560,57 @@ enum class weekday {
   sunday,
 };
 
+namespace impl {
+
+CONSTEXPR_D weekday k_weekday_by_mon_off[13] = {
+    weekday::monday,    weekday::tuesday,  weekday::wednesday,
+    weekday::thursday,  weekday::friday,   weekday::saturday,
+    weekday::sunday,    weekday::monday,   weekday::tuesday,
+    weekday::wednesday, weekday::thursday, weekday::friday,
+    weekday::saturday,
+};
+
+CONSTEXPR_D int k_weekday_offsets[1 + 12] = {
+    -1, 0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4,
+};
+
+CONSTEXPR_D weekday k_weekdays_forw[14] = {
+    weekday::monday,    weekday::tuesday,  weekday::wednesday,
+    weekday::thursday,  weekday::friday,   weekday::saturday,
+    weekday::sunday,    weekday::monday,   weekday::tuesday,
+    weekday::wednesday, weekday::thursday, weekday::friday,
+    weekday::saturday,  weekday::sunday,
+};
+
+CONSTEXPR_D weekday k_weekdays_back[14] = {
+    weekday::sunday,   weekday::saturday,  weekday::friday,
+    weekday::thursday, weekday::wednesday, weekday::tuesday,
+    weekday::monday,   weekday::sunday,    weekday::saturday,
+    weekday::friday,   weekday::thursday,  weekday::wednesday,
+    weekday::tuesday,  weekday::monday,
+};
+
+CONSTEXPR_D int k_month_offsets[1 + 12] = {
+    -1, 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334,
+};
+
+}  // namespace impl
+
 CONSTEXPR_F weekday get_weekday(const civil_second& cs) noexcept {
-  CONSTEXPR_D weekday k_weekday_by_mon_off[13] = {
-      weekday::monday,    weekday::tuesday,  weekday::wednesday,
-      weekday::thursday,  weekday::friday,   weekday::saturday,
-      weekday::sunday,    weekday::monday,   weekday::tuesday,
-      weekday::wednesday, weekday::thursday, weekday::friday,
-      weekday::saturday,
-  };
-  CONSTEXPR_D int k_weekday_offsets[1 + 12] = {
-      -1, 0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4,
-  };
   year_t wd = 2400 + (cs.year() % 400) - (cs.month() < 3);
   wd += wd / 4 - wd / 100 + wd / 400;
-  wd += k_weekday_offsets[cs.month()] + cs.day();
-  return k_weekday_by_mon_off[wd % 7 + 6];
+  wd += impl::k_weekday_offsets[cs.month()] + cs.day();
+  return impl::k_weekday_by_mon_off[wd % 7 + 6];
 }
 
 ////////////////////////////////////////////////////////////////////////
 
 CONSTEXPR_F civil_day next_weekday(civil_day cd, weekday wd) noexcept {
-  CONSTEXPR_D weekday k_weekdays_forw[14] = {
-      weekday::monday,    weekday::tuesday,  weekday::wednesday,
-      weekday::thursday,  weekday::friday,   weekday::saturday,
-      weekday::sunday,    weekday::monday,   weekday::tuesday,
-      weekday::wednesday, weekday::thursday, weekday::friday,
-      weekday::saturday,  weekday::sunday,
-  };
   weekday base = get_weekday(cd);
   for (int i = 0;; ++i) {
-    if (base == k_weekdays_forw[i]) {
+    if (base == impl::k_weekdays_forw[i]) {
       for (int j = i + 1;; ++j) {
-        if (wd == k_weekdays_forw[j]) {
+        if (wd == impl::k_weekdays_forw[j]) {
           return cd + (j - i);
         }
       }
@@ -594,18 +619,11 @@ CONSTEXPR_F civil_day next_weekday(civil_day cd, weekday wd) noexcept {
 }
 
 CONSTEXPR_F civil_day prev_weekday(civil_day cd, weekday wd) noexcept {
-  CONSTEXPR_D weekday k_weekdays_back[14] = {
-      weekday::sunday,   weekday::saturday,  weekday::friday,
-      weekday::thursday, weekday::wednesday, weekday::tuesday,
-      weekday::monday,   weekday::sunday,    weekday::saturday,
-      weekday::friday,   weekday::thursday,  weekday::wednesday,
-      weekday::tuesday,  weekday::monday,
-  };
   weekday base = get_weekday(cd);
   for (int i = 0;; ++i) {
-    if (base == k_weekdays_back[i]) {
+    if (base == impl::k_weekdays_back[i]) {
       for (int j = i + 1;; ++j) {
-        if (wd == k_weekdays_back[j]) {
+        if (wd == impl::k_weekdays_back[j]) {
           return cd - (j - i);
         }
       }
@@ -614,11 +632,8 @@ CONSTEXPR_F civil_day prev_weekday(civil_day cd, weekday wd) noexcept {
 }
 
 CONSTEXPR_F int get_yearday(const civil_second& cs) noexcept {
-  CONSTEXPR_D int k_month_offsets[1 + 12] = {
-      -1, 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334,
-  };
   const int feb29 = (cs.month() > 2 && impl::is_leap_year(cs.year()));
-  return k_month_offsets[cs.month()] + feb29 + cs.day();
+  return impl::k_month_offsets[cs.month()] + feb29 + cs.day();
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -640,5 +655,6 @@ ABSL_NAMESPACE_END
 #undef CONSTEXPR_M
 #undef CONSTEXPR_F
 #undef CONSTEXPR_D
+#undef INLINE_VAR
 
 #endif  // ABSL_TIME_INTERNAL_CCTZ_CIVIL_TIME_DETAIL_H_

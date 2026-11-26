@@ -120,7 +120,8 @@ class FuncNameInferrer {
     inline NameType type() const { return name_and_type_.GetPayload(); }
   };
 
-  // Constructs a full name in dotted notation from gathered names.
+  // Constructs a full name in dotted notation from gathered names, or returns
+  // an empty string if the result would exceed String::kMaxLength.
   AstConsString* MakeNameFromStack();
 
   // Performs name inferring for added functions.
@@ -131,7 +132,6 @@ class FuncNameInferrer {
   std::vector<FunctionLiteral*> funcs_to_infer_;
   size_t scope_depth_ = 0;
 };
-
 
 }  // namespace internal
 }  // namespace v8

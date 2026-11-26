@@ -259,6 +259,13 @@ var topFrameIsMaglevved;
 // status passed as a parameter.
 var topFrameIsTurboFanned;
 
+// Returns a fresh copy of `fn` with its own SharedFunctionInfo, BytecodeArray,
+// and FeedbackVector by appending a unique comment to bypass the eval cache.
+// Because this uses indirect eval in sloppy mode, `fn` must only reference
+// parameters and top-level bindings, and must include its own "use strict"
+// directive if strict mode is required.
+var copyFunctionWithFreshFeedback;
+
 // Monkey-patchable all-purpose failure handler.
 var fail;
 
@@ -1021,6 +1028,11 @@ var prettyPrinted;
     assertNotEquals(opt_status, undefined);
     return (opt_status & V8OptimizationStatus.kTopmostFrameIsTurboFanned) !== 0;
   }
+
+  let copyFunctionCounter = 0;
+  copyFunctionWithFreshFeedback = function copyFunctionWithFreshFeedback(fn) {
+    return (0, eval)(`(${fn.toString()}/* ${copyFunctionCounter++} */)`);
+  };
 
   // Custom V8-specific stack trace formatter that is temporarily installed on
   // the Error object.

@@ -1,0 +1,34 @@
+Tests debug-prepare-step-in.
+  var m = "x";
+  #o[m]();
+}
+
+var o = {x: function() { #return 10; }};
+
+
+var o = {x: function() { return 10;# }};
+
+
+  o[m]();
+#}
+
+
+      f(o);
+      #%NotifyContextDisposed();
+      function g() {
+
+      }
+      #g();
+    
+
+      function g() {
+        #gc();
+      }
+
+        gc();
+      #}
+      g();
+
+      g();
+    #
+

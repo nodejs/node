@@ -15,6 +15,7 @@
 #define LLVM_LIBC_SRC___SUPPORT_MATH_EXP2F_INTEGER_EVAL_H
 
 #include "hdr/fenv_macros.h"
+#include "hdr/stdint_proxy.h"
 #include "src/__support/CPP/bit.h"
 #include "src/__support/FPUtil/FPBits.h"
 #include "src/__support/macros/attributes.h"

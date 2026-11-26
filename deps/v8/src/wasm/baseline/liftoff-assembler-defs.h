@@ -36,8 +36,11 @@ constexpr Register kLiftoffFrameSetupFunctionReg = edi;
 constexpr RegList kLiftoffAssemblerGpCacheRegs = {rax, rcx, rdx, rbx, rsi,
                                                   rdi, r8,  r9,  r12, r15};
 
-constexpr DoubleRegList kLiftoffAssemblerFpCacheRegs = {xmm0, xmm1, xmm2, xmm3,
-                                                        xmm4, xmm5, xmm6, xmm7};
+// xmm14: kScratchDoubleReg2 (Liftoff)
+// xmm15: kScratchDoubleReg (MacroAssembler)
+constexpr DoubleRegList kLiftoffAssemblerFpCacheRegs = {
+    xmm0, xmm1, xmm2, xmm3,  xmm4,  xmm5,  xmm6,
+    xmm7, xmm8, xmm9, xmm10, xmm11, xmm12, xmm13};
 
 constexpr Simd128RegList kLiftoffAssemblerSimd128CacheRegs = {};
 

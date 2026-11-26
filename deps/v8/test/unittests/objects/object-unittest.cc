@@ -770,7 +770,8 @@ TEST_F(ObjectTest, ConstructorInstanceTypes) {
   DirectHandle<NativeContext> context = i_isolate()->native_context();
 
   DisallowGarbageCollection no_gc;
-  for (int i = 0; i < Context::NATIVE_CONTEXT_SLOTS; i++) {
+  for (int i = Context::LAST_EMBEDDER_DATA_INDEX + 1;
+       i < Context::NATIVE_CONTEXT_SLOTS; i++) {
     Tagged<Object> value = context->GetNoCell(i);
     if (!IsJSFunction(value)) continue;
     InstanceType instance_type =
@@ -1034,7 +1035,7 @@ TEST_F(ObjectTest, JSObjectCopy) {
 TEST_F(ObjectTest, CorrectnessFuzzerSuppressionsFatalNoSecurityImpact) {
   v8::HandleScope scope(isolate());
   SaveFlags save_flags;
-  v8_flags.correctness_fuzzer_suppressions = true;
+  v8_flags.correctness_fuzzer_suppressions.Set(true);
   EXPECT_DEATH_IF_SUPPORTED(
       RunJS("1n << (1n << 30n)"),
       "Fatal error with no security impact:\n# Aborting on invalid BigInt "

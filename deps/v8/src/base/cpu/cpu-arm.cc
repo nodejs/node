@@ -118,7 +118,9 @@ namespace v8::base {
 #define HWCAP2_SVE2 (1 << 1)
 #define HWCAP2_SVEBITPERM (1 << 4)
 #define HWCAP2_MTE (1 << 18)
+#define HWCAP2_SME (1 << 23)
 #define HWCAP2_CSSC (1UL << 34)
+#define HWCAP2_SME2 (1UL << 37)
 #define HWCAP2_MOPS (1UL << 43)
 #define HWCAP2_HBC (1UL << 44)
 #endif  // V8_HOST_ARCH_ARM64
@@ -348,6 +350,12 @@ void CPU::DetectFeatures() {
 #if !defined(PF_ARM_SHA3_INSTRUCTIONS_AVAILABLE)
   constexpr int PF_ARM_SHA3_INSTRUCTIONS_AVAILABLE = 64;
 #endif
+#if !defined(PF_ARM_SME_INSTRUCTIONS_AVAILABLE)
+  constexpr int PF_ARM_SME_INSTRUCTIONS_AVAILABLE = 70;
+#endif
+#if !defined(PF_ARM_SME2_INSTRUCTIONS_AVAILABLE)
+  constexpr int PF_ARM_SME2_INSTRUCTIONS_AVAILABLE = 71;
+#endif
 #if !defined(PF_ARM_SVE_BITPERM_INSTRUCTIONS_AVAILABLE)
   constexpr int PF_ARM_SVE_BITPERM_INSTRUCTIONS_AVAILABLE = 51;
 #endif
@@ -371,6 +379,8 @@ void CPU::DetectFeatures() {
       IsProcessorFeaturePresent(PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE);
   has_fp16_ = IsProcessorFeaturePresent(PF_ARM_V82_FP16_INSTRUCTIONS_AVAILABLE);
   has_sha3_ = IsProcessorFeaturePresent(PF_ARM_SHA3_INSTRUCTIONS_AVAILABLE);
+  has_sme_ = IsProcessorFeaturePresent(PF_ARM_SME_INSTRUCTIONS_AVAILABLE);
+  has_sme2_ = IsProcessorFeaturePresent(PF_ARM_SME2_INSTRUCTIONS_AVAILABLE);
   has_sve_ = IsProcessorFeaturePresent(PF_ARM_SVE_INSTRUCTIONS_AVAILABLE);
   has_sve2_ = IsProcessorFeaturePresent(PF_ARM_SVE2_INSTRUCTIONS_AVAILABLE);
   has_svebitperm_ =
@@ -384,6 +394,8 @@ void CPU::DetectFeatures() {
   has_mte_ = (hwcaps2 & HWCAP2_MTE) != 0;
   has_hbc_ = (hwcaps2 & HWCAP2_HBC) != 0;
   has_mops_ = (hwcaps2 & HWCAP2_MOPS) != 0;
+  has_sme_ = (hwcaps2 & HWCAP2_SME) != 0;
+  has_sme2_ = (hwcaps2 & HWCAP2_SME2) != 0;
   has_svebitperm_ = (hwcaps2 & HWCAP2_SVEBITPERM) != 0;
   has_sve2_ = (hwcaps2 & HWCAP2_SVE2) != 0;
   if (hwcaps != 0) {
@@ -410,63 +422,25 @@ void CPU::DetectFeatures() {
     delete[] features;
   }
 #elif V8_OS_DARWIN
+  auto has_cpu_feature = [](const char* name) {
+    int64_t output = 0;
+    size_t output_size = sizeof(output);
+
+    if (sysctlbyname(name, &output, &output_size, nullptr, 0) == -1) {
+      return false;
+    }
+
+    return static_cast<bool>(output);
+  };
+
 #if V8_OS_IOS
-  int64_t feat_jscvt = 0;
-  size_t feat_jscvt_size = sizeof(feat_jscvt);
-  if (sysctlbyname("hw.optional.arm.FEAT_JSCVT", &feat_jscvt, &feat_jscvt_size,
-                   nullptr, 0) == -1) {
-    has_jscvt_ = false;
-  } else {
-    has_jscvt_ = feat_jscvt;
-  }
-  int64_t feat_dot_prod = 0;
-  size_t feat_dot_prod_size = sizeof(feat_dot_prod);
-  if (sysctlbyname("hw.optional.arm.FEAT_DotProd", &feat_dot_prod,
-                   &feat_dot_prod_size, nullptr, 0) == -1) {
-    has_dot_prod_ = false;
-  } else {
-    has_dot_prod_ = feat_dot_prod;
-  }
-  int64_t feat_lse = 0;
-  size_t feat_lse_size = sizeof(feat_lse);
-  if (sysctlbyname("hw.optional.arm.FEAT_LSE", &feat_lse, &feat_lse_size,
-                   nullptr, 0) == -1) {
-    has_lse_ = false;
-  } else {
-    has_lse_ = feat_lse;
-  }
-  int64_t feat_pmull = 0;
-  size_t feat_pmull_size = sizeof(feat_pmull);
-  if (sysctlbyname("hw.optional.arm.FEAT_PMULL", &feat_pmull, &feat_pmull_size,
-                   nullptr, 0) == -1) {
-    has_pmull1q_ = false;
-  } else {
-    has_pmull1q_ = feat_pmull;
-  }
-  int64_t fp16 = 0;
-  size_t fp16_size = sizeof(fp16);
-  if (sysctlbyname("hw.optional.arm.FEAT_FP16", &fp16, &fp16_size, nullptr,
-                   0) == -1) {
-    has_fp16_ = false;
-  } else {
-    has_fp16_ = fp16;
-  }
-  int64_t feat_sha3 = 0;
-  size_t feat_sha3_size = sizeof(feat_sha3);
-  if (sysctlbyname("hw.optional.arm.FEAT_SHA3", &feat_sha3, &feat_sha3_size,
-                   nullptr, 0) == -1) {
-    has_sha3_ = false;
-  } else {
-    has_sha3_ = feat_sha3;
-  }
-  int64_t feat_lrcpc2 = 0;
-  size_t feat_lrcpc2_size = sizeof(feat_lrcpc2);
-  if (sysctlbyname("hw.optional.arm.FEAT_LRCPC2", &feat_lrcpc2,
-                   &feat_lrcpc2_size, nullptr, 0) == -1) {
-    has_lrcpc2_ = false;
-  } else {
-    has_lrcpc2_ = feat_lrcpc2;
-  }
+  has_dot_prod_ = has_cpu_feature("hw.optional.arm.FEAT_DotProd");
+  has_fp16_ = has_cpu_feature("hw.optional.arm.FEAT_FP16");
+  has_jscvt_ = has_cpu_feature("hw.optional.arm.FEAT_JSCVT");
+  has_lrcpc2_ = has_cpu_feature("hw.optional.arm.FEAT_LRCPC2");
+  has_lse_ = has_cpu_feature("hw.optional.arm.FEAT_LSE");
+  has_pmull1q_ = has_cpu_feature("hw.optional.arm.FEAT_PMULL");
+  has_sha3_ = has_cpu_feature("hw.optional.arm.FEAT_SHA3");
 #else
   // ARM64 Macs always have the following features.
   has_jscvt_ = true;
@@ -477,15 +451,26 @@ void CPU::DetectFeatures() {
   has_sha3_ = true;
   has_lrcpc2_ = true;
 #endif  // V8_OS_IOS
-  int64_t feat_cssc = 0;
-  size_t feat_cssc_size = sizeof(feat_cssc);
-  if (sysctlbyname("hw.optional.arm.FEAT_CSSC", &feat_cssc, &feat_cssc_size,
-                   nullptr, 0) == -1) {
-    has_cssc_ = false;
-  } else {
-    has_cssc_ = feat_cssc;
-  }
+  has_cssc_ = has_cpu_feature("hw.optional.arm.FEAT_CSSC");
+  has_sme_ = has_cpu_feature("hw.optional.arm.FEAT_SME");
+  has_sme2_ = has_cpu_feature("hw.optional.arm.FEAT_SME2");
 #endif  // V8_OS_WIN
+
+  if (has_sme_) {
+    register uint64_t vlen asm("x0");
+
+    // rdsvl x0, #8
+    asm(".word 0x04bf5900" : "=r"(vlen));
+    streaming_vlen_ = static_cast<unsigned>(vlen);
+  }
+
+  if (has_sve_) {
+    register uint64_t vlen asm("x0");
+
+    // rdvl x0, #8
+    asm(".word 0x04bf5100" : "=r"(vlen));
+    vlen_ = static_cast<unsigned>(vlen);
+  }
 #endif  // V8_HOST_ARCH_ARM64
 }
 }  // namespace v8::base

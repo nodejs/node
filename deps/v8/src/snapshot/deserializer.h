@@ -49,14 +49,24 @@ class Deserializer : public SerializerDeserializer {
   Deserializer& operator=(const Deserializer&) = delete;
 
  protected:
+  enum class SnapshotTrustLevel {
+    // Fully trusted (e.g., read-only snapshot).
+    kTrusted,
+    // An untrusted section followed by a trusted section (e.g., code caches).
+    kUntrustedWithTrustedSection,
+  };
+  static constexpr bool HasUntrustedSection(SnapshotTrustLevel trust_level) {
+    return trust_level != SnapshotTrustLevel::kTrusted;
+  }
+
   // Create a deserializer from a snapshot byte source.
   Deserializer(IsolateT* isolate, base::Vector<const uint8_t> untrusted_payload,
                base::Vector<const uint8_t> trusted_payload,
                uint32_t magic_number, bool deserializing_user_code,
-               bool can_rehash);
+               bool can_rehash, SnapshotTrustLevel trust_level);
 
   void DeserializeDeferredObjects();
-  // For code caches. The untrusted section has the root and is read first.
+  void DeserializeFixedTrustedSection();
   DirectHandle<HeapObject> DeserializeUntrustedSection();
   void DeserializeTrustedSection();
 
@@ -69,8 +79,12 @@ class Deserializer : public SerializerDeserializer {
 
   // This returns the address of an object that has been described in the
   // snapshot by object vector index.
-  Handle<HeapObject> GetBackReferencedObject();
   Handle<HeapObject> GetBackReferencedObject(uint32_t index);
+  // Returns an object of the untrusted section by back reference index.
+  Handle<HeapObject> GetUntrustedBackReferencedObject(uint32_t index) const {
+    DCHECK_EQ(section_, Section::kTrusted);
+    return untrusted_back_refs_[index];
+  }
 
   // Add an object to back an attached reference. The order to add objects must
   // mirror the order they are added in the serializer.
@@ -84,10 +98,6 @@ class Deserializer : public SerializerDeserializer {
 
   SnapshotByteSource* source() { return &source_; }
 
-  base::Vector<const DirectHandle<AllocationSite>> new_allocation_sites()
-      const {
-    return {new_allocation_sites_.data(), new_allocation_sites_.size()};
-  }
   base::Vector<const DirectHandle<InstructionStream>>
   new_instruction_stream_objects() const {
     return {new_instruction_stream_objects_.data(),
@@ -207,6 +217,12 @@ class Deserializer : public SerializerDeserializer {
   template <typename SlotAccessor>
   int ReadApiReference(uint8_t data, SlotAccessor slot_accessor);
   template <typename SlotAccessor>
+  int ReadExternalStringResource(uint8_t data, SlotAccessor slot_accessor);
+  // Stores a new cppgc wrapper of the resource (an API reference) in the slot.
+  template <typename SlotAccessor>
+  int WriteExternalStringResource(SlotAccessor slot_accessor,
+                                  uint32_t reference_id);
+  template <typename SlotAccessor>
   int ReadClearedWeakReference(uint8_t data, SlotAccessor slot_accessor);
   template <typename SlotAccessor>
   int ReadWeakPrefix(uint8_t data, SlotAccessor slot_accessor);
@@ -275,7 +291,6 @@ class Deserializer : public SerializerDeserializer {
   uint32_t magic_number_;
 
   DirectHandleVector<Map> new_maps_;
-  DirectHandleVector<AllocationSite> new_allocation_sites_;
   DirectHandleVector<InstructionStream> new_instruction_stream_objects_;
   DirectHandleVector<AccessorInfo> accessor_infos_;
   DirectHandleVector<InterceptorInfo> interceptor_infos_;
@@ -312,12 +327,18 @@ class Deserializer : public SerializerDeserializer {
 
   base::Vector<const uint8_t> trusted_payload_;
   std::vector<EncodedExternalReference> external_references_;
+  std::vector<JSDispatchHandle> trusted_dispatch_handles_;
   std::vector<IndirectHandle<HeapObject>> untrusted_back_refs_;
-  std::vector<std::pair<uint32_t, UnresolvedForwardRef>> trusted_export_refs_;
+  struct TrustedExportRef {
+    uint32_t index;
+    IndirectHandle<HeapObject> object;
+    int offset;
+  };
+  std::vector<TrustedExportRef> trusted_export_refs_;
 
-  // With the sandbox, a code cache has an untrusted and a trusted section.
-  // Snapshots and code caches without the sandbox have a single section that
-  // combines both and is trusted as a whole.
+  // With the sandbox, the SnapshotTrustLevel decides which sections a snapshot
+  // has. Without the sandbox, every snapshot has a single section that combines
+  // both and is trusted as a whole.
   enum class Section : uint8_t {
     kUntrusted = 1 << 0,
     kTrusted = 1 << 1,

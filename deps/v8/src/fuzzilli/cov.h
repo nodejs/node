@@ -46,7 +46,7 @@ void cov_init_builtins_edges(uint32_t num_edges);
 bool cov_has_builtins_edges();
 void cov_set_builtin_edge(uint32_t block_index);
 
-constexpr uint32_t kFuzzilliNumOptimizedCodeEdges = 256 * 1024;
+constexpr uint32_t kFuzzilliNumOptimizedCodeEdges = 32 * 1024;
 
 void cov_init_optimized_code_edges(uint32_t num_edges);
 void cov_add_optimized_code_coverage_edges(const std::set<uint32_t>& hashes);

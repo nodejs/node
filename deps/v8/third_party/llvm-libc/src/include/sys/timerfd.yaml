@@ -1,0 +1,44 @@
+header: sys/timerfd.h
+standards:
+  - linux
+macros:
+  - macro_name: CLOCK_BOOTTIME
+    macro_header: time-macros.h
+  - macro_name: CLOCK_BOOTTIME_ALARM
+    macro_header: time-macros.h
+  - macro_name: CLOCK_MONOTONIC
+    macro_header: time-macros.h
+  - macro_name: CLOCK_REALTIME
+    macro_header: time-macros.h
+  - macro_name: CLOCK_REALTIME_ALARM
+    macro_header: time-macros.h
+  - macro_name: TFD_CLOEXEC
+    macro_header: sys-timerfd-macros.h
+  - macro_name: TFD_NONBLOCK
+    macro_header: sys-timerfd-macros.h
+  - macro_name: TFD_TIMER_ABSTIME
+    macro_header: sys-timerfd-macros.h
+  - macro_name: TFD_TIMER_CANCEL_ON_SET
+    macro_header: sys-timerfd-macros.h
+types:
+  - type_name: struct_itimerspec
+enums: []
+objects: []
+functions:
+  - name: timerfd_create
+    return_type: int
+    arguments:
+      - type: int
+      - type: int
+  - name: timerfd_gettime
+    return_type: int
+    arguments:
+      - type: int
+      - type: struct itimerspec *
+  - name: timerfd_settime
+    return_type: int
+    arguments:
+      - type: int
+      - type: int
+      - type: const struct itimerspec *
+      - type: struct itimerspec *

@@ -38,7 +38,7 @@ LIBC_INLINE_VAR constexpr char SHELL_PATH[] = "/bin/sh";
 
 // Work to do in the child process after forking and before executing the
 // shell. Returns false if the setup failed and the shell should not be run.
-using ShellChildSetup = cpp::function<bool()>;
+using ShellChildSetup = cpp::function_ref<bool()>;
 
 // Forks a child process which runs |setup| and then executes
 // "sh -c -- |command|" with the current environment. If |setup| or the exec

@@ -127,14 +127,13 @@ void CheckComputeLocation(v8::internal::Isolate* i_isolate,
 
 // Call from JS to wasm to JS and throw an Error from JS.
 WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_ExplicitThrowFromJs) {
-  TestSignatures sigs;
   HandleScope scope(WasmExecutionTestBase::InitIsolateOnce());
   const char* source =
       "(function js() {\n function a() {\n throw new Error(); };\n a(); })";
   DirectHandle<JSFunction> js_function =
       Cast<JSFunction>(v8::Utils::OpenDirectHandle(
           *v8::Local<v8::Function>::Cast(CompileRun(source))));
-  ManuallyImportedJSFunction import = {sigs.v_v(), js_function};
+  ManuallyImportedJSFunction import = {TestSignatures::v_v(), js_function};
   uint32_t js_throwing_index = 0;
   WasmRunner<void> r(execution_tier, &import);
 

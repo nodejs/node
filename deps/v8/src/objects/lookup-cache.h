@@ -28,7 +28,7 @@ class DescriptorLookupCache {
   inline void Update(Tagged<Map> source, Tagged<Name> name, int result);
 
   // Clear the cache.
-  void Clear();
+  V8_EXPORT_PRIVATE void Clear();
 
   static const int kAbsent = -2;
 

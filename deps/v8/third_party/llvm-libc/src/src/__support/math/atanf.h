@@ -11,10 +11,10 @@
 
 #include "atan_utils.h"
 #include "src/__support/FPUtil/FPBits.h"
-#include "src/__support/FPUtil/PolyEval.h"
 #include "src/__support/FPUtil/except_value_utils.h"
 #include "src/__support/FPUtil/multiply_add.h"
 #include "src/__support/FPUtil/nearest_integer.h"
+#include "src/__support/FPUtil/polyeval.h"
 #include "src/__support/macros/config.h"
 #include "src/__support/macros/optimization.h" // LIBC_UNLIKELY
 
@@ -65,9 +65,9 @@ LIBC_INLINE float atanf(float x) {
     // x <= 2^-12;
     if (LIBC_UNLIKELY(x_abs < 0x3980'0000)) {
 #if defined(LIBC_TARGET_CPU_HAS_FMA_FLOAT)
-      return fputil::multiply_add(x, -0x1.0p-25f, x);
+      return fputil::sub_multiply(x, x, 0x1.0p-25f);
 #else
-      return static_cast<float>(fputil::multiply_add(x_d, -0x1.0p-25, x_d));
+      return static_cast<float>(fputil::sub_multiply(x_d, x_d, 0x1.0p-25));
 #endif // LIBC_TARGET_CPU_HAS_FMA_FLOAT
     }
     // Use Taylor polynomial:
@@ -101,7 +101,7 @@ LIBC_INLINE float atanf(float x) {
     // double precision.
     x_d = 1.0 / static_cast<double>(x_bits.get_val());
     double k_d = fputil::nearest_integer(x_d * 0x1.0p4);
-    x_d = fputil::multiply_add(k_d, -0x1.0p-4, x_d);
+    x_d = fputil::sub_multiply(x_d, k_d, 0x1.0p-4);
     idx = static_cast<int>(k_d);
     final_sign = FINAL_SIGN[sign.is_pos()];
     // Adjust constant term of the polynomial by +- pi/2.
@@ -116,7 +116,7 @@ LIBC_INLINE float atanf(float x) {
     // Perform range reduction in single precision.
     float x_f = x_bits.get_val();
     float k_f = fputil::nearest_integer(x_f * 0x1.0p4f);
-    x_f = fputil::multiply_add(k_f, -0x1.0p-4f, x_f);
+    x_f = fputil::sub_multiply(x_f, k_f, 0x1.0p-4f);
     x_d = static_cast<double>(x_f);
     idx = static_cast<int>(k_f);
     final_sign = FINAL_SIGN[sign.is_neg()];

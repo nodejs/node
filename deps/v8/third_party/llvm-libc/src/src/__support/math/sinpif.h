@@ -12,8 +12,8 @@
 #include "sincosf_utils.h"
 #include "src/__support/FPUtil/FEnvImpl.h"
 #include "src/__support/FPUtil/FPBits.h"
-#include "src/__support/FPUtil/PolyEval.h"
 #include "src/__support/FPUtil/multiply_add.h"
+#include "src/__support/FPUtil/polyeval.h"
 #include "src/__support/common.h"
 #include "src/__support/macros/config.h"
 #include "src/__support/macros/optimization.h" // LIBC_UNLIKELY
@@ -58,6 +58,10 @@ LIBC_INLINE float sinpif(float x) {
         // For signed zeros.
         return x;
       }
+
+      // sinpi(x) underflows for 0 < |x| <= 0x1.45f3p-128.
+      if (LIBC_UNLIKELY(x_abs <= 0x0028'be60U))
+        fputil::set_errno_if_required(ERANGE);
 
       // For very small values we can approximate sinpi(x) with x * pi
       // An exhaustive test shows that this is accurate for |x| < 9.546391 ×

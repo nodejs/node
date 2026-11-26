@@ -46,12 +46,11 @@ namespace base_internal {
 // This is defined outside of anonymous namespace so that it can be
 // a friend of SpinLock to access protected methods for testing.
 struct SpinLockTest {
-  static uint32_t EncodeWaitCycles(int64_t wait_start_time,
-                                   int64_t wait_end_time) {
-    return SpinLock::EncodeWaitCycles(wait_start_time, wait_end_time);
+  static uint32_t EncodeWaitStart(int64_t now) {
+    return SpinLock::EncodeWaitStart(now);
   }
-  static int64_t DecodeWaitCycles(uint32_t lock_value) {
-    return SpinLock::DecodeWaitCycles(lock_value);
+  static int64_t DecodeWaitCycles(uint32_t lock_value, int64_t now) {
+    return SpinLock::DecodeWaitCycles(lock_value, now);
   }
 
   static bool IsCooperative(const SpinLock& l) { return l.IsCooperative(); }
@@ -142,22 +141,21 @@ TEST(SpinLock, StaticNonCooperativeDisablesScheduling) {
   EXPECT_FALSE(base_internal::SchedulingGuard::ReschedulingIsAllowed());
 }
 
-TEST(SpinLock, WaitCyclesEncoding) {
+TEST(SpinLock, WaitStartEncoding) {
   // These are implementation details not exported by SpinLock.
   const int kProfileTimestampShift = 7;
   const int kLockwordReservedShift = 3;
-  const uint32_t kSpinLockSleeper = 8;
 
-  // We should be able to encode up to (1^kMaxCycleBits - 1) without clamping
-  // but the lower kProfileTimestampShift will be dropped.
-  const int kMaxCyclesShift =
-      32 - kLockwordReservedShift + kProfileTimestampShift;
-  const int64_t kMaxCycles = (int64_t{1} << kMaxCyclesShift) - 1;
+  // The encoded timestamp wraps around at 2^kWrapShift cycles, and the lower
+  // kProfileTimestampShift bits are dropped.
+  const int kWrapShift = 32 - kLockwordReservedShift + kProfileTimestampShift;
+  const int64_t step = (1 << kProfileTimestampShift);
+  const int64_t kMaxCycles = (int64_t{1} << kWrapShift) - step;
 
   // These bits should be zero after encoding.
   const uint32_t kLockwordReservedMask = (1 << kLockwordReservedShift) - 1;
 
-  // These bits are dropped when wait cycles are encoded.
+  // These bits are dropped when timestamps are encoded.
   const int64_t kProfileTimestampMask = (1 << kProfileTimestampShift) - 1;
 
   // Test a bunch of random values
@@ -165,54 +163,55 @@ TEST(SpinLock, WaitCyclesEncoding) {
   // Shift to avoid overflow below.
   std::uniform_int_distribution<int64_t> time_distribution(
       0, std::numeric_limits<int64_t>::max() >> 3);
-  std::uniform_int_distribution<int64_t> cycle_distribution(0, kMaxCycles);
+  // Leave room for the rounding of start_time and end_time to differ.
+  std::uniform_int_distribution<int64_t> cycle_distribution(0,
+                                                            kMaxCycles - step);
 
   for (int i = 0; i < 100; i++) {
     int64_t start_time = time_distribution(generator);
     int64_t cycles = cycle_distribution(generator);
     int64_t end_time = start_time + cycles;
-    uint32_t lock_value = SpinLockTest::EncodeWaitCycles(start_time, end_time);
+    uint32_t lock_value = SpinLockTest::EncodeWaitStart(start_time);
     EXPECT_EQ(0u, lock_value & kLockwordReservedMask);
-    int64_t decoded = SpinLockTest::DecodeWaitCycles(lock_value);
+    EXPECT_NE(0u, lock_value);
+    if (lock_value == (1u << kLockwordReservedShift)) {
+      // A timestamp whose truncation is zero encodes as one, costing one unit
+      // of precision; skip the exact comparison below.
+      continue;
+    }
+    int64_t decoded = SpinLockTest::DecodeWaitCycles(lock_value, end_time);
     EXPECT_EQ(0, decoded & kProfileTimestampMask);
-    EXPECT_EQ(cycles & ~kProfileTimestampMask, decoded);
+    EXPECT_EQ((end_time >> kProfileTimestampShift) -
+                  (start_time >> kProfileTimestampShift),
+              decoded >> kProfileTimestampShift);
+    EXPECT_LT(decoded, cycles + step);
+    EXPECT_GT(decoded, cycles - step);
   }
 
   // Test corner cases
   int64_t start_time = time_distribution(generator);
-  EXPECT_EQ(kSpinLockSleeper,
-            SpinLockTest::EncodeWaitCycles(start_time, start_time));
-  EXPECT_EQ(0, SpinLockTest::DecodeWaitCycles(0));
-  EXPECT_EQ(0, SpinLockTest::DecodeWaitCycles(kLockwordReservedMask));
-  EXPECT_EQ(kMaxCycles & ~kProfileTimestampMask,
-            SpinLockTest::DecodeWaitCycles(~kLockwordReservedMask));
+  start_time &= ~kProfileTimestampMask;
+  uint32_t lock_value = SpinLockTest::EncodeWaitStart(start_time);
+  EXPECT_EQ(0, SpinLockTest::DecodeWaitCycles(lock_value, start_time));
+  EXPECT_EQ(step,
+            SpinLockTest::DecodeWaitCycles(lock_value, start_time + step));
+  EXPECT_EQ(kMaxCycles, SpinLockTest::DecodeWaitCycles(
+                            lock_value, start_time + kMaxCycles));
+  // Once the clock wraps all the way around, the elapsed time wraps to zero.
+  EXPECT_EQ(0, SpinLockTest::DecodeWaitCycles(lock_value,
+                                              start_time + kMaxCycles + step));
+  EXPECT_EQ(step, SpinLockTest::DecodeWaitCycles(
+                      lock_value, start_time + kMaxCycles + 2 * step));
 
-  // Check that we cannot produce kSpinLockSleeper during encoding.
-  int64_t sleeper_cycles = kSpinLockSleeper
-                           << (kProfileTimestampShift - kLockwordReservedShift);
-  uint32_t sleeper_value =
-      SpinLockTest::EncodeWaitCycles(start_time, start_time + sleeper_cycles);
-  EXPECT_NE(sleeper_value, kSpinLockSleeper);
-
-  // Test clamping
-  uint32_t max_value =
-      SpinLockTest::EncodeWaitCycles(start_time, start_time + kMaxCycles);
-  int64_t max_value_decoded = SpinLockTest::DecodeWaitCycles(max_value);
-  int64_t expected_max_value_decoded = kMaxCycles & ~kProfileTimestampMask;
-  EXPECT_EQ(expected_max_value_decoded, max_value_decoded);
-
-  const int64_t step = (1 << kProfileTimestampShift);
-  uint32_t after_max_value = SpinLockTest::EncodeWaitCycles(
-      start_time, start_time + kMaxCycles + step);
-  int64_t after_max_value_decoded =
-      SpinLockTest::DecodeWaitCycles(after_max_value);
-  EXPECT_EQ(expected_max_value_decoded, after_max_value_decoded);
-
-  uint32_t before_max_value = SpinLockTest::EncodeWaitCycles(
-      start_time, start_time + kMaxCycles - step);
-  int64_t before_max_value_decoded =
-      SpinLockTest::DecodeWaitCycles(before_max_value);
-  EXPECT_GT(expected_max_value_decoded, before_max_value_decoded);
+  // A timestamp whose truncation is zero must not encode as "no waiter", and
+  // decoding in the same tick must return zero rather than underflowing.
+  EXPECT_NE(0u, SpinLockTest::EncodeWaitStart(0));
+  EXPECT_EQ(0, SpinLockTest::DecodeWaitCycles(SpinLockTest::EncodeWaitStart(0),
+                                              0));
+  EXPECT_NE(0u, SpinLockTest::EncodeWaitStart(int64_t{1} << kWrapShift));
+  EXPECT_EQ(0, SpinLockTest::DecodeWaitCycles(
+                   SpinLockTest::EncodeWaitStart(int64_t{1} << kWrapShift),
+                   int64_t{1} << kWrapShift));
 }
 
 TEST(SpinLockWithThreads, StackSpinLock) {

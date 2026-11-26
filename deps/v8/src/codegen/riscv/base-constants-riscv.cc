@@ -144,65 +144,6 @@ int VRegisters::Number(const char* name) {
   return kInvalidVRegister;
 }
 
-bool InstructionBase::IsShortInstruction() const {
-  uint8_t FirstByte = *reinterpret_cast<const uint8_t*>(this);
-  return (FirstByte & 0x03) <= C2;
-}
-
-template <class T>
-int InstructionGetters<T>::RvcRdValue() const {
-  DCHECK(this->IsShortInstruction());
-  return this->Bits(kRvcRdShift + kRvcRdBits - 1, kRvcRdShift);
-}
-
-template <class T>
-int InstructionGetters<T>::RvcRs2Value() const {
-  DCHECK(this->IsShortInstruction());
-  return this->Bits(kRvcRs2Shift + kRvcRs2Bits - 1, kRvcRs2Shift);
-}
-
-template <class T>
-int InstructionGetters<T>::RvcRs1sValue() const {
-  DCHECK(this->IsShortInstruction());
-  return 0b1000 + this->Bits(kRvcRs1sShift + kRvcRs1sBits - 1, kRvcRs1sShift);
-}
-
-template <class T>
-int InstructionGetters<T>::RvcRs2sValue() const {
-  DCHECK(this->IsShortInstruction());
-  return 0b1000 + this->Bits(kRvcRs2sShift + kRvcRs2sBits - 1, kRvcRs2sShift);
-}
-
-template <class T>
-inline int InstructionGetters<T>::RvcFunct6Value() const {
-  DCHECK(this->IsShortInstruction());
-  return this->Bits(kRvcFunct6Shift + kRvcFunct6Bits - 1, kRvcFunct6Shift);
-}
-
-template <class T>
-inline int InstructionGetters<T>::RvcFunct4Value() const {
-  DCHECK(this->IsShortInstruction());
-  return this->Bits(kRvcFunct4Shift + kRvcFunct4Bits - 1, kRvcFunct4Shift);
-}
-
-template <class T>
-inline int InstructionGetters<T>::RvcFunct3Value() const {
-  DCHECK(this->IsShortInstruction());
-  return this->Bits(kRvcFunct3Shift + kRvcFunct3Bits - 1, kRvcFunct3Shift);
-}
-
-template <class T>
-inline int InstructionGetters<T>::RvcFunct2Value() const {
-  DCHECK(this->IsShortInstruction());
-  return this->Bits(kRvcFunct2Shift + kRvcFunct2Bits - 1, kRvcFunct2Shift);
-}
-
-template <class T>
-inline int InstructionGetters<T>::RvcFunct2BValue() const {
-  DCHECK(this->IsShortInstruction());
-  return this->Bits(kRvcFunct2BShift + kRvcFunct2Bits - 1, kRvcFunct2BShift);
-}
-
 template <class T>
 uint32_t InstructionGetters<T>::Rvvzimm() const {
   if ((this->InstructionBits() &
@@ -416,50 +357,7 @@ InstructionBase::Type InstructionBase::InstructionType() const {
         break;
     }
   } else {
-    // RISCV routine
-    switch (InstructionBits() & kBaseOpcodeMask) {
-      case LOAD:
-        return kIType;
-      case LOAD_FP:
-        return kIType;
-      case MISC_MEM:
-        return kIType;
-      case OP_IMM:
-        return kIType;
-      case AUIPC:
-        return kUType;
-      case OP_IMM_32:
-        return kIType;
-      case STORE:
-        return kSType;
-      case STORE_FP:
-        return kSType;
-      case AMO:
-        return kRType;
-      case OP:
-        return kRType;
-      case LUI:
-        return kUType;
-      case OP_32:
-        return kRType;
-      case MADD:
-      case MSUB:
-      case NMSUB:
-      case NMADD:
-        return kR4Type;
-      case OP_FP:
-        return kRType;
-      case BRANCH:
-        return kBType;
-      case JALR:
-        return kIType;
-      case JAL:
-        return kJType;
-      case SYSTEM:
-        return kIType;
-      case OP_V:
-        return kVType;
-    }
+    return BaseOpcodeType(InstructionBits());
   }
   return kUnsupported;
 }

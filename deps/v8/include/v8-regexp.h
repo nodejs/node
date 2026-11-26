@@ -75,11 +75,13 @@ class V8_EXPORT RegExp : public Object {
    *
    * Note: modifies global context state, accessible e.g. through RegExp.input.
    */
-  V8_DEPRECATE_SOON("Use ExecV2 instead")
-  V8_WARN_UNUSED_RESULT MaybeLocal<Object> Exec(Local<Context> context,
-                                                Local<String> subject);
+  V8_WARN_UNUSED_RESULT MaybeLocal<Value> Exec(Local<Context> context,
+                                               Local<String> subject);
+  V8_DEPRECATE_SOON("Use Exec instead")
   V8_WARN_UNUSED_RESULT MaybeLocal<Value> ExecV2(Local<Context> context,
-                                                 Local<String> subject);
+                                                 Local<String> subject) {
+    return Exec(context, subject);
+  }
 
   /**
    * Returns the value of the source property: a string representing

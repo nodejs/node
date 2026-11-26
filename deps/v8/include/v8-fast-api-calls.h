@@ -255,10 +255,16 @@ class CTypeInfo {
 
   enum class Flags : uint8_t {
     kNone = 0,
-    kAllowSharedBit = 1 << 0,   // Must be an ArrayBuffer or TypedArray
-    kEnforceRangeBit = 1 << 1,  // T must be integral
-    kClampBit = 1 << 2,         // T must be integral
-    kIsRestrictedBit = 1 << 3,  // T must be float or double
+    kAllowSharedBit V8_DEPRECATE_SOON(
+        "ArrayBuffers and TypedArrays are not supported directly anymore.") =
+        1 << 0,  // Must be an ArrayBuffer or TypedArray
+    kEnforceRangeBit V8_DEPRECATE_SOON(
+        "Range checks should be done by the API function.") =
+        1 << 1,          // T must be integral
+    kClampBit = 1 << 2,  // T must be integral
+    kIsRestrictedBit V8_DEPRECATE_SOON(
+        "Restricted float checks should be done by the API function.") =
+        1 << 3,  // T must be float or double
   };
 
   explicit constexpr CTypeInfo(Type type, Flags flags = Flags::kNone)
@@ -466,15 +472,13 @@ struct FastApiCallbackOptions {
   /**
    * The `data` passed to the FunctionTemplate constructor, or `undefined`.
    */
-  V8_DEPRECATED("Use DataV2 instead")
-  v8::Local<v8::Value> data;
+  v8::Local<v8::Data> data;
 
   /**
    * The `data` passed to the FunctionTemplate constructor as `v8::Data`.
    */
-  START_ALLOW_USE_DEPRECATED()
+  V8_DEPRECATE_SOON("Use data instead")
   V8_INLINE v8::Local<v8::Data> DataV2() const { return data; }
-  END_ALLOW_USE_DEPRECATED()
 };
 
 namespace internal {
@@ -609,6 +613,7 @@ class V8_EXPORT CTypeInfoBuilder {
  public:
   using BaseType = T;
 
+  START_ALLOW_USE_DEPRECATED()
   static constexpr CTypeInfo Build() {
     constexpr CTypeInfo::Flags kFlags =
         MergeFlags(internal::TypeInfoHelper<T>::Flags(), Flags...);
@@ -630,6 +635,7 @@ class V8_EXPORT CTypeInfoBuilder {
     // Return the same type with the merged flags.
     return CTypeInfo(internal::TypeInfoHelper<T>::Type(), kFlags);
   }
+  END_ALLOW_USE_DEPRECATED()
 
  private:
   template <typename... Rest>

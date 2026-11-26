@@ -1,0 +1,14 @@
+Test catching exceptions in promise constructor in conjunction with deoptimization.
+Paused on exception: uncaught=true
+Exception message: uncaught
+At exception line: true
+Paused on exception: uncaught=true
+Exception message: uncaught
+At exception line: true
+Paused on exception: uncaught=true
+Exception message: uncaught
+At exception line: true
+Paused on exception: uncaught=true
+Exception message: uncaught
+At exception line: true
+Total exception events: 4

@@ -1034,7 +1034,9 @@ void VisitStoreCommon(InstructionSelector* selector,
 
   if (write_barrier_kind != kNoWriteBarrier &&
       !v8_flags.disable_write_barriers) {
-    DCHECK(CanBeTaggedPointer(rep));
+    DCHECK(CanBeTaggedPointer(rep) ||
+           (write_barrier_kind == kSkippedWriteBarrier &&
+            rep == MachineRepresentation::kTaggedSigned));
     AddressingMode addressing_mode;
     InstructionOperand inputs[4];
     size_t input_count = 0;
@@ -1050,6 +1052,8 @@ void VisitStoreCommon(InstructionSelector* selector,
     if (write_barrier_kind == kSkippedWriteBarrier) {
       code = is_atomic ? kArchAtomicStoreSkippedWriteBarrier
                        : kArchStoreSkippedWriteBarrier;
+      code |=
+          CheckSmiField::encode(rep == MachineRepresentation::kTaggedSigned);
     } else {
       code = is_atomic ? kArchAtomicStoreWithWriteBarrier
                        : kArchStoreWithWriteBarrier;
@@ -1181,6 +1185,11 @@ void VisitBinop(InstructionSelector* selector, OpIndex node,
   IA32OperandGenerator g(selector);
 
   auto [left, right] = selector->Inputs<2>(node);
+  if (selector->IsCommutative(node)) {
+    if (selector->Is<ConstantOp>(left) && !selector->Is<ConstantOp>(right)) {
+      std::swap(left, right);
+    }
+  }
   InstructionOperand inputs[6];
   size_t input_count = 0;
   InstructionOperand outputs[1];

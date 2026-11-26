@@ -197,8 +197,18 @@ declare_args() {
   # Enable runtime call stats.
   v8_enable_runtime_call_stats = false
 
+  # Build d8's experimental mock DOM (d8 --experimental-mock-dom), a prototype
+  # for running DOM workloads such as Speedometer without a browser. See
+  # experimental/d8/mock-dom/mock-dom.h.
+  v8_enable_experimental_mock_dom = false
+
   # Add fuzzilli fuzzer support.
   v8_fuzzilli = false
+
+  # Add support for Redline, the fuzzer in experimental/redline: the REPRL loop
+  # of Fuzzilli with the coverage runtime of Redline. Do not set it together
+  # with v8_fuzzilli.
+  v8_redline = false
 
   # Force optimizing with -O3 for increased inlining.
   v8_force_optimize_speed = false
@@ -278,7 +288,7 @@ declare_args() {
 
   # Use memory sealing to protect various global memory mappings for CFI
   # (experimental).
-  # TODO(sroettger): enable by default once we have bot support for testing.
+  # TODO(360048056): enable by default once we have bot support for testing.
   v8_enable_memory_sealing = false
 
   # Sets -DV8_ENABLE_ETW_STACK_WALKING. Enables ETW Stack Walking
@@ -301,8 +311,18 @@ declare_args() {
   # feature will add a dependency on the icu_capi Rust library.
   # Functionality is still controlled by runtime flags (e.g.
   # --ecma402-icu4x-plural-rules).
-  v8_enable_ecma402_icu4x =
-      v8_enable_i18n_support && !(defined(build_with_node) && build_with_node)
+  # Currently disabled by default during experimentation to limit binary size
+  # impact (see b/571708639), and enabled on the icu4x CI builder.
+  v8_enable_ecma402_icu4x = false
+
+  # Compile V8 using OpenSSL/BoringSSL for SHA-256. Embedders can set this to
+  # false to use fallback software implementation and avoid depending on
+  # //third_party/boringssl.
+  v8_use_openssl =
+      (build_with_chromium || (defined(build_with_node) && build_with_node) ||
+       (defined(checkout_boringssl) && checkout_boringssl)) &&
+      current_cpu != "ppc64" && current_cpu != "s390x" &&
+      current_cpu != "loong64"
 }
 
 assert(!v8_enable_debugging_features || v8_enable_verification_features,

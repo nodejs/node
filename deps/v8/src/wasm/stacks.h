@@ -15,6 +15,7 @@
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
 #include "src/objects/visitors.h"
+#include "src/sandbox/external-pointer-table.h"
 #include "src/utils/allocation.h"
 #include "src/wasm/value-type.h"
 
@@ -59,7 +60,12 @@ struct JumpBuffer {
   StackState state;
 };
 
-class StackMemory {
+class V8_EXPORT_PRIVATE StackMemory
+#ifdef V8_COMPRESS_POINTERS
+    : public ExternalPointerTable::ManagedResource {
+#else
+    : public Malloced {
+#endif  // V8_COMPRESS_POINTERS
  public:
   static std::unique_ptr<StackMemory> New() {
     return std::unique_ptr<StackMemory>(new StackMemory());
@@ -69,6 +75,8 @@ class StackMemory {
   // the simulator's stack when running on the simulator.
   static StackMemory* GetCentralStackView(Isolate* isolate);
 
+  StackMemory(const StackMemory&) = delete;
+  StackMemory& operator=(const StackMemory&) = delete;
   ~StackMemory();
   Address limit() const;
   void* jslimit() const;
@@ -96,7 +104,6 @@ class StackMemory {
   }
   void set_stack_obj(Tagged<WasmStackObject> stack) { stack_obj_ = stack; }
   Tagged<WasmStackObject> stack_obj() { return stack_obj_; }
-  bool IsValidContinuation(Tagged<WasmContinuationObject> cont);
   JumpBuffer* jmpbuf() { return &jmpbuf_; }
   bool Contains(Address addr) const {
     if (!owned_) {
@@ -142,6 +149,18 @@ class StackMemory {
   bool Grow(Address parent_frame_fp, size_t min_size);
   Address Shrink();
   void ShrinkTo(Address stack_address);
+
+  // Manage OS thread stack bounds (e.g. Windows TEB StackBase/StackLimit)
+  // across central and secondary stack switches.
+#if V8_OS_WIN && !defined(USE_SIMULATOR)
+  void SwitchStackBoundsFromCentral();
+  void SetCurrentThreadStackBounds();
+  static void RestoreCentralStackBounds();
+#else
+  void SwitchStackBoundsFromCentral() { DCHECK(owned_); }
+  void SetCurrentThreadStackBounds() { DCHECK(owned_); }
+  static void RestoreCentralStackBounds() {}
+#endif
   bool contains_only_old_pointers() const {
     return contains_only_old_pointers_;
   }
@@ -269,6 +288,7 @@ class StackMemory {
   // Overload to represent a view of the libc stack.
   StackMemory(uint8_t* limit, size_t size);
 
+  Address ShrinkSegment();
   void IterateWasmFXRoots(v8::internal::RootVisitor* v);
 
   uint8_t* limit_;
@@ -335,13 +355,17 @@ constexpr int kStackStateOffset =
 
 // A pool of "finished" stacks, i.e. stacks whose last frame have returned and
 // whose memory can be reused for new suspendable computations.
-class StackPool {
+class V8_EXPORT_PRIVATE StackPool {
  public:
+  StackPool() = default;
+  StackPool(const StackPool&) = delete;
+  StackPool& operator=(const StackPool&) = delete;
+
   // Gets a stack from the free list if one exists, else allocates it.
   std::unique_ptr<StackMemory> GetOrAllocate();
   // Adds a finished stack to the free list.
   void Add(std::unique_ptr<StackMemory> stack);
-  // Decommit the stack memories and empty the freelist.
+  // Free the stack memories and empty the freelist.
   void ReleaseFinishedStacks();
   size_t Size() const;
 

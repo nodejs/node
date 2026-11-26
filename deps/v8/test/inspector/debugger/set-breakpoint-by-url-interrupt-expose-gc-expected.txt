@@ -1,0 +1,14 @@
+Tests that Debugger.setBreakpointByUrl can compile and match regexes inside an API interrupt when --expose-gc is enabled.
+{
+    id : <messageId>
+    result : {
+        breakpointId : <breakpointId>
+        locations : [
+            [0] : {
+                columnNumber : 6
+                lineNumber : 1
+                scriptId : <scriptId>
+            }
+        ]
+    }
+}

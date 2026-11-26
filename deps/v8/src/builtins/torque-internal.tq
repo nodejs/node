@@ -286,19 +286,10 @@ extern macro GetInstanceTypeMap(constexpr InstanceType): Map;
 extern macro Allocate(intptr, constexpr AllocationFlag):
     UninitializedHeapObject;
 
-macro AllocateFromNew(
-    sizeInBytes: intptr, map: Map, pretenured: bool,
-    clearPadding: bool): UninitializedHeapObject {
+macro AllocateFromNew(sizeInBytes: intptr, map: Map, clearPadding: bool):
+    UninitializedHeapObject {
   dcheck(ValidAllocationSize(sizeInBytes, map));
-  let res: UninitializedHeapObject;
-  if (pretenured) {
-    res = Allocate(
-        sizeInBytes,
-        %RawConstexprCast<constexpr AllocationFlag>(
-            %RawConstexprCast<constexpr int32>(AllocationFlag::kPretenured)));
-  } else {
-    res = Allocate(sizeInBytes, AllocationFlag::kNone);
-  }
+  const res = Allocate(sizeInBytes, AllocationFlag::kNone);
   if (clearPadding) {
     *unsafe::NewReference<Zero>(res, sizeInBytes - kObjectAlignment) = kZero;
   }

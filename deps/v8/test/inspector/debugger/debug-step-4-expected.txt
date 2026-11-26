@@ -1,0 +1,4 @@
+Tests how debugger can step over not necessarily in the top frame.
+Here (0): 4:10
+Here (1): 5:7
+State: 0,0,-1

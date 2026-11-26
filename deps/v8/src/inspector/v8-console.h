@@ -181,7 +181,7 @@ class V8Console final : public cppgc::GarbageCollected<V8Console>,
   template <void (V8Console::*func)(const v8::FunctionCallbackInfo<v8::Value>&)>
   static void call(const v8::FunctionCallbackInfo<v8::Value>& info) {
     V8Console* console =
-        info.DataV2().As<v8::CppHeapExternal>()->Value<V8Console>(
+        info.Data().As<v8::CppHeapExternal>()->Value<V8Console>(
             info.GetIsolate(), {kPointerTag, kPointerTag});
     CHECK_NOT_NULL(console);
     CHECK_NOT_NULL(console->m_inspector);
@@ -191,7 +191,7 @@ class V8Console final : public cppgc::GarbageCollected<V8Console>,
                                     int)>
   static void call(const v8::FunctionCallbackInfo<v8::Value>& info) {
     CommandLineAPIData* data =
-        info.DataV2().As<v8::CppHeapExternal>()->Value<CommandLineAPIData>(
+        info.Data().As<v8::CppHeapExternal>()->Value<CommandLineAPIData>(
             info.GetIsolate(),
             {CommandLineAPIData::kPointerTag, CommandLineAPIData::kPointerTag});
     CHECK_NOT_NULL(data);
@@ -204,7 +204,7 @@ class V8Console final : public cppgc::GarbageCollected<V8Console>,
                                     const v8::debug::ConsoleContext&)>
   static void call(const v8::FunctionCallbackInfo<v8::Value>& info) {
     V8Console* console =
-        info.DataV2().As<v8::CppHeapExternal>()->Value<V8Console>(
+        info.Data().As<v8::CppHeapExternal>()->Value<V8Console>(
             info.GetIsolate(), {kPointerTag, kPointerTag});
     CHECK_NOT_NULL(console);
     CHECK_NOT_NULL(console->m_inspector);

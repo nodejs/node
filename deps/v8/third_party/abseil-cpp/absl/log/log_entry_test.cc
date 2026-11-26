@@ -465,4 +465,20 @@ TEST(LogEntryTest, Raw) {
   EXPECT_THAT(entry.entry().text_message(), Eq("hello world"));
 }
 
+TEST(LogEntryTest, InfiniteTimestamp) {
+  const auto format_prefix = [](absl::Time timestamp) {
+    std::string str(1000, '\0');
+    absl::Span<char> buf(&str[0], str.size());
+    const size_t prefix_size = absl::log_internal::FormatLogPrefix(
+        absl::LogSeverity::kInfo, timestamp, 451, "foo.cc", 1234,
+        absl::log_internal::PrefixFormat::kNotRaw, buf);
+    str.resize(prefix_size);
+    return str;
+  };
+  EXPECT_THAT(format_prefix(absl::InfiniteFuture()),
+              StartsWith("I1231 23:59:59.999999     451 foo.cc:1234] "));
+  EXPECT_THAT(format_prefix(absl::InfinitePast()),
+              StartsWith("I0101 00:00:00.000000     451 foo.cc:1234] "));
+}
+
 }  // namespace

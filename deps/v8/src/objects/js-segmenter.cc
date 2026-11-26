@@ -53,7 +53,7 @@ MaybeDirectHandle<JSSegmenter> JSSegmenter::New(
   // 11. Let r be ResolveLocale(%Segmenter%.[[AvailableLocales]],
   // requestedLocales, opt, %Segmenter%.[[RelevantExtensionKeys]]).
   Intl::ResolvedLocale r;
-  if (!Intl::ResolveLocale(isolate, JSSegmenter::GetAvailableLocales(),
+  if (!Intl::ResolveLocale(isolate, JSSegmenter::GetAvailableLocales,
                            requested_locales, matcher, {})
            .To(&r)) {
     THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError));

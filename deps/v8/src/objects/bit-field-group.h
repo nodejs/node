@@ -72,6 +72,13 @@ class BitFieldGroup {
     return Derived(Bit::update(value_, value));
   }
 
+  template <typename Bit>
+  V8_NODISCARD constexpr Derived with_unchecked(
+      typename Bit::FieldType value) const {
+    static_assert(std::is_same_v<typename Bit::BaseType, U>);
+    return Derived(Bit::update_unchecked(value_, value));
+  }
+
  private:
   U value_ = 0;
 };

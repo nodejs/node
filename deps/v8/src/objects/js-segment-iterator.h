@@ -12,6 +12,7 @@
 #include "src/base/bit-field.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
+#include "src/objects/bit-field-group.h"
 #include "src/objects/intl-objects.h"
 #include "src/objects/js-segmenter.h"
 #include "src/objects/managed.h"
@@ -50,8 +51,16 @@ V8_OBJECT class JSSegmentIterator : public JSObject {
   inline void set_raw_string(Tagged<String> value,
                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline int flags() const;
-  inline void set_flags(int value);
+  struct Flags : BitFieldGroup<Flags, uint32_t> {
+    using BitFieldGroup::BitFieldGroup;
+
+    using GranularityBits = First<JSSegmenter::Granularity, 2>;
+
+    BIT_FIELD_GROUP_ACCESSORS(granularity, GranularityBits)
+  };
+
+  inline Flags flags() const;
+  inline void set_flags(Flags value);
 
   DECL_PRINTER(JSSegmentIterator)
   DECL_VERIFIER(JSSegmentIterator)
@@ -59,20 +68,19 @@ V8_OBJECT class JSSegmentIterator : public JSObject {
   inline void set_granularity(JSSegmenter::Granularity granularity);
   inline JSSegmenter::Granularity granularity() const;
 
-  // Bit positions in |flags|.
-  using GranularityBits =
-      base::BitField<JSSegmenter::Granularity, 0, 2, uint32_t>;
-
-  static_assert(GranularityBits::is_valid(JSSegmenter::Granularity::GRAPHEME));
-  static_assert(GranularityBits::is_valid(JSSegmenter::Granularity::WORD));
-  static_assert(GranularityBits::is_valid(JSSegmenter::Granularity::SENTENCE));
+  static_assert(
+      Flags::GranularityBits::is_valid(JSSegmenter::Granularity::GRAPHEME));
+  static_assert(
+      Flags::GranularityBits::is_valid(JSSegmenter::Granularity::WORD));
+  static_assert(
+      Flags::GranularityBits::is_valid(JSSegmenter::Granularity::SENTENCE));
 
   static const int kHeaderSize;
 
  public:
   TaggedMember<CppGCManaged<IcuBreakIteratorWithText>> icu_iterator_with_text_;
   TaggedMember<String> raw_string_;
-  TaggedMember<Smi> flags_ V8_TQ_TYPE(SmiTagged<JSSegmentIteratorFlags>);
+  SmiBitFieldMember<Flags> flags_;
 } V8_OBJECT_END;
 
 inline constexpr int JSSegmentIterator::kHeaderSize = sizeof(JSSegmentIterator);

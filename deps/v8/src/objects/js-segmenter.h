@@ -15,6 +15,7 @@
 #include "src/base/bit-field.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
+#include "src/objects/bit-field-group.h"
 #include "src/objects/managed.h"
 #include "src/objects/objects.h"
 #include "unicode/uversion.h"
@@ -54,9 +55,6 @@ V8_OBJECT class JSSegmenter : public JSObject {
       Tagged<Managed<icu::BreakIterator>> value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline int flags() const;
-  inline void set_flags(int value);
-
   // Granularity: identifying the segmenter used.
   //
   // https://tc39.es/ecma402/#sec-segmenter-internal-slots
@@ -71,13 +69,20 @@ V8_OBJECT class JSSegmenter : public JSObject {
   Handle<String> static GetGranularityString(Isolate* isolate,
                                              Granularity granularity);
 
-  // Bit positions in |flags|.
-  using GranularityBits =
-      base::BitField<JSSegmenter::Granularity, 0, 2, uint32_t>;
+  struct Flags : BitFieldGroup<Flags, uint32_t> {
+    using BitFieldGroup::BitFieldGroup;
 
-  static_assert(GranularityBits::is_valid(Granularity::GRAPHEME));
-  static_assert(GranularityBits::is_valid(Granularity::WORD));
-  static_assert(GranularityBits::is_valid(Granularity::SENTENCE));
+    using GranularityBits = First<JSSegmenter::Granularity, 2>;
+
+    BIT_FIELD_GROUP_ACCESSORS(granularity, GranularityBits)
+  };
+
+  inline Flags flags() const;
+  inline void set_flags(Flags value);
+
+  static_assert(Flags::GranularityBits::is_valid(Granularity::GRAPHEME));
+  static_assert(Flags::GranularityBits::is_valid(Granularity::WORD));
+  static_assert(Flags::GranularityBits::is_valid(Granularity::SENTENCE));
 
   DECL_PRINTER(JSSegmenter)
   DECL_VERIFIER(JSSegmenter)
@@ -87,7 +92,7 @@ V8_OBJECT class JSSegmenter : public JSObject {
  public:
   TaggedMember<String> locale_;
   TaggedMember<Foreign> icu_break_iterator_;
-  TaggedMember<Smi> flags_ V8_TQ_TYPE(SmiTagged<JSSegmenterFlags>);
+  SmiBitFieldMember<Flags> flags_;
 } V8_OBJECT_END;
 
 inline constexpr int JSSegmenter::kHeaderSize = sizeof(JSSegmenter);

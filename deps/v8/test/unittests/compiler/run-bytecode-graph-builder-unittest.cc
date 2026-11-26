@@ -94,7 +94,7 @@ class BytecodeGraphTester {
   BytecodeGraphTester(Isolate* isolate, const char* script,
                       const char* filter = kFunctionName)
       : isolate_(isolate), script_(script) {
-    i::v8_flags.allow_natives_syntax = true;
+    i::v8_flags.allow_natives_syntax.Set(true);
   }
   virtual ~BytecodeGraphTester() = default;
   BytecodeGraphTester(const BytecodeGraphTester&) = delete;

@@ -18,30 +18,30 @@
 
 namespace LIBC_NAMESPACE_DECL {
 
+#if defined(__AVX512F__)
+LIBC_INLINE_VAR constexpr size_t vector_size = 64;
+using uint128_t = generic_v128;
+using uint256_t = generic_v256;
+using uint512_t = generic_v512;
+#elif defined(__AVX__)
+LIBC_INLINE_VAR constexpr size_t vector_size = 32;
+using uint128_t = generic_v128;
+using uint256_t = generic_v256;
+using uint512_t = cpp::array<generic_v256, 2>;
+#elif defined(__SSE2__)
+LIBC_INLINE_VAR constexpr size_t vector_size = 16;
+using uint128_t = generic_v128;
+using uint256_t = cpp::array<generic_v128, 2>;
+using uint512_t = cpp::array<generic_v128, 4>;
+#else
+LIBC_INLINE_VAR constexpr size_t vector_size = 8;
+using uint128_t = cpp::array<uint64_t, 2>;
+using uint256_t = cpp::array<uint64_t, 4>;
+using uint512_t = cpp::array<uint64_t, 8>;
+#endif
+
 LIBC_INLINE bool inline_memmove_small_size_x86(Ptr dst, CPtr src,
                                                size_t count) {
-#if defined(__AVX512F__)
-  constexpr size_t vector_size = 64;
-  using uint128_t = generic_v128;
-  using uint256_t = generic_v256;
-  using uint512_t = generic_v512;
-#elif defined(__AVX__)
-  constexpr size_t vector_size = 32;
-  using uint128_t = generic_v128;
-  using uint256_t = generic_v256;
-  using uint512_t = cpp::array<generic_v256, 2>;
-#elif defined(__SSE2__)
-  constexpr size_t vector_size = 16;
-  using uint128_t = generic_v128;
-  using uint256_t = cpp::array<generic_v128, 2>;
-  using uint512_t = cpp::array<generic_v128, 4>;
-#else
-  constexpr size_t vector_size = 8;
-  using uint128_t = cpp::array<uint64_t, 2>;
-  using uint256_t = cpp::array<uint64_t, 4>;
-  using uint512_t = cpp::array<uint64_t, 8>;
-#endif
-  (void)vector_size;
   if (count == 0)
     return true;
   if (count == 1) {
@@ -93,19 +93,6 @@ LIBC_INLINE bool inline_memmove_small_size_x86(Ptr dst, CPtr src,
 }
 
 LIBC_INLINE void inline_memmove_follow_up_x86(Ptr dst, CPtr src, size_t count) {
-#if defined(__AVX512F__)
-  using uint256_t = generic_v256;
-  using uint512_t = generic_v512;
-#elif defined(__AVX__)
-  using uint256_t = generic_v256;
-  using uint512_t = cpp::array<generic_v256, 2>;
-#elif defined(__SSE2__)
-  using uint256_t = cpp::array<generic_v128, 2>;
-  using uint512_t = cpp::array<generic_v128, 4>;
-#else
-  using uint256_t = cpp::array<uint64_t, 4>;
-  using uint512_t = cpp::array<uint64_t, 8>;
-#endif
   if (dst < src) {
     generic::Memmove<uint256_t>::align_forward<Arg::Src>(dst, src, count);
     return generic::Memmove<uint512_t>::loop_and_tail_forward(dst, src, count);

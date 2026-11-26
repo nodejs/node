@@ -353,7 +353,7 @@ class VirtualMemory final {
 //   must be AllocatePageSize-aligned.
 // - The base alignment may be kAnyBaseAlignment to denote any alignment is
 //   acceptable. In this case the base bias size does not need to be aligned.
-class VirtualMemoryCage {
+class V8_EXPORT_PRIVATE VirtualMemoryCage {
  public:
   VirtualMemoryCage();
   virtual ~VirtualMemoryCage();
@@ -412,6 +412,10 @@ class VirtualMemoryCage {
   void Free();
 
  protected:
+  // Resets the cage without freeing the underlying virtual memory reservation
+  // (e.g. for sealed reservations that cannot be unmapped until process exit).
+  void Reset();
+
   Address base_ = kNullAddress;
   size_t size_ = 0;
   std::unique_ptr<base::BoundedPageAllocator> page_allocator_;

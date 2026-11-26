@@ -1,6 +1,9 @@
 header: pthread.h
 standards:
   - posix
+public_includes:
+  - sched.h
+  - time.h
 macros:
   - macro_name: "PTHREAD_NULL"
     macro_header: pthread-macros.h
@@ -295,6 +298,11 @@ functions:
     arguments:
       - type: pthread_t
       - type: pthread_attr_t *
+  - name: pthread_getcpuclockid
+    return_type: int
+    arguments:
+      - type: pthread_t
+      - type: clockid_t *
   - name: pthread_getname_np
     standards:
       - gnu
@@ -348,6 +356,11 @@ functions:
     return_type: int
     arguments:
       - type: pthread_mutex_t *
+  - name: pthread_mutex_timedlock
+    return_type: int
+    arguments:
+      - type: pthread_mutex_t *__restrict
+      - type: const struct timespec *__restrict
   - name: pthread_mutex_trylock
     return_type: int
     arguments:
@@ -399,7 +412,7 @@ functions:
     arguments:
       - type: pthread_barrier_t *__restrict
       - type: const pthread_barrierattr_t *__restrict
-      - type: int
+      - type: unsigned
   - name: pthread_barrier_wait
     return_type: int
     arguments:

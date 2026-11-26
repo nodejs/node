@@ -1,0 +1,28 @@
+Tests that Debugger.evaluateOnCallFrame respects the TDZ of module bindings.
+Paused in a function, bindings in TDZ:
+  exportedLet => throws ReferenceError: exportedLet is not defined
+  typeof exportedLet => throws ReferenceError: exportedLet is not defined
+  exportedConst => throws ReferenceError: exportedConst is not defined
+  ExportedClass => throws ReferenceError: ExportedClass is not defined
+  importedLet => throws ReferenceError: importedLet is not defined
+  exportedLet = 4 => throws ReferenceError: exportedLet is not defined
+  exportedConst = 4 => throws ReferenceError: exportedConst is not defined
+  importedLet = 4 => throws ReferenceError: importedLet is not defined
+  param = exportedLet => throws ReferenceError: exportedLet is not defined
+  param = importedLet, param = 5 => throws ReferenceError: importedLet is not defined
+  param => 1
+Paused at module top-level, bindings in TDZ:
+  exportedLet => throws ReferenceError: exportedLet is not defined
+  importedLet => throws ReferenceError: importedLet is not defined
+  exportedLet = 4 => throws ReferenceError: exportedLet is not defined
+  readParam() => 1
+Paused at module top-level, initialized:
+  exportedLet => 2
+  importedLet => 2
+  exportedConst => 3
+  typeof ExportedClass => function
+  exportedLet = 4 => 4
+  importedLet => 4
+  exportedConst = 4 => throws TypeError: Assignment to constant variable.
+  importedLet = 5 => throws TypeError: Assignment to constant variable.
+  readParam() => 1

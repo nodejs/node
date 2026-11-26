@@ -773,10 +773,6 @@ const AllocateParameters& AllocateParametersOf(const Operator* op) {
 }
 
 AllocationType AllocationTypeOf(const Operator* op) {
-  if (op->opcode() == IrOpcode::kNewDoubleElements ||
-      op->opcode() == IrOpcode::kNewSmiOrObjectElements) {
-    return OpParameter<AllocationType>(op);
-  }
   return AllocateParametersOf(op).allocation_type();
 }
 
@@ -937,6 +933,7 @@ bool operator==(AssertNotNullParameters const& lhs,
   V(ChangeTaggedToUint32, Operator::kNoProperties, 1, 0)                     \
   V(ChangeTaggedToFloat64, Operator::kNoProperties, 1, 0)                    \
   V(ChangeTaggedToTaggedSigned, Operator::kNoProperties, 1, 0)               \
+  V(ChangeTaggedToTaggedPointer, Operator::kNoProperties, 1, 0)              \
   V(ChangeSmiOrHoleToFloat64, Operator::kNoProperties, 1, 0)                 \
   V(ChangeNumberOrHoleToFloat64, Operator::kNoProperties, 1, 0)              \
   V(ChangeFloat64ToTaggedPointer, Operator::kNoProperties, 1, 0)             \
@@ -2446,6 +2443,25 @@ size_t hash_value(CheckBoundsParameters const& p) {
   return base::hash_combine(hash_value(p.check_parameters()), p.flags());
 }
 
+std::ostream& operator<<(std::ostream& os, CheckBoundsFlags flags) {
+  if (!flags) return os << "None";
+  constexpr std::pair<CheckBoundsFlag, const char*> kFlagNames[] = {
+      {CheckBoundsFlag::kConvertStringAndMinusZero,
+       "ConvertStringAndMinusZero"},
+      {CheckBoundsFlag::kAbortOnOutOfBounds, "AbortOnOutOfBounds"},
+      {CheckBoundsFlag::kAllow64BitBounds, "Allow64BitBounds"},
+      {CheckBoundsFlag::kSpeculativeBoundsCheck, "SpeculativeBoundsCheck"},
+  };
+  const char* separator = "";
+  for (const auto& [flag, name] : kFlagNames) {
+    if (flags & flag) {
+      os << separator << name;
+      separator = " | ";
+    }
+  }
+  return os;
+}
+
 std::ostream& operator<<(std::ostream& os, CheckBoundsParameters const& p) {
   os << p.check_parameters() << ", " << p.flags();
   return os;
@@ -2501,24 +2517,20 @@ bool operator==(FastApiCallParameters const& lhs,
          lhs.descriptor() == rhs.descriptor();
 }
 
-const Operator* SimplifiedOperatorBuilder::NewDoubleElements(
-    AllocationType allocation) {
-  return zone()->New<Operator1<AllocationType>>(  // --
-      IrOpcode::kNewDoubleElements,               // opcode
-      Operator::kEliminatable,                    // flags
-      "NewDoubleElements",                        // name
-      1, 1, 1, 1, 1, 0,                           // counts
-      allocation);                                // parameter
+const Operator* SimplifiedOperatorBuilder::NewDoubleElements() {
+  return zone()->New<Operator>(      // --
+      IrOpcode::kNewDoubleElements,  // opcode
+      Operator::kEliminatable,       // flags
+      "NewDoubleElements",           // name
+      1, 1, 1, 1, 1, 0);             // counts
 }
 
-const Operator* SimplifiedOperatorBuilder::NewSmiOrObjectElements(
-    AllocationType allocation) {
-  return zone()->New<Operator1<AllocationType>>(  // --
-      IrOpcode::kNewSmiOrObjectElements,          // opcode
-      Operator::kEliminatable,                    // flags
-      "NewSmiOrObjectElements",                   // name
-      1, 1, 1, 1, 1, 0,                           // counts
-      allocation);                                // parameter
+const Operator* SimplifiedOperatorBuilder::NewSmiOrObjectElements() {
+  return zone()->New<Operator>(           // --
+      IrOpcode::kNewSmiOrObjectElements,  // opcode
+      Operator::kEliminatable,            // flags
+      "NewSmiOrObjectElements",           // name
+      1, 1, 1, 1, 1, 0);                  // counts
 }
 
 const Operator* SimplifiedOperatorBuilder::NewArgumentsElements(

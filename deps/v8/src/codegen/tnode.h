@@ -106,7 +106,7 @@ struct JSDispatchHandleT : Uint32T {
   static constexpr MachineType kMachineType = MachineType::Uint32();
 };
 
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
 struct ExternalPointerT : Uint32T {
   static constexpr MachineType kMachineType = MachineType::Uint32();
 };
@@ -114,7 +114,7 @@ struct ExternalPointerT : Uint32T {
 struct ExternalPointerT : UntaggedT {
   static constexpr MachineType kMachineType = MachineType::Pointer();
 };
-#endif
+#endif  // V8_COMPRESS_POINTERS
 
 #ifdef V8_COMPRESS_POINTERS
 struct CppHeapPointerT : Uint32T {

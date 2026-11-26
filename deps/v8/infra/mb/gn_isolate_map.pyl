@@ -63,10 +63,6 @@
     "label": "//test:v8_perf",
     "type": "script",
   },
-  "jsfunfuzz": {
-    "label": "//tools/jsfunfuzz:v8_jsfunfuzz",
-    "type": "script",
-  },
   "run-gcmole": {
     "label": "//tools/gcmole:v8_gcmole_files",
     "type": "script",

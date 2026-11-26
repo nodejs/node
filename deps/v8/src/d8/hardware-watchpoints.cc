@@ -76,6 +76,8 @@ struct HardwareWatchpointSupport {
   }* shared = nullptr;
 } g_support;
 
+thread_local bool is_main_thread = false;
+
 // Print trace output if `--trace-in-sandbox-manipulation-via-watchpoints` was
 // specified.
 // Note that the processes cannot really be debugged via gdb because they use
@@ -713,6 +715,17 @@ HowToContinueAfterWatchpoint WaitForD8ToStopThenReact() {
   }
 }
 
+bool IsWatchedObject(i::Tagged<i::HeapObject> object) {
+  // Only the main thread can register watched objects, and fast JSArray backing
+  // stores are isolate-local. Skip reading the unsynchronized `kept_alive`
+  // vector on non-main threads (e.g. Worker or `--isolate` threads).
+  if (!is_main_thread) return false;
+  for (const v8::Global<v8::Value>& handle : g_support.kept_alive) {
+    if (*Utils::OpenPersistent(handle) == object) return true;
+  }
+  return false;
+}
+
 }  // namespace
 
 void SetupForHardwareWatchpoints(bool enable_tracing) {
@@ -760,6 +773,11 @@ void SetupForHardwareWatchpoints(bool enable_tracing) {
       YIELD_PROCESSOR;
     }
     TRACE("[d8] debugger is attached; continuing d8 execution.\n");
+    is_main_thread = true;
+    // Register once before any worker or `--isolate` threads exist so
+    // `SandboxTesting::is_watched_object_callback_` is never mutated
+    // concurrently.
+    i::SandboxTesting::SetIsWatchedObjectCallback(&IsWatchedObject);
     // Continue standard d8 execution.
     return;
   }
@@ -817,8 +835,11 @@ void SetupForHardwareWatchpoints(bool enable_tracing) {
   UNREACHABLE();
 }
 
-// Called from d8 on exit to reset all watchpoints.
+// Called from d8 to reset all watchpoints (e.g. after script execution or on
+// exit).
 void ResetAllHardwareWatchpoints() {
+  if (!is_main_thread) return;
+
   WatchpointInfo* watchpoints = g_support.shared->watchpoints;
   bool has_hardware_watchpoint = false;
   for (int i = 0; i < kNumWatchpoints; ++i) {
@@ -846,11 +867,40 @@ void ThrowTypeError(v8::Isolate* isolate, std::string_view message) {
                               static_cast<int>(message.size()))
           .ToLocalChecked()));
 }
+
+bool ValidateWatchedObject(v8::Isolate* isolate, v8::Local<v8::Value> value,
+                           i::DirectHandle<i::HeapObject>* out_object) {
+  if (!i::TryCast(Utils::OpenDirectHandle(*value), out_object)) {
+    ThrowTypeError(isolate, "First argument must be an object");
+    return false;
+  }
+  if (i::HeapLayout::InReadOnlySpace(**out_object)) {
+    ThrowTypeError(isolate, "First argument must not be a read-only object");
+    return false;
+  }
+  bool is_free_space_or_filler;
+  {
+    IgnoreWatchpointsScope ignore_watchpoints;
+    is_free_space_or_filler = i::IsFreeSpaceOrFiller(**out_object);
+  }
+  if (is_free_space_or_filler) {
+    ThrowTypeError(isolate,
+                   "First argument must not be a free-space or filler object");
+    return false;
+  }
+  return true;
+}
 }  // namespace
 
 void SetHardwareWatchpointCallback(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   Isolate* isolate = info.GetIsolate();
+  if (!is_main_thread) {
+    ThrowTypeError(isolate,
+                   "Hardware watchpoints are only supported on the main "
+                   "thread");
+    return;
+  }
   Local<v8::Context> context = isolate->GetCurrentContext();
 
   if (info.Length() < 2) {
@@ -859,19 +909,48 @@ void SetHardwareWatchpointCallback(
   }
 
   i::DirectHandle<i::HeapObject> object;
-  if (!i::TryCast(Utils::OpenDirectHandle(*info[0]), &object)) {
-    ThrowTypeError(isolate, "First argument must be an object");
+  if (!ValidateWatchedObject(isolate, info[0], &object)) {
     return;
   }
 
-  int32_t offset;
+  int32_t offset = 0;
+  std::optional<SafeUtf8Value> field_name;
   if (!info[1]->IsInt32() || !info[1]->Int32Value(context).To(&offset)) {
-    SafeUtf8Value field_name(isolate, info[1]);
-    if (!field_name) return;
+    field_name.emplace(isolate, info[1]);
+    if (!*field_name) return;
 
-    i::InstanceType instance_type = object->map()->instance_type();
+    // String conversion may execute user JavaScript, which can left-trim the
+    // object (and clear the handle slot on GC) or modify its map.
+    if (!ValidateWatchedObject(isolate, info[0], &object)) {
+      return;
+    }
+  }
+
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  int num_gcs = 0;
+  while (i::HeapLayout::InYoungGeneration(*object)) {
+    CHECK_LE(++num_gcs, 2);  // Should be promoted in <= 2 GCs.
+    TRACE("[d8] Running minor GC to promote object to old space\n");
+    {
+      IgnoreWatchpointsScope ignore_watchpoints;
+      i_isolate->heap()->PreciseCollectAllGarbage(
+          i::GCFlag::kForced, i::GarbageCollectionReason::kRuntime);
+    }
+    // GC may shortcut strings (e.g. a ThinString to a read-only string) or
+    // update the handle slot.
+    if (!ValidateWatchedObject(isolate, info[0], &object)) {
+      return;
+    }
+  }
+
+  if (field_name.has_value()) {
+    i::InstanceType instance_type;
+    {
+      IgnoreWatchpointsScope ignore_watchpoints;
+      instance_type = object->map()->instance_type();
+    }
     if (std::optional<int> offset_from_name = i::SandboxTesting::GetFieldOffset(
-            isolate, instance_type, *field_name)) {
+            isolate, instance_type, **field_name)) {
       offset = offset_from_name.value();
     } else {
       DCHECK(isolate->HasPendingException());
@@ -900,16 +979,8 @@ void SetHardwareWatchpointCallback(
     return;
   }
 
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  int num_gcs = 0;
-  while (i::HeapLayout::InYoungGeneration(*object)) {
-    CHECK_LE(++num_gcs, 2);  // Should be promoted in <= 2 GCs.
-    TRACE("[d8] Running minor GC to promote object to old space\n");
-    i_isolate->heap()->PreciseCollectAllGarbage(
-        i::GCFlag::kForced, i::GarbageCollectionReason::kRuntime);
-  }
-
   i::Address watch_addr = object->address() + offset;
+  DCHECK_EQ(0, watch_addr % i::kTaggedSize);
 
   int watchpoint_idx = 0;
   while (uintptr_t address =

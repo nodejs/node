@@ -102,7 +102,7 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kEmptyWeakArrayList = kEmptyWeakFixedArray + 8;
   static constexpr Tagged_t kEmptyEnumCache = kEmptyWeakArrayList + 12;
   static constexpr Tagged_t kEmptyDescriptorArray = kEmptyEnumCache + 12;
-  static constexpr Tagged_t kScopeInfoMap = kEmptyDescriptorArray + 16;
+  static constexpr Tagged_t kScopeInfoMap = kEmptyDescriptorArray + 20;
   static constexpr Tagged_t kModuleInfoMap = kScopeInfoMap + 40;
   static constexpr Tagged_t kClosureFeedbackCellArrayMap = kModuleInfoMap + 40;
   static constexpr Tagged_t kFeedbackVectorMap =
@@ -129,7 +129,8 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kInvalidPrototypeValidityCell = kCellMap + 40;
   static constexpr Tagged_t kGlobalPropertyCellMap =
       kInvalidPrototypeValidityCell + 8;
-  static constexpr Tagged_t kNoClosuresCellMap = kGlobalPropertyCellMap + 40;
+  static constexpr Tagged_t kContextCellMap = kGlobalPropertyCellMap + 40;
+  static constexpr Tagged_t kNoClosuresCellMap = kContextCellMap + 40;
   static constexpr Tagged_t kOneClosureCellMap = kNoClosuresCellMap + 40;
   static constexpr Tagged_t kManyClosuresCellMap = kOneClosureCellMap + 40;
   static constexpr Tagged_t kTransitionArrayMap = kManyClosuresCellMap + 40;
@@ -147,7 +148,7 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kPreparseDataMap = kInterceptorInfoMap + 40;
   static constexpr Tagged_t kSharedFunctionInfoMap = kPreparseDataMap + 40;
   static constexpr Tagged_t kCodeMap = kSharedFunctionInfoMap + 40;
-  static constexpr Tagged_t kHashSeed = kCodeMap + 40;
+  static constexpr Tagged_t kHashSeed = kCodeMap + 44;
   static constexpr Tagged_t kprototype_string = kHashSeed + 36;
   static constexpr Tagged_t kname_string = kprototype_string + 24;
   static constexpr Tagged_t klength_string = kname_string + 16;
@@ -168,18 +169,15 @@ struct StaticReadOnlyRoot {
       kEmptyOrderedPropertyDictionary + 24;
   static constexpr Tagged_t kEmptyScopeInfo = kEmptyByteArray + 8;
   static constexpr Tagged_t kEmptyPropertyArray = kEmptyScopeInfo + 24;
-  static constexpr Tagged_t kMinusZeroValue = kEmptyPropertyArray + 8;
+  static constexpr Tagged_t kUndefinedContextCell = kEmptyPropertyArray + 8;
+  static constexpr Tagged_t kMinusZeroValue = kUndefinedContextCell + 24;
   static constexpr Tagged_t kNanValue = kMinusZeroValue + 12;
   static constexpr Tagged_t kUndefinedNanValue = kNanValue + 12;
   static constexpr Tagged_t kHoleNanValue = kUndefinedNanValue + 12;
   static constexpr Tagged_t kInfinityValue = kHoleNanValue + 12;
   static constexpr Tagged_t kMinusInfinityValue = kInfinityValue + 12;
-  static constexpr Tagged_t kMaxSafeInteger = kMinusInfinityValue + 12;
-  static constexpr Tagged_t kMaxUInt32 = kMaxSafeInteger + 12;
-  static constexpr Tagged_t kSmiMinValue = kMaxUInt32 + 12;
-  static constexpr Tagged_t kSmiMaxValuePlusOne = kSmiMinValue + 12;
   static constexpr Tagged_t kPromiseFulfillReactionJobTaskMap =
-      kSmiMaxValuePlusOne + 12;
+      kMinusInfinityValue + 12;
   // -- End of values that fit in arm64 add/sub immediates --
   static constexpr Tagged_t kPromiseRejectReactionJobTaskMap =
       kPromiseFulfillReactionJobTaskMap + 40;
@@ -193,10 +191,8 @@ struct StaticReadOnlyRoot {
       kPromiseResolveThenableJobTaskMap + 40;
   static constexpr Tagged_t kAccessorPairMap = kAccessCheckInfoMap + 40;
   static constexpr Tagged_t kAliasedArgumentsEntryMap = kAccessorPairMap + 40;
-  static constexpr Tagged_t kAllocationMementoMap =
-      kAliasedArgumentsEntryMap + 40;
   static constexpr Tagged_t kArrayBoilerplateDescriptionMap =
-      kAllocationMementoMap + 40;
+      kAliasedArgumentsEntryMap + 40;
   static constexpr Tagged_t kAsyncGeneratorRequestMap =
       kArrayBoilerplateDescriptionMap + 40;
   static constexpr Tagged_t kBreakPointMap = kAsyncGeneratorRequestMap + 40;
@@ -235,12 +231,8 @@ struct StaticReadOnlyRoot {
       kStackTraceInfoMap + 40;
   static constexpr Tagged_t kTuple2Map = kTemplateObjectDescriptionMap + 40;
   static constexpr Tagged_t kWasmExceptionTagMap = kTuple2Map + 40;
-  static constexpr Tagged_t kAllocationSiteWithWeakNextMap =
-      kWasmExceptionTagMap + 40;
-  static constexpr Tagged_t kAllocationSiteWithoutWeakNextMap =
-      kAllocationSiteWithWeakNextMap + 40;
-  static constexpr Tagged_t kLoadHandler1Map =
-      kAllocationSiteWithoutWeakNextMap + 40;
+  static constexpr Tagged_t kAllocationSiteMap = kWasmExceptionTagMap + 40;
+  static constexpr Tagged_t kLoadHandler1Map = kAllocationSiteMap + 40;
   static constexpr Tagged_t kLoadHandler2Map = kLoadHandler1Map + 40;
   static constexpr Tagged_t kLoadHandler3Map = kLoadHandler2Map + 40;
   static constexpr Tagged_t kLoadHandler4Map = kLoadHandler3Map + 40;
@@ -287,8 +279,8 @@ struct StaticReadOnlyRoot {
       kSimpleNameDictionaryMap + 40;
   static constexpr Tagged_t kDoubleStringCacheMap =
       kNameToIndexHashTableMap + 40;
-  static constexpr Tagged_t kEmbedderDataArrayMap = kDoubleStringCacheMap + 40;
-  static constexpr Tagged_t kEphemeronHashTableMap = kEmbedderDataArrayMap + 40;
+  static constexpr Tagged_t kEphemeronHashTableMap =
+      kDoubleStringCacheMap + 40;
   static constexpr Tagged_t kScriptContextTableMap =
       kEphemeronHashTableMap + 40;
   static constexpr Tagged_t kSloppyArgumentsElementsMap =
@@ -303,8 +295,7 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kIrRegExpDataMap = kAtomRegExpDataMap + 40;
   static constexpr Tagged_t kSourceTextModuleMap = kIrRegExpDataMap + 40;
   static constexpr Tagged_t kSyntheticModuleMap = kSourceTextModuleMap + 40;
-  static constexpr Tagged_t kContextCellMap = kSyntheticModuleMap + 40;
-  static constexpr Tagged_t kWasmImportDataMap = kContextCellMap + 40;
+  static constexpr Tagged_t kWasmImportDataMap = kSyntheticModuleMap + 40;
   static constexpr Tagged_t kWasmCapiFunctionDataMap = kWasmImportDataMap + 40;
   static constexpr Tagged_t kWasmExportedFunctionDataMap =
       kWasmCapiFunctionDataMap + 40;
@@ -342,8 +333,12 @@ struct StaticReadOnlyRoot {
       kUncompiledDataWithoutPreparseDataWithJobMap + 40;
   static constexpr Tagged_t kSharedFunctionInfoWrapperMap =
       kUncompiledDataWithPreparseDataAndJobMap + 40;
-  static constexpr Tagged_t kEmptyArrayList =
+  static constexpr Tagged_t kMaxSafeInteger =
       kSharedFunctionInfoWrapperMap + 40;
+  static constexpr Tagged_t kMaxUInt32 = kMaxSafeInteger + 12;
+  static constexpr Tagged_t kSmiMinValue = kMaxUInt32 + 12;
+  static constexpr Tagged_t kSmiMaxValuePlusOne = kSmiMinValue + 12;
+  static constexpr Tagged_t kEmptyArrayList = kSmiMaxValuePlusOne + 12;
   static constexpr Tagged_t kEmptyObjectBoilerplateDescription =
       kEmptyArrayList + 12;
   static constexpr Tagged_t kEmptyArrayBoilerplateDescription =
@@ -1047,12 +1042,9 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kSetIterator_string = kset_string + 16;
   static constexpr Tagged_t ksetPrototypeOf_string = kSetIterator_string + 24;
   static constexpr Tagged_t kShadowRealm_string = ksetPrototypeOf_string + 28;
-  static constexpr Tagged_t kSharedArray_string = kShadowRealm_string + 24;
   static constexpr Tagged_t kSharedArrayBuffer_string =
-      kSharedArray_string + 24;
-  static constexpr Tagged_t kSharedStruct_string =
-      kSharedArrayBuffer_string + 32;
-  static constexpr Tagged_t kshort_string = kSharedStruct_string + 24;
+      kShadowRealm_string + 24;
+  static constexpr Tagged_t kshort_string = kSharedArrayBuffer_string + 32;
   static constexpr Tagged_t ksign_string = kshort_string + 20;
   static constexpr Tagged_t ksize_string = ksign_string + 16;
   static constexpr Tagged_t ksmallestUnit_string = ksize_string + 16;
@@ -1156,12 +1148,8 @@ struct StaticReadOnlyRoot {
       kregexp_result_regexp_input_symbol + 16;
   static constexpr Tagged_t ksealed_symbol =
       kregexp_result_regexp_last_index_symbol + 16;
-  static constexpr Tagged_t kshared_struct_map_elements_template_symbol =
-      ksealed_symbol + 16;
-  static constexpr Tagged_t kshared_struct_map_registry_key_symbol =
-      kshared_struct_map_elements_template_symbol + 16;
   static constexpr Tagged_t ktemplate_literal_function_literal_id_symbol =
-      kshared_struct_map_registry_key_symbol + 16;
+      ksealed_symbol + 16;
   static constexpr Tagged_t ktemplate_literal_slot_id_symbol =
       ktemplate_literal_function_literal_id_symbol + 16;
   static constexpr Tagged_t kwasm_cross_instance_call_symbol =
@@ -1203,8 +1191,7 @@ struct StaticReadOnlyRoot {
       kis_concat_spreadable_symbol + 16;
   static constexpr Tagged_t kEmptySymbolTable =
       kEmptySlowElementDictionary + 36;
-  static constexpr Tagged_t kUndefinedContextCell = kEmptySymbolTable + 28;
-  static constexpr Tagged_t kEmptyOrderedHashMap = kUndefinedContextCell + 24;
+  static constexpr Tagged_t kEmptyOrderedHashMap = kEmptySymbolTable + 28;
   static constexpr Tagged_t kEmptyOrderedHashSet = kEmptyOrderedHashMap + 20;
   static constexpr Tagged_t kEmptyFeedbackMetadata = kEmptyOrderedHashSet + 20;
   static constexpr Tagged_t kGlobalThisBindingScopeInfo =
@@ -1245,15 +1232,14 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kExternalMap = 0x1b0029;
   static constexpr Tagged_t kCppHeapExternalMap = 0x1b0051;
   static constexpr Tagged_t kCppGCManagedBaseMap = 0x1b0079;
-  static constexpr Tagged_t kJSSharedArrayMap = 0x1b00a1;
-  static constexpr Tagged_t kNoOpNamedInterceptorInfo = 0x1b00e5;
-  static constexpr Tagged_t kNoOpIndexedInterceptorInfo = 0x1b0139;
+  static constexpr Tagged_t kNoOpNamedInterceptorInfo = 0x1b00a1;
+  static constexpr Tagged_t kNoOpIndexedInterceptorInfo = 0x1b00f5;
 
   static constexpr Tagged_t kFirstAllocatedRoot = 0x11;
-  static constexpr Tagged_t kLastAllocatedRoot = 0x1b0139;
+  static constexpr Tagged_t kLastAllocatedRoot = 0x1b00f5;
 };
 
-static constexpr std::array<Tagged_t, 1039> StaticReadOnlyRootsPointerTable = {
+static constexpr std::array<Tagged_t, 1031> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kUndefinedValue,
     StaticReadOnlyRoot::kTheHoleValue,
     StaticReadOnlyRoot::kNullValue,
@@ -1356,7 +1342,6 @@ static constexpr std::array<Tagged_t, 1039> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kWasmTypeInfoMap,
     StaticReadOnlyRoot::kWeakArrayListMap,
     StaticReadOnlyRoot::kEphemeronHashTableMap,
-    StaticReadOnlyRoot::kEmbedderDataArrayMap,
     StaticReadOnlyRoot::kWeakCellMap,
     StaticReadOnlyRoot::kUninitializedHeapNumberMap,
     StaticReadOnlyRoot::kAtomRegExpDataMap,
@@ -1412,7 +1397,6 @@ static constexpr std::array<Tagged_t, 1039> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kNullMap,
     StaticReadOnlyRoot::kBooleanMap,
     StaticReadOnlyRoot::kHoleMap,
-    StaticReadOnlyRoot::kJSSharedArrayMap,
     StaticReadOnlyRoot::kDescriptorArrayMap,
     StaticReadOnlyRoot::kOnHeapBasicBlockProfilerDataMap,
     StaticReadOnlyRoot::kTurbofanBitsetTypeMap,
@@ -2119,9 +2103,7 @@ static constexpr std::array<Tagged_t, 1039> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kSetIterator_string,
     StaticReadOnlyRoot::ksetPrototypeOf_string,
     StaticReadOnlyRoot::kShadowRealm_string,
-    StaticReadOnlyRoot::kSharedArray_string,
     StaticReadOnlyRoot::kSharedArrayBuffer_string,
-    StaticReadOnlyRoot::kSharedStruct_string,
     StaticReadOnlyRoot::kshort_string,
     StaticReadOnlyRoot::ksign_string,
     StaticReadOnlyRoot::ksize_string,
@@ -2212,8 +2194,6 @@ static constexpr std::array<Tagged_t, 1039> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kregexp_result_regexp_input_symbol,
     StaticReadOnlyRoot::kregexp_result_regexp_last_index_symbol,
     StaticReadOnlyRoot::ksealed_symbol,
-    StaticReadOnlyRoot::kshared_struct_map_elements_template_symbol,
-    StaticReadOnlyRoot::kshared_struct_map_registry_key_symbol,
     StaticReadOnlyRoot::ktemplate_literal_function_literal_id_symbol,
     StaticReadOnlyRoot::ktemplate_literal_slot_id_symbol,
     StaticReadOnlyRoot::kwasm_cross_instance_call_symbol,
@@ -2240,7 +2220,6 @@ static constexpr std::array<Tagged_t, 1039> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kAccessCheckInfoMap,
     StaticReadOnlyRoot::kAccessorPairMap,
     StaticReadOnlyRoot::kAliasedArgumentsEntryMap,
-    StaticReadOnlyRoot::kAllocationMementoMap,
     StaticReadOnlyRoot::kArrayBoilerplateDescriptionMap,
     StaticReadOnlyRoot::kAsyncGeneratorRequestMap,
     StaticReadOnlyRoot::kBreakPointMap,
@@ -2271,8 +2250,7 @@ static constexpr std::array<Tagged_t, 1039> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kTemplateObjectDescriptionMap,
     StaticReadOnlyRoot::kTuple2Map,
     StaticReadOnlyRoot::kWasmExceptionTagMap,
-    StaticReadOnlyRoot::kAllocationSiteWithWeakNextMap,
-    StaticReadOnlyRoot::kAllocationSiteWithoutWeakNextMap,
+    StaticReadOnlyRoot::kAllocationSiteMap,
     StaticReadOnlyRoot::kconstructor_string,
     StaticReadOnlyRoot::knext_string,
     StaticReadOnlyRoot::kresolve_string,

@@ -181,9 +181,14 @@ extern int ZEXPORT zipOpenNewFileInZip64(zipFile file,
     contains the extrafield data for the local header
   if extrafield_global!=NULL and size_extrafield_global>0, extrafield_global
     contains the extrafield data for the global header
-  if comment != NULL, comment contain the comment string
-  method contain the compression method (0 for store, Z_DEFLATED for deflate)
-  level contain the level of compression (can be Z_DEFAULT_COMPRESSION)
+  size_extrafield_local and size_extrafield_global are limited to 65535 by
+    the format, or less depending on the presence of Zip64 subfields --
+    size_extrafield_local needs to leave room for a 20-byte Zip64 subfield if
+    zip64 is true, and size_extrafield_global needs to leave room for a 12 to
+    28 byte Zip64 subfield in case the offset or length exceeds 2^32-1
+  if comment != NULL, comment contains the comment string
+  method contains the compression method (0 for store, Z_DEFLATED for deflate)
+  level contains the level of compression (can be Z_DEFAULT_COMPRESSION)
   zip64 is set to 1 if a zip64 extended information block should be added to the local file header.
                     this MUST be '1' if the uncompressed size is >= 0xffffffff.
 

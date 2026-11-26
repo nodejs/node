@@ -15,6 +15,7 @@
 #include "src/base/strings.h"
 #include "src/execution/isolate-inl.h"
 #include "src/heap/factory.h"
+#include "src/objects/js-regexp-inl.h"
 #include "test/fuzzer/fuzzer-support.h"
 
 namespace i = v8::internal;
@@ -25,7 +26,9 @@ void Test(v8::Isolate* isolate, i::DirectHandle<i::JSRegExp> regexp,
   v8::TryCatch try_catch(isolate);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   // Exceptions will be swallowed by the try/catch above.
-  USE(i::RegExp::Exec_Single(i_isolate, regexp, subject, 0, results_array));
+  USE(i::RegExp::Exec_Single(
+      i_isolate, i::direct_handle(regexp->data(i_isolate), i_isolate), subject,
+      0, results_array));
 }
 
 V8_SYMBOL_USED extern "C" int LLVMFuzzerInitialize(int* argc, char*** argv) {

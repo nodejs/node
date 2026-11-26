@@ -50,6 +50,7 @@ class V8SerializationDuplicateTracker {
   bool takeCharacters(v8::Local<v8::String> string) {
     return m_budget.takeCharacters(string);
   }
+  bool takeValues(uint32_t count) { return m_budget.takeValues(count); }
   ProtocolValueBudget* budget() { return &m_budget; }
 
  private:
@@ -63,8 +64,9 @@ class V8SerializationDuplicateTracker {
   // value can at worst alias another serialized value of the same
   // serialization, but never produce a dangling pointer.
   v8::Local<v8::Map> m_v8ObjectToSerializedDictionary;
-  // Serialized values registered during this serialization. The values are
-  // owned by the resulting protocol tree, which outlives this tracker.
+  // Serialized values registered during this serialization. They are owned by
+  // the resulting protocol tree or, for the root value, by the caller, and must
+  // outlive this tracker.
   std::vector<protocol::DictionaryValue*> m_serializedValues;
 
   // Looks up a previously serialized value; returns false if Map::Get fails.

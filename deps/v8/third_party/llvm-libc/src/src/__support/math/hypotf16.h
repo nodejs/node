@@ -80,7 +80,7 @@ LIBC_INLINE float16 hypotf16(float16 x, float16 y) {
 
     // Perform rounding correction.
     float sum_sq_lo = fputil::multiply_add(bf, bf, a_sq - sum_sq);
-    float err = sum_sq_lo - fputil::multiply_add(r_d, r_d, -sum_sq);
+    float err = sum_sq_lo - fputil::multiply_sub(r_d, r_d, sum_sq);
 
     if (err > 0) {
       r_u |= 1;

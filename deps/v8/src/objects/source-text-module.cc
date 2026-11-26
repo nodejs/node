@@ -1000,16 +1000,22 @@ SourceTextModule::TransitionAsyncToEvaluated(
     //                   undefined, « undefined »).
     DirectHandle<JSPromise> capability(
         Cast<JSPromise>(evaluated->top_level_capability()), isolate);
-    JSPromise::Resolve(capability, isolate->factory()->undefined_value())
-        .ToHandleChecked();
+    if (JSPromise::Resolve(capability, isolate->factory()->undefined_value())
+            .is_null()) {
+      evaluated->set_top_level_capability(
+          ReadOnlyRoots(isolate).undefined_value());
+    }
   }
   return evaluated;
 }
 
 // https://tc39.es/ecma262/#sec-moduleevaluation
 MaybeDirectHandle<JSPromise> SourceTextModule::Evaluate(
-    Isolate* isolate, Handle<InState<kLinked>> module) {
+    Isolate* isolate, Handle<InState<kLinked>> module, bool debug_event,
+    bool* body_threw) {
   DCHECK(IsUndefined(module->top_level_capability()));
+  bool unused_body_threw = false;
+  if (body_threw == nullptr) body_threw = &unused_body_threw;
 
   // 5. Let stack be a new empty List.
   Zone zone(isolate->allocator(), ZONE_NAME);
@@ -1027,7 +1033,7 @@ MaybeDirectHandle<JSPromise> SourceTextModule::Evaluate(
   v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
   try_catch.SetVerbose(false);
   try_catch.SetCaptureMessage(false);
-  if (!InnerModuleEvaluation(isolate, module, &stack, &dfs_index)) {
+  if (!InnerModuleEvaluation(isolate, module, &stack, &dfs_index, body_threw)) {
     DirectHandle<Object> exception(isolate->exception(), isolate);
     // a. For each Cyclic Module Record m in stack, do
     DirectHandle<InState<kEvaluatedError>> errored_module;
@@ -1068,33 +1074,39 @@ MaybeDirectHandle<JSPromise> SourceTextModule::Evaluate(
     isolate->clear_internal_exception();
     // d. Perform ! Call(capability.[[Reject]], undefined,
     //                   «result.[[Value]]»).
-    JSPromise::Reject(capability, exception);
-    if (isolate->debug()->IsRestartFrameScheduled()) {
+    if (JSPromise::Reject(capability, exception, debug_event).is_null()) {
       errored_module->set_top_level_capability(
           ReadOnlyRoots(isolate).undefined_value());
-      isolate->TerminateExecution();
       return {};
     }
   } else {  // 10. Else,
     // a. Assert: module.[[Status]] is either EVALUATING-ASYNC or EVALUATED.
     DCHECK(module->status() == kEvaluatingAsync ||
            module->status() == kEvaluated);
-    MatchState(
+    const bool resolved = MatchState(
         Handle<SourceTextModule>(module),
         [](DirectHandle<InState<kEvaluatingAsync>> m) {
           DCHECK(m->HasAsyncEvaluationOrdinal());
+          return true;
         },
         [&](DirectHandle<InState<kEvaluated>> m) {
           // c. If module.[[AsyncEvaluation]] is false, then
           DCHECK(!m->HasAsyncEvaluationOrdinal());
           // ii. Perform ! Call(capability.[[Resolve]], undefined,
           //                    «undefined»).
-          JSPromise::Resolve(capability, isolate->factory()->undefined_value())
-              .ToHandleChecked();
+          if (JSPromise::Resolve(capability,
+                                 isolate->factory()->undefined_value())
+                  .is_null()) {
+            m->set_top_level_capability(
+                ReadOnlyRoots(isolate).undefined_value());
+            return false;
+          }
+          return true;
         });
 
     // d. Assert: stack is empty.
     DCHECK(stack.empty());
+    if (!resolved) return {};
   }
 
   // 11. Return capability.[[Promise]].
@@ -1166,6 +1178,7 @@ Maybe<bool> SourceTextModule::AsyncModuleExecutionFulfilled(
                     if (ExecuteModule(isolate, evaluating_m, &exception)) {
                       // iii. Else, steps 12.c.iii.1-3.
                       TransitionAsyncToEvaluated(isolate, evaluating_m);
+                      return;
                     } else if (!isolate->is_execution_terminating()) {
                       // 1. Perform AsyncModuleExecutionRejected(
                       //        m, result.[[Value]]).
@@ -1221,17 +1234,20 @@ void SourceTextModule::AsyncModuleExecutionRejected(
           // a. Assert: module.[[CycleRoot]] and module are the same Module
           //    Record.
           DCHECK_EQ(errored_module->cycle_root(), *errored_module);
-          if (isolate->is_catchable_by_javascript(*exception)) {
+          // Even if `exception` itself is catchable, an earlier
+          // `JSPromise::Reject` in this recursive walk may have triggered
+          // termination; drop `top_level_capability` without returning early so
+          // step 9 still records `exception` on all `AsyncParentModules`.
+          if (isolate->is_catchable_by_javascript(*exception) &&
+              !isolate->is_execution_terminating()) {
             // b. Perform ! Call(module.[[TopLevelCapability]].[[Reject]],
             //                   undefined, «error»).
             DirectHandle<JSPromise> capability(
                 Cast<JSPromise>(errored_module->top_level_capability()),
                 isolate);
-            JSPromise::Reject(capability, exception);
-            if (isolate->debug()->IsRestartFrameScheduled()) {
+            if (JSPromise::Reject(capability, exception).is_null()) {
               errored_module->set_top_level_capability(
                   ReadOnlyRoots(isolate).undefined_value());
-              isolate->TerminateExecution();
             }
           } else {
             errored_module->set_top_level_capability(
@@ -1367,7 +1383,8 @@ bool SourceTextModule::ExecuteModule(
 
 bool SourceTextModule::InnerModuleEvaluation(
     Isolate* isolate, Handle<SourceTextModule> module,
-    ZoneForwardList<Handle<InState<kEvaluating>>>* stack, unsigned* dfs_index) {
+    ZoneForwardList<Handle<InState<kEvaluating>>>* stack, unsigned* dfs_index,
+    bool* body_threw) {
   // InnerModuleEvaluation(module, stack, index)
   // The spec returns the module index for proper numbering of dependencies;
   // we pass it by pointer instead and return a bool for success/failure.
@@ -1456,7 +1473,7 @@ bool SourceTextModule::InnerModuleEvaluation(
             //                                         index).
             // (Out of order because InnerModuleEvaluation is type-driven.)
             if (!InnerModuleEvaluation(isolate, required_source_module, stack,
-                                       dfs_index)) {
+                                       dfs_index, body_threw)) {
               return false;
             }
 
@@ -1574,6 +1591,7 @@ bool SourceTextModule::InnerModuleEvaluation(
           MaybeDirectHandle<Object> exception;
           if (!ExecuteModule(isolate, evaluating_module, &exception)) {
             if (!isolate->is_execution_terminating()) {
+              *body_threw = true;
               isolate->Throw(*exception.ToHandleChecked());
             }
             return false;
@@ -1611,12 +1629,24 @@ void SourceTextModule::GatherAsynchronousTransitiveDependencies(
   }
 
   Handle<SourceTextModule> source_text_module = Cast<SourceTextModule>(module);
-  if (source_text_module->status() == kEvaluating ||
-      IsModuleSCCEvaluated(source_text_module)) {
+  // If IsModuleSCCEvaluated(module) is true and either module.[[HasTLA]] is
+  // false or module.[[EvaluationError]] is empty, return result.
+  if (IsModuleSCCEvaluated(source_text_module) &&
+      (!source_text_module->has_toplevel_await() ||
+       source_text_module->status() != kEvaluatedError)) {
     return;
   }
 
-  if (source_text_module->has_toplevel_await()) {
+  // If module.[[Status]] is not linked or module.[[HasTLA]] is true, then
+  // append module to result and return result.
+  //
+  // The search only continues through linked modules. Any other module has
+  // already been visited by InnerModuleEvaluation, and collecting it makes
+  // InnerModuleEvaluation handle it exactly as a non-deferred import: if it
+  // is evaluating it is on the stack, so the importer joins its SCC, and
+  // otherwise the importer depends on its [[CycleRoot]].
+  if (source_text_module->status() != kLinked ||
+      source_text_module->has_toplevel_await()) {
     if (evaluation_set->insert(source_text_module).second) {
       evaluation_list->push_back(source_text_module);
     }
@@ -1675,7 +1705,13 @@ bool SourceTextModule::ReadyForSyncExecution(Isolate* isolate,
       [](DirectHandle<InState<kEvaluating, kEvaluatingAsync>>) {
         return false;
       },
-      [&](DirectHandle<InState<kLinked, kEvaluated>> m) {
+      [](DirectHandle<InState<kEvaluated>> m) {
+        // Its SCC has not finished evaluating, so the cycle root is still
+        // evaluating asynchronously.
+        DCHECK_EQ(m->GetCycleRoot()->status(), kEvaluatingAsync);
+        return false;
+      },
+      [&](DirectHandle<InState<kLinked>> m) {
         if (m->has_toplevel_await()) {
           return false;
         }

@@ -383,5 +383,14 @@ void VirtualMemoryCage::Free() {
   }
 }
 
+void VirtualMemoryCage::Reset() {
+  if (IsReserved()) {
+    base_ = kNullAddress;
+    size_ = 0;
+    page_allocator_.reset();
+    reservation_.Reset();
+  }
+}
+
 }  // namespace internal
 }  // namespace v8

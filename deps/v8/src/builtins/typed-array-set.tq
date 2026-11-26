@@ -63,8 +63,8 @@ transitioning javascript builtin TypedArrayPrototypeSet(
           // 4. If IsImmutableBuffer(target.[[ViewedArrayBuffer]]) is true,
           //    throw a TypeError exception.
           if (IsImmutableArrayBuffer(target.buffer)) deferred {
-              goto Fail;
-            }
+            goto Fail;
+          }
           goto OffsetOutOfBounds;
         }
         targetOffset = Unsigned(SmiUntag(offsetSmi));
@@ -85,8 +85,8 @@ transitioning javascript builtin TypedArrayPrototypeSet(
         // 4. If IsImmutableBuffer(target.[[ViewedArrayBuffer]]) is true, throw
         //    a TypeError exception.
         if (IsImmutableArrayBuffer(target.buffer)) deferred {
-            goto Fail;
-          }
+          goto Fail;
+        }
 
         // 5. Let targetOffset be ? ToIntegerOrInfinity(offset).
         // 6. If targetOffset < 0, throw a RangeError exception.
@@ -326,10 +326,9 @@ transitioning macro TypedArrayPrototypeSetTypedArray(
     // 17. If target.[[ContentType]] is not equal to
     //   source.[[ContentType]], throw a TypeError exception.
     if (IsBigInt64ElementsKind(srcKind) !=
-        IsBigInt64ElementsKind(targetElementsInfo.kind))
-      deferred {
-        ThrowTypeError(MessageTemplate::kBigIntMixedTypes);
-      }
+        IsBigInt64ElementsKind(targetElementsInfo.kind)) deferred {
+      ThrowTypeError(MessageTemplate::kBigIntMixedTypes);
+    }
 
     // All the obvervable side effects are executed, so there's nothing else
     // to do with the empty source array.

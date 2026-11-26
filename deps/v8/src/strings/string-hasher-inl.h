@@ -114,8 +114,8 @@ uint32_t StringHasher::MakeArrayIndexHash(uint32_t value, uint32_t length) {
   DCHECK(TenToThe(String::kMaxCachedArrayIndexLength) <
          (1 << String::kArrayIndexValueBits));
 
-  value <<= String::ArrayIndexValueBits::kShift;
-  value |= length << String::ArrayIndexLengthBits::kShift;
+  value <<= Name::Hash::ArrayIndexValueBits::kShift;
+  value |= length << Name::Hash::ArrayIndexLengthBits::kShift;
 
   DCHECK(String::IsIntegerIndex(value));
   DCHECK_EQ(length <= String::kMaxCachedArrayIndexLength,
@@ -126,7 +126,7 @@ uint32_t StringHasher::MakeArrayIndexHash(uint32_t value, uint32_t length) {
 uint32_t StringHasher::DecodeArrayIndexFromHashField(uint32_t raw_hash_field) {
   DCHECK(String::ContainsCachedArrayIndex(raw_hash_field) ||
          String::IsIntegerIndex(raw_hash_field));
-  return String::ArrayIndexValueBits::decode(raw_hash_field);
+  return Name::Hash::ArrayIndexValueBits::decode(raw_hash_field);
 }
 
 #ifdef V8_ENABLE_SEEDED_ARRAY_INDEX_HASH
@@ -294,10 +294,9 @@ static_assert(String::kMaxArrayIndexSize == String::kMaxIntegerIndexSize);
 }  // namespace detail
 
 template <typename char_t>
-uint32_t StringHasher::HashSequentialString(const char_t* chars_raw,
-                                            uint32_t length,
-                                            const HashSeed seed,
-                                            bool* out_one_byte_content) {
+uint32_t StringHasher::HashSequentialString(
+    const char_t* chars_raw, uint32_t length, const HashSeed seed,
+    std::optional<bool>* out_one_byte_content) {
   static_assert(std::is_integral_v<char_t>);
   static_assert(sizeof(char_t) <= 2);
   using uchar = std::make_unsigned_t<char_t>;
@@ -330,16 +329,17 @@ uint32_t StringHasher::HashSequentialString(const char_t* chars_raw,
           switch (detail::TryParseIntegerIndex(chars, length, i, index)) {
             case detail::kSuccess: {
               uint32_t hash = String::CreateHashFieldValue(
-                  detail::GetUsableRapidHash(chars, length, seed.seed(),
-                                             seed.secret(),
-                                             out_one_byte_content),
+                  detail::GetUsableRapidHash(
+                      chars, length, seed.seed(), seed.secret(),
+                      out_one_byte_content ? &out_one_byte_content->emplace()
+                                           : nullptr),
                   String::HashFieldType::kIntegerIndex);
               if (Name::ContainsCachedArrayIndex(hash)) {
                 // The hash accidentally looks like a cached index. Fix that by
                 // setting a bit that looks like a longer-than-cacheable string
                 // length.
                 hash |= (String::kMaxCachedArrayIndexLength + 1)
-                        << String::ArrayIndexLengthBits::kShift;
+                        << Name::Hash::ArrayIndexLengthBits::kShift;
               }
               DCHECK(!Name::ContainsCachedArrayIndex(hash));
               return hash;
@@ -367,8 +367,9 @@ uint32_t StringHasher::HashSequentialString(const char_t* chars_raw,
 
   // Non-index hash.
   return String::CreateHashFieldValue(
-      detail::GetUsableRapidHash(chars, length, seed.seed(), seed.secret(),
-                                 out_one_byte_content),
+      detail::GetUsableRapidHash(
+          chars, length, seed.seed(), seed.secret(),
+          out_one_byte_content ? &out_one_byte_content->emplace() : nullptr),
       String::HashFieldType::kHash);
 }
 

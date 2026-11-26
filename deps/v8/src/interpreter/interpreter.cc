@@ -22,6 +22,7 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/parsing/parse-info.h"
+#include "src/tracing/trace-event.h"
 #include "src/utils/ostreams.h"
 
 namespace v8 {

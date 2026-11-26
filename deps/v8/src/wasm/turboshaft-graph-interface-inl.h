@@ -13,6 +13,7 @@
 // Include the non-inl header before the rest of the headers.
 
 #include "src/base/logging.h"
+#include "src/wasm/wasm-objects-inl.h"
 
 namespace v8::internal::wasm {
 
@@ -63,45 +64,29 @@ auto WasmGraphBuilderBase<Assembler>::BuildChangeInt64ToBigInt(
 
 template <typename Assembler>
 auto WasmGraphBuilderBase<Assembler>::BuildImportedFunctionTargetAndImplicitArg(
-    ConstOrV<Word32> func_index,
-    V<WasmTrustedInstanceData> trusted_instance_data)
+    uint32_t func_index, V<WasmTrustedInstanceData> trusted_instance_data)
     -> std::pair<V<Word32>, V<HeapObject>> {
   V<WasmDispatchTableForImports> dispatch_table =
       LOAD_IMMUTABLE_PROTECTED_INSTANCE_FIELD(trusted_instance_data,
                                               DispatchTableForImports,
                                               WasmDispatchTableForImports);
-  // Handle constant indexes specially to reduce graph size, even though later
-  // optimization would optimize this to the same result.
-  if (func_index.is_constant()) {
-    int offset =
-        WasmDispatchTableForImports::OffsetOf(func_index.constant_value());
-    V<Word32> target =
-        __ Load(dispatch_table, LoadOp::Kind::TaggedBase(),
-                MemoryRepresentation::Uint32(),
-                offset + WasmDispatchTableForImports::kTargetBias);
-    V<ExposedTrustedObject> implicit_arg =
-        V<ExposedTrustedObject>::Cast(__ LoadProtectedPointerField(
-            dispatch_table, LoadOp::Kind::TaggedBase(),
-            offset + WasmDispatchTableForImports::kImplicitArgBias));
-    return {target, implicit_arg};
-  }
-
-  V<WordPtr> dispatch_table_entry_offset =
-      __ WordPtrMul(__ ChangeUint32ToUintPtr(func_index.value()),
-                    WasmDispatchTableForImports::kEntrySize);
-  V<Word32> target =
-      __ Load(dispatch_table, dispatch_table_entry_offset,
-              LoadOp::Kind::TaggedBase(), MemoryRepresentation::Uint32(),
-              WasmDispatchTableForImports::kEntriesOffset +
-                  WasmDispatchTableForImports::kTargetBias);
+  int offset = WasmDispatchTableForImports::OffsetOf(func_index);
+  V<Word32> target = __ Load(dispatch_table, LoadOp::Kind::TaggedBase(),
+                             MemoryRepresentation::Uint32(),
+                             offset + WasmDispatchTableForImports::kTargetBias);
   V<ExposedTrustedObject> implicit_arg =
       V<ExposedTrustedObject>::Cast(__ LoadProtectedPointerField(
-          dispatch_table, dispatch_table_entry_offset,
-          LoadOp::Kind::TaggedBase(),
-          WasmDispatchTableForImports::kEntriesOffset +
-              WasmDispatchTableForImports::kImplicitArgBias,
-          0));
+          dispatch_table, LoadOp::Kind::TaggedBase(),
+          offset + WasmDispatchTableForImports::kImplicitArgBias));
   return {target, implicit_arg};
+}
+
+template <typename Assembler>
+inline auto WasmGraphBuilderBase<Assembler>::LoadInternalFunctionFromFuncRef(
+    V<WasmFuncRef> func_ref, LoadOp::Kind load_kind)
+    -> V<WasmInternalFunction> {
+  return __ template LoadTrustedPointer<kWasmInternalFunctionTrustedPointerTag>(
+      func_ref, load_kind, offsetof(WasmFuncRef, trusted_internal_));
 }
 
 template <typename Assembler>
@@ -116,8 +101,22 @@ inline auto WasmGraphBuilderBase<Assembler>::BuildFunctionTargetAndImplicitArg(
   V<Word32> target =
       __ Load(internal_function, LoadOp::Kind::TaggedBase().Immutable(),
               MemoryRepresentation::Uint32(),
-              offsetof(WasmInternalFunction, raw_call_target_));
+              offsetof(WasmInternalFunction, call_target_));
 
+  return {target, implicit_arg};
+}
+
+template <typename Assembler>
+inline auto WasmGraphBuilderBase<Assembler>::BuildFunctionTargetAndImplicitArg(
+    DirectHandle<WasmInternalFunction> internal_function)
+    -> std::pair<V<Word32>, V<ExposedTrustedObject>> {
+  DCHECK(!__ data()->is_wasm());
+  DCHECK_NOT_NULL(__ data()->broker());
+  V<ExposedTrustedObject> implicit_arg = V<ExposedTrustedObject>::Cast(
+      __ HeapConstant(__ data()->broker()->CanonicalPersistentHandle(
+          internal_function->implicit_arg())));
+  V<Word32> target =
+      __ Word32Constant(internal_function->call_target().value());
   return {target, implicit_arg};
 }
 
@@ -150,28 +149,6 @@ WasmGraphBuilderBase<Assembler>::RepresentationFor(ValueTypeBase type) {
 }
 
 template <typename Assembler>
-inline auto WasmGraphBuilderBase<Assembler>::CallC(
-    const MachineSignature* sig, ExternalReference ref,
-    std::initializer_list<OpIndex> args) -> OpIndex {
-  return WasmGraphBuilderBase::CallC(sig, __ ExternalConstant(ref), args);
-}
-
-template <typename Assembler>
-inline auto WasmGraphBuilderBase<Assembler>::CallC(
-    const MachineSignature* sig, OpIndex function,
-    std::initializer_list<OpIndex> args) -> OpIndex {
-  DCHECK_LE(sig->return_count(), 1);
-  DCHECK_EQ(sig->parameter_count(), args.size());
-  const CallDescriptor* call_descriptor =
-      compiler::Linkage::GetSimplifiedCDescriptor(__ graph_zone(), sig);
-  const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
-      call_descriptor, compiler::CanThrow{false},
-      compiler::LazyDeoptOnThrow{false}, __ graph_zone());
-  return __ Call(function, OpIndex::Invalid(), base::VectorOf(args),
-                 ts_call_descriptor);
-}
-
-template <typename Assembler>
 void WasmGraphBuilderBase<Assembler>::BuildSetNewStackLimit(
     V<WordPtr> old_limit, V<WordPtr> new_limit) {
   // Set the new interrupt limit and real limit. Use a compare-and-swap for
@@ -197,7 +174,7 @@ auto WasmGraphBuilderBase<Assembler>::BuildSwitchToTheCentralStack(
   auto sig = FixedSizeSignature<MachineType>::Params(MachineType::Pointer(),
                                                      MachineType::Pointer())
                  .Returns(MachineType::Pointer());
-  OpIndex central_stack_sp = CallC(
+  OpIndex central_stack_sp = __ CallC(
       &sig, ExternalReference::wasm_switch_to_the_central_stack_for_js(),
       {__ IsolateField(IsolateFieldId::kIsolateAddress), __ FramePointer()});
 
@@ -250,8 +227,8 @@ WasmGraphBuilderBase<Assembler>::BuildSwitchToTheCentralStackIfNeeded()
   V<Word32> is_on_central_stack_flag =
       __ Load(is_on_central_stack_flag_address, LoadOp::Kind::RawAligned(),
               MemoryRepresentation::Uint8());
-  ScopedVar<WordPtr> old_sp_var(this, __ IntPtrConstant(0));
-  ScopedVar<WordPtr> old_limit_var(this, __ IntPtrConstant(0));
+  ScopedVar<WordPtr> old_sp_var(this, 0);
+  ScopedVar<WordPtr> old_limit_var(this, 0);
   IF_NOT (LIKELY(is_on_central_stack_flag)) {
     V<WordPtr> real_jslimit_address =
         __ IsolateField(IsolateFieldId::kRealJsLimit);
@@ -274,11 +251,12 @@ void WasmGraphBuilderBase<Assembler>::BuildSwitchBackFromCentralStack(
   // generated code yet.
 #if defined(V8_ENABLE_SANDBOX_HARDWARE_SUPPORT) || V8_TARGET_OS_WIN
   auto sig = FixedSizeSignature<MachineType>::Params(MachineType::Pointer());
-  IF_NOT (LIKELY(__ WordPtrEqual(old_sp, __ IntPtrConstant(0)))) {
-    CallC(&sig, ExternalReference::wasm_switch_from_the_central_stack_for_js(),
-          {__ IsolateField(IsolateFieldId::kIsolateAddress)});
+  IF_NOT (LIKELY(__ WordPtrEqual(old_sp, 0))) {
+    __ CallC(&sig,
+             ExternalReference::wasm_switch_from_the_central_stack_for_js(),
+             {__ IsolateField(IsolateFieldId::kIsolateAddress)});
 #else
-  IF_NOT (LIKELY(__ WordPtrEqual(old_sp, __ IntPtrConstant(0)))) {
+  IF_NOT (LIKELY(__ WordPtrEqual(old_sp, 0))) {
     // Reset is_on_central_stack flag.
     V<WordPtr> is_on_central_stack_flag_address =
         __ IsolateField(IsolateFieldId::kIsOnCentralStackFlag);

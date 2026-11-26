@@ -104,7 +104,12 @@ namespace compiler {
   V(Loong64ByteSwap32)                               \
   V(Loong64Clz_d)                                    \
   V(Loong64Clz_w)                                    \
-  V(Loong64Mov)                                      \
+  V(Loong64Ctz_d)                                    \
+  V(Loong64Ctz_w)                                    \
+  V(Loong64Popcnt_d)                                 \
+  V(Loong64Popcnt_w)                                 \
+  V(Loong64Mov64)                                    \
+  V(Loong64Mov32)                                    \
   V(Loong64Tst)                                      \
   V(Loong64Cmp32)                                    \
   V(Loong64Cmp32Eq)                                  \
@@ -319,6 +324,12 @@ namespace compiler {
   V(Loong64I8x16ExtractLaneU)                        \
   V(Loong64I8x16ExtractLaneS)                        \
   V(Loong64I8x16ReplaceLane)                         \
+  V(Loong64I8x16MoveLane)                            \
+  V(Loong64I16x8MoveLane)                            \
+  V(Loong64I32x4MoveLane)                            \
+  V(Loong64I64x2MoveLane)                            \
+  V(Loong64F32x4MoveLane)                            \
+  V(Loong64F64x2MoveLane)                            \
   V(Loong64I8x16Neg)                                 \
   V(Loong64I8x16Shl)                                 \
   V(Loong64I8x16ShrS)                                \

@@ -1,0 +1,548 @@
+Tests stepping out of functions that return through a finally block.
+
+Running test: enable
+
+Running test: breakLocations
+
+function inner() { |_|return 1;|R| }
+
+function returnInTry() {
+  try {
+    |D|debugger;
+    |_|return |C|inner();|R|
+  } finally {
+    |_|globalThis.seen = 1;
+  }
+}
+
+function debuggerInFinally() {
+  try {
+    |_|return |C|inner();|R|
+  } finally {
+    |D|debugger;
+  }
+}
+
+function returnFromForOf() {
+  for (const |_|x of |_|[1, 2]) {
+    |D|debugger;
+    |_|return x;|R|
+  }
+|R|}
+
+function returnFromUsing() {
+  using r = |_|{[Symbol.dispose]() {|R|}};
+  |D|debugger;
+  |_|return 1;|R|
+}
+
+function nestedTryFinally() {
+  try {
+    try {
+      |D|debugger;
+      |_|return |C|inner();|R|
+    } finally {
+      |_|globalThis.seen = 1;
+    }
+  } finally {
+    |_|globalThis.seen = 2;
+  }
+}
+
+function twoReturns(x) {
+  try {
+    |D|debugger;
+    |_|if (x) |_|return 1;
+    |_|return 2;|R|
+  } finally {
+    |_|globalThis.seen = 1;
+  }
+}
+
+function fallThrough(x) {
+  try {
+    |_|if (x) |_|return 1;|R|
+  } finally {
+    |_|globalThis.seen = 1;
+  }
+|R|}  // fallThrough end
+
+async function asyncReturnInTry() {
+  try {
+    |D|debugger;
+    |_|return 1;|R|
+  } finally {
+    |_|globalThis.seen = 1;
+  }
+}
+
+function* gen() {
+  try {
+    |_|yield 1;
+  } finally {
+    |_|globalThis.seen = 1;
+  }
+|R|}  // gen end
+
+function* genWithReturn() {
+  try {
+    |_|yield 1;
+    |_|return 2;|R|
+  } finally {
+    |D|debugger;
+  }
+}
+
+async function* asyncGen() {
+  try {
+    |D|debugger;
+    |_|return 1;|R|
+  } finally {
+    |_|globalThis.seen = 1;
+  }
+}
+
+// The body of every async generator is wrapped in an implicit finally block.
+async function* plainAsyncGen() {
+  |D|debugger;
+  |_|return 1;|R|
+}
+
+async function* asyncGenFallOff() {
+  |D|debugger;
+  |_|globalThis.seen = 1;
+|R|}
+
+async function* asyncGenWithYield() {
+  |_|yield 1;
+  |_|globalThis.seen = 1;
+|R|}  // asyncGenWithYield end
+
+|R|class Base {}
+class Derived extends Base {
+  constructor() {
+    |C|super();
+    try {
+      |D|debugger;
+      |_|return;|_|
+    } finally {
+      |_|globalThis.seen = 1;
+    }
+  |R|}
+}
+
+class PlainDerived extends Base {
+  constructor() {
+    |C|super();
+    |D|debugger;
+    |_|return;|_|
+  |R|}
+}
+
+function call(f, ...args) {
+  const result = |C|f(...args);
+  return result;|R|
+}
+
+function construct(C) {
+  const result = |C|new C();
+  return result;|R|
+}
+
+async function awaitNext(g) {
+  const result = await g.|C|next();
+  |_|return result;|R|
+}
+
+function drain(g) {
+  const values = |_|[...g];
+  return values;|R|
+}
+
+function returnEarly(g) {
+  g.|C|next();
+  const result = g.|_|return|C|(42);
+  return result;|R|
+}
+
+async function drainAsync(g) {
+  const values = |_|[];
+  for await (const |_|value of |_|g) values.|C|push(value);
+  |_|return values;|R|
+}
+
+async function returnEarlyAsync(g) {
+  await g.|C|next();
+  const result = await g.|_|return|C|(42);
+  |_|return result;|R|
+}
+
+
+Running test: stepOutOfReturnInTry
+  try {
+    #debugger;
+    return inner();
+
+Debugger.stepOut
+  const result = f(...args);
+  return result;#
+}
+
+
+Running test: stepOverOffTheEndOfFinally
+  try {
+    #debugger;
+    return inner();
+
+Debugger.stepOver
+    debugger;
+    #return inner();
+  } finally {
+
+Debugger.stepOver
+  } finally {
+    #globalThis.seen = 1;
+  }
+
+Debugger.stepOver
+    debugger;
+    return inner();#
+  } finally {
+
+Debugger.stepOver
+  const result = f(...args);
+  return result;#
+}
+
+
+Running test: stepIntoOffTheEndOfFinally
+  try {
+    #debugger;
+    return inner();
+
+Debugger.stepOver
+    debugger;
+    #return inner();
+  } finally {
+
+Debugger.stepOver
+  } finally {
+    #globalThis.seen = 1;
+  }
+
+Debugger.stepInto
+    debugger;
+    return inner();#
+  } finally {
+
+Debugger.stepInto
+  const result = f(...args);
+  return result;#
+}
+
+
+Running test: stepOutOfFinally
+  } finally {
+    #debugger;
+  }
+
+Debugger.stepOut
+  const result = f(...args);
+  return result;#
+}
+
+
+Running test: stepOutOfForOf
+  for (const x of [1, 2]) {
+    #debugger;
+    return x;
+
+Debugger.stepOut
+  const result = f(...args);
+  return result;#
+}
+
+
+Running test: stepOutOfUsing
+  using r = {[Symbol.dispose]() {}};
+  #debugger;
+  return 1;
+
+Debugger.stepOut
+  const result = f(...args);
+  return result;#
+}
+
+
+Running test: stepOutOfNestedTryFinally
+    try {
+      #debugger;
+      return inner();
+
+Debugger.stepOut
+  const result = f(...args);
+  return result;#
+}
+
+
+Running test: stepOutOfFirstOfTwoReturns
+  try {
+    #debugger;
+    if (x) return 1;
+
+Debugger.stepOut
+  const result = f(...args);
+  return result;#
+}
+
+
+Running test: stepOutOfSecondOfTwoReturns
+  try {
+    #debugger;
+    if (x) return 1;
+
+Debugger.stepOut
+  const result = f(...args);
+  return result;#
+}
+
+
+Running test: stepOverFirstOfTwoReturns
+  try {
+    #debugger;
+    if (x) return 1;
+
+Debugger.stepOver
+    debugger;
+    #if (x) return 1;
+    return 2;
+
+Debugger.stepOver
+    debugger;
+    if (x) #return 1;
+    return 2;
+
+Debugger.stepOver
+  } finally {
+    #globalThis.seen = 1;
+  }
+
+Debugger.stepOver
+    if (x) return 1;
+    return 2;#
+  } finally {
+
+Debugger.stepOver
+  const result = f(...args);
+  return result;#
+}
+
+
+Running test: stepOutOfAsyncFunction
+  try {
+    #debugger;
+    return 1;
+
+Debugger.stepOut
+  const result = f(...args);
+  return result;#
+}
+
+
+Running test: stepOutOfAsyncGenerator
+  try {
+    #debugger;
+    return 1;
+
+Debugger.stepOut
+  const result = await g.next();
+  #return result;
+}
+
+
+Running test: stepOutOfPlainAsyncGenerator
+async function* plainAsyncGen() {
+  #debugger;
+  return 1;
+
+Debugger.stepOut
+  const result = await g.next();
+  #return result;
+}
+
+
+Running test: stepOverOffTheEndOfPlainAsyncGenerator
+async function* plainAsyncGen() {
+  #debugger;
+  return 1;
+
+Debugger.stepOver
+  debugger;
+  #return 1;
+}
+
+Debugger.stepOver
+  debugger;
+  return 1;#
+}
+
+Debugger.stepOver
+  const result = await g.next();
+  #return result;
+}
+
+
+Running test: stepOverOffTheEndOfAsyncGeneratorFallingOff
+async function* asyncGenFallOff() {
+  #debugger;
+  globalThis.seen = 1;
+
+Debugger.stepOver
+  debugger;
+  #globalThis.seen = 1;
+}
+
+Debugger.stepOver
+  globalThis.seen = 1;
+#}
+
+
+Debugger.stepOver
+  const result = await g.next();
+  #return result;
+}
+
+
+Running test: stepOutOfDerivedConstructor
+    try {
+      #debugger;
+      return;
+
+Debugger.stepOut
+  const result = new C();
+  return result;#
+}
+
+
+Running test: stepOverOffTheEndOfFinallyInDerivedConstructor
+    try {
+      #debugger;
+      return;
+
+Debugger.stepOver
+      debugger;
+      #return;
+    } finally {
+
+Debugger.stepOver
+    } finally {
+      #globalThis.seen = 1;
+    }
+
+Debugger.stepOver
+      debugger;
+      return;#
+    } finally {
+
+Debugger.stepOver
+    }
+  #}
+}
+
+Debugger.stepOver
+  const result = new C();
+  return result;#
+}
+
+
+Running test: stepOverReturnInPlainDerivedConstructor
+    super();
+    #debugger;
+    return;
+
+Debugger.stepOver
+    debugger;
+    #return;
+  }
+
+Debugger.stepOver
+    debugger;
+    return;#
+  }
+
+Debugger.stepOver
+    return;
+  #}
+}
+
+
+Running test: stepOutOfFinallyDuringGeneratorReturn
+  } finally {
+    #debugger;
+  }
+
+Debugger.stepOut
+  const result = g.return(42);
+  return result;#
+}
+
+
+Running test: closingBraceBreakpointOnFallThrough
+Breakpoint set at:
+  }
+#}  // fallThrough end
+
+
+  }
+#}  // fallThrough end
+
+
+
+Running test: closingBraceBreakpointOnReturnInTry
+Breakpoint set at:
+  }
+#}  // fallThrough end
+
+
+Evaluation finished without pausing.
+
+Running test: generatorClosingBraceBreakpointOnCompletion
+Breakpoint set at:
+  }
+#}  // gen end
+
+
+  }
+#}  // gen end
+
+
+
+Running test: generatorClosingBraceBreakpointOnReturn
+Breakpoint set at:
+  }
+#}  // gen end
+
+
+Evaluation finished without pausing.
+
+Running test: asyncGeneratorClosingBraceBreakpointOnCompletion
+Breakpoint set at:
+  globalThis.seen = 1;
+#}  // asyncGenWithYield end
+
+
+  globalThis.seen = 1;
+#}  // asyncGenWithYield end
+
+
+
+Running test: asyncGeneratorClosingBraceBreakpointOnReturn
+Breakpoint set at:
+  globalThis.seen = 1;
+#}  // asyncGenWithYield end
+
+
+  globalThis.seen = 1;
+#}  // asyncGenWithYield end
+
+

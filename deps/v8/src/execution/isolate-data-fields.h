@@ -35,7 +35,7 @@ static constexpr int kFastCCallAlignmentPaddingCount = 1;
   V(CageBase, kSystemPointerSize, cage_base)                                   \
   V(StackGuard, StackGuard::kSizeInBytes, stack_guard)                         \
   V(IsMarkingFlag, kUInt8Size, is_marking_flag)                                \
-  V(IsMinorMarkingFlag, kUInt8Size, is_minor_marking_flag)                     \
+  V(IsMarkingFlagPadding, kUInt8Size, is_marking_flag_padding)                 \
   V(IsSharedSpaceIsolateFlag, kUInt8Size, is_shared_space_isolate_flag)        \
   V(UsesSharedHeapFlag, kUInt8Size, uses_shared_heap_flag)                     \
   V(ExecutionMode, kUInt8Size, execution_mode)                                 \
@@ -79,6 +79,7 @@ static constexpr int kFastCCallAlignmentPaddingCount = 1;
   V(CurrentMicrotaskQueue, kSystemPointerSize, current_microtask_queue)        \
   V(CurrentMicrotaskNativeContext, kSystemPointerSize,                         \
     current_microtask_native_context)                                          \
+  V(AllocationSiteCache, kSystemPointerSize, allocation_site_cache)            \
   /* Full tables (arbitrary size, potentially slower access). */               \
   V(RootsTable, RootsTable::kEntriesCount* kSystemPointerSize, roots_table)    \
   V(ExternalReferenceTable, ExternalReferenceTable::kSizeInBytes,              \

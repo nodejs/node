@@ -26,8 +26,8 @@ class ThreadState {
   void Unlink();
 
   // Id of thread.
-  void set_id(ThreadId id) { id_ = id; }
-  ThreadId id() { return id_; }
+  void set_id(base::ThreadId id) { id_ = id; }
+  base::ThreadId id() { return id_; }
 
   // Get data area for archiving a thread.
   char* data() { return data_; }
@@ -38,7 +38,7 @@ class ThreadState {
 
   void AllocateSpace();
 
-  ThreadId id_;
+  base::ThreadId id_;
   char* data_;
   ThreadState* next_;
   ThreadState* previous_;
@@ -71,13 +71,14 @@ class ThreadManager {
   void Iterate(RootVisitor* v);
   void IterateArchivedThreads(ThreadVisitor* v);
   bool IsLockedByCurrentThread() const {
-    return mutex_owner_.load(std::memory_order_relaxed) == ThreadId::Current();
+    return mutex_owner_.load(std::memory_order_relaxed) ==
+           base::ThreadId::Current();
   }
-  bool IsLockedByThread(ThreadId id) const {
+  bool IsLockedByThread(base::ThreadId id) const {
     return mutex_owner_.load(std::memory_order_relaxed) == id;
   }
 
-  ThreadId CurrentId();
+  base::ThreadId CurrentId();
 
   // Iterate over in-use states.
   ThreadState* FirstThreadStateInUse();
@@ -93,9 +94,9 @@ class ThreadManager {
 
   base::Mutex mutex_;
   // {ThreadId} must be trivially copyable to be stored in {std::atomic}.
-  ASSERT_TRIVIALLY_COPYABLE(i::ThreadId);
-  std::atomic<ThreadId> mutex_owner_;
-  ThreadId lazily_archived_thread_;
+  ASSERT_TRIVIALLY_COPYABLE(base::ThreadId);
+  std::atomic<base::ThreadId> mutex_owner_;
+  base::ThreadId lazily_archived_thread_;
   ThreadState* lazily_archived_thread_state_;
 
   // In the following two lists there is always at least one object on the list.

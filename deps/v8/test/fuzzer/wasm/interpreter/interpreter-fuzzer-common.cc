@@ -129,7 +129,7 @@ WasmInterpretationResult FastInterpretWasmModule(
       CHECK(!IsNull(*arg.to_ref()));
     }
   }
-  bool success = handle->raw()->Execute(
+  bool success = handle->get()->Execute(
       thread, 0, static_cast<uint32_t>(function_index), args, rets);
 
   // Returned values should not be the hole value.
@@ -532,25 +532,25 @@ int FastInterpretAndExecuteModules(
 
 void InitializeDrumbrakeForFuzzing() {
   // We should always pass jitless for wasm-jitless.
-  v8_flags.jitless = true;
-  v8_flags.wasm_jitless = true;
+  v8_flags.jitless.Set(true);
+  v8_flags.wasm_jitless.Set(true);
 
   // This configuration will make fuzzing slower, but helps to reproduce GC bugs
   // more reliably.
-  v8_flags.stress_compaction = true;
-  v8_flags.gc_interval = 500;
+  v8_flags.stress_compaction.Set(true);
+  v8_flags.gc_interval.Set(500);
 
   // Avoid restarting the fuzzer process due to timeout when there is an
   // infinite loop.
-  v8_flags.drumbrake_fuzzer_timeout = true;
+  v8_flags.drumbrake_fuzzer_timeout.Set(true);
 
   // Enable the isolate to be in a state where it can be used for fuzzing.
-  i::v8_flags.drumbrake_fuzzing_mode = true;
+  i::v8_flags.drumbrake_fuzzing_mode.Set(true);
 
   // We reduce the maximum memory size and table size of WebAssembly instances
   // to avoid OOMs in the fuzzer.
-  v8_flags.wasm_max_mem_pages = 32;
-  v8_flags.wasm_max_table_size = 100;
+  v8_flags.wasm_max_mem_pages.Set(32);
+  v8_flags.wasm_max_table_size.Set(100);
 
   FlagList::EnforceFlagImplications();
 

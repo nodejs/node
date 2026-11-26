@@ -90,7 +90,7 @@
   [[gnu::format(printf, string_index, first_to_check)]]
 #define ABSL_SCANF_ATTRIBUTE(string_index, first_to_check) \
   [[gnu::format(scanf, string_index, first_to_check)]]
-#elif ABSL_HAVE_ATTRIBUTE(format) || (defined(__GNUC__) && !defined(__clang__))
+#elif ABSL_HAVE_ATTRIBUTE(format)
 #define ABSL_PRINTF_ATTRIBUTE(string_index, first_to_check) \
   __attribute__((__format__(__printf__, string_index, first_to_check)))
 #define ABSL_SCANF_ATTRIBUTE(string_index, first_to_check) \
@@ -108,8 +108,7 @@
 // Note that guarantees are ultimately toolchain-dependent. For example, MSVC
 // will not inline any function by default, meaning at least /Ob1 or a higher
 // levels of optimization is necessary.
-#if ABSL_HAVE_ATTRIBUTE(always_inline) || \
-    (defined(__GNUC__) && !defined(__clang__))
+#if ABSL_HAVE_ATTRIBUTE(always_inline)
 #define ABSL_ATTRIBUTE_ALWAYS_INLINE __attribute__((always_inline))
 #define ABSL_HAVE_ATTRIBUTE_ALWAYS_INLINE 1
 #elif defined(_MSC_VER) && \
@@ -121,7 +120,7 @@
 #define ABSL_ATTRIBUTE_ALWAYS_INLINE
 #endif
 
-#if ABSL_HAVE_ATTRIBUTE(noinline) || (defined(__GNUC__) && !defined(__clang__))
+#if ABSL_HAVE_ATTRIBUTE(noinline)
 #define ABSL_ATTRIBUTE_NOINLINE __attribute__((noinline))
 #define ABSL_HAVE_ATTRIBUTE_NOINLINE 1
 #elif defined(_MSC_VER) && \
@@ -149,6 +148,61 @@
 #define ABSL_HAVE_ATTRIBUTE_NO_TAIL_CALL 0
 #endif
 
+// ABSL_INTERNAL_MUSTTAIL
+//
+// Tells the compiler that a `return` statement must be compiled as a tail
+// call, reusing the caller's stack frame rather than creating a new one.
+// Compilation fails if the compiler cannot generate a tail call.
+//
+// MANDATORY USAGE REQUIREMENTS:
+// * Functionally correct fallback: Code MUST be written with a functionally
+//   correct fallback when the attribute is unavailable
+//   (`!ABSL_INTERNAL_HAVE_MUSTTAIL`, where `ABSL_INTERNAL_MUSTTAIL` expands to
+//   nothing). Never rely on `ABSL_INTERNAL_MUSTTAIL` for program correctness
+//   (such as preventing unbounded stack growth in recursive cycles) unless
+//   explicitly gated on `#if ABSL_INTERNAL_HAVE_MUSTTAIL` with a non-recursive
+//   fallback.
+// * Benchmark justification: The performance or code-size impact of using
+//   `ABSL_INTERNAL_MUSTTAIL` MUST be clearly demonstrated by benchmarks.
+// * This macro is strictly for internal Abseil use and must not be exposed as a
+//   public Abseil API.
+//
+// Technical requirements and limitations:
+// * Must be placed immediately before `return`, and the returned expression
+//   must be a function call (not wrapped in another expression or conversion).
+// * The caller and callee must have compatible function signatures, including
+//   matching return types, parameter types, calling conventions, and implicit
+//   `this` arguments (a non-static member function can only tail-call another
+//   non-static member function of the same class).
+// * No variables, temporaries, or by-value parameters with non-trivial
+//   destructors may be live at the `return` statement.
+// * Arguments to the tail call must not reference local variables or by-value
+//   parameters in the caller's stack frame, whose lifetime ends before the
+//   callee runs.
+// * If the caller is inlined into an outer function where the call is no
+//   longer in tail position, the compiler drops `musttail`. It is therefore
+//   only effective on out-of-line / non-inlined functions, not `inline`
+//   header functions or templates.
+// * Only enabled on 64-bit x86 and AArch64, where Clang's backend support for
+//   `musttail` is reliable. Other targets (such as 32-bit x86/ARM, PowerPC,
+//   and WebAssembly) have incomplete backend tail-call support or compiler
+//   crashes even when `__has_cpp_attribute(clang::musttail)` is true (e.g.,
+//   https://github.com/llvm/llvm-project/issues/53271).
+//
+// See: https://clang.llvm.org/docs/AttributeReference.html#musttail
+#ifdef ABSL_INTERNAL_HAVE_MUSTTAIL
+#error "ABSL_INTERNAL_HAVE_MUSTTAIL cannot be directly set."
+#elif defined(ABSL_INTERNAL_MUSTTAIL)
+#error "ABSL_INTERNAL_MUSTTAIL cannot be directly set."
+#elif ABSL_HAVE_CPP_ATTRIBUTE(clang::musttail) && \
+    (defined(__aarch64__) || defined(__x86_64__) || defined(_M_X64))
+#define ABSL_INTERNAL_HAVE_MUSTTAIL 1
+#define ABSL_INTERNAL_MUSTTAIL [[clang::musttail]]
+#else
+#define ABSL_INTERNAL_HAVE_MUSTTAIL 0
+#define ABSL_INTERNAL_MUSTTAIL
+#endif
+
 // ABSL_ATTRIBUTE_WEAK
 //
 // Tags a function as weak for the purposes of compilation and linking.
@@ -157,8 +211,7 @@
 // for further information. Weak attributes do not work across DLL boundary.
 // The MinGW compiler doesn't complain about the weak attribute until the link
 // step, presumably because Windows doesn't use ELF binaries.
-#if (ABSL_HAVE_ATTRIBUTE(weak) ||                                 \
-     (defined(__GNUC__) && !defined(__clang__))) &&               \
+#if ABSL_HAVE_ATTRIBUTE(weak) &&                                  \
     (!defined(_WIN32) ||                                          \
      (defined(__clang__) && __clang_major__ >= 9 &&               \
       !defined(ABSL_BUILD_DLL) && !defined(ABSL_CONSUME_DLL))) && \
@@ -209,7 +262,7 @@
 //
 // NOTE: The GCC nonnull attribute actually accepts a list of arguments, but
 // ABSL_ATTRIBUTE_NONNULL does not.
-#if ABSL_HAVE_ATTRIBUTE(nonnull) || (defined(__GNUC__) && !defined(__clang__))
+#if ABSL_HAVE_ATTRIBUTE(nonnull)
 #define ABSL_ATTRIBUTE_NONNULL(arg_index) __attribute__((nonnull(arg_index)))
 #else
 #define ABSL_ATTRIBUTE_NONNULL(...)
@@ -237,9 +290,16 @@
 // out of bounds or does other scary things with memory.
 // NOTE: GCC supports AddressSanitizer(asan) since 4.8.
 // https://gcc.gnu.org/gcc-4.8/changes.html
+// NOTE: When active on Clang/GCC, this macro expands to a C++11 `[[...]]`
+// attribute and must precede GNU `__attribute__((...))` macros such as
+// `ABSL_ATTRIBUTE_NOINLINE` on declarations.
 #if defined(ABSL_HAVE_ADDRESS_SANITIZER) && \
     ABSL_HAVE_ATTRIBUTE(no_sanitize_address)
+#if ABSL_HAVE_CPP_ATTRIBUTE(gnu::no_sanitize_address)
+#define ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS [[gnu::no_sanitize_address]]
+#else
 #define ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS __attribute__((no_sanitize_address))
+#endif
 #elif defined(ABSL_HAVE_ADDRESS_SANITIZER) && defined(_MSC_VER) && \
     _MSC_VER >= 1928
 // https://docs.microsoft.com/en-us/cpp/cpp/no-sanitize-address
@@ -249,8 +309,14 @@
 // features to detect similar bugs with less CPU and memory overhead.
 // NOTE: GCC supports HWAddressSanitizer(hwasan) since 11.
 // https://gcc.gnu.org/gcc-11/changes.html
+#if ABSL_HAVE_CPP_ATTRIBUTE(gnu::no_sanitize)
+#define ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS [[gnu::no_sanitize("hwaddress")]]
+#elif ABSL_HAVE_CPP_ATTRIBUTE(clang::no_sanitize)
+#define ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS [[clang::no_sanitize("hwaddress")]]
+#else
 #define ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS \
   __attribute__((no_sanitize("hwaddress")))
+#endif
 #else
 #define ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS
 #endif
@@ -263,7 +329,9 @@
 // attribute is similar to the ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS attribute
 // above, but deals with initialized-ness rather than addressability issues.
 // NOTE: MemorySanitizer(msan) is supported by Clang but not GCC.
-#if ABSL_HAVE_ATTRIBUTE(no_sanitize_memory)
+#if ABSL_HAVE_CPP_ATTRIBUTE(clang::no_sanitize_memory)
+#define ABSL_ATTRIBUTE_NO_SANITIZE_MEMORY [[clang::no_sanitize_memory]]
+#elif ABSL_HAVE_ATTRIBUTE(no_sanitize_memory)
 #define ABSL_ATTRIBUTE_NO_SANITIZE_MEMORY __attribute__((no_sanitize_memory))
 #else
 #define ABSL_ATTRIBUTE_NO_SANITIZE_MEMORY
@@ -274,7 +342,9 @@
 // Tells the ThreadSanitizer to not instrument a given function.
 // NOTE: GCC supports ThreadSanitizer(tsan) since 4.8.
 // https://gcc.gnu.org/gcc-4.8/changes.html
-#if ABSL_HAVE_ATTRIBUTE(no_sanitize_thread)
+#if ABSL_HAVE_CPP_ATTRIBUTE(gnu::no_sanitize_thread)
+#define ABSL_ATTRIBUTE_NO_SANITIZE_THREAD [[gnu::no_sanitize_thread]]
+#elif ABSL_HAVE_ATTRIBUTE(no_sanitize_thread)
 #define ABSL_ATTRIBUTE_NO_SANITIZE_THREAD __attribute__((no_sanitize_thread))
 #else
 #define ABSL_ATTRIBUTE_NO_SANITIZE_THREAD
@@ -290,8 +360,12 @@
 #define ABSL_ATTRIBUTE_NO_SANITIZE_UNDEFINED \
   __attribute__((no_sanitize_undefined))
 #elif ABSL_HAVE_ATTRIBUTE(no_sanitize)
+#if ABSL_HAVE_CPP_ATTRIBUTE(gnu::no_sanitize)
+#define ABSL_ATTRIBUTE_NO_SANITIZE_UNDEFINED [[gnu::no_sanitize("undefined")]]
+#else
 #define ABSL_ATTRIBUTE_NO_SANITIZE_UNDEFINED \
   __attribute__((no_sanitize("undefined")))
+#endif
 #else
 #define ABSL_ATTRIBUTE_NO_SANITIZE_UNDEFINED
 #endif
@@ -300,8 +374,21 @@
 //
 // Tells the ControlFlowIntegrity sanitizer to not instrument a given function.
 // See https://clang.llvm.org/docs/ControlFlowIntegrity.html for details.
-#if ABSL_HAVE_ATTRIBUTE(no_sanitize) && defined(__llvm__)
+#if ABSL_HAVE_CPP_ATTRIBUTE(gnu::no_sanitize) && defined(__llvm__)
+#if defined(__clang__) && !defined(__apple_build_version__) && \
+    __clang_major__ >= 16
+#define ABSL_ATTRIBUTE_NO_SANITIZE_CFI [[gnu::no_sanitize("cfi", "kcfi")]]
+#else
+#define ABSL_ATTRIBUTE_NO_SANITIZE_CFI [[gnu::no_sanitize("cfi")]]
+#endif
+#elif ABSL_HAVE_ATTRIBUTE(no_sanitize) && defined(__llvm__)
+#if defined(__clang__) && !defined(__apple_build_version__) && \
+    __clang_major__ >= 16
+#define ABSL_ATTRIBUTE_NO_SANITIZE_CFI \
+  __attribute__((no_sanitize("cfi", "kcfi")))
+#else
 #define ABSL_ATTRIBUTE_NO_SANITIZE_CFI __attribute__((no_sanitize("cfi")))
+#endif
 #else
 #define ABSL_ATTRIBUTE_NO_SANITIZE_CFI
 #endif
@@ -310,7 +397,9 @@
 //
 // Tells the SafeStack to not instrument a given function.
 // See https://clang.llvm.org/docs/SafeStack.html for details.
-#if ABSL_HAVE_ATTRIBUTE(no_sanitize)
+#if ABSL_HAVE_CPP_ATTRIBUTE(gnu::no_sanitize)
+#define ABSL_ATTRIBUTE_NO_SANITIZE_SAFESTACK [[gnu::no_sanitize("safe-stack")]]
+#elif ABSL_HAVE_ATTRIBUTE(no_sanitize)
 #define ABSL_ATTRIBUTE_NO_SANITIZE_SAFESTACK \
   __attribute__((no_sanitize("safe-stack")))
 #else
@@ -332,9 +421,8 @@
 // a prerequisite. Labeled sections are not supported on Darwin/iOS.
 #ifdef ABSL_HAVE_ATTRIBUTE_SECTION
 #error ABSL_HAVE_ATTRIBUTE_SECTION cannot be directly set
-#elif (ABSL_HAVE_ATTRIBUTE(section) ||                \
-       (defined(__GNUC__) && !defined(__clang__))) && \
-    !defined(__APPLE__) && ABSL_HAVE_ATTRIBUTE_WEAK
+#elif ABSL_HAVE_ATTRIBUTE(section) && !defined(__APPLE__) && \
+    ABSL_HAVE_ATTRIBUTE_WEAK
 #define ABSL_HAVE_ATTRIBUTE_SECTION 1
 
 // ABSL_ATTRIBUTE_SECTION
@@ -416,11 +504,14 @@
 // ABSL_ATTRIBUTE_STACK_ALIGN_FOR_OLD_LIBC
 //
 // Support for aligning the stack on 32-bit x86.
-#if ABSL_HAVE_ATTRIBUTE(force_align_arg_pointer) || \
-    (defined(__GNUC__) && !defined(__clang__))
+#if ABSL_HAVE_ATTRIBUTE(force_align_arg_pointer)
 #if defined(__i386__)
+#if ABSL_HAVE_CPP_ATTRIBUTE(gnu::force_align_arg_pointer)
+#define ABSL_ATTRIBUTE_STACK_ALIGN_FOR_OLD_LIBC [[gnu::force_align_arg_pointer]]
+#else
 #define ABSL_ATTRIBUTE_STACK_ALIGN_FOR_OLD_LIBC \
   __attribute__((force_align_arg_pointer))
+#endif
 #define ABSL_REQUIRE_STACK_ALIGN_TRAMPOLINE (0)
 #elif defined(__x86_64__)
 #define ABSL_REQUIRE_STACK_ALIGN_TRAMPOLINE (1)
@@ -478,7 +569,7 @@
 //   int foo() ABSL_ATTRIBUTE_HOT;
 #if defined(__cplusplus) && ABSL_HAVE_CPP_ATTRIBUTE(gnu::hot)
 #define ABSL_ATTRIBUTE_HOT [[gnu::hot]]
-#elif ABSL_HAVE_ATTRIBUTE(hot) || (defined(__GNUC__) && !defined(__clang__))
+#elif ABSL_HAVE_ATTRIBUTE(hot)
 #define ABSL_ATTRIBUTE_HOT __attribute__((hot))
 #else
 #define ABSL_ATTRIBUTE_HOT
@@ -486,7 +577,7 @@
 
 #if defined(__cplusplus) && ABSL_HAVE_CPP_ATTRIBUTE(gnu::cold)
 #define ABSL_ATTRIBUTE_COLD [[gnu::cold]]
-#elif ABSL_HAVE_ATTRIBUTE(cold) || (defined(__GNUC__) && !defined(__clang__))
+#elif ABSL_HAVE_ATTRIBUTE(cold)
 #define ABSL_ATTRIBUTE_COLD __attribute__((cold))
 #else
 #define ABSL_ATTRIBUTE_COLD
@@ -616,7 +707,9 @@ struct [[deprecated("Use [[maybe_unused]] instead.")]] _absl_unused_macro;
 //
 // Tells the compiler to use "initial-exec" mode for a thread-local variable.
 // See http://people.redhat.com/drepper/tls.pdf for the gory details.
-#if ABSL_HAVE_ATTRIBUTE(tls_model) || (defined(__GNUC__) && !defined(__clang__))
+#if ABSL_HAVE_CPP_ATTRIBUTE(gnu::tls_model)
+#define ABSL_ATTRIBUTE_INITIAL_EXEC [[gnu::tls_model("initial-exec")]]
+#elif ABSL_HAVE_ATTRIBUTE(tls_model)
 #define ABSL_ATTRIBUTE_INITIAL_EXEC __attribute__((tls_model("initial-exec")))
 #else
 #define ABSL_ATTRIBUTE_INITIAL_EXEC
@@ -647,7 +740,7 @@ struct [[deprecated("Use [[maybe_unused]] instead.")]] _absl_unused_macro;
 // natural alignment of structure members not annotated is preserved. Aligned
 // member accesses are faster than non-aligned member accesses even if the
 // targeted microprocessor supports non-aligned accesses.
-#if ABSL_HAVE_ATTRIBUTE(packed) || (defined(__GNUC__) && !defined(__clang__))
+#if ABSL_HAVE_ATTRIBUTE(packed)
 #define ABSL_ATTRIBUTE_PACKED __attribute__((__packed__))
 #else
 #define ABSL_ATTRIBUTE_PACKED
@@ -657,7 +750,9 @@ struct [[deprecated("Use [[maybe_unused]] instead.")]] _absl_unused_macro;
 //
 // Tells the compiler to align the function start at least to certain
 // alignment boundary
-#if ABSL_HAVE_ATTRIBUTE(aligned) || (defined(__GNUC__) && !defined(__clang__))
+#if ABSL_HAVE_CPP_ATTRIBUTE(gnu::aligned)
+#define ABSL_ATTRIBUTE_FUNC_ALIGN(bytes) [[gnu::aligned(bytes)]]
+#elif ABSL_HAVE_ATTRIBUTE(aligned)
 #define ABSL_ATTRIBUTE_FUNC_ALIGN(bytes) __attribute__((aligned(bytes)))
 #else
 #define ABSL_ATTRIBUTE_FUNC_ALIGN(bytes)
@@ -1076,8 +1171,6 @@ struct AbslInternal_YouForgotToExplicitlyInitializeAField {
 // https://gcc.gnu.org/onlinedocs/gcc/Common-Variable-Attributes.html#index-uninitialized-variable-attribute
 #if ABSL_HAVE_CPP_ATTRIBUTE(clang::uninitialized)
 #define ABSL_ATTRIBUTE_UNINITIALIZED [[clang::uninitialized]]
-#elif ABSL_HAVE_CPP_ATTRIBUTE(gnu::uninitialized)
-#define ABSL_ATTRIBUTE_UNINITIALIZED [[gnu::uninitialized]]
 #elif ABSL_HAVE_ATTRIBUTE(uninitialized)
 #define ABSL_ATTRIBUTE_UNINITIALIZED __attribute__((uninitialized))
 #else
@@ -1152,7 +1245,7 @@ struct AbslInternal_YouForgotToExplicitlyInitializeAField {
 //
 // Note: When wrapping a multi-line statement, placing a semicolon after the
 // closing parenthesis may produce an extra semicolon warning.
-#if defined(__clang__)
+#if ABSL_HAVE_CPP_ATTRIBUTE(clang::unsafe_buffer_usage)
 #define ABSL_UNSAFE_BUFFERS(...)             \
   _Pragma("clang unsafe_buffer_usage begin") \
       __VA_ARGS__ _Pragma("clang unsafe_buffer_usage end")

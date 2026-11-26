@@ -1229,7 +1229,7 @@ class ModuleDecoderImpl : public Decoder {
     uint32_t total_function_count =
         module_->num_imported_functions + functions_count;
     module_->functions.resize(total_function_count);
-    module_->num_declared_functions = functions_count;
+    module_->num_defined_functions = functions_count;
 
     for (uint32_t func_index = module_->num_imported_functions;
          func_index < total_function_count; ++func_index) {
@@ -1417,8 +1417,8 @@ class ModuleDecoderImpl : public Decoder {
 
           module_->num_exported_functions++;
           func->exported = true;
-          // Exported functions are considered "declared".
-          func->declared = true;
+          // Exported functions are considered declared for `ref.func`.
+          func->declared_for_ref = true;
           break;
         }
         case kExternalTable: {
@@ -1598,9 +1598,9 @@ class ModuleDecoderImpl : public Decoder {
   }
 
   bool CheckFunctionsCount(uint32_t functions_count, uint32_t error_offset) {
-    if (V8_UNLIKELY(functions_count != module_->num_declared_functions)) {
+    if (V8_UNLIKELY(functions_count != module_->num_defined_functions)) {
       errorf(error_offset, "function body count %u mismatch (%u expected)",
-             functions_count, module_->num_declared_functions);
+             functions_count, module_->num_defined_functions);
       return false;
     }
     return true;
@@ -1815,8 +1815,13 @@ class ModuleDecoderImpl : public Decoder {
 
   void DecodeBranchHintsSection() {
     TRACE("DecodeBranchHints module+%d\n", static_cast<int>(pc_ - start_));
-    detected_features_->add_branch_hinting();
-    if (!has_seen_unordered_section(kBranchHintsSectionCode)) {
+    // Per spec, code metadata sections must precede the Code section. Enforcing
+    // this is also required for thread safety during streaming compilation,
+    // where background workers read hints concurrently once the Code section
+    // starts.
+    if (!has_seen_unordered_section(kBranchHintsSectionCode) &&
+        next_ordered_section_ <= kCodeSectionCode) {
+      detected_features_->add_branch_hinting();
       set_seen_unordered_section(kBranchHintsSectionCode);
       // Use an inner decoder so that errors don't fail the outer decoder.
       Decoder inner(start_, pc_, end_, buffer_offset_);
@@ -1895,8 +1900,11 @@ class ModuleDecoderImpl : public Decoder {
   void DecodeCompilationPrioritySection() {
     TRACE("DecodeCompilationPriority module+%d\n",
           static_cast<int>(pc_ - start_));
-    detected_features_->add_compilation_hints();
-    if (!has_seen_unordered_section(kCompilationPrioritySectionCode)) {
+    // Must precede the Code section (for spec compliance and streaming thread
+    // safety; see DecodeBranchHintsSection).
+    if (!has_seen_unordered_section(kCompilationPrioritySectionCode) &&
+        next_ordered_section_ <= kCodeSectionCode) {
+      detected_features_->add_compilation_hints();
       set_seen_unordered_section(kCompilationPrioritySectionCode);
       // Use an inner decoder so that errors don't fail the outer decoder.
       Decoder inner(start_, pc_, end_, buffer_offset_);
@@ -1982,8 +1990,11 @@ class ModuleDecoderImpl : public Decoder {
   void DecodeInstructionFrequenciesSection() {
     TRACE("DecodeInstructionFrequencies module+%d\n",
           static_cast<int>(pc_ - start_));
-    detected_features_->add_compilation_hints();
-    if (!has_seen_unordered_section(kInstFrequenciesSectionCode)) {
+    // Must precede the Code section (for spec compliance and streaming thread
+    // safety; see DecodeBranchHintsSection).
+    if (!has_seen_unordered_section(kInstFrequenciesSectionCode) &&
+        next_ordered_section_ <= kCodeSectionCode) {
+      detected_features_->add_compilation_hints();
       set_seen_unordered_section(kInstFrequenciesSectionCode);
       // Use an inner decoder so that errors don't fail the outer decoder.
       Decoder inner(start_, pc_, end_, buffer_offset_);
@@ -2057,8 +2068,11 @@ class ModuleDecoderImpl : public Decoder {
 
   void DecodeCallTargetsSection() {
     TRACE("DecodeCallTargets module+%d\n", static_cast<int>(pc_ - start_));
-    detected_features_->add_compilation_hints();
-    if (!has_seen_unordered_section(kCallTargetsSectionCode)) {
+    // Must precede the Code section (for spec compliance and streaming thread
+    // safety; see DecodeBranchHintsSection).
+    if (!has_seen_unordered_section(kCallTargetsSectionCode) &&
+        next_ordered_section_ <= kCodeSectionCode) {
+      detected_features_->add_compilation_hints();
       set_seen_unordered_section(kCallTargetsSectionCode);
       // Use an inner decoder so that errors don't fail the outer decoder.
       Decoder inner(start_, pc_, end_, buffer_offset_);
@@ -2205,14 +2219,14 @@ class ModuleDecoderImpl : public Decoder {
     // The declared vs. defined function count is normally checked when
     // decoding the code section, but we have to check it here too in case the
     // code section is absent.
-    if (module_->num_declared_functions != 0) {
+    if (module_->num_defined_functions != 0) {
       DCHECK_LT(module_->num_imported_functions, module_->functions.size());
       // We know that the code section has been decoded if the first
       // non-imported function has its code set.
       if (V8_UNLIKELY(!module_->functions[module_->num_imported_functions]
                            .code.is_set())) {
         errorf(pc(), "function count is %u, but code section is absent",
-               module_->num_declared_functions);
+               module_->num_defined_functions);
         return false;
       }
     }
@@ -2669,7 +2683,8 @@ class ModuleDecoderImpl : public Decoder {
             type = type.AsExact();
           }
           TYPE_CHECK(type)
-          module->functions[index].declared = true;
+          DCHECK_LE(next_ordered_section_, kCodeSectionCode);
+          module->functions[index].declared_for_ref = true;
           if (tracer_) {
             tracer_->InitializerExpression(pc_, pc_ + length + 2, type);
           }
@@ -2704,15 +2719,19 @@ class ModuleDecoderImpl : public Decoder {
 
     auto sig = FixedSizeSignature<ValueType>::Returns(expected);
     FunctionBody body(&sig, this->pc_offset(), pc_, end_);
-    WasmDetectedFeatures detected;
     ConstantExpression result;
     {
       // We need a scope for the decoder because its destructor resets some Zone
       // elements, which has to be done before we reset the Zone afterwards.
+      // Only record `ref.func` declarations before the Code section; in later
+      // sections (Data), background streaming threads already read
+      // `declared_for_ref` concurrently.
+      WasmModule* module_for_declarations =
+          next_ordered_section_ <= kCodeSectionCode ? module : nullptr;
       WasmFullDecoder<Decoder::FullValidationTag, ConstantExpressionInterface,
                       kConstantExpression>
-          decoder(&init_expr_zone_, module, enabled_features_, &detected, body,
-                  module);
+          decoder(&init_expr_zone_, module, enabled_features_,
+                  detected_features_, body, module_for_declarations);
 
       uint32_t offset = this->pc_offset();
 
@@ -3130,7 +3149,7 @@ class ModuleDecoderImpl : public Decoder {
              expected.name().c_str(), entry_type.name().c_str());
       return index;
     }
-    func->declared = true;
+    func->declared_for_ref = true;
     return index;
   }
 

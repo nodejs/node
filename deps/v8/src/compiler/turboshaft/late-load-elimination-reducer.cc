@@ -222,6 +222,7 @@ void LateLoadEliminationAnalyzer::ProcessBlock(const Block& block,
       case Opcode::kFrameState:
       case Opcode::kDeoptimizeIf:
       case Opcode::kComparison:
+      case Opcode::kCheckMaglevType:
 #ifdef V8_ENABLE_WEBASSEMBLY
       case Opcode::kTrapIf:
       case Opcode::kWasmTrap:
@@ -245,19 +246,22 @@ void LateLoadEliminationAnalyzer::ProcessBlock(const Block& block,
       case Opcode::kAtomicRMW:
         ProcessAtomicRMW(op_idx, op.Cast<AtomicRMWOp>());
         break;
-
-      case Opcode::kCatchBlockBegin:
-        // Throwing an exception can have arbitrary side effects (e.g., via
-        // debugger pause-on-exception), even when the throwing operation itself
-        // does not have `can_write` effects on its non-throwing path.
-        memory_.InvalidateMaybeAliasing();
+      case Opcode::kAtomicWord32Pair:
+      case Opcode::kMemoryBarrier:
+#if V8_ENABLE_WEBASSEMBLY
+        if (v8_flags.wasm_shared) {
+          TRACE(">> AtomicWord32Pair/MemoryBarrier, invalidating whole memory");
+          memory_.InvalidateEverything();
+        }
+#endif  // V8_ENABLE_WEBASSEMBLY
         break;
 
+      case Opcode::kCatchBlockBegin:
+        ProcessCatchBlockBegin(op_idx);
+        break;
       case Opcode::kRetain:
       case Opcode::kDidntThrow:
       case Opcode::kCheckException:
-      case Opcode::kAtomicWord32Pair:
-      case Opcode::kMemoryBarrier:
 #ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
       case Opcode::kSwitchSandboxMode:
 #endif
@@ -301,12 +305,9 @@ void LateLoadEliminationAnalyzer::ProcessBlock(const Block& block,
         break;
     }
     if (op.Effects().can_allocate) {
-      // String maps can be invalidated by the GC. Unfortunately, there is no
-      // way to know if a particular load at offset 0 loads a string map or not.
-      // So, to be safe, we invalidate every load at offset 0 whenever we see an
-      // allocation.
+      // String maps can be invalidated by the GC.
       memory_.InvalidatePotentialLoadedStringMaps();
-      WipeAllMaps();
+      WipeStringMaps();
     }
   }
 
@@ -356,7 +357,7 @@ void LateLoadEliminationAnalyzer::ProcessLoad(OpIndex op_idx,
   TRACE("> ProcessLoad(" << op_idx << ")");
 
 #if V8_ENABLE_WEBASSEMBLY
-  if (load.kind.is_atomic && v8_flags.wasm_shared) {
+  if (load.kind.is_atomic() && v8_flags.wasm_shared) {
     // We are not allowed to move a memory access backwards past a seq_cst load.
     // This means that we have to invalidate everything.
     // TODO(manoskouk): Find a way to eliminate atomic-to-atomic and maybe
@@ -374,7 +375,7 @@ void LateLoadEliminationAnalyzer::ProcessLoad(OpIndex op_idx,
     return;
   }
 
-  if (load.kind.is_atomic) {
+  if (load.kind.is_atomic()) {
     // Atomic loads cannot be eliminated away, but potential concurrency
     // invalidates known stored values.
     TRACE(">> Atomic load, invalidating related memory");
@@ -386,15 +387,20 @@ void LateLoadEliminationAnalyzer::ProcessLoad(OpIndex op_idx,
   // all loads need to be revisited during processing.
   int32_truncated_loads_[op_idx];
 
-  if (OpIndex existing = memory_.Find(load); existing.valid()) {
-    const Operation& replacement = graph_.Get(existing);
+  if (MemorySlotValue existing = memory_.Find(load); existing.valid()) {
+    const Operation& replacement = graph_.Get(existing.value());
     DCHECK_EQ(replacement.outputs_rep().size(), 1);
     DCHECK_EQ(load.outputs_rep().size(), 1);
-    TRACE(">> Found potential replacement at offset " << existing);
+    TRACE(">> Found potential replacement at offset " << existing.value());
     if (RepIsCompatible(replacement.outputs_rep()[0], load.outputs_rep()[0],
                         load.loaded_rep)) {
       TRACE(">>> Confirming replacement");
-      replacements_[op_idx] = Replacement::LoadElimination(existing);
+      if (load.kind.is_immutable && !existing.is_immutable()) {
+        // Promote a live mutable entry (e.g. from an initializing store) to
+        // immutable in the current snapshot so it survives subsequent calls.
+        memory_.Insert(load, existing.value());
+      }
+      replacements_[op_idx] = Replacement::LoadElimination(existing.value());
       return;
     } else {
       TRACE(">>> Replacement has wrong representation: "
@@ -432,15 +438,18 @@ void LateLoadEliminationAnalyzer::ProcessTrustedLoad(
   // all loads need to be revisited during processing.
   int32_truncated_loads_[op_idx];
 
-  if (OpIndex existing = memory_.Find(load); existing.valid()) {
-    const Operation& replacement = graph_.Get(existing);
+  if (MemorySlotValue existing = memory_.Find(load); existing.valid()) {
+    const Operation& replacement = graph_.Get(existing.value());
     USE(replacement);
     // All trusted loads have the same representation and they can't alias with
     // any other loads.
     DCHECK(replacement.Is<LoadTrustedPointerOp>());
     DCHECK_EQ(replacement.outputs_rep(), load.outputs_rep());
-    TRACE(">> Found replacement at offset " << existing);
-    replacements_[op_idx] = Replacement::LoadElimination(existing);
+    TRACE(">> Found replacement at offset " << existing.value());
+    if (load.kind.is_immutable && !existing.is_immutable()) {
+      memory_.Insert(load, existing.value());
+    }
+    replacements_[op_idx] = Replacement::LoadElimination(existing.value());
     return;
   }
   // Reset the replacement of {op_idx} to Invalid, in case a previous visit of a
@@ -507,22 +516,41 @@ void LateLoadEliminationAnalyzer::ProcessStore(OpIndex op_idx,
     non_aliasing_objects_.Set(value, false);
   }
 
-  // If we just stored a map, invalidate all object_maps_.
+  // If we just stored a map, invalidate all potentially-aliasing object_maps_.
   if (store.offset == offsetof(HeapObject, map_) && !store.index().valid()) {
-    // TODO(dmercadier): can we only do this for objects that are potentially
-    // aliasing with the `base` (based on their maps and the maps of `base`)?
-    // Also, it might be worth to record a new map if this is actually a map
-    // store.
-    // TODO(dmercadier): do this only if `value` is a Constant with kind
-    // kHeapObject, since all map stores should store a known constant maps.
-    TRACE(">> Wiping all maps\n");
-    WipeAllMaps();
+    OpIndex base = memory_.ResolveBase(store.base());
+    if (non_aliasing_objects_.Get(base)) {
+      if (auto key = object_maps_.TryGetKeyFor(base)) {
+        object_maps_.Set(*key, MapMaskAndOr{});
+      }
+    } else {
+      // TODO(dmercadier): can we only do this for objects that are potentially
+      // aliasing with the `base` (based on their maps and the maps of `base`)?
+      // Also, it might be worth to record a new map if this is actually a map
+      // store.
+      // TODO(dmercadier): do this only if `value` is a Constant with kind
+      // kHeapObject, since all map stores should store a known constant maps.
+      TRACE(">> Wiping all maps\n");
+      WipeAllMaps();
+    }
   }
 }
 
 void LateLoadEliminationAnalyzer::WipeAllMaps() {
   for (auto it : object_maps_) {
     object_maps_.Set(it.second, MapMaskAndOr{});
+  }
+}
+
+void LateLoadEliminationAnalyzer::WipeStringMaps() {
+  // TODO(dmercadier): Avoid visiting all entries in {object_maps_} by turning
+  // it into a ChangeTrackingSnapshotTable that records entries whose maps may
+  // be String maps in a separate set.
+  for (auto it : object_maps_) {
+    MapMaskAndOr maps = object_maps_.Get(it.second);
+    if (!maps.is_empty() && maps.could_be_string()) {
+      object_maps_.Set(it.second, MapMaskAndOr{});
+    }
   }
 }
 
@@ -568,23 +596,18 @@ void LateLoadEliminationAnalyzer::ProcessCall(OpIndex op_idx,
   }
 #endif
 
-  // Some builtins do not create aliases and do not invalidate existing
-  // memory, and some even return fresh objects. For such cases, we don't
-  // invalidate the state, and record the non-alias if any.
+  // Some builtins create fresh non-aliasing objects.
   auto builtin_id = TryGetBuiltinId(callee.TryCast<ConstantOp>(), broker_);
   if (builtin_id) {
     switch (*builtin_id) {
       case Builtin::kCreateShallowObjectLiteral:
-        // This builtin creates a fresh non-aliasing object.
         non_aliasing_objects_.Set(op_idx, true);
-        return;
+        break;
       default:
         break;
     }
   }
 
-  // Not a builtin call, or not a builtin that we know doesn't invalidate
-  // memory.
   InvalidateAllNonAliasingInputs(op);
 
   // Keep in mind that "can_write" really means "can write to already allocated
@@ -680,9 +703,33 @@ void LateLoadEliminationAnalyzer::ProcessAllocate(OpIndex op_idx,
 void LateLoadEliminationAnalyzer::ProcessAssumeMap(
     OpIndex op_idx, const AssumeMapOp& assume_map) {
   TRACE("> ProcessAssumeMap(" << op_idx << ")");
-  OpIndex object = assume_map.heap_object();
+  OpIndex object = memory_.ResolveBase(assume_map.heap_object());
   object_maps_.Set(object, CombineMinMax(object_maps_.Get(object),
                                          ComputeMinMaxHash(assume_map.maps)));
+}
+
+void LateLoadEliminationAnalyzer::ProcessCatchBlockBegin(OpIndex op_idx) {
+  TRACE("> ProcessCatchBlockBegin(" << op_idx << ")");
+  switch (data_->pipeline_kind()) {
+    case TurboshaftPipelineKind::kCSA:
+    case TurboshaftPipelineKind::kTSABuiltin:
+    case TurboshaftPipelineKind::kJSToWasm:
+      // Builtin and JS-to-Wasm wrapper frames cannot lazy-deoptimize, so if a
+      // throwing op without `can_write()` (e.g. `StringAdd_NoMapCheck` in TSA)
+      // pauses in `Debug::OnException`, arbitrary JS can mutate heap memory
+      // before unwinding enters the catch block. (`object_maps_` is empty in
+      // builtin/wrapper pipelines; call `WipeAllMaps()` here if that changes.)
+      DCHECK(object_maps_.empty());
+      memory_.InvalidateMaybeAliasing();
+      break;
+    case TurboshaftPipelineKind::kJS:
+    case TurboshaftPipelineKind::kWasm:
+      // For JS/Wasm, throwing ops handle their own side effects, and
+      // Debug::OnException lazy-deoptimizes optimized JS frames / skips
+      // pausing on optimized Wasm frames. CatchBlockBeginOp has `can_allocate`,
+      // so string maps are still invalidated in `ProcessBlock`.
+      break;
+  }
 }
 
 bool IsInt32TruncatedLoadPattern(const Graph& graph, OpIndex change_idx,
@@ -839,21 +886,30 @@ bool LateLoadEliminationAnalyzer::BeginBlock(const Block* block) {
                                 merge_maps);
 
   // Merging for {memory_} means setting values to Invalid unless all
-  // predecessors have the same value.
+  // predecessors have the same value, and keeping {is_immutable} only when all
+  // predecessors agree that the slot is immutable.
   // TODO(dmercadier): we could insert of Phis during the pass to merge existing
   // information. This is a bit hard, because we are currently in an analyzer
   // rather than a reducer. Still, we could "prepare" the insertion now and then
   // really insert them during the Reduce phase of the CopyingPhase.
-  auto merge_memory = [&](MemoryKey key,
-                          base::Vector<const OpIndex> predecessors) -> OpIndex {
-    if (for_loop_revisit && predecessors[kForwardEdgeOffset].valid() &&
-        predecessors[kBackedgeOffset] != predecessors[kForwardEdgeOffset]) {
+  auto merge_memory =
+      [&](MemoryKey key,
+          base::Vector<const MemorySlotValue> predecessors) -> MemorySlotValue {
+    DCHECK(!predecessors.empty());
+    MemorySlotValue merged = predecessors[0];
+    if (merged.valid()) {
+      for (MemorySlotValue pred : predecessors.SubVectorFrom(1)) {
+        merged = merged.Intersect(pred);
+        if (!merged.valid()) break;
+      }
+    }
+    if (for_loop_revisit && merged != predecessors[kForwardEdgeOffset]) {
       // {key} had a value in the loop header, but the backedge and the forward
       // edge don't agree on its value, which means that the loop invalidated
       // some memory data, and thus needs to be revisited.
       loop_needs_revisit = true;
     }
-    return base::all_equal(predecessors) ? predecessors[0] : OpIndex::Invalid();
+    return merged;
   };
   memory_.StartNewSnapshot(base::VectorOf(predecessor_memory_snapshots_),
                            merge_memory);

@@ -34,6 +34,11 @@ FrameInspector::FrameInspector(CommonFrame* frame, int inlined_frame_index,
   if (summary.IsJavaScript()) {
     function_ = summary.AsJavaScript().function();
   }
+#if V8_ENABLE_WEBASSEMBLY
+  if (summary.IsWasmInlined()) {
+    is_wasm_inlined_ = true;
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 #if V8_ENABLE_WEBASSEMBLY
   JavaScriptFrame* js_frame =
@@ -42,13 +47,21 @@ FrameInspector::FrameInspector(CommonFrame* frame, int inlined_frame_index,
 #else
   JavaScriptFrame* js_frame = javascript_frame();
 #endif  // V8_ENABLE_WEBASSEMBLY
-  is_optimized_ = js_frame && js_frame->is_optimized();
+  is_optimized_ =
+      js_frame && js_frame->is_optimized() && summary.IsJavaScript();
 
   // Calculate the deoptimized frame.
   if (is_optimized_) {
     DCHECK_NOT_NULL(js_frame);
+    int jsframe_index = 0;
+    FrameSummaries summaries = js_frame->Summarize();
+    for (int i = 0; i < inlined_frame_index; ++i) {
+      if (summaries.frames[i].IsJavaScript()) {
+        jsframe_index++;
+      }
+    }
     deoptimized_frame_.reset(Deoptimizer::DebuggerInspectableFrame(
-        js_frame, inlined_frame_index, isolate));
+        js_frame, jsframe_index, isolate));
   }
 }
 
@@ -89,6 +102,13 @@ DirectHandle<String> FrameInspector::GetFunctionName() {
           wasm_frame->function_index(inlined_frame_index_));
     }
 #endif  // V8_ENABLE_DRUMBRAKE
+    if (is_wasm_inlined_) {
+      FrameSummary summary = FrameSummary::Get(frame_, inlined_frame_index_);
+      auto wasm_inlined = summary.AsWasmInlined();
+      return GetWasmFunctionDebugName(isolate_,
+                                      wasm_inlined.wasm_trusted_instance_data(),
+                                      wasm_inlined.function_index());
+    }
     auto wasm_frame = WasmFrame::cast(frame_);
     auto instance_data = handle(wasm_frame->trusted_instance_data(), isolate_);
     int top_func_index = FrameSummary::Get(wasm_frame, inlined_frame_index_)
@@ -101,15 +121,23 @@ DirectHandle<String> FrameInspector::GetFunctionName() {
 }
 
 #if V8_ENABLE_WEBASSEMBLY
-bool FrameInspector::IsWasm() { return frame_->is_wasm(); }
+bool FrameInspector::IsWasm() const {
+  return frame_->is_wasm() || is_wasm_inlined_;
+}
 #if V8_ENABLE_DRUMBRAKE
-bool FrameInspector::IsWasmInterpreter() {
+bool FrameInspector::IsWasmInterpreter() const {
   return frame_->is_wasm_interpreter_entry();
 }
 #endif  // V8_ENABLE_DRUMBRAKE
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-bool FrameInspector::IsJavaScript() { return frame_->is_javascript(); }
+bool FrameInspector::IsJavaScript() const {
+#if V8_ENABLE_WEBASSEMBLY
+  return frame_->is_javascript() && !is_wasm_inlined_;
+#else
+  return frame_->is_javascript();
+#endif  // V8_ENABLE_WEBASSEMBLY
+}
 
 bool FrameInspector::ParameterIsShadowedByContextLocal(
     DirectHandle<ScopeInfo> info, DirectHandle<String> parameter_name) {

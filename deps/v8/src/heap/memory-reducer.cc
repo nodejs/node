@@ -320,21 +320,24 @@ void LimitBasedMemoryReducer::TimerTask::RunInternal() {
     // NotifyMarkCompact().
     return;
   }
+  bool should_start_marking = false;
+  const char* reason = "initial limit";
   if (heap->limits()->using_initial_limit()) {
-    if (!heap->incremental_marking()->IsBelowActivationThresholds()) {
-      heap->StartIncrementalMarking(GCFlag::kReduceMemoryFootprint,
-                                    GarbageCollectionReason::kMemoryReducer,
-                                    kGCCallbackFlagCollectAllExternalMemory);
-    }
+    should_start_marking =
+        !heap->incremental_marking()->IsBelowActivationThresholds();
   } else {
     heap->limits()->UpdateAllocationLimits(
         heap->CurrentHeapGrowingMode(), heap->limits()->AtMostCurrentLimits(),
         "MemoryReducer");
-    GCFlags gc_flags = GCFlag::kReduceMemoryFootprint;
-    heap->StartIncrementalMarkingIfAllocationLimitIsReached(
-        heap->main_thread_local_heap(), gc_flags,
-        kGCCallbackFlagCollectAllExternalMemory,
-        GarbageCollectionReason::kMemoryReducer);
+    Heap::IncrementalMarkingLimit limit;
+    std::tie(limit, reason) = heap->IncrementalMarkingLimitReached();
+    should_start_marking = limit != Heap::IncrementalMarkingLimit::kNoLimit;
+  }
+  if (should_start_marking) {
+    heap->StartIncrementalMarking(GCFlag::kReduceMemoryFootprint,
+                                  GarbageCollectionReason::kMemoryReducer,
+                                  kGCCallbackFlagCollectAllExternalMemory,
+                                  GarbageCollector::MARK_COMPACTOR, reason);
   }
 }
 

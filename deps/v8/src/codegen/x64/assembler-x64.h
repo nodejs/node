@@ -75,10 +75,13 @@ V8_EXPORT_PRIVATE inline bool UseApxCmovcc() { return false; }
 V8_EXPORT_PRIVATE inline bool UseApxCcmp() { return false; }
 #endif
 
+// AVX10.2 support is gated by the same V8_ENABLE_AVX10_1 build flag.
 #ifdef V8_ENABLE_AVX10_1
 V8_EXPORT_PRIVATE bool UseAvx10_1();
+V8_EXPORT_PRIVATE bool UseAvx10_2();
 #else
 V8_EXPORT_PRIVATE inline bool UseAvx10_1() { return false; }
+V8_EXPORT_PRIVATE inline bool UseAvx10_2() { return false; }
 #endif
 
 enum Condition : int {
@@ -193,7 +196,7 @@ enum ScaleFactor : int8_t {
   times_half_system_pointer_size = times_4,
   times_system_pointer_size = times_8,
   times_tagged_size = (kTaggedSize == 8) ? times_8 : times_4,
-  times_external_pointer_size = V8_ENABLE_SANDBOX_BOOL ? times_4 : times_8,
+  times_external_pointer_size = COMPRESS_POINTERS_BOOL ? times_4 : times_8,
 };
 
 class V8_EXPORT_PRIVATE Operand {
@@ -883,37 +886,41 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   ASSEMBLER_CMOV_INSTRUCTION_LIST(DECLARE_CMOV_INSTRUCTION)
 #undef DECLARE_CMOV_INSTRUCTION
 
-#define DECLARE_SHIFT_NDD_INSTRUCTION(instruction, subcode)         \
-  void instruction##l(Register dst, Register src, Immediate imm8) { \
-    shift(dst, src, imm8, subcode, kInt32Size);                     \
-  }                                                                 \
-                                                                    \
-  void instruction##q(Register dst, Register src, Immediate imm8) { \
-    shift(dst, src, imm8, subcode, kInt64Size);                     \
-  }                                                                 \
-                                                                    \
-  void instruction##l(Register dst, Operand src, Immediate imm8) {  \
-    shift(dst, src, imm8, subcode, kInt32Size);                     \
-  }                                                                 \
-                                                                    \
-  void instruction##q(Register dst, Operand src, Immediate imm8) {  \
-    shift(dst, src, imm8, subcode, kInt64Size);                     \
-  }                                                                 \
-                                                                    \
-  void instruction##l_cl(Register dst, Register src) {              \
-    shift(dst, src, subcode, kInt32Size);                           \
-  }                                                                 \
-                                                                    \
-  void instruction##q_cl(Register dst, Register src) {              \
-    shift(dst, src, subcode, kInt64Size);                           \
-  }                                                                 \
-                                                                    \
-  void instruction##l_cl(Register dst, Operand src) {               \
-    shift(dst, src, subcode, kInt32Size);                           \
-  }                                                                 \
-                                                                    \
-  void instruction##q_cl(Register dst, Operand src) {               \
-    shift(dst, src, subcode, kInt64Size);                           \
+#define DECLARE_SHIFT_NDD_INSTRUCTION(instruction, subcode)                    \
+  void instruction##l(Register V8_REG_OUT dst, Register src, Immediate imm8) { \
+    shift(dst, src, imm8, subcode, kInt32Size);                                \
+  }                                                                            \
+                                                                               \
+  void instruction##q(Register V8_REG_OUT dst, Register src, Immediate imm8) { \
+    shift(dst, src, imm8, subcode, kInt64Size);                                \
+  }                                                                            \
+                                                                               \
+  void instruction##l(Register V8_REG_OUT dst, Operand src, Immediate imm8) {  \
+    shift(dst, src, imm8, subcode, kInt32Size);                                \
+  }                                                                            \
+                                                                               \
+  void instruction##q(Register V8_REG_OUT dst, Operand src, Immediate imm8) {  \
+    shift(dst, src, imm8, subcode, kInt64Size);                                \
+  }                                                                            \
+                                                                               \
+  V8_REG_IMPLICIT_IN(rcx)                                                      \
+  void instruction##l_cl(Register V8_REG_OUT dst, Register src) {              \
+    shift(dst, src, subcode, kInt32Size);                                      \
+  }                                                                            \
+                                                                               \
+  V8_REG_IMPLICIT_IN(rcx)                                                      \
+  void instruction##q_cl(Register V8_REG_OUT dst, Register src) {              \
+    shift(dst, src, subcode, kInt64Size);                                      \
+  }                                                                            \
+                                                                               \
+  V8_REG_IMPLICIT_IN(rcx)                                                      \
+  void instruction##l_cl(Register V8_REG_OUT dst, Operand src) {               \
+    shift(dst, src, subcode, kInt32Size);                                      \
+  }                                                                            \
+                                                                               \
+  V8_REG_IMPLICIT_IN(rcx)                                                      \
+  void instruction##q_cl(Register V8_REG_OUT dst, Operand src) {               \
+    shift(dst, src, subcode, kInt64Size);                                      \
   }
   SHIFT_INSTRUCTION_LIST(DECLARE_SHIFT_NDD_INSTRUCTION)
 #undef DECLARE_SHIFT_NDD_INSTRUCTION
@@ -961,10 +968,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // 32 bit value, the normal push will optimize the 8 bit case.
   static constexpr int kPushq32InstrSize = 5;
   void pushq_imm32(int32_t imm32);
-  void pushq(Register src);
+  V8_ASM_PUSH void pushq(Register src);
   void pushq(Operand src);
 
-  void popq(Register dst);
+  V8_ASM_POP void popq(Register V8_REG_OUT dst);
   void popq(Operand dst);
 
   void incsspq(Register number_of_words);
@@ -972,14 +979,14 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void leave();
 
   // Moves
-  void movb(Register dst, Operand src);
-  void movb(Register dst, Immediate imm);
+  void movb(Register V8_REG_INOUT dst, Operand src);
+  void movb(Register V8_REG_INOUT dst, Immediate imm);
   void movb(Operand dst, Register src);
   void movb(Operand dst, Immediate imm);
 
   // Move the low 16 bits of a 64-bit register value to a 16-bit
   // memory location.
-  void movw(Register dst, Operand src);
+  void movw(Register V8_REG_INOUT dst, Operand src);
   void movw(Operand dst, Register src);
   void movw(Operand dst, Immediate imm);
 
@@ -994,49 +1001,55 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // patched by replacing the dummy with the actual object. The RelocInfo for
   // the embedded object gets already recorded correctly when emitting the dummy
   // move.
-  void movq_heap_number(Register dst, double value);
+  void movq_heap_number(Register V8_REG_OUT dst, double value);
 
   // Loads a 64-bit immediate into a register, potentially using the constant
   // pool.
-  void movq(Register dst, int64_t value) { movq(dst, Immediate64(value)); }
-  void movq(Register dst, uint64_t value) {
+  void movq(Register V8_REG_OUT dst, int64_t value) {
+    movq(dst, Immediate64(value));
+  }
+  void movq(Register V8_REG_OUT dst, uint64_t value) {
     movq(dst, Immediate64(static_cast<int64_t>(value)));
   }
 
   // Loads a 64-bit immediate into a register without using the constant pool.
-  void movq_imm64(Register dst, int64_t value);
+  void movq_imm64(Register V8_REG_OUT dst, int64_t value);
 
-  void movsxbl(Register dst, Register src);
-  void movsxbl(Register dst, Operand src);
-  void movsxbq(Register dst, Register src);
-  void movsxbq(Register dst, Operand src);
-  void movsxwl(Register dst, Register src);
-  void movsxwl(Register dst, Operand src);
-  void movsxwq(Register dst, Register src);
-  void movsxwq(Register dst, Operand src);
-  void movsxlq(Register dst, Register src);
-  void movsxlq(Register dst, Operand src);
+  void movsxbl(Register V8_REG_OUT dst, Register src);
+  void movsxbl(Register V8_REG_OUT dst, Operand src);
+  void movsxbq(Register V8_REG_OUT dst, Register src);
+  void movsxbq(Register V8_REG_OUT dst, Operand src);
+  void movsxwl(Register V8_REG_OUT dst, Register src);
+  void movsxwl(Register V8_REG_OUT dst, Operand src);
+  void movsxwq(Register V8_REG_OUT dst, Register src);
+  void movsxwq(Register V8_REG_OUT dst, Operand src);
+  void movsxlq(Register V8_REG_OUT dst, Register src);
+  void movsxlq(Register V8_REG_OUT dst, Operand src);
 
   // Repeated moves.
-  void repmovsb();
-  void repmovsw();
-  void repmovsl() { emit_repmovs(kInt32Size); }
-  void repmovsq() { emit_repmovs(kInt64Size); }
+  V8_REG_IMPLICIT_INOUT(rcx, rsi, rdi) void repmovsb();
+  V8_REG_IMPLICIT_INOUT(rcx, rsi, rdi) void repmovsw();
+  V8_REG_IMPLICIT_INOUT(rcx, rsi, rdi) void repmovsl() {
+    emit_repmovs(kInt32Size);
+  }
+  V8_REG_IMPLICIT_INOUT(rcx, rsi, rdi) void repmovsq() {
+    emit_repmovs(kInt64Size);
+  }
 
   // Repeated store of doublewords (fill (E)CX bytes at ES:[(E)DI] with EAX).
-  void repstosl();
+  V8_REG_IMPLICIT_IN(rax) V8_REG_IMPLICIT_INOUT(rcx, rdi) void repstosl();
   // Repeated store of quadwords (fill RCX quadwords at [RDI] with RAX).
-  void repstosq();
+  V8_REG_IMPLICIT_IN(rax) V8_REG_IMPLICIT_INOUT(rcx, rdi) void repstosq();
 
   // Instruction to load from an immediate 64-bit pointer into RAX.
-  void load_rax(Address value, RelocInfo::Mode rmode);
-  void load_rax(ExternalReference ext);
+  V8_REG_IMPLICIT_OUT(rax) void load_rax(Address value, RelocInfo::Mode rmode);
+  V8_REG_IMPLICIT_OUT(rax) void load_rax(ExternalReference ext);
 
   // Conditional moves.
-  void cmovq(Condition cc, Register dst, Register src);
-  void cmovq(Condition cc, Register dst, Operand src);
-  void cmovl(Condition cc, Register dst, Register src);
-  void cmovl(Condition cc, Register dst, Operand src);
+  void cmovq(Condition cc, Register V8_REG_INOUT dst, Register src);
+  void cmovq(Condition cc, Register V8_REG_INOUT dst, Operand src);
+  void cmovl(Condition cc, Register V8_REG_INOUT dst, Register src);
+  void cmovl(Condition cc, Register V8_REG_INOUT dst, Operand src);
 
   void cmpb(Register dst, Immediate src) {
     immediate_arithmetic_op_8(0x7, dst, src);
@@ -1051,7 +1064,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     cmpb(dst, src);
   }
 
-  void cmpb_al(Immediate src);
+  V8_REG_IMPLICIT_IN(rax) void cmpb_al(Immediate src);
 
   void cmpb(Register dst, Register src) { arithmetic_op_8(0x3A, dst, src); }
 
@@ -1166,85 +1179,93 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Used for JCC erratum performance mitigation.
   void aligned_testw(Register reg, Operand op) { aligned_testw(op, reg); }
 
-  void andb(Register dst, Immediate src) {
+  void andb(Register V8_REG_INOUT dst, Immediate src) {
     immediate_arithmetic_op_8(0x4, dst, src);
   }
 
-  void decb(Register dst);
+  void decb(Register V8_REG_INOUT dst);
   void decb(Operand dst);
 
   // Lock prefix.
   void lock();
 
-  void xchgb(Register reg, Operand op);
-  void xchgw(Register reg, Operand op);
+  void xchgb(Register V8_REG_INOUT reg, Operand op);
+  void xchgw(Register V8_REG_INOUT reg, Operand op);
 
-  void xaddb(Operand dst, Register src);
-  void xaddw(Operand dst, Register src);
-  void xaddl(Operand dst, Register src);
-  void xaddq(Operand dst, Register src);
+  void xaddb(Operand dst, Register V8_REG_INOUT src);
+  void xaddw(Operand dst, Register V8_REG_INOUT src);
+  void xaddl(Operand dst, Register V8_REG_INOUT src);
+  void xaddq(Operand dst, Register V8_REG_INOUT src);
 
-  void negb(Register reg);
-  void negw(Register reg);
-  void negl(Register reg);
-  void negq(Register reg);
+  void negb(Register V8_REG_INOUT reg);
+  void negw(Register V8_REG_INOUT reg);
+  void negl(Register V8_REG_INOUT reg);
+  void negq(Register V8_REG_INOUT reg);
   void negb(Operand op);
   void negw(Operand op);
   void negl(Operand op);
   void negq(Operand op);
 
-  void cmpxchgb(Operand dst, Register src);
-  void cmpxchgw(Operand dst, Register src);
+  V8_REG_IMPLICIT_INOUT(rax) void cmpxchgb(Operand dst, Register src);
+  V8_REG_IMPLICIT_INOUT(rax) void cmpxchgw(Operand dst, Register src);
 
   // Sign-extends rax into rdx:rax.
-  void cqo();
+  V8_REG_IMPLICIT_IN(rax) V8_REG_IMPLICIT_OUT(rdx) void cqo();
   // Sign-extends eax into edx:eax.
-  void cdq();
+  V8_REG_IMPLICIT_IN(rax) V8_REG_IMPLICIT_OUT(rdx) void cdq();
 
   // Multiply eax by src, put the result in edx:eax.
-  void mull(Register src);
-  void mull(Operand src);
+  V8_REG_IMPLICIT_INOUT(rax) V8_REG_IMPLICIT_OUT(rdx) void mull(Register src);
+  V8_REG_IMPLICIT_INOUT(rax) V8_REG_IMPLICIT_OUT(rdx) void mull(Operand src);
   // Multiply rax by src, put the result in rdx:rax.
-  void mulq(Register src);
-  void mulq(Operand src);
+  V8_REG_IMPLICIT_INOUT(rax) V8_REG_IMPLICIT_OUT(rdx) void mulq(Register src);
+  V8_REG_IMPLICIT_INOUT(rax) V8_REG_IMPLICIT_OUT(rdx) void mulq(Operand src);
 
-#define DECLARE_SHIFT_INSTRUCTION(instruction, subcode)                     \
-  void instruction##l(Register dst, Immediate imm8) {                       \
-    shift(dst, imm8, subcode, kInt32Size);                                  \
-  }                                                                         \
-                                                                            \
-  void instruction##q(Register dst, Immediate imm8) {                       \
-    shift(dst, imm8, subcode, kInt64Size);                                  \
-  }                                                                         \
-                                                                            \
-  void instruction##l(Operand dst, Immediate imm8) {                        \
-    shift(dst, imm8, subcode, kInt32Size);                                  \
-  }                                                                         \
-                                                                            \
-  void instruction##q(Operand dst, Immediate imm8) {                        \
-    shift(dst, imm8, subcode, kInt64Size);                                  \
-  }                                                                         \
-                                                                            \
-  void instruction##l_cl(Register dst) { shift(dst, subcode, kInt32Size); } \
-                                                                            \
-  void instruction##q_cl(Register dst) { shift(dst, subcode, kInt64Size); } \
-                                                                            \
-  void instruction##l_cl(Operand dst) { shift(dst, subcode, kInt32Size); }  \
-                                                                            \
+#define DECLARE_SHIFT_INSTRUCTION(instruction, subcode)                    \
+  void instruction##l(Register V8_REG_INOUT dst, Immediate imm8) {         \
+    shift(dst, imm8, subcode, kInt32Size);                                 \
+  }                                                                        \
+                                                                           \
+  void instruction##q(Register V8_REG_INOUT dst, Immediate imm8) {         \
+    shift(dst, imm8, subcode, kInt64Size);                                 \
+  }                                                                        \
+                                                                           \
+  void instruction##l(Operand dst, Immediate imm8) {                       \
+    shift(dst, imm8, subcode, kInt32Size);                                 \
+  }                                                                        \
+                                                                           \
+  void instruction##q(Operand dst, Immediate imm8) {                       \
+    shift(dst, imm8, subcode, kInt64Size);                                 \
+  }                                                                        \
+                                                                           \
+  V8_REG_IMPLICIT_IN(rcx)                                                  \
+  void instruction##l_cl(Register V8_REG_INOUT dst) {                      \
+    shift(dst, subcode, kInt32Size);                                       \
+  }                                                                        \
+                                                                           \
+  V8_REG_IMPLICIT_IN(rcx)                                                  \
+  void instruction##q_cl(Register V8_REG_INOUT dst) {                      \
+    shift(dst, subcode, kInt64Size);                                       \
+  }                                                                        \
+                                                                           \
+  V8_REG_IMPLICIT_IN(rcx)                                                  \
+  void instruction##l_cl(Operand dst) { shift(dst, subcode, kInt32Size); } \
+                                                                           \
+  V8_REG_IMPLICIT_IN(rcx)                                                  \
   void instruction##q_cl(Operand dst) { shift(dst, subcode, kInt64Size); }
   SHIFT_INSTRUCTION_LIST(DECLARE_SHIFT_INSTRUCTION)
 #undef DECLARE_SHIFT_INSTRUCTION
 
   // Shifts dst:src left by cl bits, affecting only dst.
-  void shld(Register dst, Register src);
+  V8_REG_IMPLICIT_IN(rcx) void shld(Register V8_REG_INOUT dst, Register src);
 
   // Shifts src:dst right by cl bits, affecting only dst.
-  void shrd(Register dst, Register src);
+  V8_REG_IMPLICIT_IN(rcx) void shrd(Register V8_REG_INOUT dst, Register src);
 
-  void store_rax(Address dst, RelocInfo::Mode mode);
-  void store_rax(ExternalReference ref);
+  V8_REG_IMPLICIT_IN(rax) void store_rax(Address dst, RelocInfo::Mode mode);
+  V8_REG_IMPLICIT_IN(rax) void store_rax(ExternalReference ref);
 
-  void subb(Register dst, Immediate src) {
+  void subb(Register V8_REG_INOUT dst, Immediate src) {
     immediate_arithmetic_op_8(0x5, dst, src);
   }
 
@@ -1329,8 +1350,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
 
   // Bit operations.
-  void bswapl(Register dst);
-  void bswapq(Register dst);
+  void bswapl(Register V8_REG_INOUT dst);
+  void bswapq(Register V8_REG_INOUT dst);
   // Uses the low 6 bits in src to select a bit in dst, setting the carry flag
   // according to its value.  Does not write to dst.
   void btq(Operand dst, Register src);
@@ -1341,27 +1362,27 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // according to its value.  Does not write to dst.
   void btl(Register dst, Register src);
   void btsq(Operand dst, Register src);
-  void btsq(Register dst, Immediate imm8);
-  void btrq(Register dst, Immediate imm8);
-  void bsrq(Register dst, Register src);
-  void bsrq(Register dst, Operand src);
-  void bsrl(Register dst, Register src);
-  void bsrl(Register dst, Operand src);
-  void bsfq(Register dst, Register src);
-  void bsfq(Register dst, Operand src);
-  void bsfl(Register dst, Register src);
-  void bsfl(Register dst, Operand src);
+  void btsq(Register V8_REG_INOUT dst, Immediate imm8);
+  void btrq(Register V8_REG_INOUT dst, Immediate imm8);
+  void bsrq(Register V8_REG_OUT dst, Register src);
+  void bsrq(Register V8_REG_OUT dst, Operand src);
+  void bsrl(Register V8_REG_OUT dst, Register src);
+  void bsrl(Register V8_REG_OUT dst, Operand src);
+  void bsfq(Register V8_REG_OUT dst, Register src);
+  void bsfq(Register V8_REG_OUT dst, Operand src);
+  void bsfl(Register V8_REG_OUT dst, Register src);
+  void bsfl(Register V8_REG_OUT dst, Operand src);
 
   // Miscellaneous
   void clc();
   void cld();
-  void cpuid();
-  void hlt();
-  void int3();
+  V8_REG_IMPLICIT_INOUT(rax, rcx) V8_REG_IMPLICIT_OUT(rbx, rdx) void cpuid();
+  V8_ASM_NO_FALLTHROUGH void hlt();
+  V8_ASM_NO_FALLTHROUGH void int3();
   void nop();
-  void ret(int imm16);
-  void ud2();
-  void setcc(Condition cc, Register reg);
+  V8_ASM_NO_FALLTHROUGH void ret(int imm16);
+  V8_ASM_NO_FALLTHROUGH void ud2();
+  void setcc(Condition cc, Register V8_REG_INOUT reg);
   void endbr64();
 
   void pblendw(XMMRegister dst, Operand src, uint8_t mask);
@@ -1393,54 +1414,59 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Note: The same Label can be used for forward and backward branches
   // but it may be bound only once.
 
-  void bind(Label* L);  // binds an unbound label L to the current code position
+  void bind(Label* V8_ASM_BIND
+                L);  // binds an unbound label L to the current code position
 
   // Calls
   // Call near relative 32-bit displacement, relative to next instruction.
-  void call(Label* L);
+  V8_REG_CLOBBERS_CALLER_SAVED void call(Label* L);
 
   // Explicitly emit a near call / near jump. The displacement is relative to
   // the next instructions (which starts at
   // {pc_offset() + kIntraSegmentJmpInstrSize}).
   static constexpr int kIntraSegmentJmpInstrSize = 5;
-  void near_call(intptr_t disp, RelocInfo::Mode rmode);
-  void near_jmp(intptr_t disp, RelocInfo::Mode rmode);
+  V8_REG_CLOBBERS_CALLER_SAVED void near_call(intptr_t disp,
+                                              RelocInfo::Mode rmode);
+  V8_ASM_NO_FALLTHROUGH void near_jmp(intptr_t disp, RelocInfo::Mode rmode);
   void near_j(Condition cc, intptr_t disp, RelocInfo::Mode rmode);
 
-  void call(Handle<Code> target,
-            RelocInfo::Mode rmode = RelocInfo::CODE_TARGET);
+  V8_REG_CLOBBERS_CALLER_SAVED void call(
+      Handle<Code> target, RelocInfo::Mode rmode = RelocInfo::CODE_TARGET);
 
   // Call near absolute indirect, address in register
-  void call(Register adr);
+  V8_REG_CLOBBERS_CALLER_SAVED void call(Register adr);
 
   // Jumps
   // Jump short or near relative.
   // Use a 32-bit signed displacement.
   // Unconditional jump to L
-  void jmp(Label* L, Label::Distance distance = Label::kFar);
+  V8_ASM_NO_FALLTHROUGH void jmp(Label* V8_ASM_BRANCH L,
+                                 Label::Distance distance = Label::kFar);
   // Used for JCC erratum performance mitigation.
-  void aligned_jmp(Label* L, Label::Distance distance = Label::kFar) {
+  V8_ASM_NO_FALLTHROUGH void aligned_jmp(
+      Label* V8_ASM_BRANCH L, Label::Distance distance = Label::kFar) {
     DCHECK(CpuFeatures::IsSupported(INTEL_JCC_ERRATUM_MITIGATION));
     const int kInstLength = distance == Label::kFar ? 6 : 2;
     AlignForJCCErratum(kInstLength);
     jmp(L, distance);
   }
-  void jmp(Handle<Code> target, RelocInfo::Mode rmode);
+  V8_ASM_NO_FALLTHROUGH void jmp(Handle<Code> target, RelocInfo::Mode rmode);
 
   // Jump near absolute indirect (r64)
   // With notrack, add an optional prefix to disable CET IBT enforcement for
   // this jump.
-  void jmp(Register adr, bool notrack = false);
-  void jmp(Operand src, bool notrack = false);
+  V8_ASM_NO_FALLTHROUGH void jmp(Register adr, bool notrack = false);
+  V8_ASM_NO_FALLTHROUGH void jmp(Operand src, bool notrack = false);
 
   // Unconditional jump relative to the current address. Low-level routine,
   // use with caution!
-  void jmp_rel(int offset);
+  V8_ASM_NO_FALLTHROUGH void jmp_rel(int offset);
 
   // Conditional jumps
-  void j(Condition cc, Label* L, Label::Distance distance = Label::kFar);
+  void j(Condition cc, Label* V8_ASM_BRANCH L,
+         Label::Distance distance = Label::kFar);
   // Used for JCC erratum performance mitigation.
-  void aligned_j(Condition cc, Label* L,
+  void aligned_j(Condition cc, Label* V8_ASM_BRANCH L,
                  Label::Distance distance = Label::kFar) {
     DCHECK(CpuFeatures::IsSupported(INTEL_JCC_ERRATUM_MITIGATION));
     const int kInstLength = distance == Label::kFar ? 6 : 2;
@@ -1505,7 +1531,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void fucomip();
 
   void fcompp();
-  void fnstsw_ax();
+  V8_REG_IMPLICIT_OUT(rax) void fnstsw_ax();
   void fwait();
   void fnclex();
 
@@ -1519,7 +1545,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   void frndint();
 
-  void sahf();
+  V8_REG_IMPLICIT_IN(rax) void sahf();
 
   void ucomiss(XMMRegister dst, XMMRegister src);
   void ucomiss(XMMRegister dst, Operand src);
@@ -1544,12 +1570,12 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void shufps(XMMRegister dst, XMMRegister src, uint8_t imm8);
   void shufpd(XMMRegister dst, XMMRegister src, uint8_t imm8);
 
-  void cvttss2si(Register dst, Operand src);
-  void cvttss2si(Register dst, XMMRegister src);
+  void cvttss2si(Register V8_REG_OUT dst, Operand src);
+  void cvttss2si(Register V8_REG_OUT dst, XMMRegister src);
   void cvtlsi2ss(XMMRegister dst, Operand src);
   void cvtlsi2ss(XMMRegister dst, Register src);
 
-  void movmskps(Register dst, XMMRegister src);
+  void movmskps(Register V8_REG_OUT dst, XMMRegister src);
 
   void vinstr(uint8_t op, XMMRegister dst, XMMRegister src1, XMMRegister src2,
               SIMDPrefix pp, LeadingOpcode m, VexW w, CpuFeature feature = AVX);
@@ -1794,15 +1820,15 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   DECLARE_SSE4_INSTRUCTION(blendvpd, 66, 0F, 38, 15)
 #undef DECLARE_SSE4_INSTRUCTION
 
-#define DECLARE_SSE4_EXTRACT_INSTRUCTION(instruction, prefix, escape1,     \
-                                         escape2, opcode)                  \
-  void instruction(Register dst, XMMRegister src, uint8_t imm8) {          \
-    sse4_instr(dst, src, 0x##prefix, 0x##escape1, 0x##escape2, 0x##opcode, \
-               imm8);                                                      \
-  }                                                                        \
-  void instruction(Operand dst, XMMRegister src, uint8_t imm8) {           \
-    sse4_instr(dst, src, 0x##prefix, 0x##escape1, 0x##escape2, 0x##opcode, \
-               imm8);                                                      \
+#define DECLARE_SSE4_EXTRACT_INSTRUCTION(instruction, prefix, escape1,       \
+                                         escape2, opcode)                    \
+  void instruction(Register V8_REG_OUT dst, XMMRegister src, uint8_t imm8) { \
+    sse4_instr(dst, src, 0x##prefix, 0x##escape1, 0x##escape2, 0x##opcode,   \
+               imm8);                                                        \
+  }                                                                          \
+  void instruction(Operand dst, XMMRegister src, uint8_t imm8) {             \
+    sse4_instr(dst, src, 0x##prefix, 0x##escape1, 0x##escape2, 0x##opcode,   \
+               imm8);                                                        \
   }
 
   SSE4_EXTRACT_INSTRUCTION_LIST(DECLARE_SSE4_EXTRACT_INSTRUCTION)
@@ -1934,7 +1960,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
 
 #define DECLARE_AVX_INSTRUCTION(instruction, prefix, escape1, escape2, opcode) \
-  void v##instruction(Register dst, XMMRegister src, uint8_t imm8) {           \
+  void v##instruction(Register V8_REG_OUT dst, XMMRegister src,                \
+                      uint8_t imm8) {                                          \
     XMMRegister idst = XMMRegister::from_code(dst.code());                     \
     vinstr(0x##opcode, src, xmm0, idst, k##prefix, k##escape1##escape2, kW0);  \
     emit(imm8);                                                                \
@@ -1949,10 +1976,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   void movd(XMMRegister dst, Register src);
   void movd(XMMRegister dst, Operand src);
-  void movd(Register dst, XMMRegister src);
+  void movd(Register V8_REG_OUT dst, XMMRegister src);
   void movq(XMMRegister dst, Register src);
   void movq(XMMRegister dst, Operand src);
-  void movq(Register dst, XMMRegister src);
+  void movq(Register V8_REG_OUT dst, XMMRegister src);
   void movq(XMMRegister dst, XMMRegister src);
 
   // Don't use this unless it's important to keep the
@@ -1978,12 +2005,12 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   void cvtdq2pd(XMMRegister dst, XMMRegister src);
 
-  void cvttsd2si(Register dst, Operand src);
-  void cvttsd2si(Register dst, XMMRegister src);
-  void cvttss2siq(Register dst, XMMRegister src);
-  void cvttss2siq(Register dst, Operand src);
-  void cvttsd2siq(Register dst, XMMRegister src);
-  void cvttsd2siq(Register dst, Operand src);
+  void cvttsd2si(Register V8_REG_OUT dst, Operand src);
+  void cvttsd2si(Register V8_REG_OUT dst, XMMRegister src);
+  void cvttss2siq(Register V8_REG_OUT dst, XMMRegister src);
+  void cvttss2siq(Register V8_REG_OUT dst, Operand src);
+  void cvttsd2siq(Register V8_REG_OUT dst, XMMRegister src);
+  void cvttsd2siq(Register V8_REG_OUT dst, Operand src);
   void cvttps2dq(XMMRegister dst, Operand src);
   void cvttps2dq(XMMRegister dst, XMMRegister src);
 
@@ -1996,8 +2023,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void cvtqsi2sd(XMMRegister dst, Operand src);
   void cvtqsi2sd(XMMRegister dst, Register src);
 
-  void cvtsd2si(Register dst, XMMRegister src);
-  void cvtsd2siq(Register dst, XMMRegister src);
+  void cvtsd2si(Register V8_REG_OUT dst, XMMRegister src);
+  void cvtsd2siq(Register V8_REG_OUT dst, XMMRegister src);
 
   void haddps(XMMRegister dst, XMMRegister src);
   void haddps(XMMRegister dst, Operand src);
@@ -2006,9 +2033,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void cmpeqss(XMMRegister dst, XMMRegister src);
   void cmpltsd(XMMRegister dst, XMMRegister src);
 
-  void movmskpd(Register dst, XMMRegister src);
+  void movmskpd(Register V8_REG_OUT dst, XMMRegister src);
 
-  void pmovmskb(Register dst, XMMRegister src);
+  void pmovmskb(Register V8_REG_OUT dst, XMMRegister src);
 
   void pinsrw(XMMRegister dst, Register src, uint8_t imm8);
   void pinsrw(XMMRegister dst, Operand src, uint8_t imm8);
@@ -2016,7 +2043,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // SSE 4.1 instruction
   void insertps(XMMRegister dst, XMMRegister src, uint8_t imm8);
   void insertps(XMMRegister dst, Operand src, uint8_t imm8);
-  void pextrq(Register dst, XMMRegister src, int8_t imm8);
+  void pextrq(Register V8_REG_OUT dst, XMMRegister src, int8_t imm8);
   void pinsrb(XMMRegister dst, Register src, uint8_t imm8);
   void pinsrb(XMMRegister dst, Operand src, uint8_t imm8);
   void pinsrd(XMMRegister dst, Register src, uint8_t imm8);
@@ -2122,10 +2149,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   void vmovd(XMMRegister dst, Register src);
   void vmovd(XMMRegister dst, Operand src);
-  void vmovd(Register dst, XMMRegister src);
+  void vmovd(Register V8_REG_OUT dst, XMMRegister src);
   void vmovq(XMMRegister dst, Register src);
   void vmovq(XMMRegister dst, Operand src);
-  void vmovq(Register dst, XMMRegister src);
+  void vmovq(Register V8_REG_OUT dst, XMMRegister src);
 
   void vmovsd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
     vsd(0x10, dst, src1, src2);
@@ -2272,39 +2299,39 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void vcvtqsi2sd(XMMRegister dst, XMMRegister src1, Operand src2) {
     vinstr(0x2a, dst, src1, src2, kF2, k0F, kW1);
   }
-  void vcvttss2si(Register dst, XMMRegister src) {
+  void vcvttss2si(Register V8_REG_OUT dst, XMMRegister src) {
     XMMRegister idst = XMMRegister::from_code(dst.code());
     vinstr(0x2c, idst, xmm0, src, kF3, k0F, kW0);
   }
-  void vcvttss2si(Register dst, Operand src) {
+  void vcvttss2si(Register V8_REG_OUT dst, Operand src) {
     XMMRegister idst = XMMRegister::from_code(dst.code());
     vinstr(0x2c, idst, xmm0, src, kF3, k0F, kW0);
   }
-  void vcvttsd2si(Register dst, XMMRegister src) {
+  void vcvttsd2si(Register V8_REG_OUT dst, XMMRegister src) {
     XMMRegister idst = XMMRegister::from_code(dst.code());
     vinstr(0x2c, idst, xmm0, src, kF2, k0F, kW0);
   }
-  void vcvttsd2si(Register dst, Operand src) {
+  void vcvttsd2si(Register V8_REG_OUT dst, Operand src) {
     XMMRegister idst = XMMRegister::from_code(dst.code());
     vinstr(0x2c, idst, xmm0, src, kF2, k0F, kW0);
   }
-  void vcvttss2siq(Register dst, XMMRegister src) {
+  void vcvttss2siq(Register V8_REG_OUT dst, XMMRegister src) {
     XMMRegister idst = XMMRegister::from_code(dst.code());
     vinstr(0x2c, idst, xmm0, src, kF3, k0F, kW1);
   }
-  void vcvttss2siq(Register dst, Operand src) {
+  void vcvttss2siq(Register V8_REG_OUT dst, Operand src) {
     XMMRegister idst = XMMRegister::from_code(dst.code());
     vinstr(0x2c, idst, xmm0, src, kF3, k0F, kW1);
   }
-  void vcvttsd2siq(Register dst, XMMRegister src) {
+  void vcvttsd2siq(Register V8_REG_OUT dst, XMMRegister src) {
     XMMRegister idst = XMMRegister::from_code(dst.code());
     vinstr(0x2c, idst, xmm0, src, kF2, k0F, kW1);
   }
-  void vcvttsd2siq(Register dst, Operand src) {
+  void vcvttsd2siq(Register V8_REG_OUT dst, Operand src) {
     XMMRegister idst = XMMRegister::from_code(dst.code());
     vinstr(0x2c, idst, xmm0, src, kF2, k0F, kW1);
   }
-  void vcvtsd2si(Register dst, XMMRegister src) {
+  void vcvtsd2si(Register V8_REG_OUT dst, XMMRegister src) {
     XMMRegister idst = XMMRegister::from_code(dst.code());
     vinstr(0x2d, idst, xmm0, src, kF2, k0F, kW0);
   }
@@ -2385,15 +2412,15 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void vmovupd(YMMRegister dst, Operand src) { vpd(0x10, dst, ymm0, src); }
   void vmovupd(Operand dst, XMMRegister src) { vpd(0x11, src, xmm0, dst); }
   void vmovupd(Operand dst, YMMRegister src) { vpd(0x11, src, ymm0, dst); }
-  void vmovmskps(Register dst, XMMRegister src) {
+  void vmovmskps(Register V8_REG_OUT dst, XMMRegister src) {
     XMMRegister idst = XMMRegister::from_code(dst.code());
     vps(0x50, idst, xmm0, src);
   }
-  void vmovmskpd(Register dst, XMMRegister src) {
+  void vmovmskpd(Register V8_REG_OUT dst, XMMRegister src) {
     XMMRegister idst = XMMRegister::from_code(dst.code());
     vpd(0x50, idst, xmm0, src);
   }
-  void vpmovmskb(Register dst, XMMRegister src);
+  void vpmovmskb(Register V8_REG_OUT dst, XMMRegister src);
   void vcmpeqss(XMMRegister dst, XMMRegister src) {
     vss(0xC2, dst, dst, src);
     emit(0x00);  // EQ == 0
@@ -2480,7 +2507,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     vinstr(0x21, dst, src1, src2, k66, k0F3A, kWIG);
     emit(imm8);
   }
-  void vpextrq(Register dst, XMMRegister src, int8_t imm8) {
+  void vpextrq(Register V8_REG_OUT dst, XMMRegister src, int8_t imm8) {
     XMMRegister idst = XMMRegister::from_code(dst.code());
     vinstr(0x16, src, xmm0, idst, k66, k0F3A, kW1);
     emit(imm8);
@@ -2684,6 +2711,80 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     vinstr_evex(0x5c, dst, src1, src2, kNoPrefix, kMap5, kW0, kFull);
   }
 
+  void vminph(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vinstr_evex(0x5d, dst, src1, src2, kNoPrefix, kMap5, kW0);
+  }
+  void vminph(XMMRegister dst, XMMRegister src1, Operand src2) {
+    vinstr_evex(0x5d, dst, src1, src2, kNoPrefix, kMap5, kW0, kFull);
+  }
+  void vminph(YMMRegister dst, YMMRegister src1, YMMRegister src2) {
+    vinstr_evex(0x5d, dst, src1, src2, kNoPrefix, kMap5, kW0);
+  }
+  void vminph(YMMRegister dst, YMMRegister src1, Operand src2) {
+    vinstr_evex(0x5d, dst, src1, src2, kNoPrefix, kMap5, kW0, kFull);
+  }
+
+  void vmaxph(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vinstr_evex(0x5f, dst, src1, src2, kNoPrefix, kMap5, kW0);
+  }
+  void vmaxph(XMMRegister dst, XMMRegister src1, Operand src2) {
+    vinstr_evex(0x5f, dst, src1, src2, kNoPrefix, kMap5, kW0, kFull);
+  }
+  void vmaxph(YMMRegister dst, YMMRegister src1, YMMRegister src2) {
+    vinstr_evex(0x5f, dst, src1, src2, kNoPrefix, kMap5, kW0);
+  }
+  void vmaxph(YMMRegister dst, YMMRegister src1, Operand src2) {
+    vinstr_evex(0x5f, dst, src1, src2, kNoPrefix, kMap5, kW0, kFull);
+  }
+
+  void vmulph(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vinstr_evex(0x59, dst, src1, src2, kNoPrefix, kMap5, kW0);
+  }
+  void vmulph(XMMRegister dst, XMMRegister src1, Operand src2) {
+    vinstr_evex(0x59, dst, src1, src2, kNoPrefix, kMap5, kW0, kFull);
+  }
+  void vmulph(YMMRegister dst, YMMRegister src1, YMMRegister src2) {
+    vinstr_evex(0x59, dst, src1, src2, kNoPrefix, kMap5, kW0);
+  }
+  void vmulph(YMMRegister dst, YMMRegister src1, Operand src2) {
+    vinstr_evex(0x59, dst, src1, src2, kNoPrefix, kMap5, kW0, kFull);
+  }
+
+  void vdivph(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vinstr_evex(0x5e, dst, src1, src2, kNoPrefix, kMap5, kW0);
+  }
+  void vdivph(XMMRegister dst, XMMRegister src1, Operand src2) {
+    vinstr_evex(0x5e, dst, src1, src2, kNoPrefix, kMap5, kW0, kFull);
+  }
+  void vdivph(YMMRegister dst, YMMRegister src1, YMMRegister src2) {
+    vinstr_evex(0x5e, dst, src1, src2, kNoPrefix, kMap5, kW0);
+  }
+  void vdivph(YMMRegister dst, YMMRegister src1, Operand src2) {
+    vinstr_evex(0x5e, dst, src1, src2, kNoPrefix, kMap5, kW0, kFull);
+  }
+
+  void vsqrtph(XMMRegister dst, XMMRegister src) {
+    vinstr_evex(0x51, dst, xmm0, src, kNoPrefix, kMap5, kW0);
+  }
+  void vsqrtph(XMMRegister dst, Operand src) {
+    vinstr_evex(0x51, dst, xmm0, src, kNoPrefix, kMap5, kW0, kFull);
+  }
+  void vsqrtph(YMMRegister dst, YMMRegister src) {
+    vinstr_evex(0x51, dst, ymm0, src, kNoPrefix, kMap5, kW0);
+  }
+  void vsqrtph(YMMRegister dst, Operand src) {
+    vinstr_evex(0x51, dst, ymm0, src, kNoPrefix, kMap5, kW0, kFull);
+  }
+
+  void vrndscaleph(XMMRegister dst, XMMRegister src, RoundingMode mode) {
+    vinstr_evex(0x08, dst, xmm0, src, kNoPrefix, k0F3A, kW0);
+    emit(static_cast<uint8_t>(mode) | 0x8);
+  }
+  void vrndscaleph(YMMRegister dst, YMMRegister src, RoundingMode mode) {
+    vinstr_evex(0x08, dst, ymm0, src, kNoPrefix, k0F3A, kW0);
+    emit(static_cast<uint8_t>(mode) | 0x8);
+  }
+
   // Packed FP16 FMA, without masking, broadcast, or embedded rounding.
   // The destination is also the first multiplicand: (+/- dst * src1) + src2.
   void vfmadd213ph(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
@@ -2813,145 +2914,173 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
 
   // BMI instruction
-  void andnq(Register dst, Register src1, Register src2) {
+  void andnq(Register V8_REG_OUT dst, Register src1, Register src2) {
     bmi1q(0xf2, dst, src1, src2);
   }
-  void andnq(Register dst, Register src1, Operand src2) {
+  void andnq(Register V8_REG_OUT dst, Register src1, Operand src2) {
     bmi1q(0xf2, dst, src1, src2);
   }
-  void andnl(Register dst, Register src1, Register src2) {
+  void andnl(Register V8_REG_OUT dst, Register src1, Register src2) {
     bmi1l(0xf2, dst, src1, src2);
   }
-  void andnl(Register dst, Register src1, Operand src2) {
+  void andnl(Register V8_REG_OUT dst, Register src1, Operand src2) {
     bmi1l(0xf2, dst, src1, src2);
   }
-  void bextrq(Register dst, Register src1, Register src2) {
+  void bextrq(Register V8_REG_OUT dst, Register src1, Register src2) {
     bmi1q(0xf7, dst, src2, src1);
   }
-  void bextrq(Register dst, Operand src1, Register src2) {
+  void bextrq(Register V8_REG_OUT dst, Operand src1, Register src2) {
     bmi1q(0xf7, dst, src2, src1);
   }
-  void bextrl(Register dst, Register src1, Register src2) {
+  void bextrl(Register V8_REG_OUT dst, Register src1, Register src2) {
     bmi1l(0xf7, dst, src2, src1);
   }
-  void bextrl(Register dst, Operand src1, Register src2) {
+  void bextrl(Register V8_REG_OUT dst, Operand src1, Register src2) {
     bmi1l(0xf7, dst, src2, src1);
   }
-  void blsiq(Register dst, Register src) { bmi1q(0xf3, rbx, dst, src); }
-  void blsiq(Register dst, Operand src) { bmi1q(0xf3, rbx, dst, src); }
-  void blsil(Register dst, Register src) { bmi1l(0xf3, rbx, dst, src); }
-  void blsil(Register dst, Operand src) { bmi1l(0xf3, rbx, dst, src); }
-  void blsmskq(Register dst, Register src) { bmi1q(0xf3, rdx, dst, src); }
-  void blsmskq(Register dst, Operand src) { bmi1q(0xf3, rdx, dst, src); }
-  void blsmskl(Register dst, Register src) { bmi1l(0xf3, rdx, dst, src); }
-  void blsmskl(Register dst, Operand src) { bmi1l(0xf3, rdx, dst, src); }
-  void blsrq(Register dst, Register src) { bmi1q(0xf3, rcx, dst, src); }
-  void blsrq(Register dst, Operand src) { bmi1q(0xf3, rcx, dst, src); }
-  void blsrl(Register dst, Register src) { bmi1l(0xf3, rcx, dst, src); }
-  void blsrl(Register dst, Operand src) { bmi1l(0xf3, rcx, dst, src); }
-  void tzcntq(Register dst, Register src);
-  void tzcntq(Register dst, Operand src);
-  void tzcntl(Register dst, Register src);
-  void tzcntl(Register dst, Operand src);
+  void blsiq(Register V8_REG_OUT dst, Register src) {
+    bmi1q(0xf3, rbx, dst, src);
+  }
+  void blsiq(Register V8_REG_OUT dst, Operand src) {
+    bmi1q(0xf3, rbx, dst, src);
+  }
+  void blsil(Register V8_REG_OUT dst, Register src) {
+    bmi1l(0xf3, rbx, dst, src);
+  }
+  void blsil(Register V8_REG_OUT dst, Operand src) {
+    bmi1l(0xf3, rbx, dst, src);
+  }
+  void blsmskq(Register V8_REG_OUT dst, Register src) {
+    bmi1q(0xf3, rdx, dst, src);
+  }
+  void blsmskq(Register V8_REG_OUT dst, Operand src) {
+    bmi1q(0xf3, rdx, dst, src);
+  }
+  void blsmskl(Register V8_REG_OUT dst, Register src) {
+    bmi1l(0xf3, rdx, dst, src);
+  }
+  void blsmskl(Register V8_REG_OUT dst, Operand src) {
+    bmi1l(0xf3, rdx, dst, src);
+  }
+  void blsrq(Register V8_REG_OUT dst, Register src) {
+    bmi1q(0xf3, rcx, dst, src);
+  }
+  void blsrq(Register V8_REG_OUT dst, Operand src) {
+    bmi1q(0xf3, rcx, dst, src);
+  }
+  void blsrl(Register V8_REG_OUT dst, Register src) {
+    bmi1l(0xf3, rcx, dst, src);
+  }
+  void blsrl(Register V8_REG_OUT dst, Operand src) {
+    bmi1l(0xf3, rcx, dst, src);
+  }
+  void tzcntq(Register V8_REG_OUT dst, Register src);
+  void tzcntq(Register V8_REG_OUT dst, Operand src);
+  void tzcntl(Register V8_REG_OUT dst, Register src);
+  void tzcntl(Register V8_REG_OUT dst, Operand src);
 
-  void lzcntq(Register dst, Register src);
-  void lzcntq(Register dst, Operand src);
-  void lzcntl(Register dst, Register src);
-  void lzcntl(Register dst, Operand src);
+  void lzcntq(Register V8_REG_OUT dst, Register src);
+  void lzcntq(Register V8_REG_OUT dst, Operand src);
+  void lzcntl(Register V8_REG_OUT dst, Register src);
+  void lzcntl(Register V8_REG_OUT dst, Operand src);
 
-  void popcntq(Register dst, Register src);
-  void popcntq(Register dst, Operand src);
-  void popcntl(Register dst, Register src);
-  void popcntl(Register dst, Operand src);
+  void popcntq(Register V8_REG_OUT dst, Register src);
+  void popcntq(Register V8_REG_OUT dst, Operand src);
+  void popcntl(Register V8_REG_OUT dst, Register src);
+  void popcntl(Register V8_REG_OUT dst, Operand src);
 
-  void bzhiq(Register dst, Register src1, Register src2) {
+  void bzhiq(Register V8_REG_OUT dst, Register src1, Register src2) {
     bmi2q(kNoPrefix, 0xf5, dst, src2, src1);
   }
-  void bzhiq(Register dst, Operand src1, Register src2) {
+  void bzhiq(Register V8_REG_OUT dst, Operand src1, Register src2) {
     bmi2q(kNoPrefix, 0xf5, dst, src2, src1);
   }
-  void bzhil(Register dst, Register src1, Register src2) {
+  void bzhil(Register V8_REG_OUT dst, Register src1, Register src2) {
     bmi2l(kNoPrefix, 0xf5, dst, src2, src1);
   }
-  void bzhil(Register dst, Operand src1, Register src2) {
+  void bzhil(Register V8_REG_OUT dst, Operand src1, Register src2) {
     bmi2l(kNoPrefix, 0xf5, dst, src2, src1);
   }
-  void mulxq(Register dst1, Register dst2, Register src) {
+  V8_REG_IMPLICIT_IN(rdx)
+  void mulxq(Register V8_REG_OUT dst1, Register V8_REG_OUT dst2, Register src) {
     bmi2q(kF2, 0xf6, dst1, dst2, src);
   }
-  void mulxq(Register dst1, Register dst2, Operand src) {
+  V8_REG_IMPLICIT_IN(rdx)
+  void mulxq(Register V8_REG_OUT dst1, Register V8_REG_OUT dst2, Operand src) {
     bmi2q(kF2, 0xf6, dst1, dst2, src);
   }
-  void mulxl(Register dst1, Register dst2, Register src) {
+  V8_REG_IMPLICIT_IN(rdx)
+  void mulxl(Register V8_REG_OUT dst1, Register V8_REG_OUT dst2, Register src) {
     bmi2l(kF2, 0xf6, dst1, dst2, src);
   }
-  void mulxl(Register dst1, Register dst2, Operand src) {
+  V8_REG_IMPLICIT_IN(rdx)
+  void mulxl(Register V8_REG_OUT dst1, Register V8_REG_OUT dst2, Operand src) {
     bmi2l(kF2, 0xf6, dst1, dst2, src);
   }
-  void pdepq(Register dst, Register src1, Register src2) {
+  void pdepq(Register V8_REG_OUT dst, Register src1, Register src2) {
     bmi2q(kF2, 0xf5, dst, src1, src2);
   }
-  void pdepq(Register dst, Register src1, Operand src2) {
+  void pdepq(Register V8_REG_OUT dst, Register src1, Operand src2) {
     bmi2q(kF2, 0xf5, dst, src1, src2);
   }
-  void pdepl(Register dst, Register src1, Register src2) {
+  void pdepl(Register V8_REG_OUT dst, Register src1, Register src2) {
     bmi2l(kF2, 0xf5, dst, src1, src2);
   }
-  void pdepl(Register dst, Register src1, Operand src2) {
+  void pdepl(Register V8_REG_OUT dst, Register src1, Operand src2) {
     bmi2l(kF2, 0xf5, dst, src1, src2);
   }
-  void pextq(Register dst, Register src1, Register src2) {
+  void pextq(Register V8_REG_OUT dst, Register src1, Register src2) {
     bmi2q(kF3, 0xf5, dst, src1, src2);
   }
-  void pextq(Register dst, Register src1, Operand src2) {
+  void pextq(Register V8_REG_OUT dst, Register src1, Operand src2) {
     bmi2q(kF3, 0xf5, dst, src1, src2);
   }
-  void pextl(Register dst, Register src1, Register src2) {
+  void pextl(Register V8_REG_OUT dst, Register src1, Register src2) {
     bmi2l(kF3, 0xf5, dst, src1, src2);
   }
-  void pextl(Register dst, Register src1, Operand src2) {
+  void pextl(Register V8_REG_OUT dst, Register src1, Operand src2) {
     bmi2l(kF3, 0xf5, dst, src1, src2);
   }
-  void sarxq(Register dst, Register src1, Register src2) {
+  void sarxq(Register V8_REG_OUT dst, Register src1, Register src2) {
     bmi2q(kF3, 0xf7, dst, src2, src1);
   }
-  void sarxq(Register dst, Operand src1, Register src2) {
+  void sarxq(Register V8_REG_OUT dst, Operand src1, Register src2) {
     bmi2q(kF3, 0xf7, dst, src2, src1);
   }
-  void sarxl(Register dst, Register src1, Register src2) {
+  void sarxl(Register V8_REG_OUT dst, Register src1, Register src2) {
     bmi2l(kF3, 0xf7, dst, src2, src1);
   }
-  void sarxl(Register dst, Operand src1, Register src2) {
+  void sarxl(Register V8_REG_OUT dst, Operand src1, Register src2) {
     bmi2l(kF3, 0xf7, dst, src2, src1);
   }
-  void shlxq(Register dst, Register src1, Register src2) {
+  void shlxq(Register V8_REG_OUT dst, Register src1, Register src2) {
     bmi2q(k66, 0xf7, dst, src2, src1);
   }
-  void shlxq(Register dst, Operand src1, Register src2) {
+  void shlxq(Register V8_REG_OUT dst, Operand src1, Register src2) {
     bmi2q(k66, 0xf7, dst, src2, src1);
   }
-  void shlxl(Register dst, Register src1, Register src2) {
+  void shlxl(Register V8_REG_OUT dst, Register src1, Register src2) {
     bmi2l(k66, 0xf7, dst, src2, src1);
   }
-  void shlxl(Register dst, Operand src1, Register src2) {
+  void shlxl(Register V8_REG_OUT dst, Operand src1, Register src2) {
     bmi2l(k66, 0xf7, dst, src2, src1);
   }
-  void shrxq(Register dst, Register src1, Register src2) {
+  void shrxq(Register V8_REG_OUT dst, Register src1, Register src2) {
     bmi2q(kF2, 0xf7, dst, src2, src1);
   }
-  void shrxq(Register dst, Operand src1, Register src2) {
+  void shrxq(Register V8_REG_OUT dst, Operand src1, Register src2) {
     bmi2q(kF2, 0xf7, dst, src2, src1);
   }
-  void shrxl(Register dst, Register src1, Register src2) {
+  void shrxl(Register V8_REG_OUT dst, Register src1, Register src2) {
     bmi2l(kF2, 0xf7, dst, src2, src1);
   }
-  void shrxl(Register dst, Operand src1, Register src2) {
+  void shrxl(Register V8_REG_OUT dst, Operand src1, Register src2) {
     bmi2l(kF2, 0xf7, dst, src2, src1);
   }
-  void rorxq(Register dst, Register src, uint8_t imm8);
-  void rorxq(Register dst, Operand src, uint8_t imm8);
-  void rorxl(Register dst, Register src, uint8_t imm8);
-  void rorxl(Register dst, Operand src, uint8_t imm8);
+  void rorxq(Register V8_REG_OUT dst, Register src, uint8_t imm8);
+  void rorxq(Register V8_REG_OUT dst, Operand src, uint8_t imm8);
+  void rorxl(Register V8_REG_OUT dst, Register src, uint8_t imm8);
+  void rorxl(Register V8_REG_OUT dst, Operand src, uint8_t imm8);
 
   void mfence();
   void lfence();
@@ -2960,24 +3089,24 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Pkey support.
   // Registers rcx and rdx must be zero, rax is the input/output value.
-  void rdpkru();
-  void wrpkru();
+  V8_REG_IMPLICIT_IN(rcx) V8_REG_IMPLICIT_OUT(rax, rdx) void rdpkru();
+  V8_REG_IMPLICIT_IN(rax, rcx, rdx) void wrpkru();
 
   // APX instructions
-  void pushpq(Register src);
-  void poppq(Register dst);
+  V8_ASM_PUSH void pushpq(Register src);
+  V8_ASM_POP void poppq(Register V8_REG_OUT dst);
   void push2q(Register src1, Register src2);
   void push2pq(Register src1, Register src2);
-  void pop2q(Register dst1, Register dst2);
-  void pop2pq(Register dst1, Register dst2);
-  void setzucc(Condition cc, Register reg);
-  void jmpabs(Immediate64 target);
+  void pop2q(Register V8_REG_OUT dst1, Register V8_REG_OUT dst2);
+  void pop2pq(Register V8_REG_OUT dst1, Register V8_REG_OUT dst2);
+  void setzucc(Condition cc, Register V8_REG_OUT reg);
+  V8_ASM_NO_FALLTHROUGH void jmpabs(Immediate64 target);
 
   // APX NDD neg
-  void negl(Register dst, Register src);
-  void negl(Register dst, Operand src);
-  void negq(Register dst, Register src);
-  void negq(Register dst, Operand src);
+  void negl(Register V8_REG_OUT dst, Register src);
+  void negl(Register V8_REG_OUT dst, Operand src);
+  void negq(Register V8_REG_OUT dst, Register src);
+  void negq(Register V8_REG_OUT dst, Operand src);
 
   // Check the code size generated from label to here.
   int SizeOfCodeGeneratedSince(Label* label) {
@@ -3029,7 +3158,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
  protected:
   // Call near indirect
-  void call(Operand operand);
+  V8_REG_CLOBBERS_CALLER_SAVED void call(Operand operand);
 
  private:
   Address addr_at(int pos) {
@@ -3312,14 +3441,14 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   //
   // Unlike the emit_rex_* helpers these do not accept an XMMRegister yet: the
   // underlying emit_rex2_* emitters only take a GPR in the reg field.
-  void emit_rex2_or_rex(int size, Rex2MapID m) {
+  void emit_rex2_or_rex(int size, Rex2MapID m = kRex2Map0) {
     // Without operands there is no EGPR to encode, so REX2 is never needed.
     emit_rex(size);
     emit_legacy_map_escape(m);
   }
 
   template <class P1>
-  void emit_rex2_or_rex(P1 p1, int size, Rex2MapID m) {
+  void emit_rex2_or_rex(P1 p1, int size, Rex2MapID m = kRex2Map0) {
 #ifdef V8_ENABLE_APX_F
     if (needs_rex2_prefix(p1)) {
       if (size == kInt64Size) {
@@ -3336,7 +3465,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
 
   template <class P1, class P2>
-  void emit_rex2_or_rex(P1 p1, P2 p2, int size, Rex2MapID m) {
+  void emit_rex2_or_rex(P1 p1, P2 p2, int size, Rex2MapID m = kRex2Map0) {
 #ifdef V8_ENABLE_APX_F
     if (needs_rex2_prefix(p1, p2)) {
       if (size == kInt64Size) {
@@ -3352,13 +3481,13 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     emit_legacy_map_escape(m);
   }
 
-  void emit_rex2_or_rex_64(Rex2MapID m) {
+  void emit_rex2_or_rex_64(Rex2MapID m = kRex2Map0) {
     emit_rex_64();
     emit_legacy_map_escape(m);
   }
 
   template <class P1>
-  void emit_rex2_or_rex_64(P1 p1, Rex2MapID m) {
+  void emit_rex2_or_rex_64(P1 p1, Rex2MapID m = kRex2Map0) {
 #ifdef V8_ENABLE_APX_F
     if (needs_rex2_prefix(p1)) {
       emit_rex2_64(p1, m);
@@ -3370,7 +3499,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
 
   template <class P1, class P2>
-  void emit_rex2_or_rex_64(P1 p1, P2 p2, Rex2MapID m) {
+  void emit_rex2_or_rex_64(P1 p1, P2 p2, Rex2MapID m = kRex2Map0) {
 #ifdef V8_ENABLE_APX_F
     if (needs_rex2_prefix(p1, p2)) {
       emit_rex2_64(p1, p2, m);
@@ -3382,7 +3511,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
 
   template <class P1>
-  void emit_rex2_or_rex_32(P1 p1, Rex2MapID m) {
+  void emit_rex2_or_rex_32(P1 p1, Rex2MapID m = kRex2Map0) {
 #ifdef V8_ENABLE_APX_F
     if (needs_rex2_prefix(p1)) {
       emit_rex2_32(p1, m);
@@ -3394,7 +3523,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
 
   template <class P1, class P2>
-  void emit_rex2_or_rex_32(P1 p1, P2 p2, Rex2MapID m) {
+  void emit_rex2_or_rex_32(P1 p1, P2 p2, Rex2MapID m = kRex2Map0) {
 #ifdef V8_ENABLE_APX_F
     if (needs_rex2_prefix(p1, p2)) {
       emit_rex2_32(p1, p2, m);
@@ -3409,7 +3538,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // would be all-zero. Only the REX fallback is optional: a REX2 prefix is
   // always emitted when an operand needs one.
   template <class P1>
-  void emit_optional_rex2_or_rex_32(P1 p1, Rex2MapID m) {
+  void emit_optional_rex2_or_rex_32(P1 p1, Rex2MapID m = kRex2Map0) {
 #ifdef V8_ENABLE_APX_F
     if (needs_rex2_prefix(p1)) {
       emit_rex2_32(p1, m);
@@ -3421,7 +3550,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
 
   template <class P1, class P2>
-  void emit_optional_rex2_or_rex_32(P1 p1, P2 p2, Rex2MapID m) {
+  void emit_optional_rex2_or_rex_32(P1 p1, P2 p2, Rex2MapID m = kRex2Map0) {
 #ifdef V8_ENABLE_APX_F
     if (needs_rex2_prefix(p1, p2)) {
       emit_rex2_32(p1, p2, m);
@@ -3431,6 +3560,29 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     emit_optional_rex_32(p1, p2);
     emit_legacy_map_escape(m);
   }
+
+  // Prefix helpers for instructions with a byte-register operand. A REX (or
+  // REX2) prefix is required to address sil/dil/bpl/spl and r8b-r15b instead
+  // of ah/ch/dh/bh, so it is always emitted unless every byte operand is one of
+  // al, cl, dl and bl, in which case it is only emitted if the other operands
+  // need it. Extended registers are never byte registers, so they always get
+  // REX2.
+  // {byte_reg} is the only operand: no REX/REX2 prefix is emitted for al, bl,
+  // cl, dl (the 0F escape still is, for map 1).
+  inline void emit_rex2_or_optional_rex_8(Register byte_reg,
+                                          Rex2MapID m = kRex2Map0);
+  inline void emit_rex2_or_optional_rex_8(Register byte_reg, Operand op,
+                                          Rex2MapID m = kRex2Map0);
+  // Both registers are byte operands and the only operands: no REX/REX2 prefix
+  // is emitted if both are one of al, bl, cl, dl (the 0F escape still is, for
+  // map 1).
+  inline void emit_rex2_or_optional_rex_8(Register byte_reg,
+                                          Register byte_rm_reg,
+                                          Rex2MapID m = kRex2Map0);
+  // Only {byte_rm_reg} is a byte operand ({reg} is a full-width register), as
+  // in movzx/movsx from a byte register.
+  inline void emit_rex2_or_optional_rex_8_rm(Register reg, Register byte_rm_reg,
+                                             Rex2MapID m = kRex2Map0);
 
   // Emit vex prefix
   void emit_vex2_byte0() { emit(0xc5); }
@@ -3566,15 +3718,15 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data = 0);
 
   // Arithmetics
-  void emit_add(Register dst, Register src, int size) {
+  void emit_add(Register V8_REG_INOUT dst, Register src, int size) {
     arithmetic_op(0x03, dst, src, size);
   }
 
-  void emit_add(Register dst, Immediate src, int size) {
+  void emit_add(Register V8_REG_INOUT dst, Immediate src, int size) {
     immediate_arithmetic_op(0x0, dst, src, size);
   }
 
-  void emit_add(Register dst, Operand src, int size) {
+  void emit_add(Register V8_REG_INOUT dst, Operand src, int size) {
     arithmetic_op(0x03, dst, src, size);
   }
 
@@ -3586,15 +3738,15 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     immediate_arithmetic_op(0x0, dst, src, size);
   }
 
-  void emit_adc(Register dst, Register src, int size) {
+  void emit_adc(Register V8_REG_INOUT dst, Register src, int size) {
     arithmetic_op(0x13, dst, src, size);
   }
 
-  void emit_adc(Register dst, Immediate src, int size) {
+  void emit_adc(Register V8_REG_INOUT dst, Immediate src, int size) {
     immediate_arithmetic_op(0x2, dst, src, size);
   }
 
-  void emit_adc(Register dst, Operand src, int size) {
+  void emit_adc(Register V8_REG_INOUT dst, Operand src, int size) {
     arithmetic_op(0x13, dst, src, size);
   }
 
@@ -3606,11 +3758,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     immediate_arithmetic_op(0x2, dst, src, size);
   }
 
-  void emit_and(Register dst, Register src, int size) {
+  void emit_and(Register V8_REG_INOUT dst, Register src, int size) {
     arithmetic_op(0x23, dst, src, size);
   }
 
-  void emit_and(Register dst, Operand src, int size) {
+  void emit_and(Register V8_REG_INOUT dst, Operand src, int size) {
     arithmetic_op(0x23, dst, src, size);
   }
 
@@ -3618,7 +3770,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     arithmetic_op(0x21, src, dst, size);
   }
 
-  void emit_and(Register dst, Immediate src, int size) {
+  void emit_and(Register V8_REG_INOUT dst, Immediate src, int size) {
     immediate_arithmetic_op(0x4, dst, src, size);
   }
 
@@ -3694,6 +3846,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Compare {al,ax,eax,rax} with src.  If equal, set ZF and write dst into
   // src. Otherwise clear ZF and write src into {al,ax,eax,rax}.  This
   // operation is only atomic if prefixed by the lock instruction.
+  V8_REG_IMPLICIT_INOUT(rax)
   void emit_cmpxchg(Operand dst, Register src, int size);
 
   // Conditional compare
@@ -3764,18 +3917,20 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
 
   // CMOVcc
-  void emit_cmov(Condition cc, Register ndd, Register reg, Register rm,
-                 int size);
-  void emit_cmov(Condition cc, Register ndd, Register reg, Operand rm,
-                 int size);
+  void emit_cmov(Condition cc, Register V8_REG_OUT ndd, Register reg,
+                 Register rm, int size);
+  void emit_cmov(Condition cc, Register V8_REG_OUT ndd, Register reg,
+                 Operand rm, int size);
   // CFCMOVcc
-  void emit_cfcmov(Condition cc, Register reg, Register rm, int size);
-  void emit_cfcmov(Condition cc, Register reg, Operand rm, int size);
+  void emit_cfcmov(Condition cc, Register V8_REG_INOUT reg, Register rm,
+                   int size);
+  void emit_cfcmov(Condition cc, Register V8_REG_INOUT reg, Operand rm,
+                   int size);
   void emit_cfcmov(Condition cc, Operand rm, Register reg, int size);
-  void emit_cfcmov(Condition cc, Register ndd, Register reg, Register rm,
-                   int size);
-  void emit_cfcmov(Condition cc, Register ndd, Register reg, Operand rm,
-                   int size);
+  void emit_cfcmov(Condition cc, Register V8_REG_OUT ndd, Register reg,
+                   Register rm, int size);
+  void emit_cfcmov(Condition cc, Register V8_REG_OUT ndd, Register reg,
+                   Operand rm, int size);
 
   // Emit NDD version machine code for one of the operations ADD, SUB, AND, OR
   // XOR and IMUL. The encodings of these operations are all similar, differing
@@ -3791,116 +3946,141 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void ndd_immediate_arithmetic_op(uint8_t subcode, Register dst, Operand src1,
                                    Immediate src2, int size);
 
-  void emit_add(Register dst, Register src1, Register src2, int size) {
+  void emit_add(Register V8_REG_OUT dst, Register src1, Register src2,
+                int size) {
     ndd_arithmetic_op(0x03, dst, src1, src2, size);
   }
 
-  void emit_add(Register dst, Register src1, Immediate src2, int size) {
+  void emit_add(Register V8_REG_OUT dst, Register src1, Immediate src2,
+                int size) {
     ndd_immediate_arithmetic_op(0x0, dst, src1, src2, size);
   }
 
-  void emit_add(Register dst, Register src1, Operand src2, int size) {
+  void emit_add(Register V8_REG_OUT dst, Register src1, Operand src2,
+                int size) {
     ndd_arithmetic_op(0x03, dst, src1, src2, size);
   }
 
-  void emit_add(Register dst, Operand src1, Register src2, int size) {
+  void emit_add(Register V8_REG_OUT dst, Operand src1, Register src2,
+                int size) {
     ndd_arithmetic_op(0x1, dst, src2, src1, size);
   }
 
-  void emit_add(Register dst, Operand src1, Immediate src2, int size) {
+  void emit_add(Register V8_REG_OUT dst, Operand src1, Immediate src2,
+                int size) {
     ndd_immediate_arithmetic_op(0x0, dst, src1, src2, size);
   }
 
-  void emit_and(Register dst, Register src1, Register src2, int size) {
+  void emit_and(Register V8_REG_OUT dst, Register src1, Register src2,
+                int size) {
     ndd_arithmetic_op(0x23, dst, src1, src2, size);
   }
 
-  void emit_and(Register dst, Register src1, Immediate src2, int size) {
+  void emit_and(Register V8_REG_OUT dst, Register src1, Immediate src2,
+                int size) {
     ndd_immediate_arithmetic_op(0x4, dst, src1, src2, size);
   }
 
-  void emit_and(Register dst, Register src1, Operand src2, int size) {
+  void emit_and(Register V8_REG_OUT dst, Register src1, Operand src2,
+                int size) {
     ndd_arithmetic_op(0x23, dst, src1, src2, size);
   }
 
-  void emit_and(Register dst, Operand src1, Register src2, int size) {
+  void emit_and(Register V8_REG_OUT dst, Operand src1, Register src2,
+                int size) {
     ndd_arithmetic_op(0x21, dst, src2, src1, size);
   }
 
-  void emit_and(Register dst, Operand src1, Immediate src2, int size) {
+  void emit_and(Register V8_REG_OUT dst, Operand src1, Immediate src2,
+                int size) {
     ndd_immediate_arithmetic_op(0x4, dst, src1, src2, size);
   }
 
-  void emit_sub(Register dst, Register src1, Register src2, int size) {
+  void emit_sub(Register V8_REG_OUT dst, Register src1, Register src2,
+                int size) {
     ndd_arithmetic_op(0x2B, dst, src1, src2, size);
   }
 
-  void emit_sub(Register dst, Register src1, Immediate src2, int size) {
+  void emit_sub(Register V8_REG_OUT dst, Register src1, Immediate src2,
+                int size) {
     ndd_immediate_arithmetic_op(0x5, dst, src1, src2, size);
   }
 
-  void emit_sub(Register dst, Register src1, Operand src2, int size) {
+  void emit_sub(Register V8_REG_OUT dst, Register src1, Operand src2,
+                int size) {
     ndd_arithmetic_op(0x2B, dst, src1, src2, size);
   }
 
-  void emit_sub(Register dst, Operand src1, Register src2, int size) {
+  void emit_sub(Register V8_REG_OUT dst, Operand src1, Register src2,
+                int size) {
     ndd_arithmetic_op(0x29, dst, src2, src1, size);
   }
 
-  void emit_sub(Register dst, Operand src1, Immediate src2, int size) {
+  void emit_sub(Register V8_REG_OUT dst, Operand src1, Immediate src2,
+                int size) {
     ndd_immediate_arithmetic_op(0x5, dst, src1, src2, size);
   }
 
-  void emit_or(Register dst, Register src1, Register src2, int size) {
+  void emit_or(Register V8_REG_OUT dst, Register src1, Register src2,
+               int size) {
     ndd_arithmetic_op(0x0B, dst, src1, src2, size);
   }
 
-  void emit_or(Register dst, Register src1, Immediate src2, int size) {
+  void emit_or(Register V8_REG_OUT dst, Register src1, Immediate src2,
+               int size) {
     ndd_immediate_arithmetic_op(0x1, dst, src1, src2, size);
   }
 
-  void emit_or(Register dst, Register src1, Operand src2, int size) {
+  void emit_or(Register V8_REG_OUT dst, Register src1, Operand src2, int size) {
     ndd_arithmetic_op(0x0B, dst, src1, src2, size);
   }
 
-  void emit_or(Register dst, Operand src1, Register src2, int size) {
+  void emit_or(Register V8_REG_OUT dst, Operand src1, Register src2, int size) {
     ndd_arithmetic_op(0x09, dst, src2, src1, size);
   }
 
-  void emit_or(Register dst, Operand src1, Immediate src2, int size) {
+  void emit_or(Register V8_REG_OUT dst, Operand src1, Immediate src2,
+               int size) {
     ndd_immediate_arithmetic_op(0x1, dst, src1, src2, size);
   }
 
-  void emit_xor(Register dst, Register src1, Register src2, int size) {
+  void emit_xor(Register V8_REG_OUT dst, Register src1, Register src2,
+                int size) {
     ndd_arithmetic_op(0x33, dst, src1, src2, size);
   }
 
-  void emit_xor(Register dst, Register src1, Immediate src2, int size) {
+  void emit_xor(Register V8_REG_OUT dst, Register src1, Immediate src2,
+                int size) {
     ndd_immediate_arithmetic_op(0x6, dst, src1, src2, size);
   }
 
-  void emit_xor(Register dst, Register src1, Operand src2, int size) {
+  void emit_xor(Register V8_REG_OUT dst, Register src1, Operand src2,
+                int size) {
     ndd_arithmetic_op(0x33, dst, src1, src2, size);
   }
 
-  void emit_xor(Register dst, Operand src1, Register src2, int size) {
+  void emit_xor(Register V8_REG_OUT dst, Operand src1, Register src2,
+                int size) {
     ndd_arithmetic_op(0x31, dst, src2, src1, size);
   }
 
-  void emit_xor(Register dst, Operand src1, Immediate src2, int size) {
+  void emit_xor(Register V8_REG_OUT dst, Operand src1, Immediate src2,
+                int size) {
     ndd_immediate_arithmetic_op(0x6, dst, src1, src2, size);
   }
 
-  void emit_imul(Register dst, Register src1, Register src2, int size) {
+  void emit_imul(Register V8_REG_OUT dst, Register src1, Register src2,
+                 int size) {
     ndd_arithmetic_op(0xAF, dst, src1, src2, size);
   }
 
-  void emit_imul(Register dst, Register src1, Operand src2, int size) {
+  void emit_imul(Register V8_REG_OUT dst, Register src1, Operand src2,
+                 int size) {
     ndd_arithmetic_op(0xAF, dst, src1, src2, size);
   }
 
-  void emit_not(Register dst, Register src, int size);
-  void emit_not(Register dst, Operand src, int size);
+  void emit_not(Register V8_REG_OUT dst, Register src, int size);
+  void emit_not(Register V8_REG_OUT dst, Operand src, int size);
 
   // Emit NDD version machine code for a shift operation.
   void shift(Register dst, Register src, Immediate shift_amount, int subcode,
@@ -3910,52 +4090,55 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void shift(Register dst, Register src, int subcode, int size);
   void shift(Register dst, Operand src, int subcode, int size);
 
-  void emit_dec(Register dst, int size);
+  void emit_dec(Register V8_REG_INOUT dst, int size);
   void emit_dec(Operand dst, int size);
 
   // Divide rdx:rax by src.  Quotient in rax, remainder in rdx when size is 64.
   // Divide edx:eax by lower 32 bits of src.  Quotient in eax, remainder in edx
   // when size is 32.
-  void emit_idiv(Register src, int size);
-  void emit_div(Register src, int size);
+  V8_REG_IMPLICIT_INOUT(rax, rdx) void emit_idiv(Register src, int size);
+  V8_REG_IMPLICIT_INOUT(rax, rdx) void emit_div(Register src, int size);
 
   // Signed multiply instructions.
   // rdx:rax = rax * src when size is 64 or edx:eax = eax * src when size is 32.
-  void emit_imul(Register src, int size);
-  void emit_imul(Operand src, int size);
-  void emit_imul(Register dst, Register src, int size);
-  void emit_imul(Register dst, Operand src, int size);
-  void emit_imul(Register dst, Register src, Immediate imm, int size);
-  void emit_imul(Register dst, Operand src, Immediate imm, int size);
+  V8_REG_IMPLICIT_INOUT(rax)
+  V8_REG_IMPLICIT_OUT(rdx) void emit_imul(Register src, int size);
+  V8_REG_IMPLICIT_INOUT(rax)
+  V8_REG_IMPLICIT_OUT(rdx) void emit_imul(Operand src, int size);
+  void emit_imul(Register V8_REG_INOUT dst, Register src, int size);
+  void emit_imul(Register V8_REG_INOUT dst, Operand src, int size);
+  void emit_imul(Register V8_REG_OUT dst, Register src, Immediate imm,
+                 int size);
+  void emit_imul(Register V8_REG_OUT dst, Operand src, Immediate imm, int size);
 
-  void emit_inc(Register dst, int size);
+  void emit_inc(Register V8_REG_INOUT dst, int size);
   void emit_inc(Operand dst, int size);
 
-  void emit_lea(Register dst, Operand src, int size);
+  void emit_lea(Register V8_REG_OUT dst, Operand src, int size);
 
-  void emit_mov(Register dst, Operand src, int size);
-  void emit_mov(Register dst, Register src, int size);
+  void emit_mov(Register V8_REG_OUT dst, Operand src, int size);
+  void emit_mov(Register V8_REG_OUT dst, Register src, int size);
   void emit_mov(Operand dst, Register src, int size);
-  void emit_mov(Register dst, Immediate value, int size);
+  void emit_mov(Register V8_REG_OUT dst, Immediate value, int size);
   void emit_mov(Operand dst, Immediate value, int size);
-  void emit_mov(Register dst, Immediate64 value, int size);
+  void emit_mov(Register V8_REG_OUT dst, Immediate64 value, int size);
 
-  void emit_movzxb(Register dst, Operand src, int size);
-  void emit_movzxb(Register dst, Register src, int size);
-  void emit_movzxw(Register dst, Operand src, int size);
-  void emit_movzxw(Register dst, Register src, int size);
+  void emit_movzxb(Register V8_REG_OUT dst, Operand src, int size);
+  void emit_movzxb(Register V8_REG_OUT dst, Register src, int size);
+  void emit_movzxw(Register V8_REG_OUT dst, Operand src, int size);
+  void emit_movzxw(Register V8_REG_OUT dst, Register src, int size);
 
-  void emit_neg(Register dst, int size);
+  void emit_neg(Register V8_REG_INOUT dst, int size);
   void emit_neg(Operand dst, int size);
 
-  void emit_not(Register dst, int size);
+  void emit_not(Register V8_REG_INOUT dst, int size);
   void emit_not(Operand dst, int size);
 
-  void emit_or(Register dst, Register src, int size) {
+  void emit_or(Register V8_REG_INOUT dst, Register src, int size) {
     arithmetic_op(0x0B, dst, src, size);
   }
 
-  void emit_or(Register dst, Operand src, int size) {
+  void emit_or(Register V8_REG_INOUT dst, Operand src, int size) {
     arithmetic_op(0x0B, dst, src, size);
   }
 
@@ -3963,7 +4146,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     arithmetic_op(0x9, src, dst, size);
   }
 
-  void emit_or(Register dst, Immediate src, int size) {
+  void emit_or(Register V8_REG_INOUT dst, Immediate src, int size) {
     immediate_arithmetic_op(0x1, dst, src, size);
   }
 
@@ -3971,17 +4154,17 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     immediate_arithmetic_op(0x1, dst, src, size);
   }
 
-  void emit_repmovs(int size);
+  V8_REG_IMPLICIT_INOUT(rcx, rsi, rdi) void emit_repmovs(int size);
 
-  void emit_sbb(Register dst, Register src, int size) {
+  void emit_sbb(Register V8_REG_INOUT dst, Register src, int size) {
     arithmetic_op(0x1b, dst, src, size);
   }
 
-  void emit_sbb(Register dst, Immediate src, int size) {
+  void emit_sbb(Register V8_REG_INOUT dst, Immediate src, int size) {
     immediate_arithmetic_op(0x3, dst, src, size);
   }
 
-  void emit_sbb(Register dst, Operand src, int size) {
+  void emit_sbb(Register V8_REG_INOUT dst, Operand src, int size) {
     arithmetic_op(0x1b, dst, src, size);
   }
 
@@ -3993,15 +4176,16 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     immediate_arithmetic_op(0x3, dst, src, size);
   }
 
-  void emit_sub(Register dst, Register src, int size) {
+  V8_ASM_ZEROING_IF_SAME void emit_sub(Register V8_REG_INOUT dst, Register src,
+                                       int size) {
     arithmetic_op(0x2B, dst, src, size);
   }
 
-  void emit_sub(Register dst, Immediate src, int size) {
+  void emit_sub(Register V8_REG_INOUT dst, Immediate src, int size) {
     immediate_arithmetic_op(0x5, dst, src, size);
   }
 
-  void emit_sub(Register dst, Operand src, int size) {
+  void emit_sub(Register V8_REG_INOUT dst, Operand src, int size) {
     arithmetic_op(0x2B, dst, src, size);
   }
 
@@ -4062,10 +4246,12 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     return emit_aligned_test(op, reg, size);
   }
 
-  void emit_xchg(Register dst, Register src, int size);
-  void emit_xchg(Register dst, Operand src, int size);
+  void emit_xchg(Register V8_REG_INOUT dst, Register V8_REG_INOUT src,
+                 int size);
+  void emit_xchg(Register V8_REG_INOUT dst, Operand src, int size);
 
-  void emit_xor(Register dst, Register src, int size) {
+  V8_ASM_ZEROING_IF_SAME void emit_xor(Register V8_REG_INOUT dst, Register src,
+                                       int size) {
     if (size == kInt64Size && dst.code() == src.code()) {
       // 32 bit operations zero the top 32 bits of 64 bit registers. Therefore
       // there is no need to make this a 64 bit operation.
@@ -4075,11 +4261,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     }
   }
 
-  void emit_xor(Register dst, Operand src, int size) {
+  void emit_xor(Register V8_REG_INOUT dst, Operand src, int size) {
     arithmetic_op(0x33, dst, src, size);
   }
 
-  void emit_xor(Register dst, Immediate src, int size) {
+  void emit_xor(Register V8_REG_INOUT dst, Immediate src, int size) {
     immediate_arithmetic_op(0x6, dst, src, size);
   }
 

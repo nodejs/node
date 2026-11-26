@@ -357,6 +357,16 @@ class ABSL_MUST_USE_RESULT StatusBuilder {
       -> std::enable_if_t<
           std::is_void_v<decltype(AbslInternalSetErrorCode(*this, code))>,
           StatusBuilder&> {
+    if (static_cast<int>(code) == 0) {
+      // Maintain the invariant that `rep_ == nullptr` iff the status is OK,
+      // while moving `Rep` destruction out of line to avoid inlining `~Rep()`
+      // at call sites (matching `~StatusBuilder()`).
+      if (!IsKnownToBeEmpty()) {
+        Destroy(std::move(rep_));
+        AssumeEmpty();
+      }
+      return *this;
+    }
     AbslInternalSetErrorCode(*this, code);
     return *this;
   }
@@ -936,7 +946,7 @@ inline std::optional<absl::Cord> StatusBuilder::GetPayload(
 }
 
 inline bool StatusBuilder::ok() const {
-  return rep_ == nullptr ? true : rep_->status.ok();
+  return rep_ == nullptr;
 }
 
 inline absl::StatusCode StatusBuilder::code() const {
@@ -950,7 +960,15 @@ inline StatusBuilder::operator absl::Status() && {
   if (IsKnownToBeEmpty()) {
     return absl::OkStatus();
   }
+  const bool rep_not_null = rep_ != nullptr;
   absl::Status result = CreateStatusAndConditionallyLog(loc_, std::move(rep_));
+  // `rep_` is non-null if and only if the builder holds a non-OK status, and
+  // `CreateStatusAndConditionallyLog` preserves non-OK status. Hint this to
+  // the optimizer so `StatusOr` constructors can elide their `!status.ok()`
+  // check when converting from a known non-OK `StatusBuilder` (such as on the
+  // `RETURN_IF_ERROR` error path).
+  [[maybe_unused]] const bool result_ok = result.ok();
+  ABSL_ASSUME(!rep_not_null || !result_ok);
   // Tell the compiler that `rep_` was not filled again even if `this` escaped.
   AssumeEmpty();
   return result;

@@ -1,0 +1,3 @@
+Tests lazy deopt followed by code flush and side-effect free evaluation.
+foo is optimized: true
+evaluateOnCallFrame result: 44

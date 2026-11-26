@@ -17,7 +17,7 @@
 namespace v8::internal::compiler::turboshaft {
 
 void PipelineData::InitializeRegisterComponent(
-    const RegisterConfiguration* config, CallDescriptor* call_descriptor) {
+    const RegisterConfiguration* config) {
   DCHECK(!register_component_.has_value());
   register_component_.emplace(zone_stats());
   auto& zone = register_component_->zone;
@@ -112,9 +112,9 @@ void PrintTurboshaftGraphForTurbolizer(std::ofstream& stream,
         const std::vector<std::pair<turboshaft::OpIndex, turboshaft::Type>>&
             refinements = graph.block_type_refinement()[index];
         if (refinements.empty()) return false;
-        stream << "\\n";
+        stream << "\n";
         for (const auto& [op, type] : refinements) {
-          stream << op << " : " << type << "\\n";
+          stream << op << " : " << type << "\n";
         }
         return true;
       });

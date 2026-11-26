@@ -171,9 +171,13 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
                       bool private_name_lookup_skips_outer_class = false);
 
   // Create a function that results from wrapping |source| in a function,
-  // with |arguments| being a list of parameters for that function.
+  // with |script_details.wrapped_arguments| being a list of parameters for that
+  // function and |context_extensions| being a list of objects to wrap the
+  // function's |context| in WithContexts (from outermost to innermost).
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSFunction> GetWrappedFunction(
-      Isolate* isolate, Handle<String> source, DirectHandle<Context> context,
+      Isolate* isolate, Handle<String> source,
+      DirectHandle<NativeContext> context,
+      base::Vector<const DirectHandle<JSReceiver>> context_extensions,
       const ScriptDetails& script_details, AlignedCachedData* cached_data,
       v8::ScriptCompiler::CompileOptions compile_options,
       v8::ScriptCompiler::NoCacheReason no_cache_reason);

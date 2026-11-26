@@ -122,6 +122,7 @@ Tagged<Object> ObjectLookupAccessor(Isolate* isolate,
     switch (it.state()) {
       case LookupIterator::INTERCEPTOR:
       case LookupIterator::TRANSITION:
+      case LookupIterator::STRING_LOOKUP_START_OBJECT:
         UNREACHABLE();
 
       case LookupIterator::ACCESS_CHECK:
@@ -152,7 +153,6 @@ Tagged<Object> ObjectLookupAccessor(Isolate* isolate,
         }
         return ObjectLookupAccessor(isolate, prototype, key, component);
       }
-      case LookupIterator::STRING_LOOKUP_START_OBJECT:
       case LookupIterator::WASM_OBJECT:
         continue;  // Continue to the prototype, if present.
       case LookupIterator::TYPED_ARRAY_INDEX_NOT_FOUND:
@@ -181,7 +181,8 @@ Tagged<Object> ObjectLookupAccessor(Isolate* isolate,
           return *AccessorPair::GetComponent(
               isolate, holder_realm, Cast<AccessorPair>(maybe_pair), component);
         }
-        continue;
+        DCHECK(IsAccessorInfo(*maybe_pair));
+        return ReadOnlyRoots(isolate).undefined_value();
       }
     }
     UNREACHABLE();

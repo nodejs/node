@@ -897,8 +897,8 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::ValuesIn(kCanElideChangeUint32ToUint64));
 
 TEST_F(TurboshaftInstructionSelectorTest, ChangeUint32ToUint64AfterLoad) {
-  // For each case, make sure the `ChangeUint32ToUint64` node turned into a
-  // no-op.
+  // Lbu and Lhu loads zero-extend by themselves, so the `ChangeUint32ToUint64`
+  // node turns into a no-op. A sole-use Uint32 load is fused into an Lwu.
 
   // Lbu
   {
@@ -954,6 +954,167 @@ TEST_F(TurboshaftInstructionSelectorTest, ChangeUint32ToUint64AfterLoad) {
     EXPECT_EQ(2U, s[1]->InputCount());
     EXPECT_EQ(1U, s[1]->OutputCount());
   }
+}
+
+TEST_F(TurboshaftInstructionSelectorTest,
+       ChangeUint32ToUint64AfterLoadSignedFusion) {
+  // Lwu fused from a signed Int32 load: the loaded bits are the same
+  // regardless of the signedness of the load representation.
+  StreamBuilder m(this, MachineType::Uint64(), MachineType::Pointer(),
+                  MachineType::Int64());
+  m.Return(
+      m.Emit(TSUnop::kChangeUint32ToUint64,
+             m.Load(MachineType::Int32(), m.Parameter(0), m.Parameter(1))));
+  Stream s = m.Build();
+  ASSERT_EQ(2U, s.size());
+  EXPECT_EQ(kRiscvAdd64, s[0]->arch_opcode());
+  EXPECT_EQ(kRiscvLwu, s[1]->arch_opcode());
+  EXPECT_EQ(kMode_MRI, s[1]->addressing_mode());
+  EXPECT_EQ(2U, s[1]->InputCount());
+  EXPECT_EQ(1U, s[1]->OutputCount());
+}
+
+TEST_F(TurboshaftInstructionSelectorTest,
+       ChangeUint32ToUint64AfterLoadMultipleUses) {
+  // A Uint32 load with an additional Word32 use cannot be covered by the
+  // zero-extension, so an explicit kRiscvZeroExtendWord must be emitted.
+  StreamBuilder m(this, MachineType::Uint64(), MachineType::Pointer(),
+                  MachineType::Int64());
+  OpIndex load = m.Load(MachineType::Uint32(), m.Parameter(0), m.Parameter(1));
+  OpIndex change = m.Emit(TSUnop::kChangeUint32ToUint64, load);
+  // Second, Word32-typed use of the load.
+  OpIndex sum = m.Word32Add(load, m.Int32Constant(1));
+  m.Return(m.Word64Add(change, m.ChangeInt32ToInt64(sum)));
+  Stream s = m.Build();
+  bool found_zero_extend = false;
+  for (size_t i = 0; i < s.size(); ++i) {
+    if (s[i]->arch_opcode() == kRiscvZeroExtendWord) {
+      found_zero_extend = true;
+    }
+  }
+  EXPECT_TRUE(found_zero_extend);
+}
+
+TEST_F(TurboshaftInstructionSelectorTest, ChangeUint32ToUint64AfterPhi) {
+  // A Phi of two Uint32 loads can never be covered by a load, and the
+  // zero-extension must not be elided: a spilled Word32 value is reloaded
+  // with a sign-extending Lw.
+  StreamBuilder m(this, MachineType::Uint64(), MachineType::Pointer(),
+                  MachineType::Int64(), MachineType::Int32());
+  // Create the parameters before branching, so that they dominate both
+  // branches (parameters are cached and emitted lazily on first use).
+  OpIndex base = m.Parameter(0);
+  OpIndex index = m.Parameter(1);
+  OpIndex cond = m.Parameter(2);
+  // The placeholder phi inputs must dominate the merge block, so create them
+  // before branching.
+  OpIndex zero1 = m.Int32Constant(0);
+  OpIndex zero2 = m.Int32Constant(0);
+  Block* a = m.NewBlock();
+  Block* b = m.NewBlock();
+  Block* c = m.NewBlock();
+  m.Branch(V<Word32>::Cast(cond), a, b);
+  m.Bind(a);
+  OpIndex load_a = m.Load(MachineType::Uint32(), base, index);
+  m.Goto(c);
+  m.Bind(b);
+  OpIndex load_b = m.Load(MachineType::Uint32(), base, index);
+  m.Goto(c);
+  m.Bind(c);
+  OpIndex phi = m.Phi(MachineRepresentation::kWord32, zero1, zero2);
+  // Patch the phi inputs now that both loads are defined; emitting the phi
+  // with the branch-local loads directly would fail the dominance check.
+  m.output_graph().Replace<PhiOp>(phi,
+                                  base::VectorOf<OpIndex>({load_a, load_b}),
+                                  RegisterRepresentation::Word32());
+  m.Return(m.Emit(TSUnop::kChangeUint32ToUint64, phi));
+  Stream s = m.Build();
+  bool found_zero_extend = false;
+  for (size_t i = 0; i < s.size(); ++i) {
+    if (s[i]->arch_opcode() == kRiscvZeroExtendWord) {
+      found_zero_extend = true;
+    }
+  }
+  EXPECT_TRUE(found_zero_extend);
+}
+
+TEST_F(TurboshaftInstructionSelectorTest, ChangeUint32ToUint64AfterAtomicLoad) {
+  // An atomic Uint32 load must keep its own opcode (and fences); the
+  // zero-extension is emitted separately.
+  StreamBuilder m(this, MachineType::Uint64(), MachineType::Pointer(),
+                  MachineType::Int64());
+  OpIndex load =
+      m.Load(m.Parameter(0), m.Parameter(1),
+             LoadOp::Kind::RawAligned().Atomic(AtomicMemoryOrder::kSeqCst),
+             MemoryRepresentation::Uint32(), RegisterRepresentation::Word32());
+  m.Return(m.Emit(TSUnop::kChangeUint32ToUint64, load));
+  Stream s = m.Build(kAllInstructions);
+  bool found_atomic_load = false;
+  bool found_zero_extend = false;
+  for (size_t i = 0; i < s.size(); ++i) {
+    if (s[i]->arch_opcode() == kAtomicLoadWord32) found_atomic_load = true;
+    if (s[i]->arch_opcode() == kRiscvZeroExtendWord) {
+      found_zero_extend = true;
+    }
+  }
+  EXPECT_TRUE(found_atomic_load);
+  EXPECT_TRUE(found_zero_extend);
+}
+
+TEST_F(TurboshaftInstructionSelectorTest,
+       ChangeUint32ToUint64AfterTrappingLoad) {
+  // A trapping Uint32 load whose only use is the zero-extension is fused
+  // into a single trapping Lwu, with no separate zero-extension and no
+  // second load.
+  StreamBuilder m(this, MachineType::Uint64(), MachineType::Pointer(),
+                  MachineType::Int64());
+  OpIndex load =
+      m.Load(m.Parameter(0), m.Parameter(1), LoadOp::Kind::Trapping(),
+             MemoryRepresentation::Uint32(), RegisterRepresentation::Word32());
+  m.Return(m.Emit(TSUnop::kChangeUint32ToUint64, load));
+  Stream s = m.Build();
+  size_t num_loads = 0;
+  for (size_t i = 0; i < s.size(); ++i) {
+    const Instruction* instr = s[i];
+    if (instr->arch_opcode() == kRiscvLwu) {
+      ++num_loads;
+      EXPECT_EQ(kMemoryAccessTrapping,
+                AccessModeField::decode(instr->opcode()));
+    }
+    EXPECT_NE(kRiscvZeroExtendWord, instr->arch_opcode());
+  }
+  EXPECT_EQ(1U, num_loads);
+}
+
+TEST_F(TurboshaftInstructionSelectorTest,
+       ChangeUint32ToUint64AfterTrappingLoadFoldedAddress) {
+  // Same fusion, but the address arithmetic is folded into a Sh3add, so the
+  // fused load is emitted by TryFoldLoad. It must still be a single trapping
+  // Lwu (and carry the source position of the original load).
+  StreamBuilder m(this, MachineType::Uint64(), MachineType::Pointer(),
+                  MachineType::Int64(), MachineType::Int64());
+  OpIndex shifted = m.Word64ShiftLeft(m.Parameter(2), 3);
+  OpIndex addr = m.Word64Add(m.Parameter(1), shifted);
+  OpIndex load =
+      m.Load(m.Parameter(0), addr, LoadOp::Kind::Trapping(),
+             MemoryRepresentation::Uint32(), RegisterRepresentation::Word32(),
+             /*offset=*/8);
+  m.Return(m.Emit(TSUnop::kChangeUint32ToUint64, load));
+  Stream s = m.Build(CpuFeature::ZBA);
+  size_t num_loads = 0;
+  bool found_sh3add = false;
+  for (size_t i = 0; i < s.size(); ++i) {
+    const Instruction* instr = s[i];
+    if (instr->arch_opcode() == kRiscvSh3add) found_sh3add = true;
+    if (instr->arch_opcode() == kRiscvLwu) {
+      ++num_loads;
+      EXPECT_EQ(kMemoryAccessTrapping,
+                AccessModeField::decode(instr->opcode()));
+    }
+    EXPECT_NE(kRiscvZeroExtendWord, instr->arch_opcode());
+  }
+  EXPECT_TRUE(found_sh3add);
+  EXPECT_EQ(1U, num_loads);
 }
 
 // ----------------------------------------------------------------------------
@@ -1825,6 +1986,40 @@ TEST_P(TurboshaftInstructionSelectorAddSub128Test,
 INSTANTIATE_TEST_SUITE_P(TurboshaftInstructionSelectorTest,
                          TurboshaftInstructionSelectorAddSub128Test,
                          ::testing::ValuesIn(kAddOrSub128));
+
+TEST_F(TurboshaftInstructionSelectorTest, Word64Add3) {
+  StreamBuilder m(this, MachineType::Uint64(), MachineType::Uint64(),
+                  MachineType::Uint64(), MachineType::Uint64());
+  V<Word64> p0 = m.Parameter<Word64>(0);
+  V<Word64> p1 = m.Parameter<Word64>(1);
+  V<Word64> p2 = m.Parameter<Word64>(2);
+  V<Word64Pair> res = m.Word64Add3(p0, p1, p2);
+  OpIndex low = m.Projection(res, 0);
+  OpIndex high = m.Projection(res, 1);
+  m.Return(m.Word64Add(low, high));
+  Stream s = m.Build();
+  ASSERT_EQ(2U, s.size());
+  EXPECT_EQ(kRiscvAdd64_3, s[0]->arch_opcode());
+  EXPECT_EQ(kRiscvAdd64, s[1]->arch_opcode());
+  ASSERT_EQ(3U, s[0]->InputCount());
+  ASSERT_EQ(2U, s[0]->OutputCount());
+}
+
+TEST_F(TurboshaftInstructionSelectorTest, Word64Add3UnusedHigh) {
+  StreamBuilder m(this, MachineType::Uint64(), MachineType::Uint64(),
+                  MachineType::Uint64(), MachineType::Uint64());
+  V<Word64> p0 = m.Parameter<Word64>(0);
+  V<Word64> p1 = m.Parameter<Word64>(1);
+  V<Word64> p2 = m.Parameter<Word64>(2);
+  V<Word64Pair> res = m.Word64Add3(p0, p1, p2);
+  OpIndex low = m.Projection(res, 0);
+  m.Return(low);
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kRiscvAdd64_3, s[0]->arch_opcode());
+  ASSERT_EQ(3U, s[0]->InputCount());
+  ASSERT_EQ(1U, s[0]->OutputCount());
+}
 
 TEST_F(TurboshaftInstructionSelectorTest, Word32EqualWithReadOnlyRoot) {
   if (!V8_STATIC_ROOTS_BOOL &&

@@ -73,8 +73,6 @@ class V8_EXPORT_PRIVATE WasmGraphBuilderBase {
   using CallTarget = compiler::turboshaft::CallTarget;
   using Operator = compiler::Operator;
   using ConditionWithHint = compiler::turboshaft::ConditionWithHint;
-  template <typename T>
-  using ConstOrV = compiler::turboshaft::ConstOrV<T>;
   using EagerFrameState = compiler::turboshaft::EagerFrameState;
   using LoadOp = compiler::turboshaft::LoadOp;
   using MemoryRepresentation = compiler::turboshaft::MemoryRepresentation;
@@ -99,24 +97,27 @@ class V8_EXPORT_PRIVATE WasmGraphBuilderBase {
   V<BigInt> BuildChangeInt64ToBigInt(V<Word64> input, StubCallMode stub_mode);
 
   std::pair<V<Word32>, V<HeapObject>> BuildImportedFunctionTargetAndImplicitArg(
-      ConstOrV<Word32> func_index,
-      V<WasmTrustedInstanceData> trusted_instance_data);
+      uint32_t func_index, V<WasmTrustedInstanceData> trusted_instance_data);
 
+  V<WasmInternalFunction> LoadInternalFunctionFromFuncRef(
+      V<WasmFuncRef> func_ref, LoadOp::Kind load_kind);
+
+  // Dynamically loads the call target and `implicit_arg` at runtime from a
+  // `V<WasmInternalFunction>` node (used by standalone wrappers and Wasm
+  // `call_ref`).
   std::pair<V<Word32>, V<ExposedTrustedObject>>
   BuildFunctionTargetAndImplicitArg(V<WasmInternalFunction> internal_function);
 
-  RegisterRepresentation RepresentationFor(ValueTypeBase type);
+  // Resolves the call target (a permanent `WasmCodePointer` table index) and
+  // `implicit_arg` at compile time from a statically known
+  // `WasmInternalFunction` handle, embedding them as constants.
+  // Only valid when inlining into isolate-dependent JS code where the target
+  // `WasmInternalFunction` is fixed at compile time.
+  std::pair<V<Word32>, V<ExposedTrustedObject>>
+  BuildFunctionTargetAndImplicitArg(
+      DirectHandle<WasmInternalFunction> internal_function);
 
-  // TODO(14108): Annotate C functions as not having side effects where
-  // appropriate.
-  OpIndex CallC(const MachineSignature* sig, ExternalReference ref,
-                std::initializer_list<OpIndex> args);
-  OpIndex CallC(const MachineSignature* sig, OpIndex function,
-                std::initializer_list<OpIndex> args);
-  OpIndex CallC(const MachineSignature* sig, ExternalReference ref,
-                OpIndex arg) {
-    return CallC(sig, ref, {arg});
-  }
+  RegisterRepresentation RepresentationFor(ValueTypeBase type);
 
   void BuildSetNewStackLimit(V<WordPtr> old_limit, V<WordPtr> new_limit);
 

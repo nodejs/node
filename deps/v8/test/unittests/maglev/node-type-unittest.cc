@@ -76,7 +76,6 @@ TEST_F(MaglevTest, ConstantNodeTypeApproximationIsConsistent) {
       bool is_instance = IsInstanceOfNodeType(ref.map(broker()), a, broker());
       bool is_subtype = NodeTypeIs(t, a);
       CHECK_IMPLIES(is_subtype, is_instance);
-      CHECK_IMPLIES(!is_instance, !is_subtype);
     }
   }
 }
@@ -95,7 +94,6 @@ TEST_F(MaglevTest, NodeTypeApproximationIsConsistent) {
       bool is_instance = IsInstanceOfNodeType(map_ref, a, broker());
       bool is_subtype = NodeTypeIs(StaticTypeForMap(map_ref, broker()), a);
       CHECK_IMPLIES(is_subtype, is_instance);
-      CHECK_IMPLIES(!is_instance, !is_subtype);
     }
   }
 }
@@ -120,7 +118,6 @@ TEST_F(MaglevTest, NodeTypeIntersectIsConsistent) {
             IsInstanceOfNodeType(map_ref, combined_type, broker());
         CHECK_EQ(is_instance, map_is_a && map_is_b);
         DCHECK_IMPLIES(IsEmptyNodeType(combined_type), !is_instance);
-        DCHECK_IMPLIES(is_instance, !IsEmptyNodeType(combined_type));
       }
     }
   }
@@ -144,8 +141,6 @@ TEST_F(MaglevTest, NodeTypeUnionIsConsistent) {
         bool map_is_b = IsInstanceOfNodeType(map_ref, b, broker());
         CHECK_IMPLIES(map_is_a || map_is_b,
                       IsInstanceOfNodeType(map_ref, join_type, broker()));
-        CHECK_IMPLIES(!IsInstanceOfNodeType(map_ref, join_type, broker()),
-                      !(map_is_a && map_is_b));
       }
     }
   }

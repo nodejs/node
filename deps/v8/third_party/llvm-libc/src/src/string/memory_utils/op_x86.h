@@ -333,9 +333,7 @@ template <> LIBC_INLINE bool eq<__m512i>(CPtr p1, CPtr p2, size_t offset) {
 template <> LIBC_INLINE uint32_t neq<__m512i>(CPtr p1, CPtr p2, size_t offset) {
   const auto a = load<__m512i>(p1, offset);
   const auto b = load<__m512i>(p2, offset);
-  const uint64_t xored = _mm512_cmpneq_epi8_mask(a, b);
-  return static_cast<uint32_t>(xored >> 32) |
-         static_cast<uint32_t>(xored & 0xFFFFFFFF);
+  return _mm512_cmpneq_epi8_mask(a, b) != 0;
 }
 template <>
 LIBC_INLINE MemcmpReturnType cmp_neq<__m512i>(CPtr p1, CPtr p2, size_t offset) {

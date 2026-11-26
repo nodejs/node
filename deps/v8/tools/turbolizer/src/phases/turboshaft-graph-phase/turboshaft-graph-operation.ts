@@ -759,15 +759,15 @@ export class TurboshaftGraphOperation extends Node<TurboshaftGraphEdge<Turboshaf
 
   public buildOperationText(compact: boolean): string {
     if(!compact) {
-      return this.getNonCompactedOperationText();
+      return escapeHTML(this.getNonCompactedOperationText());
     }
     const that = this;
     if(this.compactPrinter) {
       return this.compactPrinter.Print(this.id, n => that.printInput(this.inputs[n].source));
     } else if(this.inputs.length == 0) {
-      return `v${this.id} ${this.title}`;
+      return `v${this.id} ${escapeHTML(this.title)}`;
     } else {
-      return `v${this.id} ${this.title}(${this.inputs.map(input => that.printInput(input.source)).join(", ")})`;
+      return `v${this.id} ${escapeHTML(this.title)}(${this.inputs.map(input => that.printInput(input.source)).join(", ")})`;
     }
   }
 

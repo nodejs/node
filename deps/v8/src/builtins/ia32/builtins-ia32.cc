@@ -1914,12 +1914,47 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     __ j(below, &call_stack_guard);
   }
 
+  // Reduce interrupt budget.
+  Label budget_interrupt;
+  {
+    ASM_CODE_COMMENT_STRING(masm, "Update Interrupt Budget");
+    __ movd(scratch, saved_bytecode_array);
+    __ mov(scratch, FieldOperand(scratch, offsetof(BytecodeArray, length_)));
+    __ SmiUntag(scratch);
+    // frame_size is dead after the stack check above.
+    Register feedback_cell = frame_size;
+    __ movd(feedback_cell, saved_feedback_cell);
+    __ sub(
+        FieldOperand(feedback_cell, offsetof(FeedbackCell, interrupt_budget_)),
+        scratch);
+    __ j(less, &budget_interrupt);
+  }
+
   // Push the return address back onto the stack for return.
   __ PushReturnAddressFrom(return_address, scratch);
   // Return to caller pushed pc, without any frame teardown.
   __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
   __ Ret();
 
+  __ bind(&budget_interrupt);
+  {
+    ASM_CODE_COMMENT_STRING(masm, "Budget interrupt call");
+    {
+      // Push the baseline code return address now, as if it had been pushed by
+      // the call to this builtin.
+      __ PushReturnAddressFrom(return_address, scratch);
+      FrameScope manual_frame_scope(masm, StackFrame::INTERNAL);
+      // Save incoming new target or generator
+      __ Push(kJavaScriptCallNewTargetRegister);
+      __ Push(closure);
+      __ CallRuntime(Runtime::kBytecodeBudgetInterrupt_Sparkplug, 1);
+      __ Pop(kJavaScriptCallNewTargetRegister);
+    }
+
+    // Return to caller pushed pc, without any frame teardown.
+    __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
+    __ Ret();
+  }
 
   __ bind(&call_stack_guard);
   {
@@ -3174,7 +3209,7 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
   // For the runtime call, we create the following stack layout:
   //
   // [ reserved slot for NativeModule ]  <-- arg[2]
-  // [  ("declared") function index   ]  <-- arg[1] for runtime func.
+  // [     defined function index     ]  <-- arg[1] for runtime func.
   // [       Wasm instance data       ]  <-- arg[0]
   // [ ...spilled Wasm parameters...  ]
   // [           calling pc           ]  <-- already in place
@@ -3334,6 +3369,22 @@ void LoadJumpBuffer(MacroAssembler* masm, Register stack, bool load_pc) {
     __ jmp(MemOperand(stack, wasm::kStackPcOffset));
   }
   // The stack limit is set separately under the ExecutionAccess lock.
+}
+
+// Returns from the frameless tail of a stack-switching WasmFX builtin (see
+// {Builtins::BypassesReturnAddressPrediction}).
+void ReturnFromStackSwitchingBuiltin(MacroAssembler* masm, Builtin builtin,
+                                     int bytes_to_drop) {
+  if (Builtins::BypassesReturnAddressPrediction(builtin)) {
+    // The caller did not push a return address prediction, so do not consume
+    // one: return via an indirect jump instead of a {ret}.
+    static_assert(kReturnRegister0 != ecx);
+    __ PopReturnAddressTo(ecx);
+    if (bytes_to_drop != 0) __ add(esp, Immediate(bytes_to_drop));
+    __ jmp(ecx);
+  } else {
+    __ ret(bytes_to_drop);
+  }
 }
 
 void LoadTargetJumpBuffer(MacroAssembler* masm, Register target_stack) {
@@ -3509,10 +3560,14 @@ void SwitchBackAndReturnPromise(MacroAssembler* masm, Register tmp,
   // wrapper.
 
   static const Builtin_FulfillPromise_InterfaceDescriptor desc;
-  static_assert(kReturnRegister0 == desc.GetRegisterParameter(0));
+  static_assert(
+      kReturnRegister0 ==
+      Builtin_FulfillPromise_InterfaceDescriptor::GetRegisterParameter(0));
 
-  Register promise = desc.GetRegisterParameter(0);
-  Register return_value = desc.GetRegisterParameter(1);
+  Register promise =
+      Builtin_FulfillPromise_InterfaceDescriptor::GetRegisterParameter(0);
+  Register return_value =
+      Builtin_FulfillPromise_InterfaceDescriptor::GetRegisterParameter(1);
 
   if (mode == wasm::kPromise) {
     __ mov(return_value, kReturnRegister0);
@@ -3550,8 +3605,10 @@ void GenerateExceptionHandlingLandingPad(MacroAssembler* masm,
   // The exception becomes the parameter of the RejectPromise builtin, and the
   // promise is the return value of this wrapper.
   static const Builtin_RejectPromise_InterfaceDescriptor desc;
-  constexpr Register promise = desc.GetRegisterParameter(0);
-  constexpr Register reason = desc.GetRegisterParameter(1);
+  constexpr Register promise =
+      Builtin_RejectPromise_InterfaceDescriptor::GetRegisterParameter(0);
+  constexpr Register reason =
+      Builtin_RejectPromise_InterfaceDescriptor::GetRegisterParameter(1);
   DCHECK(kReturnRegister0 == promise);
 
   __ mov(reason, kReturnRegister0);
@@ -3573,7 +3630,8 @@ void GenerateExceptionHandlingLandingPad(MacroAssembler* masm,
   __ Move(MemOperand(ebp, WasmJspiFrameConstants::kGCScanSlotCountOffset),
           Immediate(1));
   __ Push(promise);
-  Register debug_event = desc.GetRegisterParameter(2);
+  Register debug_event =
+      Builtin_RejectPromise_InterfaceDescriptor::GetRegisterParameter(2);
   __ LoadRoot(debug_event, RootIndex::kTrueValue);
   __ CallBuiltin(Builtin::kRejectPromise);
   __ Pop(promise);
@@ -4016,7 +4074,7 @@ void Builtins::Generate_WasmFXResume(MacroAssembler* masm) {
   // Return the arg buffer.
   __ Move(kReturnRegister0, WasmFXReturnDescriptor::GetRegisterParameter(0));
   __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
-  __ ret(0);
+  ReturnFromStackSwitchingBuiltin(masm, Builtin::kWasmFXResume, 0);
 }
 
 void Builtins::Generate_WasmFXResumeThrow(MacroAssembler* masm) {
@@ -4071,7 +4129,8 @@ void Builtins::Generate_WasmFXResumeThrow(MacroAssembler* masm) {
   // Return the arg buffer.
   __ Move(kReturnRegister0, WasmFXReturnDescriptor::GetRegisterParameter(0));
   __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
-  __ Ret();
+  static_assert(WasmFXResumeThrowDescriptor::GetStackParameterCount() == 0);
+  ReturnFromStackSwitchingBuiltin(masm, Builtin::kWasmFXResumeThrow, 0);
 }
 
 void Builtins::Generate_WasmFXResumeThrowRef(MacroAssembler* masm) {
@@ -4120,7 +4179,8 @@ void Builtins::Generate_WasmFXResumeThrowRef(MacroAssembler* masm) {
   // Return the arg buffer.
   __ Move(kReturnRegister0, WasmFXReturnDescriptor::GetRegisterParameter(0));
   __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
-  __ Ret();
+  static_assert(WasmFXResumeThrowRefDescriptor::GetStackParameterCount() == 0);
+  ReturnFromStackSwitchingBuiltin(masm, Builtin::kWasmFXResumeThrowRef, 0);
 }
 
 void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
@@ -4171,8 +4231,9 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
   __ bind(&resume);
   __ mov(kReturnRegister0, WasmFXResumeDescriptor::GetRegisterParameter(1));
   __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
-  __ ret(WasmFXSuspendDescriptor::GetStackParameterCount() *
-         kSystemPointerSize);
+  ReturnFromStackSwitchingBuiltin(
+      masm, Builtin::kWasmFXSuspend,
+      WasmFXSuspendDescriptor::GetStackParameterCount() * kSystemPointerSize);
 }
 
 void Builtins::Generate_WasmFXSwitch(MacroAssembler* masm) {
@@ -4236,7 +4297,9 @@ void Builtins::Generate_WasmFXSwitch(MacroAssembler* masm) {
   __ bind(&resume);
   __ mov(kReturnRegister0, WasmFXResumeDescriptor::GetRegisterParameter(1));
   __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
-  __ ret(WasmFXSwitchDescriptor::GetStackParameterCount() * kSystemPointerSize);
+  ReturnFromStackSwitchingBuiltin(
+      masm, Builtin::kWasmFXSwitch,
+      WasmFXSwitchDescriptor::GetStackParameterCount() * kSystemPointerSize);
 }
 
 void Builtins::Generate_WasmFXReturn(MacroAssembler* masm) {
@@ -5242,6 +5305,7 @@ void Builtins::Generate_DeoptimizationEntry_LazyAfterFastCall(
   __ CallRuntime(Runtime::FunctionId::kPropagateException);
   __ MaybeRestoreRegisters(kCalleeSaveRegisters);
   __ LeaveFrame(StackFrame::INTERNAL);
+  __ TailCallBuiltin(Builtin::kDeoptimizationEntry_Lazy);
 
   __ bind(&no_exception);
   // Deoptimization expects that the return value of the API call is in the

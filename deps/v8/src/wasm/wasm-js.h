@@ -36,18 +36,14 @@ CompileTimeImportsFromOptions(const v8::WasmModuleObject::CompileOptions&);
 
 #define WASM_JS_EXTERNAL_REFERENCE_LIST(V) \
   V(WebAssemblyCompile)                    \
-  V(WebAssemblyException)                  \
   V(WebAssemblyExceptionGetArg)            \
   V(WebAssemblyExceptionGetStack)          \
   V(WebAssemblyExceptionIs)                \
-  V(WebAssemblyGlobal)                     \
   V(WebAssemblyGlobalGetValue)             \
   V(WebAssemblyGlobalSetValue)             \
   V(WebAssemblyGlobalValueOf)              \
-  V(WebAssemblyInstance)                   \
   V(WebAssemblyInstanceGetExports)         \
   V(WebAssemblyInstantiate)                \
-  V(WebAssemblyMemory)                     \
   V(WebAssemblyMemoryMapDescriptor)        \
   V(WebAssemblyMemoryGetBuffer)            \
   V(WebAssemblyMemoryGrow)                 \
@@ -55,17 +51,14 @@ CompileTimeImportsFromOptions(const v8::WasmModuleObject::CompileOptions&);
   V(WebAssemblyMemoryMapDescriptorUnmap)   \
   V(WebAssemblyMemoryToFixedLengthBuffer)  \
   V(WebAssemblyMemoryToResizableBuffer)    \
-  V(WebAssemblyModule)                     \
   V(WebAssemblyModuleCustomSections)       \
   V(WebAssemblyModuleExports)              \
   V(WebAssemblyModuleImports)              \
-  V(WebAssemblyTable)                      \
+  V(WebAssemblyPromising)                  \
   V(WebAssemblyTableGet)                   \
   V(WebAssemblyTableGetLength)             \
   V(WebAssemblyTableGrow)                  \
   V(WebAssemblyTableSet)                   \
-  V(WebAssemblyTag)                        \
-  V(WebAssemblySuspending)                 \
   V(WebAssemblyValidate)
 
 #define DECL_WASM_JS_EXTERNAL_REFERENCE(Name) \
@@ -104,8 +97,7 @@ class WasmJs {
       DirectHandle<JSObject> webassembly);
 
   V8_EXPORT_PRIVATE static bool InstallJSPromiseIntegration(
-      Isolate* isolate, DirectHandle<NativeContext> context,
-      DirectHandle<JSObject> webassembly);
+      Isolate* isolate, DirectHandle<JSObject> webassembly);
 };
 
 }  // namespace v8::internal

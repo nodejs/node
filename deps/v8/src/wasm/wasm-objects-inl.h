@@ -360,8 +360,12 @@ WTI_PROTECTED_POINTER_ACCESSORS(data_segments,
                                 kProtectedDataSegmentsOffset)
 WTI_TAGGED_ACCESSORS(element_segments, Tagged<FixedArray>,
                      kElementSegmentsOffset)
-PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, break_on_entry, uint8_t,
-                    kBreakOnEntryOffset)
+bool WasmTrustedInstanceData::break_on_entry() const {
+  return RELAXED_READ_UINT8_FIELD(this, kBreakOnEntryOffset) != 0;
+}
+void WasmTrustedInstanceData::set_break_on_entry(bool value) {
+  RELAXED_WRITE_UINT8_FIELD(this, kBreakOnEntryOffset, value ? 1 : 0);
+}
 
 WTI_OPTIONAL_TAGGED_ACCESSORS(instance_object, Tagged<WasmInstanceObject>,
                               kInstanceObjectOffset)
@@ -751,9 +755,23 @@ void WasmImportData::clear_padding() {
 
 // WasmInternalFunction
 
+WasmInternalFunction::WasmInternalFunction(const AllocationWitness& witness,
+                                           Isolate* isolate,
+                                           Tagged<WasmImplicitArg> implicit_arg,
+                                           int function_index,
+                                           WasmCodePointer call_target,
+                                           const wasm::CanonicalSig* sig)
+    : ExposedTrustedObject(witness.roots().wasm_internal_function_map()),
+      protected_implicit_arg_(witness, implicit_arg),
+      external_(witness.roots().undefined_value()),
+      function_index_(Smi::FromInt(function_index)),
+      call_target_(call_target),
+      sig_(reinterpret_cast<Address>(sig)) {
+  InitAndPublish(isolate);
+}
+
 // {implicit_arg} will be a WasmTrustedInstanceData or a WasmImportData.
 Tagged<WasmImplicitArg> WasmInternalFunction::implicit_arg() const {
-  DCHECK(has_implicit_arg());
   return protected_implicit_arg_.load();
 }
 
@@ -763,17 +781,6 @@ Tagged<WasmTrustedInstanceData> WasmInternalFunction::instance_data() const {
     return TrustedCast<WasmTrustedInstanceData>(arg);
   }
   return TrustedCast<WasmImportData>(arg)->importing_instance_data();
-}
-
-void WasmInternalFunction::set_implicit_arg(Tagged<WasmImplicitArg> value,
-                                            WriteBarrierMode mode) {
-  protected_implicit_arg_.store(this, value, mode);
-}
-bool WasmInternalFunction::has_implicit_arg() const {
-  return !protected_implicit_arg_.load().is_null();
-}
-void WasmInternalFunction::clear_implicit_arg() {
-  protected_implicit_arg_.store(this, {}, SKIP_WRITE_BARRIER);
 }
 
 Tagged<UnionOf<JSFunction, Undefined>> WasmInternalFunction::external() const {
@@ -787,43 +794,27 @@ void WasmInternalFunction::set_external(
 int WasmInternalFunction::function_index() const {
   return function_index_.load().value();
 }
-void WasmInternalFunction::set_function_index(int value) {
-  function_index_.store_no_write_barrier(Smi::FromInt(value));
-}
-
-uint32_t WasmInternalFunction::raw_call_target() const {
-  return raw_call_target_.value();
-}
-void WasmInternalFunction::set_raw_call_target(uint32_t value) {
-  raw_call_target_ = WasmCodePointer{value};
-}
 
 const wasm::CanonicalSig* WasmInternalFunction::sig() const {
   return reinterpret_cast<const wasm::CanonicalSig*>(sig_.value());
 }
-void WasmInternalFunction::set_sig(const wasm::CanonicalSig* value) {
-  sig_.set_value(reinterpret_cast<Address>(value));
+
+WasmCodePointer WasmInternalFunction::call_target() const {
+  return call_target_;
 }
 
 // WasmFuncRef
+WasmFuncRef::WasmFuncRef(const AllocationWitness& witness,
+                         Tagged<WasmInternalFunction> internal, Tagged<Map> rtt)
+    : HeapObject(witness, rtt), trusted_internal_(witness, internal) {
+  DCHECK_EQ(WASM_FUNC_REF_TYPE, rtt->instance_type());
+  DCHECK_EQ(WasmFuncRef::kSize, rtt->instance_size());
+}
+
 Tagged<WasmInternalFunction> WasmFuncRef::internal(
     IsolateForSandbox isolate) const {
   return trusted_internal_.load(isolate);
 }
-Tagged<WasmInternalFunction> WasmFuncRef::internal(IsolateForSandbox isolate,
-                                                   AcquireLoadTag) const {
-  return trusted_internal_.Acquire_Load(isolate);
-}
-void WasmFuncRef::set_internal(Tagged<WasmInternalFunction> value,
-                               WriteBarrierMode mode) {
-  trusted_internal_.store(this, value, mode);
-}
-void WasmFuncRef::set_internal(Tagged<WasmInternalFunction> value,
-                               ReleaseStoreTag, WriteBarrierMode mode) {
-  trusted_internal_.Release_Store(this, value, mode);
-}
-bool WasmFuncRef::has_internal() const { return !trusted_internal_.is_empty(); }
-void WasmFuncRef::clear_internal() { trusted_internal_.clear(this); }
 
 // WasmFunctionData
 Tagged<WasmInternalFunction> WasmFunctionData::internal() const {
@@ -859,18 +850,11 @@ void WasmFunctionData::set_js_promise_flags(int value) {
 // WasmExportedFunctionData
 Tagged<WasmTrustedInstanceData> WasmExportedFunctionData::instance_data()
     const {
-  DCHECK(has_instance_data());
   return protected_instance_data_.load();
 }
 void WasmExportedFunctionData::set_instance_data(
     Tagged<WasmTrustedInstanceData> value, WriteBarrierMode mode) {
   protected_instance_data_.store(this, value, mode);
-}
-bool WasmExportedFunctionData::has_instance_data() const {
-  return !protected_instance_data_.load().is_null();
-}
-void WasmExportedFunctionData::clear_instance_data() {
-  protected_instance_data_.store(this, {}, SKIP_WRITE_BARRIER);
 }
 
 Tagged<Code> WasmExportedFunctionData::c_wrapper_code(
@@ -907,11 +891,6 @@ void WasmExportedFunctionData::set_packed_args_size(int value) {
 bool WasmExportedFunctionData::is_promising() const {
   return WasmFunctionData::PromiseField::decode(js_promise_flags()) ==
          wasm::kPromise;
-}
-
-WasmCodePointer WasmInternalFunction::call_target() { return raw_call_target_; }
-void WasmInternalFunction::set_call_target(WasmCodePointer code_pointer) {
-  raw_call_target_ = code_pointer;
 }
 
 // WasmCapiFunctionData
@@ -1321,13 +1300,6 @@ Address WasmStruct::RawFieldAddress(int raw_offset) {
 // TODO(jkummerow): Stop shadowing {HeapObject::RawField} maybe?
 ObjectSlot WasmStruct::RawField(int raw_offset) {
   return ObjectSlot(RawFieldAddress(raw_offset));
-}
-
-void WasmStruct::SetTaggedFieldValue(int raw_offset, Tagged<Object> value,
-                                     WriteBarrierMode mode) {
-  int offset = WasmStruct::kHeaderSize + raw_offset;
-  TaggedField<Object>::store(Tagged<WasmStruct>(this), offset, value);
-  CONDITIONAL_WRITE_BARRIER(Tagged<HeapObject>(this), offset, value, mode);
 }
 
 Tagged<Map> WasmStruct::described_rtt() const {

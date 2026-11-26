@@ -197,9 +197,9 @@ template <bool IS_SIN> LIBC_INLINE float sincosf_eval(float x) {
   // 0x1.aa8...p-29
 
   // p1 = y^2 * 1/120 - 1/6
-  float p1 = fputil::multiply_add(y_sq, 0x1.111112p-7f, -0x1.555556p-3f);
+  float p1 = fputil::multiply_sub(y_sq, 0x1.111112p-7f, 0x1.555556p-3f);
   // q1 = y^2 * coeff(Q, 4) + coeff(Q, 2)
-  float q1 = fputil::multiply_add(y_sq, 0x1.54b8bep-5f, -0x1.ffffc4p-2f);
+  float q1 = fputil::multiply_sub(y_sq, 0x1.54b8bep-5f, 0x1.ffffc4p-2f);
   float y3 = y_sq * y;
   // c1 ~ cos(y)
   float c1 = fputil::multiply_add(y_sq, q1, 1.0f);
@@ -211,7 +211,7 @@ template <bool IS_SIN> LIBC_INLINE float sincosf_eval(float x) {
     return fputil::multiply_add(sin_k, c1, cos_k * s1);
   } else {
     // cos(x) = cos(k * pi/8) * cos(y) - sin(k * pi/8) * sin(y).
-    return fputil::multiply_add(cos_k, c1, -sin_k * s1);
+    return fputil::multiply_sub(cos_k, c1, sin_k * s1);
   }
 }
 

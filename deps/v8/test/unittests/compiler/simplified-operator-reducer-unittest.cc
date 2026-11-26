@@ -497,6 +497,59 @@ TEST_F(SimplifiedOperatorReducerTest, ObjectIsSmiWithNumberConstant) {
   }
 }
 
+TEST_F(SimplifiedOperatorReducerTest,
+       ObjectIsSmiWithChangeTaggedToTaggedPointer) {
+  Node* param0 = Parameter(0);
+  Reduction reduction = Reduce(graph()->NewNode(
+      simplified()->ObjectIsSmi(),
+      graph()->NewNode(simplified()->ChangeTaggedToTaggedPointer(), param0)));
+  ASSERT_TRUE(reduction.Changed());
+  EXPECT_THAT(reduction.replacement(), IsFalseConstant());
+}
+
+TEST_F(SimplifiedOperatorReducerTest,
+       ObjectIsSmiWithChangeFloat64OrUndefinedToTagged) {
+  Node* param0 = Parameter(0);
+  TRACED_FOREACH(CheckForMinusZeroMode, mode, kCheckForMinusZeroModes) {
+    Reduction reduction = Reduce(graph()->NewNode(
+        simplified()->ObjectIsSmi(),
+        graph()->NewNode(simplified()->ChangeFloat64OrUndefinedToTagged(mode),
+                         param0)));
+    ASSERT_TRUE(reduction.Changed());
+    EXPECT_THAT(reduction.replacement(), IsFalseConstant());
+  }
+}
+
+TEST_F(SimplifiedOperatorReducerTest,
+       ChangeTaggedToTaggedPointerWithKnownNonSmi) {
+  Node* param0 = Parameter(0);
+  Node* heap_const = HeapConstantNoHole(factory()->null_value());
+  Reduction r1 = Reduce(graph()->NewNode(
+      simplified()->ChangeTaggedToTaggedPointer(), heap_const));
+  ASSERT_TRUE(r1.Changed());
+  EXPECT_EQ(heap_const, r1.replacement());
+
+  Node* float_ptr =
+      graph()->NewNode(simplified()->ChangeFloat64ToTaggedPointer(), param0);
+  Reduction r2 = Reduce(
+      graph()->NewNode(simplified()->ChangeTaggedToTaggedPointer(), float_ptr));
+  ASSERT_TRUE(r2.Changed());
+  EXPECT_EQ(float_ptr, r2.replacement());
+
+  Node* float_or_undef =
+      graph()->NewNode(simplified()->ChangeFloat64OrUndefinedToTagged(
+                           CheckForMinusZeroMode::kCheckForMinusZero),
+                       param0);
+  Reduction r3 = Reduce(graph()->NewNode(
+      simplified()->ChangeTaggedToTaggedPointer(), float_or_undef));
+  ASSERT_TRUE(r3.Changed());
+  EXPECT_EQ(float_or_undef, r3.replacement());
+
+  Reduction r_unknown = Reduce(
+      graph()->NewNode(simplified()->ChangeTaggedToTaggedPointer(), param0));
+  EXPECT_FALSE(r_unknown.Changed());
+}
+
 // -----------------------------------------------------------------------------
 // CheckedInt32Add
 

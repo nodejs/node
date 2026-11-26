@@ -256,6 +256,7 @@ Tagged<JSGlobalObject> OptimizedCompilationInfo::global_object() const {
 int OptimizedCompilationInfo::AddInlinedFunction(
     IndirectHandle<SharedFunctionInfo> inlined_function,
     IndirectHandle<BytecodeArray> inlined_bytecode, SourcePosition pos) {
+  DCHECK(!HasReachedMaxInliningId());
   int id = static_cast<int>(inlined_functions_.size());
   inlined_functions_.push_back(
       InlinedFunctionHolder(inlined_function, inlined_bytecode, pos));

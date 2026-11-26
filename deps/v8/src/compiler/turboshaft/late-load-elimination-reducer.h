@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_TURBOSHAFT_LATE_LOAD_ELIMINATION_REDUCER_H_
 #define V8_COMPILER_TURBOSHAFT_LATE_LOAD_ELIMINATION_REDUCER_H_
 
+#include <limits>
 #include <optional>
 
 #include "src/base/compiler-specific.h"
@@ -120,14 +121,14 @@ namespace v8::internal::compiler::turboshaft {
 //        function, or when there is an indexed store in this base).
 //     5. Invalidate everything (for an indexed store into an arbitrary base)
 //
-// To have 1. in constant time, we maintain a global hashmap (`all_keys`) from
+// To have 1. in constant time, we maintain a global hashmap (`all_keys_`) from
 // MemoryAddress (= {base, index, offset, element_size_log2,
 // MemoryRepresentation}) to Keys, and from these Keys, we have constant-time
 // lookup in the SnapshotTable.
 // To have 3. efficiently, we maintain a Map from offsets to lists of every
-// MemoryAddress at this offset (`offset_keys_`).
+// MemoryAddress with a mutable value at this offset (`offset_keys_`).
 // To have 4. efficiently, we have a similar map from bases to lists of every
-// MemoryAddress at this base (`base_keys_`).
+// MemoryAddress with a mutable value at this base (`base_keys_`).
 // For 5., we can use either `offset_keys_` or `base_keys_`. In practice, we use
 // the latter because it allows us to efficiently skip bases that are known to
 // have no aliases.
@@ -147,9 +148,15 @@ namespace v8::internal::compiler::turboshaft {
 // B.or_, it means that all of the maps of A have a bit that none of the maps of
 // B have, ie, A and B are guaranteed to not have a map in common.
 using MapMask = uint64_t;
+constexpr MapMask kStringMapMask = 1;
 struct MapMaskAndOr {
   MapMask or_ = 0;
   MapMask and_ = -1ull;
+
+  bool is_empty() const { return or_ == 0 && and_ == -1ull; }
+  bool could_be_string() const {
+    return is_empty() || (or_ & kStringMapMask) != 0;
+  }
 
   bool operator==(const MapMaskAndOr& other) const {
     return or_ == other.or_ && and_ == other.and_;
@@ -157,19 +164,21 @@ struct MapMaskAndOr {
 
   bool operator!=(const MapMaskAndOr& other) const { return !(*this == other); }
 };
-inline bool is_empty(MapMaskAndOr minmax) {
-  return minmax.or_ == 0 && minmax.and_ == -1ull;
-}
+inline bool is_empty(MapMaskAndOr minmax) { return minmax.is_empty(); }
 inline MapMask ComputeMapHash(MapRef map) {
   // `map.hash_value()` is probably not a good enough hash, since most user maps
   // will have the same upper bits, so we re-hash. We're using xorshift64* (from
   // "An experimental exploration of Marsaglia’s xorshift generators, scrambled"
   // by Vigna in ACM Transactions on Mathematical Software, Volume 42).
+  // Reserve bit 0 to record whether {map} is a String map (which GC can
+  // transition in-place).
   MapMask hash = map.hash_value();
   hash ^= hash >> 12;
   hash ^= hash << 25;
   hash ^= hash >> 27;
-  return hash * 0x2545f4914f6cdd1d;
+  hash = (hash * 0x2545f4914f6cdd1d) & ~kStringMapMask;
+  if (map.IsStringMap()) hash |= kStringMapMask;
+  return hash;
 }
 inline MapMaskAndOr ComputeMinMaxHash(ZoneRefSet<Map> maps) {
   MapMaskAndOr minmax;
@@ -235,13 +244,78 @@ struct MemoryAddress {
 };
 std::ostream& operator<<(std::ostream& os, const MemoryAddress& mem);
 
-inline size_t hash_value(MemoryAddress const& mem) {
-  return fast_hash_combine(mem.base, mem.index, mem.offset,
-                           mem.element_size_log2, mem.representation.value());
-}
+// Compact 32-bit representation of `{OpIndex value, bool is_immutable}`.
+//
+// Immutability is not a property of the `MemoryAddress`. Instead it's a
+// property established at some point in the graph (e.g. after a map check).
+// Any dominated code can then assume it's immutable (even loads that aren't
+// marked as such). If the immutability property doesn't hold anymore, code
+// that relies on it would get deoptimized.
+class MemorySlotValue {
+ public:
+  constexpr MemorySlotValue() = default;
+
+  constexpr MemorySlotValue(OpIndex value, bool is_immutable)
+      : raw_(base::bit_cast<uint32_t>(value) |
+             (is_immutable ? kImmutableBit : 0)) {
+    DCHECK(value.valid());
+    DCHECK_EQ(base::bit_cast<uint32_t>(value) & kImmutableBit, 0);
+    DCHECK_NE(raw_ | kImmutableBit, kInvalid);
+  }
+
+  constexpr bool valid() const { return raw_ != kInvalid; }
+
+  constexpr OpIndex value() const {
+    DCHECK(valid());
+    OpIndex result = base::bit_cast<OpIndex>(raw_ & ~kImmutableBit);
+    SLOW_DCHECK(result.CheckInvariants());
+    return result;
+  }
+
+  constexpr bool is_immutable() const {
+    DCHECK(valid());
+    return (raw_ & kImmutableBit) != 0;
+  }
+
+  constexpr bool has_mutable_value() const {
+    return valid() && !is_immutable();
+  }
+
+  // Intersects two slot values: keeps the `OpIndex` only if both agree (and
+  // `is_immutable` only if both are immutable), otherwise returns invalid.
+  constexpr MemorySlotValue Intersect(MemorySlotValue other) const {
+    // Since no valid slot has `raw_ | kImmutableBit == kInvalid`, any
+    // difference outside `kImmutableBit` means mismatched or invalid values.
+    if ((raw_ ^ other.raw_) > kImmutableBit) {
+      return MemorySlotValue{};
+    }
+    return MemorySlotValue(raw_ & other.raw_);
+  }
+
+  constexpr bool operator==(const MemorySlotValue&) const = default;
+
+ private:
+  explicit constexpr MemorySlotValue(uint32_t raw) : raw_(raw) {}
+
+  // Valid `OpIndex` offsets are multiples of `sizeof(OperationStorageSlot)`
+  // (8), so bit 0 (LSB) is always 0 and we encode `is_immutable` there to keep
+  // this class 4 bytes.
+  static constexpr uint32_t kImmutableBit = 1;
+  static constexpr uint32_t kInvalid =
+      base::bit_cast<uint32_t>(OpIndex::Invalid());
+  static_assert(sizeof(OperationStorageSlot) == 8);
+  static_assert(kInvalid == std::numeric_limits<uint32_t>::max());
+
+  uint32_t raw_ = kInvalid;
+};
+static_assert(!MemorySlotValue{}.valid());
+// Keep `MemorySlotValue` 32-bit: it is stored per key in `SnapshotTable` logs
+// and merge buffers, so growing it can significantly increase peak compile
+// memory on large merges.
+static_assert(sizeof(MemorySlotValue) == 4);
 
 struct KeyData {
-  using Key = SnapshotTableKey<OpIndex, KeyData>;
+  using Key = SnapshotTableKey<MemorySlotValue, KeyData>;
   MemoryAddress mem;
   // Pointers to the previous and the next Keys at the same base.
   Key* prev_same_base = nullptr;
@@ -252,21 +326,21 @@ struct KeyData {
 };
 
 struct OffsetListTraits {
-  using T = SnapshotTable<OpIndex, KeyData>::Key;
+  using T = SnapshotTable<MemorySlotValue, KeyData>::Key;
   static T** prev(T t) { return &(t.data().prev_same_offset); }
   static T* next(T t) { return &(t.data().next_same_offset); }
   static bool non_empty(T t) { return t.valid(); }
 };
 
 struct BaseListTraits {
-  using T = SnapshotTable<OpIndex, KeyData>::Key;
+  using T = SnapshotTable<MemorySlotValue, KeyData>::Key;
   static T** prev(T t) { return &(t.data().prev_same_base); }
   static T* next(T t) { return &(t.data().next_same_base); }
   static bool non_empty(T t) { return t.valid(); }
 };
 
 struct BaseData {
-  using Key = SnapshotTable<OpIndex, KeyData>::Key;
+  using Key = SnapshotTable<MemorySlotValue, KeyData>::Key;
   // List of every value at this base that has an offset rather than an index.
   v8::base::DoublyThreadedList<Key, BaseListTraits> with_offsets;
   // List of every value at this base that has a valid index.
@@ -336,7 +410,8 @@ V8_EXPORT_PRIVATE bool IsInt32TruncatedLoadPattern(
     OpIndex* bitcast_idx = nullptr, OpIndex* load_idx = nullptr);
 
 class MemoryContentTable
-    : public ChangeTrackingSnapshotTable<MemoryContentTable, OpIndex, KeyData> {
+    : public ChangeTrackingSnapshotTable<MemoryContentTable, MemorySlotValue,
+                                         KeyData> {
  public:
   using Replacement = LoadEliminationReplacement;
   explicit MemoryContentTable(
@@ -351,20 +426,22 @@ class MemoryContentTable
         base_keys_(zone),
         offset_keys_(zone) {}
 
-  void OnNewKey(Key key, OpIndex value) {
-    if (value.valid()) {
+  void OnNewKey(Key key, MemorySlotValue value) {
+    if (value.has_mutable_value()) {
       AddKeyInBaseOffsetMaps(key);
     }
   }
 
-  void OnValueChange(Key key, OpIndex old_value, OpIndex new_value) {
+  void OnValueChange(Key key, MemorySlotValue old_value,
+                     MemorySlotValue new_value) {
     DCHECK_NE(old_value, new_value);
-    if (old_value.valid() && !new_value.valid()) {
+    if (old_value.has_mutable_value() && !new_value.has_mutable_value()) {
       RemoveKeyFromBaseOffsetMaps(key);
-    } else if (new_value.valid() && !old_value.valid()) {
+    } else if (!old_value.has_mutable_value() &&
+               new_value.has_mutable_value()) {
       AddKeyInBaseOffsetMaps(key);
     } else {
-      DCHECK_EQ(new_value.valid(), old_value.valid());
+      DCHECK_EQ(old_value.has_mutable_value(), new_value.has_mutable_value());
     }
   }
 
@@ -393,7 +470,7 @@ class MemoryContentTable
           // Overwrites {key}.
           it = base_keys->second.with_offsets.RemoveAt(it);
           TRACE(">>> invalidating " << key.data().mem);
-          Set(key, OpIndex::Invalid());
+          InvalidateMutable(key);
         } else {
           ++it;
         }
@@ -404,7 +481,7 @@ class MemoryContentTable
         Key key = *it;
         DCHECK(key.data().mem.index.valid());
         it = base_keys->second.with_indices.RemoveAt(it);
-        Set(key, OpIndex::Invalid());
+        InvalidateMutable(key);
       }
     } else {
       TRACE(">> base is maybe-aliasing");
@@ -429,7 +506,7 @@ class MemoryContentTable
         Key key = *it;
         it = index_keys_.RemoveAt(it);
         TRACE(">>> Invalidating indexed memory " << key.data().mem);
-        Set(key, OpIndex::Invalid());
+        InvalidateMutable(key);
       }
 
       TRACE(">>> Invalidating everything maybe-aliasing at offset " << offset);
@@ -464,19 +541,19 @@ class MemoryContentTable
       for (auto it = base_keys.second.with_offsets.begin();
            it != base_keys.second.with_offsets.end();) {
         Key key = *it;
-        // It's important to remove with RemoveAt before Setting the key to
-        // invalid, otherwise OnKeyChange will remove {key} from {base_keys},
-        // which will invalidate {it}.
+        // It's important to remove with RemoveAt before invalidating the key,
+        // otherwise OnValueChange will remove {key} from {base_keys}, which
+        // will invalidate {it}.
         it = base_keys.second.with_offsets.RemoveAt(it);
         TRACE(">>> Invalidating " << key.data().mem);
-        Set(key, OpIndex::Invalid());
+        InvalidateMutable(key);
       }
       for (auto it = base_keys.second.with_indices.begin();
            it != base_keys.second.with_indices.end();) {
         Key key = *it;
         it = base_keys.second.with_indices.RemoveAt(it);
         TRACE(">>> Invalidating " << key.data().mem);
-        Set(key, OpIndex::Invalid());
+        InvalidateMutable(key);
       }
     }
   }
@@ -486,33 +563,29 @@ class MemoryContentTable
       for (auto it = base_keys.second.with_offsets.begin();
            it != base_keys.second.with_offsets.end();) {
         Key key = *it;
-        // It's important to remove with RemoveAt before Setting the key to
-        // invalid, otherwise OnKeyChange will remove {key} from {base_keys},
-        // which will invalidate {it}.
+        // It's important to remove with RemoveAt before invalidating the key,
+        // otherwise OnValueChange will remove {key} from {base_keys}, which
+        // will invalidate {it}.
         it = base_keys.second.with_offsets.RemoveAt(it);
         TRACE(">>> Invalidating " << key.data().mem);
-        Set(key, OpIndex::Invalid());
+        InvalidateMutable(key);
       }
       for (auto it = base_keys.second.with_indices.begin();
            it != base_keys.second.with_indices.end();) {
         Key key = *it;
         it = base_keys.second.with_indices.RemoveAt(it);
         TRACE(">>> Invalidating " << key.data().mem);
-        Set(key, OpIndex::Invalid());
+        InvalidateMutable(key);
       }
     }
   }
 
-  OpIndex Find(const LoadOp& load) {
+  MemorySlotValue Find(const LoadOp& load) {
     OpIndex base = ResolveBase(load.base());
     OptionalOpIndex index = load.index();
     int32_t offset = load.offset;
     uint8_t element_size_log2 = index.valid() ? load.element_size_log2 : 0;
-
-    MemoryAddress mem(base, index, offset, element_size_log2, load.loaded_rep);
-    auto key = all_keys_.find(mem);
-    if (key == all_keys_.end()) return OpIndex::Invalid();
-    return Get(key->second);
+    return Find(base, index, offset, element_size_log2, load.loaded_rep);
   }
 
   void Insert(const StoreOp& store) {
@@ -526,14 +599,13 @@ class MemoryContentTable
     OptionalOpIndex index = store.index();
     int32_t offset = store.offset;
     uint8_t element_size_log2 = index.valid() ? store.element_size_log2 : 0;
-    OpIndex value = store.value();
 
-    if (store.kind.is_immutable) {
-      InsertImmutable(base, index, offset, element_size_log2, store.stored_rep,
-                      value);
-    } else {
-      Insert(base, index, offset, element_size_log2, store.stored_rep, value);
-    }
+    // StoreOp never sets `kind.is_immutable = true` (even for initializing
+    // stores of immutable fields); a subsequent dominating LoadOp with
+    // `kind.is_immutable = true` will promote the slot to immutable.
+    DCHECK(!store.kind.is_immutable);
+    Insert(base, index, offset, element_size_log2, store.stored_rep,
+           store.value(), /*is_immutable=*/false);
   }
 
   void Insert(const LoadOp& load, OpIndex load_idx) {
@@ -542,25 +614,18 @@ class MemoryContentTable
     int32_t offset = load.offset;
     uint8_t element_size_log2 = index.valid() ? load.element_size_log2 : 0;
 
-    if (load.kind.is_immutable) {
-      InsertImmutable(base, index, offset, element_size_log2, load.loaded_rep,
-                      load_idx);
-    } else {
-      Insert(base, index, offset, element_size_log2, load.loaded_rep, load_idx);
-    }
+    Insert(base, index, offset, element_size_log2, load.loaded_rep, load_idx,
+           load.kind.is_immutable);
   }
 
 #if V8_ENABLE_SANDBOX
-  OpIndex Find(const LoadTrustedPointerOp& load) {
+  MemorySlotValue Find(const LoadTrustedPointerOp& load) {
     OpIndex base = ResolveBase(load.base());
     int32_t offset = load.offset;
     constexpr uint8_t kElementSizeLog2 = 0;  // Unused;
 
-    MemoryAddress mem(base, OpIndex::Invalid(), offset, kElementSizeLog2,
-                      MemoryRepresentation::TrustedPointer());
-    auto key = all_keys_.find(mem);
-    if (key == all_keys_.end()) return OpIndex::Invalid();
-    return Get(key->second);
+    return Find(base, OpIndex::Invalid(), offset, kElementSizeLog2,
+                MemoryRepresentation::TrustedPointer());
   }
 
   void Insert(const LoadTrustedPointerOp& load, OpIndex load_idx) {
@@ -568,31 +633,21 @@ class MemoryContentTable
     int32_t offset = load.offset;
     constexpr uint8_t kElementSizeLog2 = 0;  // Unused;
 
-    if (load.kind.is_immutable) {
-      InsertImmutable(base, OpIndex::Invalid(), offset, kElementSizeLog2,
-                      MemoryRepresentation::TrustedPointer(), load_idx);
-    } else {
-      Insert(base, OpIndex::Invalid(), offset, kElementSizeLog2,
-             MemoryRepresentation::TrustedPointer(), load_idx);
-    }
+    Insert(base, OpIndex::Invalid(), offset, kElementSizeLog2,
+           MemoryRepresentation::TrustedPointer(), load_idx,
+           load.kind.is_immutable);
   }
 #endif
 
 #ifdef DEBUG
   void Print() {
     std::cout << "MemoryContentTable:\n";
-    for (const auto& base_keys : base_keys_) {
-      for (Key key : base_keys.second.with_offsets) {
-        std::cout << "  * " << key.data().mem.base << " - "
-                  << key.data().mem.index << " - " << key.data().mem.offset
-                  << " - " << key.data().mem.element_size_log2 << " ==> "
-                  << Get(key) << "\n";
-      }
-      for (Key key : base_keys.second.with_indices) {
-        std::cout << "  * " << key.data().mem.base << " - "
-                  << key.data().mem.index << " - " << key.data().mem.offset
-                  << " - " << key.data().mem.element_size_log2 << " ==> "
-                  << Get(key) << "\n";
+    for (const auto& [mem, key] : all_keys_) {
+      MemorySlotValue slot = Get(key);
+      if (slot.valid()) {
+        std::cout << "  * " << mem
+                  << (slot.is_immutable() ? " (immutable)" : "") << " ==> "
+                  << slot.value() << "\n";
       }
     }
   }
@@ -606,12 +661,22 @@ class MemoryContentTable
          it != offset_keys->second.end();) {
       Key key = *it;
       DCHECK_EQ(kMapOffset, key.data().mem.offset);
-      // TODO(dmercadier): check known maps for key.data().mem.base and don't
-      // invalidate if maps cannot be string maps.
+      DCHECK(!key.data().mem.index.valid());
+      if (!object_maps_.Get(key.data().mem.base).could_be_string()) {
+        ++it;
+        continue;
+      }
       it = offset_keys->second.RemoveAt(it);
       TRACE(">>>> InvalidateAtOffset: invalidating " << key.data().mem);
-      Set(key, OpIndex::Invalid());
+      InvalidateMutable(key);
     }
+  }
+
+  OpIndex ResolveBase(OpIndex base) {
+    while (replacements_[base].IsLoadElimination()) {
+      base = replacements_[base].replacement();
+    }
+    return base;
   }
 
  private:
@@ -623,48 +688,37 @@ class MemoryContentTable
   // crbug.com/v8/14370.
   static constexpr size_t kMaxKeys = 10000;
 
-  void Insert(OpIndex base, OptionalOpIndex index, int32_t offset,
-              uint8_t element_size_log2, MemoryRepresentation representation,
-              OpIndex value) {
-    DCHECK_EQ(base, ResolveBase(base));
-
-    MemoryAddress mem(base, index, offset, element_size_log2, representation);
-    TRACE("> MemoryContentTable: will insert " << mem
-                                               << " with value=" << value);
-    auto existing_key = all_keys_.find(mem);
-    if (existing_key != all_keys_.end()) {
-      TRACE(">> Reusing existing key");
-      Set(existing_key->second, value);
-      return;
-    }
-
-    if (all_keys_.size() > kMaxKeys) {
-      TRACE(">> Bailing out because too many keys");
-      if (V8_UNLIKELY(v8_flags.trace_turbo_bailouts)) {
-        std::cout
-            << "Bailing out in Late Load Elimination because of kMaxKeys [1]\n";
-      }
-      return;
-    }
-
-    // Creating a new key.
-    Key key = NewKey({mem});
-    all_keys_.insert({mem, key});
-    Set(key, value);
+  void InvalidateMutable(Key key) {
+    DCHECK(Get(key).has_mutable_value());
+    Set(key, MemorySlotValue{});
   }
 
-  void InsertImmutable(OpIndex base, OptionalOpIndex index, int32_t offset,
+  MemorySlotValue Find(OpIndex base, OptionalOpIndex index, int32_t offset,
                        uint8_t element_size_log2,
-                       MemoryRepresentation representation, OpIndex value) {
+                       MemoryRepresentation representation) {
+    DCHECK_EQ(base, ResolveBase(base));
+    MemoryAddress mem{base, index, offset, element_size_log2, representation};
+    auto key = all_keys_.find(mem);
+    if (key == all_keys_.end()) return {};
+    return Get(key->second);
+  }
+
+  void Insert(OpIndex base, OptionalOpIndex index, int32_t offset,
+              uint8_t element_size_log2, MemoryRepresentation representation,
+              OpIndex value, bool is_immutable) {
     DCHECK_EQ(base, ResolveBase(base));
 
-    MemoryAddress mem(base, index, offset, element_size_log2, representation);
-    TRACE("> MemoryContentTable: will insert immutable "
-          << mem << " with value=" << value);
+    MemoryAddress mem{base, index, offset, element_size_log2, representation};
+    TRACE("> MemoryContentTable: will insert "
+          << mem << (is_immutable ? " (immutable)" : "")
+          << " with value=" << value);
     auto existing_key = all_keys_.find(mem);
     if (existing_key != all_keys_.end()) {
       TRACE(">> Reusing existing key");
-      SetNoNotify(existing_key->second, value);
+      // Compatible loads of an already-immutable slot hit in Find() and return
+      // early, though we can't DCHECK(!Get(...).valid() ||
+      // !Get(...).is_immutable() || is_immutable) due to unreachable stores.
+      Set(existing_key->second, {value, is_immutable});
       return;
     }
 
@@ -672,7 +726,7 @@ class MemoryContentTable
       TRACE(">> Bailing out because too many keys");
       if (V8_UNLIKELY(v8_flags.trace_turbo_bailouts)) {
         std::cout
-            << "Bailing out in Late Load Elimination because of kMaxKeys [2]\n";
+            << "Bailing out in Late Load Elimination because of kMaxKeys\n";
       }
       return;
     }
@@ -680,8 +734,7 @@ class MemoryContentTable
     // Creating a new key.
     Key key = NewKey({mem});
     all_keys_.insert({mem, key});
-    // Call `SetNoNotify` to avoid calls to `OnNewKey` and `OnValueChanged`.
-    SetNoNotify(key, value);
+    Set(key, {value, is_immutable});
   }
 
   void InvalidateAtOffset(int32_t offset, OpIndex base) {
@@ -706,7 +759,7 @@ class MemoryContentTable
       }
       it = offset_keys->second.RemoveAt(it);
       TRACE(">>>> InvalidateAtOffset: invalidating " << key.data().mem);
-      Set(key, OpIndex::Invalid());
+      InvalidateMutable(key);
     }
   }
 
@@ -722,13 +775,6 @@ class MemoryContentTable
     if (is_empty(other_maps)) return true;
 
     return CouldHaveSameMap(base_maps, other_maps);
-  }
-
-  OpIndex ResolveBase(OpIndex base) {
-    while (replacements_[base].IsLoadElimination()) {
-      base = replacements_[base].replacement();
-    }
-    return base;
   }
 
   void AddKeyInBaseOffsetMaps(Key key) {
@@ -781,13 +827,13 @@ class MemoryContentTable
   // A map containing all of the keys, for fast lookup of a specific
   // MemoryAddress.
   ZoneAbslFlatHashMap<MemoryAddress, Key> all_keys_;
-  // Map from base OpIndex to keys associated with this base.
+  // Map from base OpIndex to mutable keys associated with this base.
   ZoneAbslFlatHashMap<OpIndex, BaseData> base_keys_;
-  // Map from offsets to keys associated with this offset.
+  // Map from offsets to mutable keys associated with this offset.
   ZoneAbslFlatHashMap<int, v8::base::DoublyThreadedList<Key, OffsetListTraits>>
       offset_keys_;
 
-  // List of all of the keys that have a valid index.
+  // List of all mutable keys that have a valid index.
   v8::base::DoublyThreadedList<Key, OffsetListTraits> index_keys_;
 };
 
@@ -826,9 +872,7 @@ class V8_EXPORT_PRIVATE LateLoadEliminationAnalyzer {
         block_to_snapshot_mapping_(graph.block_count(), phase_zone),
         predecessor_alias_snapshots_(phase_zone),
         predecessor_maps_snapshots_(phase_zone),
-        predecessor_memory_snapshots_(phase_zone) {
-    USE(data_);
-  }
+        predecessor_memory_snapshots_(phase_zone) {}
 
   void Run();
 
@@ -846,10 +890,12 @@ class V8_EXPORT_PRIVATE LateLoadEliminationAnalyzer {
   void ProcessCall(OpIndex op_idx, const CallOp& op);
   void ProcessAssumeMap(OpIndex op_idx, const AssumeMapOp& op);
   void ProcessChange(OpIndex op_idx, const ChangeOp& change);
+  void ProcessCatchBlockBegin(OpIndex op_idx);
 
   void DcheckWordBinop(OpIndex op_idx, const WordBinopOp& binop);
 
   void WipeAllMaps();
+  void WipeStringMaps();
 
   // BeginBlock initializes the various SnapshotTables for {block}, and returns
   // true if {block} is a loop that should be revisited.
@@ -1100,7 +1146,7 @@ class V8_EXPORT_PRIVATE LateLoadEliminationReducer : public Next {
  private:
   using RawBaseAssumption = LateLoadEliminationAnalyzer::RawBaseAssumption;
   RawBaseAssumption raw_base_assumption_ =
-      __ data() -> pipeline_kind() == TurboshaftPipelineKind::kCSA
+      __ data()->pipeline_kind() == TurboshaftPipelineKind::kCSA
           ? RawBaseAssumption::kMaybeInnerPointer
           : RawBaseAssumption::kNoInnerPointer;
   LateLoadEliminationAnalyzer analyzer_{__ data(), __ modifiable_input_graph(),

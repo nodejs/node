@@ -144,7 +144,7 @@ void ConstantPool::EmitPrologue(int size) {
   int encoded_size = size - kAuipcSize;
   DCHECK(IsAligned(encoded_size, kInt32Size));
   int encoded_words = encoded_size / kInt32Size;
-  DCHECK(is_int20(encoded_words));
+  DCHECK(is_uint20(encoded_words));
   assm_->auipc(zero_reg, encoded_words);
   assm_->EmitPoolGuard();
 }

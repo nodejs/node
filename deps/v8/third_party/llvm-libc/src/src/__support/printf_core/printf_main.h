@@ -22,13 +22,13 @@
 namespace LIBC_NAMESPACE_DECL {
 namespace printf_core {
 
-template <OverflowMode mode>
-ErrorOr<size_t> printf_main_modular(Writer<mode> *writer,
-                                    const char *__restrict str,
+template <OverflowMode mode, typename CharT>
+ErrorOr<size_t> printf_main_modular(Writer<mode, CharT> *writer,
+                                    const CharT *__restrict str,
                                     internal::ArgList &args) {
-  Parser<internal::ArgList, char> parser(str, args);
+  Parser<internal::ArgList, CharT> parser(str, args);
   int result = 0;
-  for (FormatSection<char> cur_section = parser.get_next_section();
+  for (FormatSection<CharT> cur_section = parser.get_next_section();
        !cur_section.raw_string.empty();
        cur_section = parser.get_next_section()) {
     if (cur_section.has_conv)
@@ -42,8 +42,9 @@ ErrorOr<size_t> printf_main_modular(Writer<mode> *writer,
   return writer->get_chars_written();
 }
 
-template <OverflowMode mode>
-ErrorOr<size_t> printf_main(Writer<mode> *writer, const char *__restrict str,
+template <OverflowMode mode, typename CharT>
+ErrorOr<size_t> printf_main(Writer<mode, CharT> *writer,
+                            const CharT *__restrict str,
                             internal::ArgList &args) {
 #ifdef LIBC_COPT_PRINTF_MODULAR
   LIBC_INLINE_ASM(".reloc ., BFD_RELOC_NONE, __printf_float");

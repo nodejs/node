@@ -17,13 +17,28 @@ corp-internal `clusterfuzz.corp.google.com` requires `sso_client`).
 
 ______________________________________________________________________
 
-## 1. Authentication (Setting Up `cookies.txt`)
+## 1. Authentication (OAuth Token Helper & `cookies.txt` Fallback)
 
-To authenticate with `clusterfuzz.com`, the tooling in this skill uses a
-Netscape-formatted browser cookies file at `~/.config/clusterfuzz/cookies.txt`.
+`fetch_testcase.py` supports two authentication methods in order:
 
-**Manual User Prerequisite**: The agent CANNOT generate or export `cookies.txt`
-itself. If `cookies.txt` is missing or expired, ask the user to perform these
+1. **OAuth Bearer Token (`CLUSTERFUZZ_OAUTH_TOKEN_CMD` / `--oauth-token-cmd`)**:
+   When `CLUSTERFUZZ_OAUTH_TOKEN_CMD` is set in the environment (or
+   `--oauth-token-cmd` is passed), `fetch_testcase.py` executes that command to
+   obtain an OAuth access token (accepting either a plain token or JSON
+   `{"token": "..."}` / `{"access_token": "..."}` on stdout) and calls
+   ClusterFuzz's OAuth-enabled endpoints (`/testcase-detail/refresh` and
+   `/testcase-detail/download-testcase?id=<ID>`), stripping the `Authorization`
+   header when following signed GCS redirects. Pass `--no-oauth` to disable
+   OAuth.
+2. **Browser `cookies.txt` Fallback**: If no OAuth token command is configured
+   or OAuth returns HTTP 401/403 (e.g., a restricted bug only lists a different
+   account), `fetch_testcase.py` falls back to a Netscape-formatted cookies file
+   at `~/.config/clusterfuzz/cookies.txt` (or an explicit
+   `--cookies-file <path>`, which disables OAuth).
+
+**Manual `cookies.txt` Setup (When OAuth Is Not Configured or Denied)**: The
+agent CANNOT generate or export `cookies.txt` itself. If OAuth is unavailable or
+fails and `cookies.txt` is missing or expired, ask the user to perform these
 manual steps:
 
 1. Log in to [https://clusterfuzz.com](https://clusterfuzz.com) in Chrome.
@@ -39,7 +54,7 @@ ______________________________________________________________________
 ### Using `fetch_testcase.py` (Recommended)
 
 Run the bundled [`fetch_testcase.py`](scripts/fetch_testcase.py) script to
-handle cookies, redirects, and metadata:
+handle OAuth, cookie fallback, signed GCS redirects, and metadata:
 
 ```bash
 python3 agents/skills/clusterfuzz/scripts/fetch_testcase.py <target> [options]
@@ -51,7 +66,8 @@ python3 agents/skills/clusterfuzz/scripts/fetch_testcase.py <target> [options]
   python3 agents/skills/clusterfuzz/scripts/fetch_testcase.py <TESTCASE_ID_OR_URL> [-o <output_path>]
   ```
 
-  Auto-detects `~/.config/clusterfuzz/cookies.txt`. If `-o` is omitted,
+  Uses `CLUSTERFUZZ_OAUTH_TOKEN_CMD` (or `--oauth-token-cmd`) when configured
+  and falls back to `~/.config/clusterfuzz/cookies.txt`. If `-o` is omitted,
   downloads to a temporary file (`testcase_<id>.js` or `.wasm`).
 
 - **Fetch Metadata & Minimized Flags (`--info`)**:
@@ -80,10 +96,12 @@ ______________________________________________________________________
 
 ## 3. Troubleshooting
 
-| Issue                          | Cause                                                  | Fix                                                                                                                                               |
-| :----------------------------- | :----------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Response is HTML (~900 KB)** | Missing or expired `cookies.txt` on `clusterfuzz.com`. | Ask the user to re-export `cookies.txt` via [Get cookies.txt LOCALLY](https://chromewebstore.google.com/detail/cclelndahbckbenkjhflpdbgdldlbecc). |
-| **Inaccessible / Redacted**    | Restricted permissions.                                | Check Buganizer comments for attached POC, or ask user for testcase flags and content.                                                            |
+| Issue                              | Cause                                                                              | Fix                                                                                                                                                                                           |
+| :--------------------------------- | :--------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **HTTP 401 (`UnauthorizedError`)** | Expired OAuth credentials, or OAuth client/account not allowlisted on ClusterFuzz. | Refresh your OAuth credentials, ensure the OAuth client/email is allowlisted in ClusterFuzz's auth config, or fall back to `--cookies-file` / `cookies.txt`.                                  |
+| **HTTP 403 (`AccessDeniedError`)** | Authenticated account lacks access to this restricted bug/testcase.                | Try an account listed on the bug (e.g., via `cookies.txt`), check Buganizer attachments, or ask the user for testcase flags and content.                                                      |
+| **Response is HTML (~900 KB)**     | Missing or expired `cookies.txt` on `clusterfuzz.com` (and OAuth unconfigured).    | Configure `CLUSTERFUZZ_OAUTH_TOKEN_CMD`, or ask the user to re-export `cookies.txt` via [Get cookies.txt LOCALLY](https://chromewebstore.google.com/detail/cclelndahbckbenkjhflpdbgdldlbecc). |
+| **Inaccessible / Redacted**        | Restricted permissions.                                                            | Check Buganizer comments for attached POC, or ask user for testcase flags and content.                                                                                                        |
 
 ______________________________________________________________________
 

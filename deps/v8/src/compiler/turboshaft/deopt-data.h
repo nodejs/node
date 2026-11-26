@@ -39,6 +39,8 @@ struct FrameStateData {
       inputs_.push_back(parent);
     }
     void AddInput(MachineType type, OpIndex input) {
+      DCHECK_NE(type.representation(), MachineRepresentation::kWord8);
+      DCHECK_NE(type.representation(), MachineRepresentation::kWord16);
       instructions_.push_back(Instr::kInput);
       machine_types_.push_back(type);
       inputs_.push_back(input);

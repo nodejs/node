@@ -613,7 +613,8 @@ void TypeCanonicalizer::PrepareForCanonicalTypeId(Isolate* isolate,
 void TypeCanonicalizer::ClearWasmCanonicalTypesForTesting(Isolate* isolate) {
   ReadOnlyRoots roots(isolate);
   isolate->heap()->SetWasmCanonicalRtts(roots.empty_weak_fixed_array());
-  isolate->heap()->SetJSToWasmWrappers(roots.empty_weak_fixed_array());
+  isolate->heap()->SetJSToWasmWrappers(
+      isolate->heap()->empty_protected_weak_fixed_array());
 }
 
 SharedFlag TypeCanonicalizer::IsShared(CanonicalTypeIndex index) const {

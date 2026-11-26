@@ -23,9 +23,9 @@ Error.prepareStackTrace = (e, frames) => {
   assertEquals(foo, frames[0].getFunction());
   assertEquals(object.toString, frames[1].getFunction());
   assertEquals("print", frames[2].getFunctionName());
-  // Ensure print function in instantiated for the correct context.
-  assertEquals(remote_print, frames[2].getFunction());
-  assertEquals(bar, frames[3].getFunction());
+  assertEquals(undefined, frames[2].getFunction());
+  assertEquals("bar", frames[3].getFunctionName());
+  assertEquals(undefined, frames[3].getFunction());
   return frames;
 };
 

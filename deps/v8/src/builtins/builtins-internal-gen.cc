@@ -89,8 +89,7 @@ TF_BUILTIN(DebugBreakTrampoline, CodeStubAssembler) {
 #ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
   auto dispatch_handle =
       UncheckedParameter<JSDispatchHandleT>(Descriptor::kJSDispatchHandle);
-  TNode<Uint16T> expected_parameter_count =
-      LoadParameterCountFromJSDispatchTable(dispatch_handle);
+  TNode<Uint16T> expected_parameter_count = DynamicJSParameterCount();
 #else
   auto dispatch_handle = InvalidDispatchHandleConstant();
   TNode<Uint16T> expected_parameter_count = Uint16Constant(0);
@@ -134,10 +133,33 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
     return Word32NotEqual(Load<Uint8T>(is_marking_addr), Int32Constant(0));
   }
 
+  TNode<BoolT> IsLocalMarking() {
+    TNode<ExternalReference> is_marking_addr = ExternalConstant(
+        ExternalReference::heap_is_marking_flag_address(this->isolate()));
+    return Word32NotEqual(
+        Word32And(Load<Uint8T>(is_marking_addr),
+                  Int32Constant(static_cast<uint8_t>(
+                      IsolateMarkingFlag::kLocalMajorMarking |
+                      IsolateMarkingFlag::kLocalMinorMarking))),
+        Int32Constant(0));
+  }
+
   TNode<BoolT> IsMinorMarking() {
-    TNode<ExternalReference> is_minor_marking_addr = ExternalConstant(
-        ExternalReference::heap_is_minor_marking_flag_address(this->isolate()));
-    return Word32NotEqual(Load<Uint8T>(is_minor_marking_addr),
+    TNode<ExternalReference> is_marking_addr = ExternalConstant(
+        ExternalReference::heap_is_marking_flag_address(this->isolate()));
+    return Word32NotEqual(
+        Word32And(Load<Uint8T>(is_marking_addr),
+                  Int32Constant(static_cast<uint8_t>(
+                      IsolateMarkingFlag::kLocalMinorMarking))),
+        Int32Constant(0));
+  }
+
+  TNode<BoolT> IsSharedMarking() {
+    TNode<ExternalReference> is_marking_addr = ExternalConstant(
+        ExternalReference::heap_is_marking_flag_address(this->isolate()));
+    return Word32NotEqual(Word32And(Load<Uint8T>(is_marking_addr),
+                                    Int32Constant(static_cast<uint8_t>(
+                                        IsolateMarkingFlag::kSharedMarking))),
                           Int32Constant(0));
   }
 
@@ -154,6 +176,13 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
         IsolateField(IsolateFieldId::kUsesSharedHeapFlag);
     return Word32NotEqual(Load<Uint8T>(uses_shared_heap_addr),
                           Int32Constant(0));
+  }
+
+  // The address of the current isolate, computed off the root register. Passed
+  // to the C++ barriers such that they do not need to look up the isolate via
+  // TLS.
+  TNode<ExternalReference> IsolateAddress() {
+    return IsolateField(IsolateFieldId::kIsolateAddress);
   }
 
   TNode<BoolT> IsUnmarked(TNode<IntPtrT> object) {
@@ -326,6 +355,8 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
         UncheckedParameter<Object>(WriteBarrierDescriptor::kObject));
     CallCFunctionWithCallerSavedRegisters(
         function, MachineTypeOf<Int32T>::value, fp_mode,
+        std::make_pair(MachineTypeOf<ExternalReference>::value,
+                       IsolateAddress()),
         std::make_pair(MachineTypeOf<IntPtrT>::value, object),
         std::make_pair(MachineTypeOf<IntPtrT>::value, slot));
     Goto(next);
@@ -359,10 +390,12 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
     if (!v8_flags.sticky_mark_bits) {
       // With sticky markbits we know everything will be old after the GC so no
       // need to check the age.
-      InYoungGeneration(object, next, &generational_barrier_check);
-
-      BIND(&generational_barrier_check);
+      InYoungGenerationOrSharedHeap(object, next, &generational_barrier_check);
+    } else {
+      InSharedHeap(object, next, &generational_barrier_check);
     }
+
+    BIND(&generational_barrier_check);
 
     TNode<IntPtrT> value = BitcastTaggedToWord(Load<HeapObject>(slot));
 
@@ -409,12 +442,21 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
     }
   }
 
+  void InYoungGenerationOrSharedHeap(TNode<IntPtrT> object, Label* true_label,
+                                     Label* false_label) {
+    DCHECK(!v8_flags.sticky_mark_bits);
+    TNode<BoolT> object_is_young_or_shared =
+        IsPageFlagSet(object, MemoryChunk::kIsInYoungGenerationMask |
+                                  MemoryChunk::kInSharedHeap);
+    Branch(object_is_young_or_shared, true_label, false_label);
+  }
+
   void InSharedHeap(TNode<IntPtrT> object, Label* true_label,
                     Label* false_label) {
-    TNode<BoolT> object_is_young =
+    TNode<BoolT> object_is_shared =
         IsPageFlagSet(object, MemoryChunk::kInSharedHeap);
 
-    Branch(object_is_young, true_label, false_label);
+    Branch(object_is_shared, true_label, false_label);
   }
 
   void IncrementalWriteBarrierMinor(TNode<IntPtrT> slot, TNode<IntPtrT> value,
@@ -438,6 +480,8 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
           UncheckedParameter<Object>(WriteBarrierDescriptor::kObject));
       CallCFunctionWithCallerSavedRegisters(
           function, MachineTypeOf<Int32T>::value, fp_mode,
+          std::make_pair(MachineTypeOf<ExternalReference>::value,
+                         IsolateAddress()),
           std::make_pair(MachineTypeOf<IntPtrT>::value, object),
           std::make_pair(MachineTypeOf<IntPtrT>::value, slot));
       Goto(next);
@@ -458,6 +502,8 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
           UncheckedParameter<Object>(WriteBarrierDescriptor::kObject));
       CallCFunctionWithCallerSavedRegisters(
           function, MachineTypeOf<Int32T>::value, fp_mode,
+          std::make_pair(MachineTypeOf<ExternalReference>::value,
+                         IsolateAddress()),
           std::make_pair(MachineTypeOf<IntPtrT>::value, object),
           std::make_pair(MachineTypeOf<IntPtrT>::value, slot));
       Goto(next);
@@ -506,21 +552,20 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
     GotoIf(IsSharedSpaceIsolate(), &local_object_and_value);
 
     // These checks here are now only reached by client isolates (= worker
-    // isolates). Now first check whether incremental marking is activated for
-    // that particular object's space. Incrementally marking might only be
-    // enabled for either local or shared objects on client isolates.
-    GotoIfNot(IsPageFlagSet(object, MemoryChunk::kIncrementalMarking), &next);
-
-    // We now know that incremental marking is enabled for the given object.
-    // Decide whether to run the shared or local incremental marking barrier.
+    // isolates). Decide whether to run the shared or local incremental marking
+    // barrier, and check whether incremental marking is enabled for that
+    // particular object's space. Incremental marking might only be enabled for
+    // either local or shared objects on client isolates.
     InSharedHeap(object, &write_into_shared_object, &write_into_local_object);
 
     BIND(&write_into_shared_object);
+    GotoIfNot(IsSharedMarking(), &next);
 
     // Run the shared incremental marking barrier.
     IncrementalWriteBarrierShared(object, slot, value, fp_mode, &next);
 
     BIND(&write_into_local_object);
+    GotoIfNot(IsLocalMarking(), &next);
 
     // When writing into a local object we can ignore stores of shared object
     // values since for those no slot recording or marking is required.
@@ -547,6 +592,8 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
           ExternalReference::write_barrier_shared_marking_from_code_function());
       CallCFunctionWithCallerSavedRegisters(
           function, MachineTypeOf<Int32T>::value, fp_mode,
+          std::make_pair(MachineTypeOf<ExternalReference>::value,
+                         IsolateAddress()),
           std::make_pair(MachineTypeOf<IntPtrT>::value, object),
           std::make_pair(MachineTypeOf<IntPtrT>::value, slot));
 
@@ -1634,9 +1681,36 @@ TF_BUILTIN(GetPropertyWithReceiver, CodeStubAssembler) {
       [=, this](TNode<JSAnyNotSmi> receiver, TNode<JSAnyNotSmi> holder,
                 TNode<Map> holder_map, TNode<Int32T> holder_instance_type,
                 TNode<IntPtrT> index, Label* next_holder, Label* if_bailout) {
-        // Not supported yet.
-        Use(next_holder);
-        Goto(if_bailout);
+        GotoIf(IsCustomElementsReceiverInstanceType(holder_instance_type),
+               if_bailout);
+        // Fast, nonextensible, sealed and frozen elements are plain data
+        // properties, so the receiver is irrelevant.
+        TNode<Int32T> elements_kind = LoadMapElementsKind(holder_map);
+        GotoIfNot(IsElementsKindLessThanOrEqual(
+                      elements_kind, LAST_ANY_NONEXTENSIBLE_ELEMENTS_KIND),
+                  if_bailout);
+        TNode<FixedArrayBase> elements = LoadElements(CAST(holder));
+        TVARIABLE(IntPtrT, var_length, LoadFixedArrayBaseLength(elements));
+        Label if_inbounds(this), if_outofbounds(this), length_loaded(this);
+        GotoIfNot(IsJSArrayInstanceType(holder_instance_type), &length_loaded);
+        var_length = PositiveSmiUntag(LoadFastJSArrayLength(CAST(holder)));
+        Goto(&length_loaded);
+        BIND(&length_loaded);
+        Branch(UintPtrLessThan(index, var_length.value()), &if_inbounds,
+               &if_outofbounds);
+        BIND(&if_outofbounds);
+        // Negative and too-large keys are named properties.
+        if (Is64()) {
+          Branch(UintPtrLessThanOrEqual(
+                     index, UintPtrConstant(JSObject::kMaxElementIndex)),
+                 next_holder, if_bailout);
+        } else {
+          Branch(IntPtrLessThan(index, IntPtrConstant(0)), if_bailout,
+                 next_holder);
+        }
+        BIND(&if_inbounds);
+        Return(LoadFixedArrayBaseElementAsTagged(elements, index, elements_kind,
+                                                 if_bailout, next_holder));
       };
 
   TryPrototypeChainLookup(receiver, object, key, lookup_property_in_holder,
@@ -1702,7 +1776,7 @@ TF_BUILTIN(CreateDataProperty, CodeStubAssembler) {
 
 TF_BUILTIN(FindNonDefaultConstructorOrConstruct, CodeStubAssembler) {
   auto this_function = Parameter<JSFunction>(Descriptor::kThisFunction);
-  auto new_target = Parameter<Object>(Descriptor::kNewTarget);
+  auto new_target = Parameter<JSReceiver>(Descriptor::kNewTarget);
   auto context = Parameter<Context>(Descriptor::kContext);
 
   TVARIABLE(Object, constructor);
@@ -1714,6 +1788,13 @@ TF_BUILTIN(FindNonDefaultConstructorOrConstruct, CodeStubAssembler) {
 
   BIND(&found_default_base_ctor);
   {
+    // Creating the instance reads new_target.prototype, which can run user
+    // code unless new_target is a JSFunction with a prototype slot (e.g. if
+    // it's a Proxy or a bound function). In that case, don't create the
+    // instance here; the regular Construct path will do it. Callers such as
+    // Sparkplug rely on this builtin never running user code.
+    GotoIfNot(IsJSFunctionWithPrototype(new_target), &found_something_else);
+
     // Create an object directly, without calling the default base ctor.
     TNode<Object> instance = CallBuiltin(Builtin::kFastNewObject, context,
                                          constructor.value(), new_target);
@@ -1768,6 +1849,9 @@ TF_BUILTIN(CheckMaglevType, CodeStubAssembler) {
 
   GotoIf(Word32Equal(instance_type, Int32Constant(HEAP_NUMBER_TYPE)),
          &is_heap_number);
+  GotoIf(
+      Word32Equal(instance_type, Int32Constant(UNINITIALIZED_HEAP_NUMBER_TYPE)),
+      &is_heap_number);
   GotoIf(Int32LessThan(instance_type, Int32Constant(FIRST_NONSTRING_TYPE)),
          &is_string);
   GotoIf(Word32Equal(instance_type, Int32Constant(SYMBOL_TYPE)), &is_symbol);

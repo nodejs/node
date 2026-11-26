@@ -358,7 +358,7 @@ class LoopStackCheckElisionReducer : public Next {
       __ input_graph().stack_checks_to_remove();
   bool remove_stack_checks_ = !stack_checks_to_remove_.empty();
 
-  JSHeapBroker* broker_ = __ data() -> broker();
+  JSHeapBroker* broker_ = __ data()->broker();
 };
 
 template <class Next>
@@ -477,7 +477,7 @@ class LoopUnrollingReducer : public Next {
   void FixLoopPhis(const Block* input_graph_loop, Block* output_graph_loop,
                    const Block* backedge_block);
   bool IsRunningBuiltinPipeline() {
-    return __ data() -> pipeline_kind() == TurboshaftPipelineKind::kCSA;
+    return __ data()->pipeline_kind() == TurboshaftPipelineKind::kCSA;
   }
   bool StopUnrollingIfUnreachable(
       std::optional<Block*> output_graph_header = std::nullopt) {
@@ -510,7 +510,7 @@ class LoopUnrollingReducer : public Next {
       __ input_graph().stack_checks_to_remove();
 
   const Block* current_loop_header_ = nullptr;
-  JSHeapBroker* broker_ = __ data() -> broker();
+  JSHeapBroker* broker_ = __ data()->broker();
 };
 
 template <class Next>

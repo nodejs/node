@@ -174,8 +174,9 @@ class V8_EXPORT_PRIVATE GraphReducer
     int input_index;
   };
 
-  // Reduce a single node.
-  Reduction Reduce(Node* const);
+  // Reduce a single node. Sets {*max_id} to the max node id before the last
+  // reducer step so that only nodes created by a replacing reducer exceed it.
+  Reduction Reduce(Node* const, NodeId* max_id);
   // Reduce the node on top of the stack.
   void ReduceTop();
 

@@ -17,8 +17,8 @@
 #include "src/__support/FPUtil/BasicOperations.h"
 #include "src/__support/FPUtil/FEnvImpl.h"
 #include "src/__support/FPUtil/FPBits.h"
-#include "src/__support/FPUtil/PolyEval.h"
 #include "src/__support/FPUtil/multiply_add.h"
+#include "src/__support/FPUtil/polyeval.h"
 #include "src/__support/FPUtil/rounding_mode.h"
 #include "src/__support/macros/config.h"
 #include "src/__support/macros/optimization.h"            // LIBC_UNLIKELY
@@ -113,9 +113,9 @@ LIBC_INLINE float sinf(float x) {
       // double for intermediate results as it is more efficient than using an
       // emulated version of FMA.
 #if defined(LIBC_TARGET_CPU_HAS_FMA_FLOAT)
-      return fputil::multiply_add(x, -0x1.0p-25f, x);
+      return fputil::sub_multiply(x, x, 0x1.0p-25f);
 #else
-      return static_cast<float>(fputil::multiply_add(xd, -0x1.0p-25, xd));
+      return static_cast<float>(fputil::sub_multiply(xd, xd, 0x1.0p-25));
 #endif // LIBC_TARGET_CPU_HAS_FMA_FLOAT
     }
 

@@ -33,8 +33,8 @@ namespace {
   {0x2028, '2', '8', '.', '1', '2', '3', '4', '5', '6', '7', '8', '9'}
 #define TWO_BYTE_ARRAY_LENGTH 13
 
-// Adapted from cctest/test-api.cc, and
-// test/cctest/heap/test-external-string-tracker.cc.
+// Adapted from test/unittests/api/api-unittest.cc and
+// test/unittests/heap/external-string-tracker-unittest.cc.
 class TestOneByteResource : public v8::String::ExternalOneByteStringResource {
  public:
   explicit TestOneByteResource(const char* data)
@@ -51,7 +51,7 @@ class TestOneByteResource : public v8::String::ExternalOneByteStringResource {
   size_t length_;
 };
 
-// Adapted from cctest/test-api.cc.
+// Adapted from test/unittests/api/api-unittest.cc.
 class TestTwoByteResource : public v8::String::ExternalStringResource {
  public:
   explicit TestTwoByteResource(uint16_t* data) : data_(data), length_(0) {
@@ -140,8 +140,9 @@ TEST_F(ConcurrentStringTest, InspectOneByteExternalizing) {
   // Externalize it to a one-byte external string.
   // We need to use StrDup in this case since the TestOneByteResource will get
   // ownership of raw_string otherwise.
-  EXPECT_TRUE(one_byte_string->MakeExternal(
-      i_isolate(), new TestOneByteResource(i::StrDup(raw_string))));
+  EXPECT_TRUE(
+      String::MakeExternal(i_isolate(), one_byte_string,
+                           new TestOneByteResource(i::StrDup(raw_string))));
   EXPECT_TRUE(IsExternalOneByteString(*one_byte_string));
   EXPECT_TRUE(IsInternalizedString(*one_byte_string));
 
@@ -191,8 +192,8 @@ TEST_F(ConcurrentStringTest, InspectTwoByteExternalizing) {
   uint16_t* resource_data = i::NewArray<uint16_t>(kLength + 1);
   std::copy_n(two_byte_array, kLength, resource_data);
   resource_data[kLength] = 0;
-  EXPECT_TRUE(two_bytes_string->MakeExternal(
-      i_isolate(), new TestTwoByteResource(resource_data)));
+  EXPECT_TRUE(String::MakeExternal(i_isolate(), two_bytes_string,
+                                   new TestTwoByteResource(resource_data)));
   EXPECT_TRUE(IsExternalTwoByteString(*two_bytes_string));
   EXPECT_TRUE(IsInternalizedString(*two_bytes_string));
 
@@ -204,8 +205,6 @@ TEST_F(ConcurrentStringTest, InspectTwoByteExternalizing) {
 TEST_F(ConcurrentStringTest, InspectOneByteExternalizing_ThinString) {
   // We will not create a thin string if single_generation is turned on.
   if (v8_flags.single_generation) return;
-  // We don't create ThinStrings immediately when using the forwarding table.
-  if (v8_flags.always_use_string_forwarding_table) return;
   std::unique_ptr<PersistentHandles> ph = i_isolate()->NewPersistentHandles();
 
   auto factory = i_isolate()->factory();
@@ -247,8 +246,9 @@ TEST_F(ConcurrentStringTest, InspectOneByteExternalizing_ThinString) {
   // Externalize it to a one-byte external string.
   // We need to use StrDup in this case since the TestOneByteResource will get
   // ownership of raw_string otherwise.
-  EXPECT_TRUE(internalized_string->MakeExternal(
-      i_isolate(), new TestOneByteResource(i::StrDup(raw_string))));
+  EXPECT_TRUE(
+      String::MakeExternal(i_isolate(), internalized_string,
+                           new TestOneByteResource(i::StrDup(raw_string))));
   EXPECT_TRUE(IsExternalOneByteString(*internalized_string));
   EXPECT_TRUE(IsInternalizedString(*internalized_string));
 
@@ -265,8 +265,6 @@ TEST_F(ConcurrentStringTest, InspectOneByteExternalizing_ThinString) {
 TEST_F(ConcurrentStringTest, InspectTwoByteExternalizing_ThinString) {
   // We will not create a thin string if single_generation is turned on.
   if (v8_flags.single_generation) return;
-  // We don't create ThinStrings immediately when using the forwarding table.
-  if (v8_flags.always_use_string_forwarding_table) return;
   std::unique_ptr<PersistentHandles> ph = i_isolate()->NewPersistentHandles();
 
   auto factory = i_isolate()->factory();
@@ -310,8 +308,8 @@ TEST_F(ConcurrentStringTest, InspectTwoByteExternalizing_ThinString) {
   uint16_t* resource_data = i::NewArray<uint16_t>(kLength + 1);
   std::copy_n(two_byte_array, kLength, resource_data);
   resource_data[kLength] = 0;
-  EXPECT_TRUE(internalized_string->MakeExternal(
-      i_isolate(), new TestTwoByteResource(resource_data)));
+  EXPECT_TRUE(String::MakeExternal(i_isolate(), internalized_string,
+                                   new TestTwoByteResource(resource_data)));
   EXPECT_TRUE(IsExternalTwoByteString(*internalized_string));
   EXPECT_TRUE(IsInternalizedString(*internalized_string));
 

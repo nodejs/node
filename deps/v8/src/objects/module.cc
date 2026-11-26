@@ -6,6 +6,7 @@
 
 #include <array>
 #include <istream>
+#include <optional>
 #include <sstream>
 #include <strstream>
 #include <unordered_map>
@@ -309,7 +310,9 @@ bool Module::FinishInstantiate(
 
 // https://tc39.es/ecma262/#sec-moduleevaluation
 MaybeDirectHandle<JSPromise> Module::Evaluate(Isolate* isolate,
-                                              Handle<Module> module) {
+                                              Handle<Module> module,
+                                              bool debug_event,
+                                              bool* body_threw) {
 #ifdef DEBUG
   PrintStatusMessage(*module, "Evaluating module ");
 #endif  // DEBUG
@@ -357,6 +360,8 @@ MaybeDirectHandle<JSPromise> Module::Evaluate(Isolate* isolate,
   if (IsJSPromise(module->top_level_capability())) {
     DirectHandle<JSPromise> capability(
         Cast<JSPromise>(module->top_level_capability()), isolate);
+    DCHECK_IMPLIES(module->status() == kEvaluated,
+                   capability->status() == Promise::kFulfilled);
     DCHECK_IMPLIES(module->status() == kEvaluatedError,
                    capability->status() == Promise::kRejected &&
                        capability->result() == module->exception());
@@ -397,8 +402,12 @@ MaybeDirectHandle<JSPromise> Module::Evaluate(Isolate* isolate,
         // 8. InnerModuleEvaluation step 2.a returns 0.
         // 10.c.iii. Perform ! Call(capability.[[Resolve]], undefined,
         //                          « undefined »).
-        JSPromise::Resolve(capability, isolate->factory()->undefined_value())
-            .ToHandleChecked();
+        if (JSPromise::Resolve(capability,
+                               isolate->factory()->undefined_value())
+                .is_null()) {
+          m->set_top_level_capability(ReadOnlyRoots(isolate).undefined_value());
+          return {};
+        }
         // 11. Return capability.[[Promise]].
         return capability;
       },
@@ -411,11 +420,11 @@ MaybeDirectHandle<JSPromise> Module::Evaluate(Isolate* isolate,
         // 8. InnerModuleEvaluation step 2.b returns module.[[EvaluationError]].
         // 9.d. Perform ! Call(capability.[[Reject]], undefined,
         //                     « result.[[Value]] »).
-        JSPromise::Reject(capability,
-                          direct_handle(m->GetException(), isolate));
-        if (isolate->debug()->IsRestartFrameScheduled()) {
+        if (JSPromise::Reject(capability,
+                              direct_handle(m->GetException(), isolate),
+                              debug_event)
+                .is_null()) {
           m->set_top_level_capability(ReadOnlyRoots(isolate).undefined_value());
-          isolate->TerminateExecution();
           return {};
         }
         // 11. Return capability.[[Promise]].
@@ -425,7 +434,8 @@ MaybeDirectHandle<JSPromise> Module::Evaluate(Isolate* isolate,
           -> MaybeDirectHandle<JSPromise> {
         if (Handle<InState<SourceTextModule, kLinked>> stm;
             TryCast(linked, &stm)) {
-          return SourceTextModule::Evaluate(isolate, stm);
+          return SourceTextModule::Evaluate(isolate, stm, debug_event,
+                                            body_threw);
         } else {
           return SyntheticModule::Evaluate(
               isolate, Cast<InState<SyntheticModule, kLinked>>(linked));
@@ -454,8 +464,12 @@ bool Module::EvaluateModuleSync(Isolate* isolate, Handle<Module> module) {
   }
 
   // 3. Let promise be module.Evaluate().
+  // The capability is internal and its result is thrown again below, so
+  // rejecting it is not a debug event.
   DirectHandle<JSPromise> promise;
-  if (!Module::Evaluate(isolate, module).ToHandle(&promise)) {
+  bool body_threw = false;
+  if (!Module::Evaluate(isolate, module, /* debug_event */ false, &body_threw)
+           .ToHandle(&promise)) {
     DCHECK(isolate->has_exception());
     return false;
   }
@@ -470,10 +484,15 @@ bool Module::EvaluateModuleSync(Isolate* isolate, Handle<Module> module) {
     if (!promise->has_handler()) {
       isolate->ReportPromiseReject(promise, DirectHandle<Object>(),
                                    v8::kPromiseHandlerAddedAfterReject);
+      if (isolate->CheckTerminationAfterCallback()) return false;
     }
     // b. Set promise.[[PromiseIsHandled]] to true.
     promise->set_has_handler(true);
     // c. Throw promise.[[PromiseResult]].
+    // If a module body threw during this evaluation, the debugger already
+    // reported the exception at its original throw site.
+    std::optional<SuppressDebug> suppress_debug;
+    if (body_threw) suppress_debug.emplace(isolate->debug());
     isolate->Throw(promise->result());
     return false;
   }
@@ -497,10 +516,11 @@ Handle<Cell> Module::GetModuleNamespaceCell(Isolate* isolate,
     return handle(Cast<Cell>(maybe_cell), isolate);
   }
   Handle<Cell> cell = isolate->factory()->NewCell();
+  // Background compiler threads read the cell (see ExportsFinalized).
   if (phase == ModuleImportPhase::kEvaluation) {
-    module->set_module_namespace(*cell);
+    module->set_module_namespace(*cell, kReleaseStore);
   } else {
-    module->set_deferred_module_namespace(*cell);
+    module->set_deferred_module_namespace(*cell, kReleaseStore);
   }
   return cell;
 }
@@ -562,7 +582,10 @@ DirectHandle<JSModuleNamespace> Module::GetModuleNamespace(
           ? isolate->factory()->NewJSModuleNamespace()
           : isolate->factory()->NewJSDeferredModuleNamespace();
   ns->set_module(*module);
-  ns_cell->set_value(*ns);
+  // This finalizes the exports (see ExportsFinalized): the star exports were
+  // fetched above, and the release store publishes the table to background
+  // compiler threads.
+  ns_cell->set_value(*ns, kReleaseStore);
 
   // Create the properties in the namespace object. Transition the object
   // to dictionary mode so that property addition is faster.
@@ -598,7 +621,7 @@ DirectHandle<JSModuleNamespace> Module::GetModuleNamespace(
 
   DirectHandle<PrototypeInfo> proto_info =
       Map::GetOrCreatePrototypeInfo(ns, isolate);
-  proto_info->set_module_namespace(*ns);
+  proto_info->set_module_namespace(*ns, kReleaseStore);
   return ns;
 }
 

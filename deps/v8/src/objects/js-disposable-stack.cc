@@ -45,8 +45,7 @@ namespace internal {
 
 // https://arai-a.github.io/ecma262-compare/?pr=3000&id=sec-disposeresources
 MaybeDirectHandle<Object> JSDisposableStackBase::DisposeResources(
-    Isolate* isolate, DirectHandle<JSDisposableStackBase> disposable_stack,
-    DisposableStackResourcesType resources_type) {
+    Isolate* isolate, DirectHandle<JSDisposableStackBase> disposable_stack) {
   DCHECK(!IsUndefined(disposable_stack->stack()));
   DCHECK_EQ(disposable_stack->state(), DisposableStackState::kDisposed);
 
@@ -115,7 +114,7 @@ MaybeDirectHandle<Object> JSDisposableStackBase::DisposeResources(
       //      2. Set hasAwaited to true.
       if (result.ToHandle(&result_handle)) {
         if (hint == DisposeMethodHint::kAsyncDispose) {
-          DCHECK_NE(resources_type, DisposableStackResourcesType::kAllSync);
+          DCHECK(!IsJSSyncDisposableStack(*disposable_stack));
           disposable_stack->set_length(length);
 
           disposable_stack->set_has_awaited(true);
@@ -221,8 +220,7 @@ Maybe<bool> JSAsyncDisposableStack::NextDisposeAsyncIteration(
     // 6. Let result be
     //   DisposeResources(asyncDisposableStack.[[DisposeCapability]],
     //   NormalCompletion(undefined)).
-    result = DisposeResources(isolate, async_disposable_stack,
-                              DisposableStackResourcesType::kAtLeastOneAsync);
+    result = DisposeResources(isolate, async_disposable_stack);
 
     DirectHandle<Object> result_handle;
 
@@ -288,11 +286,8 @@ Maybe<bool> JSAsyncDisposableStack::NextDisposeAsyncIteration(
       }
       isolate->clear_internal_exception();
       isolate->clear_pending_message();
-      JSPromise::Reject(outer_promise, exception);
-      if (isolate->debug()->IsRestartFrameScheduled()) {
-        isolate->TerminateExecution();
-        return Nothing<bool>();
-      }
+      MAYBE_RETURN(JSPromise::Reject(outer_promise, exception),
+                   Nothing<bool>());
     }
   } while (!done);
 

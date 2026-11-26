@@ -5,9 +5,16 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <algorithm>
 #include <atomic>
+#include <memory>
+#include <string>
+#include <vector>
 
+#include "include/v8-external.h"
+#include "include/v8-template.h"
 #include "src/api/api-inl.h"
+#include "src/base/unique-array.h"
 #include "src/objects/managed.h"
 #include "src/objects/objects-inl.h"
 #include "src/snapshot/code-serializer.h"
@@ -22,6 +29,7 @@
 #include "test/common/wasm/test-signatures.h"
 #include "test/common/wasm/wasm-macro-gen.h"
 #include "test/common/wasm/wasm-module-runner.h"
+#include "test/unittests/heap/heap-utils.h"
 #include "test/unittests/wasm/wasm-runner.h"
 
 namespace v8 {
@@ -81,12 +89,11 @@ void ExportAsMain(WasmFunctionBuilder* f) {
 TEST_F(RunWasmModuleTest, Run_WasmModule_Return114) {
   {
     static const int32_t kReturnValue = 114;
-    TestSignatures sigs;
     v8::internal::AccountingAllocator allocator;
     Zone zone(&allocator, ZONE_NAME);
 
     WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
-    WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
+    WasmFunctionBuilder* f = builder->AddFunction(TestSignatures::i_v());
     ExportAsMain(f);
     uint8_t code[] = {WASM_I32V_2(kReturnValue)};
     EMIT_CODE_WITH_END(f, code);
@@ -99,18 +106,17 @@ TEST_F(RunWasmModuleTest, Run_WasmModule_CallAdd) {
   {
     v8::internal::AccountingAllocator allocator;
     Zone zone(&allocator, ZONE_NAME);
-    TestSignatures sigs;
 
     WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
 
-    WasmFunctionBuilder* f1 = builder->AddFunction(sigs.i_ii());
+    WasmFunctionBuilder* f1 = builder->AddFunction(TestSignatures::i_ii());
     uint16_t param1 = 0;
     uint16_t param2 = 1;
     uint8_t code1[] = {
         WASM_I32_ADD(WASM_LOCAL_GET(param1), WASM_LOCAL_GET(param2))};
     EMIT_CODE_WITH_END(f1, code1);
 
-    WasmFunctionBuilder* f2 = builder->AddFunction(sigs.i_v());
+    WasmFunctionBuilder* f2 = builder->AddFunction(TestSignatures::i_v());
 
     ExportAsMain(f2);
     uint8_t code2[] = {
@@ -126,11 +132,10 @@ TEST_F(RunWasmModuleTest, Run_WasmModule_ReadLoadedDataSegment) {
     static const uint8_t kDataSegmentDest0 = 12;
     v8::internal::AccountingAllocator allocator;
     Zone zone(&allocator, ZONE_NAME);
-    TestSignatures sigs;
 
     WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
     builder->AddMemory(16);
-    WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
+    WasmFunctionBuilder* f = builder->AddFunction(TestSignatures::i_v());
 
     ExportAsMain(f);
     uint8_t code[] = {
@@ -148,11 +153,10 @@ TEST_F(RunWasmModuleTest, Run_WasmModule_CheckMemoryIsZero) {
     static const int kCheckSize = 16 * 1024;
     v8::internal::AccountingAllocator allocator;
     Zone zone(&allocator, ZONE_NAME);
-    TestSignatures sigs;
 
     WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
     builder->AddMemory(16);
-    WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
+    WasmFunctionBuilder* f = builder->AddFunction(TestSignatures::i_v());
 
     uint16_t localIndex = f->AddLocal(kWasmI32);
     ExportAsMain(f);
@@ -174,11 +178,10 @@ TEST_F(RunWasmModuleTest, Run_WasmModule_CallMain_recursive) {
   {
     v8::internal::AccountingAllocator allocator;
     Zone zone(&allocator, ZONE_NAME);
-    TestSignatures sigs;
 
     WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
     builder->AddMemory(16);
-    WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
+    WasmFunctionBuilder* f = builder->AddFunction(TestSignatures::i_v());
 
     uint16_t localIndex = f->AddLocal(kWasmI32);
     ExportAsMain(f);
@@ -200,16 +203,15 @@ TEST_F(RunWasmModuleTest, Run_WasmModule_Global) {
   {
     v8::internal::AccountingAllocator allocator;
     Zone zone(&allocator, ZONE_NAME);
-    TestSignatures sigs;
 
     WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
     uint32_t global1 = builder->AddGlobal(kWasmI32, true, WasmInitExpr(0));
     uint32_t global2 = builder->AddGlobal(kWasmI32, true, WasmInitExpr(0));
-    WasmFunctionBuilder* f1 = builder->AddFunction(sigs.i_v());
+    WasmFunctionBuilder* f1 = builder->AddFunction(TestSignatures::i_v());
     uint8_t code1[] = {
         WASM_I32_ADD(WASM_GLOBAL_GET(global1), WASM_GLOBAL_GET(global2))};
     EMIT_CODE_WITH_END(f1, code1);
-    WasmFunctionBuilder* f2 = builder->AddFunction(sigs.i_v());
+    WasmFunctionBuilder* f2 = builder->AddFunction(TestSignatures::i_v());
     ExportAsMain(f2);
     uint8_t code2[] = {WASM_GLOBAL_SET(global1, WASM_I32V_1(56)),
                        WASM_GLOBAL_SET(global2, WASM_I32V_1(41)),
@@ -224,13 +226,12 @@ TEST_F(RunWasmModuleTest, MemorySize) {
   {
     // Initial memory size is 16, see wasm-module-builder.cc
     static const int kExpectedValue = 16;
-    TestSignatures sigs;
     v8::internal::AccountingAllocator allocator;
     Zone zone(&allocator, ZONE_NAME);
 
     WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
     builder->AddMemory(16);
-    WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
+    WasmFunctionBuilder* f = builder->AddFunction(TestSignatures::i_v());
     ExportAsMain(f);
     uint8_t code[] = {WASM_MEMORY_SIZE};
     EMIT_CODE_WITH_END(f, code);
@@ -243,13 +244,12 @@ TEST_F(RunWasmModuleTest, Run_WasmModule_MemSize_GrowMem) {
   {
     // Initial memory size = 16 + MemoryGrow(10)
     static const int kExpectedValue = 26;
-    TestSignatures sigs;
     v8::internal::AccountingAllocator allocator;
     Zone zone(&allocator, ZONE_NAME);
 
     WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
     builder->AddMemory(16);
-    WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
+    WasmFunctionBuilder* f = builder->AddFunction(TestSignatures::i_v());
     ExportAsMain(f);
     uint8_t code[] = {WASM_MEMORY_GROW(WASM_I32V_1(10)), WASM_DROP,
                       WASM_MEMORY_SIZE};
@@ -263,13 +263,12 @@ TEST_F(RunWasmModuleTest, MemoryGrowZero) {
   {
     // Initial memory size is 16, see wasm-module-builder.cc
     static const int kExpectedValue = 16;
-    TestSignatures sigs;
     v8::internal::AccountingAllocator allocator;
     Zone zone(&allocator, ZONE_NAME);
 
     WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
     builder->AddMemory(16);
-    WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
+    WasmFunctionBuilder* f = builder->AddFunction(TestSignatures::i_v());
     ExportAsMain(f);
     uint8_t code[] = {WASM_MEMORY_GROW(WASM_I32V(0))};
     EMIT_CODE_WITH_END(f, code);
@@ -326,14 +325,13 @@ TEST_F(RunWasmModuleTest, TestInterruptLoop) {
     // thread reads {signal_value_} from memory, it registers the
     // InterruptCallback. Upon exeution, the InterruptCallback write into the
     // WebAssemblyMemory to end the loop in the WebAssembly program.
-    TestSignatures sigs;
     Isolate* isolate = WasmExecutionTestBase::InitIsolateOnce();
     v8::internal::AccountingAllocator allocator;
     Zone zone(&allocator, ZONE_NAME);
 
     WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
     builder->AddMemory(16);
-    WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
+    WasmFunctionBuilder* f = builder->AddFunction(TestSignatures::i_v());
     ExportAsMain(f);
     uint8_t code[] = {
         WASM_LOOP(
@@ -371,14 +369,431 @@ TEST_F(RunWasmModuleTest, TestInterruptLoop) {
   Cleanup();
 }
 
+namespace {
+
+class Regress577353387OneByteResource
+    : public v8::String::ExternalOneByteStringResource {
+ public:
+  Regress577353387OneByteResource(size_t length, char ch,
+                                  std::shared_ptr<bool> disposed = nullptr)
+      : data_(length, ch), disposed_(std::move(disposed)) {}
+  ~Regress577353387OneByteResource() override {
+    std::fill(data_.begin(), data_.end(), 'X');
+    if (disposed_) *disposed_ = true;
+  }
+  const char* data() const override { return data_.data(); }
+  size_t length() const override { return data_.size(); }
+
+ private:
+  std::string data_;
+  std::shared_ptr<bool> disposed_;
+};
+
+class Regress577353387TwoByteResource
+    : public v8::String::ExternalStringResource {
+ public:
+  Regress577353387TwoByteResource(size_t length, uint16_t ch,
+                                  std::shared_ptr<bool> disposed = nullptr)
+      : data_(length, ch), disposed_(std::move(disposed)) {}
+  ~Regress577353387TwoByteResource() override {
+    std::fill(data_.begin(), data_.end(), static_cast<uint16_t>('X'));
+    if (disposed_) *disposed_ = true;
+  }
+  const uint16_t* data() const override { return data_.data(); }
+  size_t length() const override { return data_.size(); }
+
+ private:
+  std::vector<uint16_t> data_;
+  std::shared_ptr<bool> disposed_;
+};
+
+DirectHandle<SeqOneByteString> MakeOldOneByteString(Isolate* isolate,
+                                                    int length, uint8_t ch) {
+  DirectHandle<SeqOneByteString> str =
+      isolate->factory()
+          ->NewRawOneByteString(length, AllocationType::kOld)
+          .ToHandleChecked();
+  DisallowGarbageCollection no_gc;
+  std::fill_n(str->GetChars(no_gc), length, ch);
+  return str;
+}
+
+DirectHandle<SeqTwoByteString> MakeOldTwoByteString(Isolate* isolate,
+                                                    int length, base::uc16 ch) {
+  DirectHandle<SeqTwoByteString> str =
+      isolate->factory()
+          ->NewRawTwoByteString(length, AllocationType::kOld)
+          .ToHandleChecked();
+  DisallowGarbageCollection no_gc;
+  std::fill_n(str->GetChars(no_gc), length, ch);
+  return str;
+}
+
+struct Regress577353387State {
+  static constexpr int kStringLen = 64;
+
+  v8::Global<v8::String> str_one_byte;
+  v8::Global<v8::String> str_two_byte;
+  v8::Global<v8::String> str_thin;
+  v8::Global<v8::String> str_seq_to_thin;
+  v8::Global<v8::String> str_ext_to_thin;
+  v8::Global<v8::String> str_ext_miss;
+
+  std::unique_ptr<Regress577353387OneByteResource> res_one_byte;
+  std::unique_ptr<Regress577353387TwoByteResource> res_two_byte;
+  std::unique_ptr<Regress577353387OneByteResource> res_thin;
+  std::shared_ptr<bool> ext_hit_disposed;
+  std::shared_ptr<bool> ext_miss_disposed;
+
+  int interrupt_count = 0;
+
+  static void SetupCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
+    CHECK(i::ValidateCallbackInfo(info));
+    auto* state = reinterpret_cast<Regress577353387State*>(
+        info.Data().As<v8::External>()->Value(
+            v8::kExternalPointerTypeTagDefault));
+    info.GetIsolate()->RequestInterrupt(&OnInterrupt, state);
+  }
+
+  static void OnInterrupt(v8::Isolate* v8_isolate, void* data) {
+    auto* state = reinterpret_cast<Regress577353387State*>(data);
+    Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
+    CHECK(isolate->is_executing_api_interrupt());
+    v8::HandleScope scope(v8_isolate);
+
+    state->interrupt_count++;
+
+    v8::Local<v8::String> s_one_byte = state->str_one_byte.Get(v8_isolate);
+    v8::Local<v8::String> s_two_byte = state->str_two_byte.Get(v8_isolate);
+    v8::Local<v8::String> s_thin = state->str_thin.Get(v8_isolate);
+    v8::Local<v8::String> s_seq_to_thin =
+        state->str_seq_to_thin.Get(v8_isolate);
+    v8::Local<v8::String> s_ext_to_thin =
+        state->str_ext_to_thin.Get(v8_isolate);
+    v8::Local<v8::String> s_ext_miss = state->str_ext_miss.Get(v8_isolate);
+
+    CHECK(IsThinString(*v8::Utils::OpenDirectHandle(*s_thin)));
+
+    // 1. In-place externalization must be disallowed during API interrupts.
+    CHECK(
+        !s_one_byte->CanMakeExternal(v8::String::Encoding::ONE_BYTE_ENCODING));
+    CHECK(!s_one_byte->MakeExternal(v8_isolate, state->res_one_byte.get()));
+    CHECK(
+        !s_two_byte->CanMakeExternal(v8::String::Encoding::TWO_BYTE_ENCODING));
+    CHECK(!s_two_byte->MakeExternal(v8_isolate, state->res_two_byte.get()));
+    CHECK(!s_thin->CanMakeExternal(v8::String::Encoding::ONE_BYTE_ENCODING));
+    CHECK(!s_thin->MakeExternal(v8_isolate, state->res_thin.get()));
+
+    // 2. Internalizing strings (on both StringTable hits and kCopy misses) must
+    // skip MakeThin during API interrupts.
+    v8::Local<v8::String> int_seq =
+        s_seq_to_thin->InternalizeString(v8_isolate);
+    v8::Local<v8::String> int_ext_hit =
+        s_ext_to_thin->InternalizeString(v8_isolate);
+    v8::Local<v8::String> int_ext_miss =
+        s_ext_miss->InternalizeString(v8_isolate);
+
+    CHECK(IsInternalizedString(*v8::Utils::OpenDirectHandle(*int_seq)));
+    CHECK(IsInternalizedString(*v8::Utils::OpenDirectHandle(*int_ext_hit)));
+    CHECK(IsInternalizedString(*v8::Utils::OpenDirectHandle(*int_ext_miss)));
+
+    CHECK(!IsThinString(*v8::Utils::OpenDirectHandle(*s_seq_to_thin)));
+    CHECK(!IsThinString(*v8::Utils::OpenDirectHandle(*s_ext_to_thin)));
+    CHECK(!IsThinString(*v8::Utils::OpenDirectHandle(*s_ext_miss)));
+    CHECK(!*state->ext_hit_disposed);
+    CHECK(!*state->ext_miss_disposed);
+
+    uint16_t buf[kStringLen];
+    int_ext_miss->Write(v8_isolate, 0, kStringLen, buf);
+    CHECK_EQ('F', buf[4]);
+
+    InvokeMemoryReducingMajorGCs(isolate);
+    isolate->heap()->EnsureSweepingCompleted(
+        Heap::SweepingForcedFinalizationMode::kUnifiedHeap,
+        CompleteSweepingReason::kTesting);
+    CHECK(!*state->ext_hit_disposed);
+    CHECK(!*state->ext_miss_disposed);
+  }
+};
+
+}  // namespace
+
+// Regression test for https://crbug.com/577353387: API interrupts firing at a
+// Wasm loop stack check must not externalize strings in place or transition
+// strings to ThinStrings while hoisted StringPrepareForGetCodeUnit pointers
+// remain live across loop back edges.
+TEST_F(RunWasmModuleTest, Regress577353387) {
+#if !defined(V8_ENABLE_TURBOFAN)
+  return;
+#else
+  if (v8_flags.jitless) return;
+#if V8_ENABLE_DRUMBRAKE
+  if (v8_flags.wasm_jitless) return;
+#endif
+  FlagScope<bool> no_liftoff(&v8_flags.liftoff, false);
+  FlagScope<bool> no_liftoff_only(&v8_flags.liftoff_only, false);
+  FlagScope<bool> no_wasm_deopt(&v8_flags.wasm_deopt, false);
+#ifdef DEBUG
+  FlagScope<bool> wasm_opt(&v8_flags.wasm_opt, true);
+  FlagScope<bool> verify_le(&v8_flags.turboshaft_verify_load_elimination, true);
+#endif
+
+  {
+    Isolate* isolate = WasmExecutionTestBase::InitIsolateOnce();
+    v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
+    HandleScope scope(isolate);
+    v8::Local<v8::Context> context = v8_isolate->GetCurrentContext();
+
+    AccountingAllocator allocator;
+    Zone zone(&allocator, ZONE_NAME);
+
+    WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
+    uint32_t setup_idx =
+        builder->AddImport("setup", TestSignatures::v_v(), "env");
+    ValueType char_code_at_types[] = {kWasmI32, kWasmExternRef, kWasmI32};
+    FunctionSig char_code_at_sig(1, 2, char_code_at_types);
+    uint32_t char_code_at_idx =
+        builder->AddImport("charCodeAt", &char_code_at_sig, "wasm:js-string");
+
+    ValueType probe_types[] = {kWasmI32,       kWasmExternRef, kWasmExternRef,
+                               kWasmExternRef, kWasmExternRef, kWasmExternRef,
+                               kWasmExternRef};
+    FunctionSig probe_sig(1, 6, probe_types);
+    WasmFunctionBuilder* probe = builder->AddFunction(&probe_sig);
+    builder->AddExport("probe", probe);
+    uint16_t loop_i = probe->AddLocal(kWasmI32);
+    uint16_t sum = probe->AddLocal(kWasmI32);
+
+    // 1. Schedule an API interrupt via `setup()`.
+    // 2. Hoist `StringPrepareForGetCodeUnit` for all 6 strings before the loop.
+    // 3. Loop 3 times: the loop stack check fires `OnInterrupt` while cached
+    //    `StringPrepareForGetCodeUnit` pointers remain live, then reads
+    //    character offset 4 bytes into the payload (index 4 for one-byte, index
+    //    2 for two-byte) of each string.
+    uint8_t code[] = {
+        WASM_CALL_FUNCTION0(setup_idx),
+        WASM_LOCAL_SET(
+            sum,
+            WASM_I32_ADD(
+                WASM_CALL_FUNCTION(char_code_at_idx, WASM_LOCAL_GET(0),
+                                   WASM_ZERO),
+                WASM_I32_ADD(
+                    WASM_CALL_FUNCTION(char_code_at_idx, WASM_LOCAL_GET(1),
+                                       WASM_ZERO),
+                    WASM_I32_ADD(
+                        WASM_CALL_FUNCTION(char_code_at_idx, WASM_LOCAL_GET(2),
+                                           WASM_ZERO),
+                        WASM_I32_ADD(
+                            WASM_CALL_FUNCTION(char_code_at_idx,
+                                               WASM_LOCAL_GET(3), WASM_ZERO),
+                            WASM_I32_ADD(WASM_CALL_FUNCTION(char_code_at_idx,
+                                                            WASM_LOCAL_GET(4),
+                                                            WASM_ZERO),
+                                         WASM_CALL_FUNCTION(char_code_at_idx,
+                                                            WASM_LOCAL_GET(5),
+                                                            WASM_ZERO))))))),
+        WASM_LOOP(
+            WASM_LOCAL_SET(
+                sum,
+                WASM_I32_ADD(
+                    WASM_LOCAL_GET(sum),
+                    WASM_I32_ADD(
+                        WASM_CALL_FUNCTION(char_code_at_idx, WASM_LOCAL_GET(0),
+                                           WASM_I32V_1(4)),
+                        WASM_I32_ADD(
+                            WASM_CALL_FUNCTION(char_code_at_idx,
+                                               WASM_LOCAL_GET(1),
+                                               WASM_I32V_1(2)),
+                            WASM_I32_ADD(
+                                WASM_CALL_FUNCTION(char_code_at_idx,
+                                                   WASM_LOCAL_GET(2),
+                                                   WASM_I32V_1(4)),
+                                WASM_I32_ADD(
+                                    WASM_CALL_FUNCTION(char_code_at_idx,
+                                                       WASM_LOCAL_GET(3),
+                                                       WASM_I32V_1(4)),
+                                    WASM_I32_ADD(
+                                        WASM_CALL_FUNCTION(char_code_at_idx,
+                                                           WASM_LOCAL_GET(4),
+                                                           WASM_I32V_1(4)),
+                                        WASM_CALL_FUNCTION(
+                                            char_code_at_idx, WASM_LOCAL_GET(5),
+                                            WASM_I32V_1(4))))))))),
+            WASM_LOCAL_SET(loop_i,
+                           WASM_I32_ADD(WASM_LOCAL_GET(loop_i), WASM_ONE)),
+            WASM_BR_IF(0,
+                       WASM_I32_LTS(WASM_LOCAL_GET(loop_i), WASM_I32V_1(3)))),
+        WASM_LOCAL_GET(sum)};
+    EMIT_CODE_WITH_END(probe, code);
+
+    ZoneBuffer buffer(&zone);
+    builder->WriteTo(&buffer);
+
+    ErrorThrower thrower(isolate, "Regress577353387");
+    CompileTimeImports compile_imports;
+    compile_imports.Add(CompileTimeImport::kJsString);
+    DirectHandle<WasmModuleObject> module_object =
+        GetWasmEngine()
+            ->SyncCompile(isolate, WasmEnabledFeatures::FromIsolate(isolate),
+                          std::move(compile_imports), &thrower,
+                          base::UniqueCopyOf(base::VectorOf(buffer)))
+            .ToHandleChecked();
+    CHECK(!thrower.error());
+
+    Regress577353387State state;
+    v8::Local<v8::Function> setup_fn =
+        v8::FunctionTemplate::New(
+            v8_isolate, &Regress577353387State::SetupCallback,
+            v8::External::New(v8_isolate, &state,
+                              v8::kExternalPointerTypeTagDefault))
+            ->GetFunction(context)
+            .ToLocalChecked();
+    DirectHandle<JSObject> ffi =
+        isolate->factory()->NewJSObject(isolate->object_function());
+    DirectHandle<JSObject> env =
+        isolate->factory()->NewJSObject(isolate->object_function());
+    JSObject::AddProperty(isolate, env,
+                          isolate->factory()->InternalizeUtf8String("setup"),
+                          v8::Utils::OpenDirectHandle(*setup_fn), NONE);
+    JSObject::AddProperty(isolate, ffi,
+                          isolate->factory()->InternalizeUtf8String("env"), env,
+                          NONE);
+    DirectHandle<WasmInstanceObject> instance =
+        GetWasmEngine()
+            ->SyncInstantiate(isolate, &thrower, module_object, ffi)
+            .ToHandleChecked();
+    CHECK(!thrower.error());
+
+    constexpr int kLen = Regress577353387State::kStringLen;
+    constexpr base::uc16 kTwoByteChar = 0x0142;
+
+    // Pre-internalize targets for ThinString setup and StringTable hits.
+    DirectHandle<String> thin_target = isolate->factory()->InternalizeString(
+        MakeOldOneByteString(isolate, kLen, 'C'));
+    CHECK(IsSeqOneByteString(*thin_target));
+    isolate->factory()->InternalizeString(
+        MakeOldOneByteString(isolate, kLen, 'D'));
+    isolate->factory()->InternalizeString(
+        MakeOldOneByteString(isolate, kLen, 'E'));
+
+    DirectHandle<String> str_one_byte =
+        MakeOldOneByteString(isolate, kLen, 'A');
+    DirectHandle<String> str_two_byte =
+        MakeOldTwoByteString(isolate, kLen, kTwoByteChar);
+    DirectHandle<String> str_thin = MakeOldOneByteString(isolate, kLen, 'C');
+    isolate->factory()->InternalizeString(str_thin);
+    CHECK(IsThinString(*str_thin));
+    DirectHandle<String> str_seq_to_thin =
+        MakeOldOneByteString(isolate, kLen, 'D');
+
+    state.ext_hit_disposed = std::make_shared<bool>(false);
+    auto res_ext_hit = std::make_unique<Regress577353387OneByteResource>(
+        kLen, 'E', state.ext_hit_disposed);
+    v8::Local<v8::String> v8_str_ext_to_thin =
+        v8::String::NewExternalOneByte(v8_isolate, res_ext_hit.get())
+            .ToLocalChecked();
+    res_ext_hit.release();
+
+    state.ext_miss_disposed = std::make_shared<bool>(false);
+    // Use a two-byte external string with one-byte content ('F') not yet in
+    // the StringTable so LookupString takes the kCopy +
+    // SetInternalizedReference path on a table miss rather than internalizing
+    // the external map in place.
+    auto res_ext_miss = std::make_unique<Regress577353387TwoByteResource>(
+        kLen, 'F', state.ext_miss_disposed);
+    v8::Local<v8::String> v8_str_ext_miss =
+        v8::String::NewExternalTwoByte(v8_isolate, res_ext_miss.get())
+            .ToLocalChecked();
+    res_ext_miss.release();
+
+    state.res_one_byte =
+        std::make_unique<Regress577353387OneByteResource>(kLen, 'A');
+    state.res_two_byte =
+        std::make_unique<Regress577353387TwoByteResource>(kLen, kTwoByteChar);
+    state.res_thin =
+        std::make_unique<Regress577353387OneByteResource>(kLen, 'C');
+
+    v8::Local<v8::String> v8_str_one_byte = v8::Utils::ToLocal(str_one_byte);
+    v8::Local<v8::String> v8_str_two_byte = v8::Utils::ToLocal(str_two_byte);
+    v8::Local<v8::String> v8_str_thin = v8::Utils::ToLocal(str_thin);
+    v8::Local<v8::String> v8_str_seq_to_thin =
+        v8::Utils::ToLocal(str_seq_to_thin);
+
+    CHECK(v8_str_one_byte->CanMakeExternal(
+        v8::String::Encoding::ONE_BYTE_ENCODING));
+    CHECK(v8_str_two_byte->CanMakeExternal(
+        v8::String::Encoding::TWO_BYTE_ENCODING));
+    CHECK(
+        v8_str_thin->CanMakeExternal(v8::String::Encoding::ONE_BYTE_ENCODING));
+
+    state.str_one_byte.Reset(v8_isolate, v8_str_one_byte);
+    state.str_two_byte.Reset(v8_isolate, v8_str_two_byte);
+    state.str_thin.Reset(v8_isolate, v8_str_thin);
+    state.str_seq_to_thin.Reset(v8_isolate, v8_str_seq_to_thin);
+    state.str_ext_to_thin.Reset(v8_isolate, v8_str_ext_to_thin);
+    state.str_ext_miss.Reset(v8_isolate, v8_str_ext_miss);
+
+    DirectHandle<Object> args[] = {
+        str_one_byte,
+        str_two_byte,
+        str_thin,
+        str_seq_to_thin,
+        v8::Utils::OpenDirectHandle(*v8_str_ext_to_thin),
+        v8::Utils::OpenDirectHandle(*v8_str_ext_miss),
+    };
+    int32_t result = testing::CallWasmFunctionForTesting(
+        isolate, instance, "probe", base::VectorOf(args));
+
+    constexpr int32_t kExpectedIterSum =
+        'A' + kTwoByteChar + 'C' + 'D' + 'E' + 'F';
+    CHECK_EQ(1, state.interrupt_count);
+    CHECK_EQ(4 * kExpectedIterSum, result);
+    CHECK(!isolate->is_executing_api_interrupt());
+
+    // Once `probe` has returned, both externalization and MakeThin succeed.
+    CHECK(v8_str_one_byte->CanMakeExternal(
+        v8::String::Encoding::ONE_BYTE_ENCODING));
+    CHECK(v8_str_one_byte->MakeExternal(v8_isolate, state.res_one_byte.get()));
+    state.res_one_byte.release();
+
+    CHECK(v8_str_two_byte->CanMakeExternal(
+        v8::String::Encoding::TWO_BYTE_ENCODING));
+    CHECK(v8_str_two_byte->MakeExternal(v8_isolate, state.res_two_byte.get()));
+    state.res_two_byte.release();
+
+    CHECK(
+        v8_str_thin->CanMakeExternal(v8::String::Encoding::ONE_BYTE_ENCODING));
+    CHECK(v8_str_thin->MakeExternal(v8_isolate, state.res_thin.get()));
+    state.res_thin.release();
+
+    v8_str_seq_to_thin->InternalizeString(v8_isolate);
+    v8_str_ext_to_thin->InternalizeString(v8_isolate);
+    v8_str_ext_miss->InternalizeString(v8_isolate);
+    CHECK(IsThinString(*str_seq_to_thin));
+    CHECK(IsThinString(*v8::Utils::OpenDirectHandle(*v8_str_ext_to_thin)));
+    CHECK(IsThinString(*v8::Utils::OpenDirectHandle(*v8_str_ext_miss)));
+    {
+      DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+          isolate->heap());
+      InvokeMemoryReducingMajorGCs(isolate);
+      isolate->heap()->EnsureSweepingCompleted(
+          Heap::SweepingForcedFinalizationMode::kUnifiedHeap,
+          CompleteSweepingReason::kTesting);
+    }
+    CHECK(*state.ext_hit_disposed);
+    CHECK(*state.ext_miss_disposed);
+  }
+  Cleanup();
+#endif  // !defined(V8_ENABLE_TURBOFAN)
+}
+
 TEST_F(RunWasmModuleTest, Run_WasmModule_MemoryGrowInIf) {
   {
-    TestSignatures sigs;
     v8::internal::AccountingAllocator allocator;
     Zone zone(&allocator, ZONE_NAME);
     WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
     builder->AddMemory(16);
-    WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
+    WasmFunctionBuilder* f = builder->AddFunction(TestSignatures::i_v());
     ExportAsMain(f);
     uint8_t code[] = {WASM_IF_ELSE_I(
         WASM_I32V(0), WASM_MEMORY_GROW(WASM_I32V(1)), WASM_I32V(12))};
@@ -394,12 +809,11 @@ TEST_F(RunWasmModuleTest, Run_WasmModule_GrowMemOobOffset) {
     // Initial memory size = 16 + MemoryGrow(10)
     static const int index = kPageSize * 17 + 4;
     int value = 0xACED;
-    TestSignatures sigs;
     v8::internal::AccountingAllocator allocator;
     Zone zone(&allocator, ZONE_NAME);
 
     WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
-    WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
+    WasmFunctionBuilder* f = builder->AddFunction(TestSignatures::i_v());
     ExportAsMain(f);
     uint8_t code[] = {WASM_MEMORY_GROW(WASM_I32V_1(1)),
                       WASM_STORE_MEM(MachineType::Int32(), WASM_I32V(index),
@@ -416,13 +830,12 @@ TEST_F(RunWasmModuleTest, Run_WasmModule_GrowMemOobFixedIndex) {
     // Initial memory size = 16 + MemoryGrow(10)
     static const int index = kPageSize * 26 + 4;
     int value = 0xACED;
-    TestSignatures sigs;
     Isolate* isolate = WasmExecutionTestBase::InitIsolateOnce();
     Zone zone(isolate->allocator(), ZONE_NAME);
 
     WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
     builder->AddMemory(16);
-    WasmFunctionBuilder* f = builder->AddFunction(sigs.i_i());
+    WasmFunctionBuilder* f = builder->AddFunction(TestSignatures::i_i());
     ExportAsMain(f);
     uint8_t code[] = {WASM_MEMORY_GROW(WASM_LOCAL_GET(0)), WASM_DROP,
                       WASM_STORE_MEM(MachineType::Int32(), WASM_I32V(index),
@@ -464,14 +877,13 @@ TEST_F(RunWasmModuleTest, Run_WasmModule_GrowMemOobVariableIndex) {
   {
     static const int kPageSize = 0x10000;
     int value = 0xACED;
-    TestSignatures sigs;
     Isolate* isolate = WasmExecutionTestBase::InitIsolateOnce();
     v8::internal::AccountingAllocator allocator;
     Zone zone(&allocator, ZONE_NAME);
 
     WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
     builder->AddMemory(16);
-    WasmFunctionBuilder* f = builder->AddFunction(sigs.i_i());
+    WasmFunctionBuilder* f = builder->AddFunction(TestSignatures::i_i());
     ExportAsMain(f);
     uint8_t code[] = {WASM_MEMORY_GROW(WASM_I32V_1(1)), WASM_DROP,
                       WASM_STORE_MEM(MachineType::Int32(), WASM_LOCAL_GET(0),
@@ -524,14 +936,13 @@ TEST_F(RunWasmModuleTest, Run_WasmModule_Global_init) {
   {
     v8::internal::AccountingAllocator allocator;
     Zone zone(&allocator, ZONE_NAME);
-    TestSignatures sigs;
 
     WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
     uint32_t global1 =
         builder->AddGlobal(kWasmI32, false, WasmInitExpr(777777));
     uint32_t global2 =
         builder->AddGlobal(kWasmI32, false, WasmInitExpr(222222));
-    WasmFunctionBuilder* f1 = builder->AddFunction(sigs.i_v());
+    WasmFunctionBuilder* f1 = builder->AddFunction(TestSignatures::i_v());
     uint8_t code[] = {
         WASM_I32_ADD(WASM_GLOBAL_GET(global1), WASM_GLOBAL_GET(global2))};
     EMIT_CODE_WITH_END(f1, code);

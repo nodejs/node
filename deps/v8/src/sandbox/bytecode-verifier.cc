@@ -286,8 +286,13 @@ void BytecodeVerifier::VerifyFull(IsolateForSandbox isolate,
 
 // static
 bool BytecodeVerifier::IsAllowedRuntimeFunction(Runtime::FunctionId id) {
-  // This is currently purely for fuzzer-cleanliness and so we only add
-  // functions to this blocklist if we see them cause crashes during fuzzing.
+  // This was purely for fuzzer-cleanliness and so we only added functions to
+  // this blocklist if we saw them cause crashes during fuzzing. Now that
+  // %InstallBytecode is disabled for fuzzing, this blocklist is currently not
+  // used in practice (as the bytecode compiler never emits calls to these
+  // functions). We are keeping the list in case %InstallBytecode is later
+  // re-enabled on the fuzzers.
+  //
   // It's unclear if we'll ever need this in production, but if we decide to
   // use it, we should do a more thorough audit to determine which functions
   // should be disallowed here.

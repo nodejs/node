@@ -4,6 +4,10 @@
 
 // Flags: --allow-natives-syntax
 
+// The worker runs an infinite loop and relies on `worker.terminate()` to
+// interrupt it, which requires loop backedge stack checks.
+// Flags: --no-disable-loop-stack-checks
+
 let workerCode = `
   onmessage = function() {
     const maxByteLength = Math.min((%ArrayBufferMaxByteLength() + 1) / 2, 2**42) / 128;

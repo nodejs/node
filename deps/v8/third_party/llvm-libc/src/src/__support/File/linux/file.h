@@ -32,6 +32,12 @@ FileIOResult linux_file_read(File *, void *, size_t);
 ErrorOr<off_t> linux_file_seek(File *, off_t, int);
 int linux_file_close(File *);
 
+// Returns true iff |f| is actually a LinuxFile, as opposed to some other
+// File subclass (e.g. CookieFile, MemoryFile) that doesn't have a real
+// file descriptor. Used because File has no RTTI/type tag: every LinuxFile
+// always registers these exact four callbacks, and no other subclass does.
+bool is_linux_file(const File *f);
+
 class LinuxFile : public File {
   int fd;
 

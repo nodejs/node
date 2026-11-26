@@ -1,0 +1,4 @@
+Tests enabling and disabling breakpoints with Debugger.setBreakpointsActive.
+After initial call: 1
+After setBreakpointsActive(false): 1
+After setBreakpointsActive(true): 2

@@ -18,6 +18,7 @@
 #include "src/heap/cppgc-internal/compactor.h"
 #include "src/heap/cppgc-internal/heap-object-header.h"
 #include "src/heap/cppgc-internal/marker.h"
+#include "src/heap/cppgc-internal/memory.h"
 #include "src/heap/cppgc-internal/metric-recorder.h"
 #include "src/heap/cppgc-internal/object-allocator.h"
 #include "src/heap/cppgc-internal/platform.h"
@@ -126,6 +127,17 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle,
 
   cppgc::Platform* platform() { return platform_.get(); }
   const cppgc::Platform* platform() const { return platform_.get(); }
+
+  // Returns log2 of the commit page size of the platform's page allocator,
+  // i.e. of the size of a system page.
+  size_t commit_page_size_bits() const { return commit_page_size_bits_; }
+
+  // How free system pages on normal pages are purged when memory is released.
+  PurgeMemoryMode purge_memory_mode() const { return purge_memory_mode_; }
+  // Sets the purge memory mode. Sweeping must not be in progress,
+  // `CanPurgeMemory()` must hold for modes other than `kOff`, and no memory
+  // may currently be purged when changing modes.
+  void set_purge_memory_mode(PurgeMemoryMode mode);
 
   FatalOutOfMemoryHandler& oom_handler() { return *oom_handler_.get(); }
   const FatalOutOfMemoryHandler& oom_handler() const {
@@ -326,6 +338,7 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle,
 
   RawHeap raw_heap_;
   std::shared_ptr<cppgc::Platform> platform_;
+  const size_t commit_page_size_bits_;
   std::unique_ptr<FatalOutOfMemoryHandler> oom_handler_;
 
 #if defined(LEAK_SANITIZER)
@@ -371,6 +384,16 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle,
 
   MarkingType marking_support_;
   SweepingType sweeping_support_;
+#if defined(V8_OS_WIN)
+  // Discarding memory on Windows does not decommit the memory and does not
+  // contribute to reduce the memory footprint. On the other hand, these calls
+  // become expensive the more memory is allocated in the system and can result
+  // in hangs. Thus, it is better to not discard on Windows.
+  PurgeMemoryMode purge_memory_mode_ = PurgeMemoryMode::kOff;
+#else
+  PurgeMemoryMode purge_memory_mode_ =
+      CanPurgeMemory() ? PurgeMemoryMode::kDiscard : PurgeMemoryMode::kOff;
+#endif
 
   HeapObjectNameForUnnamedObject name_for_unnamed_object_ =
       HeapObjectNameForUnnamedObject::kUseHiddenName;

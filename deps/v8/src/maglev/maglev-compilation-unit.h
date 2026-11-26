@@ -161,6 +161,7 @@ class MaglevCompilationUnit : public ZoneObject {
   compiler::SharedFunctionInfoRef shared_function_info() const {
     return shared_function_info_.value();
   }
+  bool is_dummy() const { return !bytecode_.has_value(); }
   compiler::BytecodeArrayRef bytecode() const { return bytecode_.value(); }
   compiler::FeedbackCellRef feedback_cell() const {
     return feedback_cell_.value();

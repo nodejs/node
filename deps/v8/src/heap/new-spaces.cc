@@ -384,6 +384,9 @@ void NewSpace::PromotePageToOldSpace(NormalPage* page, FreeMode free_mode) {
   if (page->is_quarantined()) {
     page->set_is_quarantined(false);
   }
+  if (page->evacuation_was_aborted()) {
+    page->set_evacuation_was_aborted(false);
+  }
   page->set_will_be_promoted(false);
   page->set_never_allocate_on_chunk(false);
   RemovePage(page);

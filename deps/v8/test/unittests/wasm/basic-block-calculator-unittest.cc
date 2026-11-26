@@ -81,7 +81,7 @@ class WasmBasicBlockCalculatorTest : public TestWithIsolateAndZone {
                     const std::vector<uint8_t>& code_bytes,
                     const std::vector<WasmCodeRange>& expectations,
                     const std::vector<ValueType> locals = {}) {
-    int func_index = builder_.NumDeclaredFunctions();
+    int func_index = builder_.NumDefinedFunctions();
     WasmFunctionBuilder* func_builder = builder_.AddFunction(sig);
     for (ValueType local_type : locals) {
       func_builder->AddLocal(local_type);
@@ -114,8 +114,7 @@ class WasmBasicBlockCalculatorTest : public TestWithIsolateAndZone {
 };
 
 TEST_F(WasmBasicBlockCalculatorTest, TestBasicBlockCalculator) {
-  v8_flags.wasm_allow_mixed_eh_for_testing = true;
-  TestSignatures sigs;
+  v8_flags.wasm_allow_mixed_eh_for_testing.Set(true);
 
   // Test with simple Wasm code.
   //-----------------------------
@@ -125,8 +124,8 @@ TEST_F(WasmBasicBlockCalculatorTest, TestBasicBlockCalculator) {
   //    kExprI32Add,         // 5
   //  kExprEnd               // 6
   //-----------------------------
-  TestFunction(sigs.i_v(), {WASM_I32_ADD(WASM_I32V_1(42), WASM_I32V_1(11))},
-               {{0, 6}});
+  TestFunction(TestSignatures::i_v(),
+               {WASM_I32_ADD(WASM_I32V_1(42), WASM_I32V_1(11))}, {{0, 6}});
 
   // Test with unreachable code.
   //-----------------------------
@@ -139,7 +138,7 @@ TEST_F(WasmBasicBlockCalculatorTest, TestBasicBlockCalculator) {
   //  kExprEnd               // 7
   //-----------------------------
   TestFunction(
-      sigs.i_v(),
+      TestSignatures::i_v(),
       {kExprUnreachable, WASM_I32_ADD(WASM_I32V_1(42), WASM_I32V_1(11))},
       {{0, 1}, {2, 7}});
 
@@ -158,7 +157,7 @@ TEST_F(WasmBasicBlockCalculatorTest, TestBasicBlockCalculator) {
   //    ...wasmI32Const(0),       // 11
   //  kExprEnd                    // 13
   //-----------------------------------
-  TestFunction(sigs.i_i(),
+  TestFunction(TestSignatures::i_i(),
                {
                    WASM_BLOCK(WASM_LOCAL_GET(0), kExprBrIf, 0, WASM_I32V_1(1),
                               kExprReturn),
@@ -180,7 +179,7 @@ TEST_F(WasmBasicBlockCalculatorTest, TestBasicBlockCalculator) {
   //    ...wasmI32Const(1),       //  9
   //  kExprEnd                    // 11
   //-----------------------------------
-  TestFunction(sigs.i_i(),
+  TestFunction(TestSignatures::i_i(),
                {
                    WASM_IF(WASM_LOCAL_GET(0), WASM_I32V_1(0), kExprReturn),
                    WASM_I32V_1(1),
@@ -207,7 +206,7 @@ TEST_F(WasmBasicBlockCalculatorTest, TestBasicBlockCalculator) {
   //  kExprEnd                    // 19
   //-----------------------------------
   TestFunction(
-      sigs.i_i(),
+      TestSignatures::i_i(),
       {WASM_LOCAL_GET(0), kExprIf, kVoidCode, WASM_I32V_1(0), kExprReturn,
        kExprElse, WASM_I32V_1(1), kExprReturn, kExprEnd, WASM_I32V(-1)},
       {{0, 4}, {5, 7}, {8, 8}, {9, 11}, {12, 12}, {13, 19}});
@@ -230,7 +229,7 @@ TEST_F(WasmBasicBlockCalculatorTest, TestBasicBlockCalculator) {
   //    ...wasmI32Const(0),       // 12
   //  kExprEnd                    // 14
   //-----------------------------------
-  TestFunction(sigs.i_i(),
+  TestFunction(TestSignatures::i_i(),
                {WASM_LOCAL_GET(0), kExprIf, kVoidCode, kExprBr, 0, kExprElse,
                 WASM_I32V_1(1), kExprReturn, kExprEnd, WASM_I32V_1(0)},
                {{0, 4}, {5, 6}, {7, 7}, {8, 10}, {11, 11}, {12, 14}});
@@ -249,7 +248,7 @@ TEST_F(WasmBasicBlockCalculatorTest, TestBasicBlockCalculator) {
   //-----------------------------------
   //  kExprEnd                    // 11
   //-----------------------------------
-  TestFunction(sigs.i_i(),
+  TestFunction(TestSignatures::i_i(),
                {WASM_LOCAL_GET(0), kExprIf, kI32Code, WASM_I32V_1(0), kExprElse,
                 WASM_I32V_1(1), kExprEnd},
                {{0, 4}, {5, 7}, {8, 10}, {11, 11}});
@@ -356,7 +355,7 @@ TEST_F(WasmBasicBlockCalculatorTest, TestBasicBlockCalculator) {
   //   kExprLocalGet, 1,            // 36
   //  kExprEnd                      // 38
   //-------------------------------------
-  TestFunction(sigs.i_i(),
+  TestFunction(TestSignatures::i_i(),
                {WASM_LOCAL_SET(1, WASM_I32V_1(1)),
                 WASM_BLOCK(WASM_LOOP(
                     WASM_LOCAL_GET(0), WASM_I32V_1(0), kExprI32Eq, kExprBrIf, 1,
@@ -387,7 +386,7 @@ TEST_F(WasmBasicBlockCalculatorTest, TestBasicBlockCalculator) {
   //    ...wasmI32Const(-1),       // 15
   //  kExprEnd                     // 21
   //------------------------------------
-  TestFunction(sigs.i_i(),
+  TestFunction(TestSignatures::i_i(),
                {WASM_BLOCK(WASM_BLOCK(kExprBr, 0, WASM_I32V_1(0), kExprReturn),
                            WASM_I32V_1(1), kExprReturn),
                 WASM_I32V(-1)},
@@ -412,7 +411,7 @@ TEST_F(WasmBasicBlockCalculatorTest, TestBasicBlockCalculator) {
       zone()->New<ArrayType>(kWasmI32, false /*mutability*/, SharedFlag{false}),
       false /*is_final*/, kNoSuperType);
 
-  TestFunction(sigs.i_v(),
+  TestFunction(TestSignatures::i_v(),
                {WASM_BLOCK(kExprRefNull, ToByte(array_type_index),
                            kExprBrOnNull, 0, WASM_I32V_1(1), kExprReturn),
                 WASM_I32V_1(0)},
@@ -447,10 +446,10 @@ TEST_F(WasmBasicBlockCalculatorTest, TestBasicBlockCalculator) {
   //  kExprEnd                          // 39
   //-----------------------------------------
 
-  uint8_t tag = builder_.AddTag(sigs.v_v());
+  uint8_t tag = builder_.AddTag(TestSignatures::v_v());
 
   TestFunction(
-      sigs.i_v(),
+      TestSignatures::i_v(),
       {kExprTry,
        kI32Code,
        WASM_F32(3.14),
@@ -503,7 +502,7 @@ TEST_F(WasmBasicBlockCalculatorTest, TestBasicBlockCalculator) {
   //-----------------------------------------
   //  kExprEnd                          // 31
   //-----------------------------------------
-  TestFunction(sigs.i_v(),
+  TestFunction(TestSignatures::i_v(),
                {kExprTry, kI32Code, WASM_F32(3.14), WASM_F32(3.14), kExprTry,
                 kI32Code, WASM_I32V_1(1), kExprCatch, tag, kExprTry, kI32Code,
                 WASM_I32V_1(2), kExprEnd, kExprCatchAll, WASM_I32V_1(3),
@@ -536,7 +535,7 @@ TEST_F(WasmBasicBlockCalculatorTest, TestBasicBlockCalculator) {
   //  kExprEnd                          // 26
   //-----------------------------------------
   TestFunction(
-      sigs.i_i(),
+      TestSignatures::i_i(),
       {WASM_BLOCK(kExprTryTable, kI32Code, U32V_1(1), CatchKind::kCatch, tag,
                   U32V_1(0), WASM_LOCAL_GET(0), kExprI32Eqz, kExprIf, kVoidCode,
                   WASM_I32V_1(23), kExprBr, 1, kExprEnd, WASM_I32V_1(42),
@@ -568,7 +567,7 @@ TEST_F(WasmBasicBlockCalculatorTest, TestBasicBlockCalculator) {
   //  kExprEnd                                            // 25
   //-----------------------------------------------------------
   TestFunction(
-      sigs.i_i(),
+      TestSignatures::i_i(),
       {WASM_BLOCK(kExprTryTable, kI32Code, U32V_1(1), CatchKind::kCatch, tag,
                   U32V_1(0), WASM_LOCAL_GET(0), kExprI32Eqz, kExprIf, kVoidCode,
                   kExprThrow, tag, kExprEnd, WASM_I32V_1(42), kExprEnd, kExprBr,
@@ -633,7 +632,7 @@ TEST_F(WasmBasicBlockCalculatorTest, TestBasicBlockCalculator) {
   //  kExprEnd                          // 68
   //-----------------------------------------
   TestFunction(
-      sigs.v_i(),
+      TestSignatures::v_i(),
       {WASM_LOCAL_GET(0),
        kExprIf,
        kVoidCode,

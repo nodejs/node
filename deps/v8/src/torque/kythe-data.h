@@ -102,7 +102,6 @@ class KytheData : public base::ContextualClass<KytheData> {
   std::unordered_map<const Value*, kythe_entity_t> constants_;
   std::unordered_map<Callable*, kythe_entity_t> callables_;
 
-  std::unordered_map<const Field*, std::set<SourcePosition>> field_uses_;
   std::unordered_map<uint64_t, kythe_entity_t> local_bindings_;
   std::unordered_map<const Declarable*, kythe_entity_t> types_;
   std::unordered_map<const Field*, kythe_entity_t> class_fields_;

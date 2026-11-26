@@ -202,12 +202,14 @@ Tagged<Smi> ScriptHash(Tagged<String> source,
                        Isolate* isolate) {
   DisallowGarbageCollection no_gc;
   size_t hash = base::hash_combine(source->EnsureHash());
+  // LINT.IfChange(ScriptHashOrigin)
   if (DirectHandle<Object> name;
       maybe_name.ToHandle(&name) && IsString(*name)) {
     hash =
         base::hash_combine(hash, Cast<String>(*name)->EnsureHash(), line_offset,
                            column_offset, origin_options.Flags());
   }
+  // LINT.ThenChange(/src/objects/compilation-cache-table.cc:ScriptCacheKeyMatchesOrigin)
   // The upper bits of the hash are discarded so that the value fits in a Smi.
   return Smi::From31BitPattern(static_cast<int>(hash & (~(1u << 31))));
 }
@@ -220,25 +222,35 @@ Tagged<Smi> ScriptHash(Tagged<String> source,
 bool ScriptCacheKey::MatchesScript(Tagged<Script> script) {
   DisallowGarbageCollection no_gc;
 
-  // If the script name isn't set, the boilerplate script should have
-  // an undefined name to have the same origin.
+  // LINT.IfChange(ScriptCacheKeyMatchesOrigin)
   Handle<Object> name;
-  if (!name_.ToHandle(&name)) {
-    return IsUndefined(script->name());
+  if (name_.ToHandle(&name)) {
+    // Do the fast bailout checks first.
+    if (line_offset_ != script->line_offset()) return false;
+    if (column_offset_ != script->column_offset()) return false;
+    // Check that both names are strings. If not, no match.
+    if (!IsString(*name) || !IsString(script->name())) return false;
+    // Are the origin_options same?
+    if (origin_options_.Flags() != script->origin_options().Flags()) {
+      return false;
+    }
+    // Compare the two name strings for equality.
+    if (!Cast<String>(*name)->Equals(Cast<String>(script->name()))) {
+      return false;
+    }
+  } else {
+    // If the script name isn't set, the boilerplate script should have an
+    // undefined name to have the same origin. Ignore line_offset_,
+    // column_offset_, and origin_options_ when no script name is provided:
+    // SetScriptFieldsFromDetails only sets line_offset and column_offset on
+    // the Script when name_obj is present (leaving them at 0 while an unnamed
+    // ScriptCompiler::Source defaults them to -1), and ScriptHash only hashes
+    // line_offset, column_offset, and origin_options when a name is present.
+    if (!IsUndefined(script->name())) return false;
   }
-  // Do the fast bailout checks first.
-  if (line_offset_ != script->line_offset()) return false;
-  if (column_offset_ != script->column_offset()) return false;
-  // Check that both names are strings. If not, no match.
-  if (!IsString(*name) || !IsString(script->name())) return false;
-  // Are the origin_options same?
-  if (origin_options_.Flags() != script->origin_options().Flags()) {
-    return false;
-  }
-  // Compare the two name strings for equality.
-  if (!Cast<String>(*name)->Equals(Cast<String>(script->name()))) {
-    return false;
-  }
+  // LINT.ThenChange(
+  //     /src/codegen/compiler.cc:SetScriptFieldsFromDetails,
+  //     /src/objects/compilation-cache-table.cc:ScriptHashOrigin)
 
   Handle<FixedArray> wrapped_arguments_handle;
   if (wrapped_arguments_.ToHandle(&wrapped_arguments_handle)) {
@@ -259,6 +271,24 @@ bool ScriptCacheKey::MatchesScript(Tagged<Script> script) {
       if (!Cast<String>(arg)->Equals(Cast<String>(other_arg))) {
         return false;
       }
+    }
+    Tagged<WeakFixedArray> infos = script->infos();
+    uint32_t infos_length = infos->ulength().value();
+    Tagged<SharedFunctionInfo> wrapped_sfi;
+    for (uint32_t i = 0; i < infos_length; i++) {
+      Tagged<HeapObject> heap_object;
+      if (infos->get(i).GetHeapObject(&heap_object) &&
+          IsSharedFunctionInfo(heap_object)) {
+        Tagged<SharedFunctionInfo> sfi = Cast<SharedFunctionInfo>(heap_object);
+        if (sfi->is_wrapped()) {
+          wrapped_sfi = sfi;
+          break;
+        }
+      }
+    }
+    if (wrapped_sfi.is_null() ||
+        wrapped_sfi->context_extension_count() != context_extension_count_) {
+      return false;
     }
   } else if (script->is_wrapped()) {
     return false;
@@ -302,13 +332,15 @@ ScriptCacheKey::ScriptCacheKey(Handle<String> source,
                      script_details->line_offset, script_details->column_offset,
                      script_details->origin_options,
                      script_details->host_defined_options,
-                     script_details->wrapped_arguments, isolate) {}
+                     script_details->wrapped_arguments,
+                     script_details->context_extension_count, isolate) {}
 
 ScriptCacheKey::ScriptCacheKey(Handle<String> source, MaybeHandle<Object> name,
                                int line_offset, int column_offset,
                                v8::ScriptOriginOptions origin_options,
                                MaybeHandle<Object> host_defined_options,
                                MaybeHandle<FixedArray> maybe_wrapped_arguments,
+                               uint32_t context_extension_count,
                                Isolate* isolate)
     : HashTableKey(static_cast<uint32_t>(ScriptHash(*source, name, line_offset,
                                                     column_offset,
@@ -321,8 +353,11 @@ ScriptCacheKey::ScriptCacheKey(Handle<String> source, MaybeHandle<Object> name,
       origin_options_(origin_options),
       host_defined_options_(host_defined_options),
       wrapped_arguments_(maybe_wrapped_arguments),
+      context_extension_count_(context_extension_count),
       isolate_(isolate) {
   DCHECK(Smi::IsValid(static_cast<int>(Hash())));
+  DCHECK_IMPLIES(maybe_wrapped_arguments.is_null(),
+                 context_extension_count == 0);
 #ifdef DEBUG
   DirectHandle<FixedArray> wrapped_arguments;
   if (maybe_wrapped_arguments.ToHandle(&wrapped_arguments)) {
@@ -482,7 +517,6 @@ Handle<CompilationCacheTable> CompilationCacheTable::EnsureScriptTableCapacity(
 
 DirectHandle<CompilationCacheTable> CompilationCacheTable::PutScript(
     Handle<CompilationCacheTable> cache, Handle<String> src,
-    MaybeHandle<FixedArray> maybe_wrapped_arguments,
     DirectHandle<SharedFunctionInfo> value, Isolate* isolate) {
   src = String::Flatten(isolate, src);
   DirectHandle<Script> script(Cast<Script>(value->script()), isolate);
@@ -492,9 +526,16 @@ DirectHandle<CompilationCacheTable> CompilationCacheTable::PutScript(
   }
   Handle<FixedArray> host_defined_options(script->host_defined_options(),
                                           isolate);
+  MaybeHandle<FixedArray> maybe_wrapped_arguments;
+  uint32_t context_extension_count = 0;
+  if (script->is_wrapped()) {
+    maybe_wrapped_arguments = handle(script->wrapped_arguments(), isolate);
+    context_extension_count = value->context_extension_count();
+  }
   ScriptCacheKey key(src, script_name, script->line_offset(),
                      script->column_offset(), script->origin_options(),
-                     host_defined_options, maybe_wrapped_arguments, isolate);
+                     host_defined_options, maybe_wrapped_arguments,
+                     context_extension_count, isolate);
   DirectHandle<Object> k = key.AsHandle(isolate, value);
 
   // Check whether there is already a matching entry. If so, we must overwrite

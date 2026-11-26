@@ -213,10 +213,6 @@ class TypeOracle : public base::ContextualClass<TypeOracle> {
     return Get().GetBuiltinType(PROTECTEDPTR_TYPE_STRING);
   }
 
-  static const Type* GetDispatchHandleType() {
-    return Get().GetBuiltinType(DISPATCH_HANDLE_TYPE_STRING);
-  }
-
   static const Type* GetMapType() {
     return Get().GetBuiltinType(MAP_TYPE_STRING);
   }

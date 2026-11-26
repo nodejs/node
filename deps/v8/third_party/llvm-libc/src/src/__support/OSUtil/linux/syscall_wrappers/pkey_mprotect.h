@@ -10,7 +10,7 @@
 #define LLVM_LIBC_SRC___SUPPORT_OSUTIL_SYSCALL_WRAPPERS_PKEY_MPROTECT_H
 
 #include "hdr/errno_macros.h"
-#include "src/__support/OSUtil/linux/syscall.h" // syscall_impl
+#include "src/__support/OSUtil/linux/syscall.h" // syscall_checked
 #include "src/__support/common.h"
 #include "src/__support/error_or.h"
 #include "src/__support/macros/config.h"
@@ -24,11 +24,7 @@ LIBC_INLINE ErrorOr<int> pkey_mprotect(void *addr, size_t len, int prot,
 #if !defined(SYS_pkey_mprotect)
   return Error(ENOSYS);
 #else
-  int ret = syscall_impl<int>(SYS_pkey_mprotect, reinterpret_cast<long>(addr),
-                              len, prot, pkey);
-  if (ret < 0)
-    return Error(-ret);
-  return ret;
+  return syscall_checked<int>(SYS_pkey_mprotect, addr, len, prot, pkey);
 #endif
 }
 

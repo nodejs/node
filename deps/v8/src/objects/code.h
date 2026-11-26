@@ -31,6 +31,12 @@ class RootVisitor;
 enum class Builtin;
 enum class LazyDeoptimizeReason : uint8_t;
 
+#if V8_ENABLE_WEBASSEMBLY
+namespace wasm {
+class NativeModule;
+}  // namespace wasm
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 // Code is a container for data fields related to its associated
 // {InstructionStream} object. Since {InstructionStream} objects reside on
 // write-protected pages within the heap, its header fields need to be
@@ -362,6 +368,14 @@ V8_OBJECT class Code : public ExposedTrustedObject {
 
   // Returns true if the function is inlined in the code.
   bool Inlines(Tagged<SharedFunctionInfo> sfi);
+
+#if V8_ENABLE_WEBASSEMBLY
+  // Returns true if the code inlines a Wasm function from {native_module}
+  // matching {func_index} (or any function from {native_module} if
+  // {func_index == -1}).
+  bool InlinesWasmFunction(const wasm::NativeModule* native_module,
+                           int func_index = -1);
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   // Returns the PC of the next bytecode in execution order.
   // If the bytecode at the given offset is JumpLoop, the PC of the jump target

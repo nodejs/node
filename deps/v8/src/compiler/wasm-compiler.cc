@@ -46,7 +46,6 @@
 #include "src/objects/name.h"
 #include "src/objects/string.h"
 #include "src/roots/roots.h"
-#include "src/tracing/trace-event.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/code-space-access.h"
 #include "src/wasm/compilation-environment-inl.h"
@@ -100,12 +99,15 @@ bool TryWasmInlining(int fct_index, wasm::NativeModule* native_module,
     TRACE("- not inlining: function is imported");
     return false;
   }
-  if (native_module->compilation_state()->detected_features().has_shared()) {
+  if (v8_flags.wasm_shared || native_module->enabled_features().has_shared()) {
     // The Turbofan Wasm code has not been updated to support the experimental
-    // shared-everything feature. It is unlikely that it will become
+    // shared-everything feature. Even if this module does not use shared types
+    // itself, another module in the same isolate can pass a shared Wasm object
+    // via externref/anyref, where abstract casts (e.g. ref.cast array) must
+    // reject shared objects. It is unlikely that it will become
     // non-experimental any time soon while we plan to remove the Turbofan code
     // soon.
-    TRACE("- not inlining: module uses experimental 'shared' feature");
+    TRACE("- not inlining: experimental 'shared' feature is enabled");
     return false;
   }
   base::Vector<const uint8_t> bytes(native_module->wire_bytes().SubVector(
@@ -384,9 +386,9 @@ class WasmWrapperGraphBuilder {
     Node* internal = gasm_.LoadImmutableProtectedPointerFromObject(
         function_data,
         offsetof(WasmFunctionData, protected_internal_) - kHeapObjectTag);
-    args[0] = gasm_.LoadFromObject(
+    args[0] = gasm_.LoadImmutableFromObject(
         MachineType::Uint32(), internal,
-        offsetof(WasmInternalFunction, raw_call_target_) - kHeapObjectTag);
+        offsetof(WasmInternalFunction, call_target_) - kHeapObjectTag);
     Node* implicit_arg = gasm_.LoadImmutableProtectedPointerFromObject(
         internal, offsetof(WasmInternalFunction, protected_implicit_arg_) -
                       kHeapObjectTag);
@@ -514,10 +516,10 @@ wasm::WasmCompilationResult CompileWasmImportCallWrapper(
     int expected_arity, wasm::Suspend suspend) {
   DCHECK_NE(wasm::ImportCallKind::kLinkError, kind);
   DCHECK_NE(wasm::ImportCallKind::kWasmToWasm, kind);
+  DCHECK_NE(wasm::ImportCallKind::kReexportedJSFunction, kind);
   DCHECK_NE(wasm::ImportCallKind::kWasmToJSFastApi, kind);
 
-  TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
-              "wasm.CompileWasmImportCallWrapper");
+  WasmDetailedTraceScope trace_scope("wasm.CompileWasmImportCallWrapper");
   base::TimeTicks start_time;
   if (V8_UNLIKELY(v8_flags.trace_wasm_compilation_times)) {
     start_time = base::TimeTicks::Now();
@@ -550,8 +552,7 @@ wasm::WasmCompilationResult CompileWasmImportCallWrapper(
 
 wasm::WasmCompilationResult CompileWasmStackEntryWrapper(
     const wasm::CanonicalSig* sig) {
-  TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
-              "wasm.CompileWasmStackEntryWrapper");
+  WasmDetailedTraceScope trace_scope("wasm.CompileWasmStackEntryWrapper");
   base::TimeTicks start_time;
   if (V8_UNLIKELY(v8_flags.trace_wasm_compilation_times)) {
     start_time = base::TimeTicks::Now();
@@ -581,8 +582,7 @@ wasm::WasmCompilationResult CompileWasmStackEntryWrapper(
 
 wasm::WasmCompilationResult CompileWasmCapiCallWrapper(
     const wasm::CanonicalSig* sig) {
-  TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
-              "wasm.CompileWasmCapiFunction");
+  WasmDetailedTraceScope trace_scope("wasm.CompileWasmCapiFunction");
 
   return Pipeline::GenerateCodeForWasmNativeStubFromTurboshaft(
       sig, wasm::WrapperCompilationInfo{CodeKind::WASM_TO_CAPI_FUNCTION},
@@ -591,8 +591,7 @@ wasm::WasmCompilationResult CompileWasmCapiCallWrapper(
 
 wasm::WasmCompilationResult CompileWasmJSFastCallWrapper(
     const wasm::CanonicalSig* sig, DirectHandle<JSReceiver> callable) {
-  TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
-              "wasm.CompileWasmJSFastCallWrapper");
+  WasmDetailedTraceScope trace_scope("wasm.CompileWasmJSFastCallWrapper");
 
   return Pipeline::GenerateCodeForWasmNativeStubFromTurboshaft(
       sig,

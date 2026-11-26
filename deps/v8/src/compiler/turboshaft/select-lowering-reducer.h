@@ -51,16 +51,16 @@ class SelectLoweringReducer : public Next {
       case SelectOp::Implementation::kAny:
         switch (rep.value()) {
           case RegisterRepresentation::Enum::kWord32:
-            use_cmove = SupportedOperations::word32_select();
+            use_cmove = SupportedOperations::word32_cmove();
             break;
           case RegisterRepresentation::Enum::kWord64:
-            use_cmove = SupportedOperations::word64_select();
+            use_cmove = SupportedOperations::word64_cmove();
             break;
           case RegisterRepresentation::Enum::kFloat32:
-            use_cmove = SupportedOperations::float32_select();
+            use_cmove = SupportedOperations::float32_cmove();
             break;
           case RegisterRepresentation::Enum::kFloat64:
-            use_cmove = SupportedOperations::float64_select();
+            use_cmove = SupportedOperations::float64_cmove();
             break;
 
           case RegisterRepresentation::Enum::kTagged:

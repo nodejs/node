@@ -286,6 +286,7 @@ CrashSignature CrashSignature::FromOutput(int signal, int exit_code,
     constexpr std::string_view kJsOom = "Fatal JavaScript out of memory: ";
     constexpr std::string_view kJsInvalidSize =
         "Fatal JavaScript invalid size error";
+    constexpr std::string_view kCsaDcheck = "abort: CSA_DCHECK failed: ";
     if (size_t oom_at = line.find(kOom); oom_at != std::string_view::npos) {
       text = "oom " + Truncated(Trim(line.substr(oom_at + kOom.size())), 60);
     } else if (size_t js_oom_at = line.find(kJsOom);
@@ -294,6 +295,22 @@ CrashSignature CrashSignature::FromOutput(int signal, int exit_code,
           "oom " + Truncated(Trim(line.substr(js_oom_at + kJsOom.size())), 60);
     } else if (line.find(kJsInvalidSize) != std::string_view::npos) {
       text = "oom invalid size";
+    } else if (size_t csa_at = line.find(kCsaDcheck);
+               csa_at != std::string_view::npos) {
+      // "abort: CSA_DCHECK failed: MESSAGE [FILE:LINE] [FILE:LINE] ...". The
+      // last location is the generated builtin. Without it, every failed
+      // CSA_DCHECK gets the same signal signature.
+      std::string_view rest = line.substr(csa_at + kCsaDcheck.size());
+      size_t open = rest.rfind('[');
+      size_t close = rest.rfind(']');
+      std::string location;
+      if (open != std::string_view::npos && close != std::string_view::npos &&
+          close > open) {
+        location = Basename(rest.substr(open + 1, close - open - 1));
+      }
+      size_t first = rest.find(" [");
+      text =
+          "csa " + location + " " + Truncated(Trim(rest.substr(0, first)), 80);
     } else if (size_t fatal_at = line.find(kFatal);
                fatal_at != std::string_view::npos) {
       std::string_view rest = line.substr(fatal_at + kFatal.size());
@@ -397,6 +414,42 @@ CrashSignature CrashSignature::FromOutput(int signal, int exit_code,
   signature.text = text;
   signature.hash = Fnv1a(text);
   return signature;
+}
+
+bool MakeReprlBundle(const std::string& header,
+                     const std::vector<std::string>& scripts,
+                     std::string* bundle) {
+  if (header.find(kBundleMarkerPrefix) != std::string::npos) {
+    return false;
+  }
+  // d8 accepts only white space and comments before the first marker.
+  size_t start = 0;
+  while (start < header.size()) {
+    size_t end = header.find('\n', start);
+    if (end == std::string::npos) {
+      end = header.size();
+    }
+    if (end > start && header.compare(start, 2, "//") != 0) {
+      return false;
+    }
+    start = end + 1;
+  }
+  for (const std::string& script : scripts) {
+    if (script.find(kBundleMarkerPrefix) != std::string::npos) {
+      return false;
+    }
+  }
+  bundle->assign(header);
+  if (!bundle->empty() && bundle->back() != '\n') {
+    bundle->push_back('\n');
+  }
+  for (const std::string& script : scripts) {
+    bundle->append(kBundleScriptMarker).append("\n").append(script);
+    if (script.empty() || script.back() != '\n') {
+      bundle->push_back('\n');
+    }
+  }
+  return true;
 }
 
 }  // namespace redline

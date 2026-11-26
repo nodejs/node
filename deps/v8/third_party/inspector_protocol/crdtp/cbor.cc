@@ -5,6 +5,7 @@
 #include "cbor.h"
 
 #include <algorithm>
+#include <bit>
 #include <cassert>
 #include <cmath>
 #include <cstring>
@@ -203,19 +204,20 @@ bool IsCBORMessage(span<uint8_t> msg) {
            msg[2] == kInitialByteFor32BitLengthByteString));
 }
 
-Status CheckCBORMessage(span<uint8_t> msg) {
+StatusOr<size_t> CheckCBORMessage(span<uint8_t> msg) {
+  using Ret = StatusOr<size_t>;
   if (msg.empty())
-    return Status(Error::CBOR_UNEXPECTED_EOF_IN_ENVELOPE, 0);
+    return Ret(Status(Error::CBOR_UNEXPECTED_EOF_IN_ENVELOPE, 0));
   if (msg[0] != kInitialByteForEnvelope)
-    return Status(Error::CBOR_INVALID_START_BYTE, 0);
+    return Ret(Status(Error::CBOR_INVALID_START_BYTE, 0));
   StatusOr<EnvelopeHeader> status_or_header = EnvelopeHeader::Parse(msg);
   if (!status_or_header.ok())
-    return status_or_header.status();
+    return Ret(status_or_header.status());
   const size_t pos = (*status_or_header).header_size();
   assert(pos < msg.size());  // EnvelopeParser would not allow empty envelope.
   if (msg[pos] != EncodeIndefiniteLengthMapStart())
-    return Status(Error::CBOR_MAP_START_EXPECTED, pos);
-  return Status();
+    return Ret(Status(Error::CBOR_MAP_START_EXPECTED, pos));
+  return Ret((*status_or_header).outer_size());
 }
 
 // =============================================================================
@@ -563,7 +565,7 @@ Status CBORTokenizer::Status() const {
 }
 
 // The following accessor functions ::GetInt32, ::GetDouble,
-// ::GetString8, ::GetString16WireRep, ::GetBinary, ::GetEnvelopeContents
+// ::GetString8, ::GetString16View, ::GetBinary, ::GetEnvelopeContents
 // assume that a particular token was recognized in ::ReadNextToken.
 // That's where all the error checking is done. By design,
 // the accessors (assuming the token was recognized) never produce
@@ -595,10 +597,33 @@ span<uint8_t> CBORTokenizer::GetString8() const {
   return bytes_.subspan(status_.pos + (token_byte_length_ - length), length);
 }
 
-span<uint8_t> CBORTokenizer::GetString16WireRep() const {
+span<uint16_t> CBORTokenizer::GetString16View() const {
   assert(token_tag_ == CBORTokenTag::STRING16);
-  auto length = static_cast<size_t>(token_start_internal_value_);
-  return bytes_.subspan(status_.pos + (token_byte_length_ - length), length);
+  auto byte_length = static_cast<size_t>(token_start_internal_value_);
+  if (byte_length == 0) {
+    return span<uint16_t>();
+  }
+  span<uint8_t> raw = bytes_.subspan(
+      status_.pos + (token_byte_length_ - byte_length), byte_length);
+  if constexpr (std::endian::native == std::endian::little) {
+    if (reinterpret_cast<uintptr_t>(raw.data()) % alignof(uint16_t) == 0) {
+      return span<uint16_t>(reinterpret_cast<const uint16_t*>(raw.data()),
+                            byte_length / 2);
+    }
+  }
+  if (string16_buffer_.empty()) {
+    const size_t char_count = byte_length / 2;
+    string16_buffer_.resize(char_count);
+    if constexpr (std::endian::native == std::endian::little) {
+      std::memcpy(string16_buffer_.data(), raw.data(), byte_length);
+    } else {
+      for (size_t i = 0; i < char_count; ++i) {
+        string16_buffer_[i] = static_cast<uint16_t>(
+            raw[i * 2] | (static_cast<unsigned>(raw[i * 2 + 1]) << 8));
+      }
+    }
+  }
+  return SpanFrom(string16_buffer_);
 }
 
 span<uint8_t> CBORTokenizer::GetBinary() const {
@@ -653,6 +678,7 @@ void CBORTokenizer::ReadNextToken() {
   status_.pos += token_byte_length_;
   status_.error = Error::OK;
   envelope_header_ = EnvelopeHeader();
+  string16_buffer_.clear();
   if (status_.pos >= bytes_.size()) {
     token_tag_ = CBORTokenTag::DONE;
     return;
@@ -829,11 +855,8 @@ bool ParseValue(int32_t stack_depth,
                 ParserHandler* out);
 
 void ParseUTF16String(CBORTokenizer* tokenizer, ParserHandler* out) {
-  std::vector<uint16_t> value;
-  span<uint8_t> rep = tokenizer->GetString16WireRep();
-  for (size_t ii = 0; ii < rep.size(); ii += 2)
-    value.push_back((rep[ii + 1] << 8) | rep[ii]);
-  out->HandleString16(value);
+  assert(tokenizer->TokenTag() == CBORTokenTag::STRING16);
+  out->HandleString16(tokenizer->GetString16View());
   tokenizer->Next();
 }
 
@@ -1075,6 +1098,85 @@ Status AppendString8EntryToCBORMap(span<uint8_t> string8_key,
   return Status();
 }
 
+namespace {
+// Returns true if |chars| is well-formed UTF8. Rejects overlong encodings,
+// surrogates, and code points above U+10FFFF.
+bool IsValidUTF8(span<uint8_t> chars) {
+  for (size_t ii = 0; ii < chars.size();) {
+    uint8_t c = chars[ii];
+    if (c <= 0x7f) {
+      ++ii;
+      continue;
+    }
+    size_t num_bytes;
+    uint32_t codepoint;
+    uint32_t min_codepoint;
+    if ((c & 0xe0) == 0xc0) {  // 2 byte utf8 sequence
+      num_bytes = 2;
+      codepoint = c & 0x1f;
+      min_codepoint = 0x80;
+    } else if ((c & 0xf0) == 0xe0) {  // 3 byte utf8 sequence
+      num_bytes = 3;
+      codepoint = c & 0x0f;
+      min_codepoint = 0x800;
+    } else if ((c & 0xf8) == 0xf0) {  // 4 byte utf8 sequence
+      num_bytes = 4;
+      codepoint = c & 0x07;
+      min_codepoint = 0x10000;
+    } else {
+      return false;  // invalid leading byte
+    }
+    if (chars.size() - ii < num_bytes) {
+      return false;
+    }
+    for (size_t jj = 1; jj < num_bytes; ++jj) {
+      c = chars[ii + jj];
+      // Check the next byte is a continuation byte, that is 10xx xxxx.
+      if ((c & 0xc0) != 0x80) {
+        return false;
+      }
+      codepoint = (codepoint << 6) | (c & 0x3f);
+    }
+    if (codepoint < min_codepoint || codepoint > 0x10ffff ||
+        (codepoint >= 0xd800 && codepoint <= 0xdfff)) {
+      return false;
+    }
+    ii += num_bytes;
+  }
+  return true;
+}
+
+// Returns true if the current token of |tokenizer| is a STRING8 that is not
+// well-formed UTF8. Lenient decoders drop the ill-formed bytes (e.g.
+// json::ConvertCBORToJSON), so the decoded string can equal a different key.
+bool IsInvalidUTF8String8(const CBORTokenizer& tokenizer) {
+  return tokenizer.TokenTag() == CBORTokenTag::STRING8 &&
+         !IsValidUTF8(tokenizer.GetString8());
+}
+
+// Returns true if the current token of |tokenizer| is a string that equals
+// |key|. A STRING8 token matches on equal bytes. A STRING16 token matches only
+// an ASCII |key|, with each UTF16 code unit equal to one byte of |key|.
+bool IsMatchingMapKey(const CBORTokenizer& tokenizer, span<uint8_t> key) {
+  if (tokenizer.TokenTag() == CBORTokenTag::STRING8) {
+    return SpanEquals(tokenizer.GetString8(), key);
+  }
+  if (tokenizer.TokenTag() != CBORTokenTag::STRING16) {
+    return false;
+  }
+  span<uint16_t> rep = tokenizer.GetString16View();
+  if (rep.size() != key.size()) {
+    return false;
+  }
+  for (size_t ii = 0; ii < key.size(); ++ii) {
+    if (key[ii] > 127 || rep[ii] != key[ii]) {
+      return false;
+    }
+  }
+  return true;
+}
+}  // namespace
+
 span<uint8_t> GetString8ValueFromMap(span<uint8_t> message,
                                      span<uint8_t> string8_key) {
   CBORTokenizer tokenizer(message);
@@ -1098,15 +1200,25 @@ span<uint8_t> GetString8ValueFromMap(span<uint8_t> message,
       return {};
     }
     if (is_key) {
-      if (tokenizer.TokenTag() == CBORTokenTag::STRING8 &&
-          SpanEquals(tokenizer.GetString8(), string8_key)) {
+      // A decoder can read an ill-formed UTF8 key as |string8_key|.
+      if (IsInvalidUTF8String8(tokenizer)) {
+        return {};
+      }
+      if (IsMatchingMapKey(tokenizer, string8_key)) {
+        // Some decoders read a STRING16 key as |string8_key| and some do not
+        // find it. The encoder never writes a 7 bit key as STRING16.
+        if (tokenizer.TokenTag() != CBORTokenTag::STRING8) {
+          return {};
+        }
         if (found_key) {
           return {};  // Duplicate key
         }
         found_key = true;
       }
     } else if (found_key && !found_value) {
-      if (tokenizer.TokenTag() == CBORTokenTag::STRING8) {
+      // A decoder can read an ill-formed UTF8 value as a different string.
+      if (tokenizer.TokenTag() == CBORTokenTag::STRING8 &&
+          IsValidUTF8(tokenizer.GetString8())) {
         result = tokenizer.GetString8();
       }
       found_value = true;
@@ -1155,11 +1267,10 @@ bool HasKeyInMap(span<uint8_t> message, span<uint8_t> key) {
       tokenizer.Next();
       continue;
     }
-    if (is_key) {
-      if (tokenizer.TokenTag() == CBORTokenTag::STRING8 &&
-          SpanEquals(tokenizer.GetString8(), key)) {
-        return true;
-      }
+    // A decoder can read an ill-formed UTF8 key as |key|, so report it.
+    if (is_key &&
+        (IsMatchingMapKey(tokenizer, key) || IsInvalidUTF8String8(tokenizer))) {
+      return true;
     }
     tokenizer.Next();
     is_key = !is_key;

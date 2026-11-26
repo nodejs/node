@@ -72,7 +72,6 @@ ALL_VARIANT_FLAGS = {
         "--trace-maglev-phi-untagging",
         "--trace-maglev-regalloc",
         "--trace-maglev-escape-analysis",
-        "--trace-maglev-object-tracking",
         "--print-maglev-code",
         "--print-maglev-deopt-verbose",
         "--print-maglev-graph",
@@ -292,7 +291,9 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
         "--no-regexp-tier-up", "--regexp-interpret-all", "--jitless"
     ],
     "assert_types": [
-        "--concurrent-recompilation", "--stress_concurrent_inlining"
+        "--concurrent-recompilation",
+        "--stress_concurrent_inlining",
+        "--hole-fuzzing",
     ],
     "wasm_assert_types": [
         # 'wasm_assert_types' disables Liftoff, which conflicts with flags that
@@ -390,9 +391,10 @@ INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE = {
     "verify_predictable": [
         "--parallel-compile-tasks-for-eager-toplevel",
         "--parallel-compile-tasks-for-lazy", "--concurrent-recompilation",
-        "--stress-concurrent-allocation", "--stress-concurrent-inlining"
+        "--stress-concurrent-allocation", "--stress-concurrent-inlining",
+        "--wasm-test-streaming"
     ],
-    "dict_property_const_tracking": ["--stress-concurrent-inlining"],
+    "dict_prototypes": ["--stress-concurrent-inlining"],
 }
 
 # Flags that lead to a contradiction when a certain extra-flag is present.
@@ -404,6 +406,11 @@ INCOMPATIBLE_FLAGS_PER_EXTRA_FLAG = {
     "--concurrent-recompilation": [
         "--predictable", "--assert-types", "--turboshaft-assert-types",
         "--single-threaded"
+    ],
+    # Conflicts when extra-flags (e.g. --gc-stress) and a test specify
+    # different values.
+    "--concurrent-recompilation-delay=*": [
+        "--concurrent-recompilation-delay=*"
     ],
     "--parallel-compile-tasks-for-eager-toplevel": ["--predictable"],
     "--parallel-compile-tasks-for-lazy": ["--predictable"],

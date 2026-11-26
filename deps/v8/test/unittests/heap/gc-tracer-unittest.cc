@@ -13,6 +13,8 @@
 #include "src/execution/isolate.h"
 #include "src/flags/flags.h"
 #include "src/heap/cppgc-internal/object-allocator.h"
+#include "src/heap/cppgc-internal/stats-collector.h"
+#include "src/heap/cppgc-js/cpp-heap.h"
 #include "src/heap/gc-tracer-inl.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"

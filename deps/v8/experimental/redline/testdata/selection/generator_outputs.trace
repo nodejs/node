@@ -1,219 +1,244 @@
-IntegerDecl	0	e927aa321a5c0e2f	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+IntegerDecl	0	cf557eb32f777669	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 IntegerDecl	1	d1cd448a09ea2a5b	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-IntegerDecl	2	1b25efd5bfafb6a0	let n = 42; let s = "text"; let a = [1, 2, 3]; const v0 = 9109; let o 
+IntegerDecl	2	1b25efd5bfafb6a0	let n = 42; let s = "text"; let a = [1, 2, 3]; const v0 = 9109; let o
 IntegerDecl	3	a7c142938ed71051	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-IntegerDecl	4	30ad92463bce0bb4	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-FloatDecl	0	8bfdaac377cdf7b3	let v0 = (-9007199254740991); let n = 42; let s = "text"; let a = [1, 
-FloatDecl	1	13eeb02b23e75db8	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-FloatDecl	2	bb4b9d96be01936b	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+IntegerDecl	4	f789d52b8018d4ef	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+FloatDecl	0	e59fabf07c902629	let v0 = 1e+300; let n = 42; let s = "text"; let a = [1, 2, 3]; let o
+FloatDecl	1	2b9fb06589a6b05b	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+FloatDecl	2	97168eea86481f35	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 FloatDecl	3	0713d75decf4c949	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-FloatDecl	4	d8c552e66d5da8c3	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+FloatDecl	4	a5cb1b918c1d300a	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 StringDecl	0	4d17de4538bb89d8	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 StringDecl	1	cd98622246df512b	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 StringDecl	2	d35b978aa2337858	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 StringDecl	3	a80ab868befff0ec	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-StringDecl	4	d35b978aa2337858	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+StringDecl	4	1877b50587dafb19	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 BooleanDecl	0	87741761c8218c3a	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 BooleanDecl	1	03b3cf63a74884e6	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 BooleanDecl	2	9e4c6be8c1c88a2a	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-BooleanDecl	3	74e73c63088b7fb2	let n = 42; let s = "text"; let b0 = false; let a = [1, 2, 3]; let o =
+BooleanDecl	3	3613768eb88b43c6	let n = 42; let s = "text"; let b = false; let a = [1, 2, 3]; let o =
 BooleanDecl	4	806767f2903f1278	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-BigIntDecl	0	c23fa3772faa44da	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-BigIntDecl	1	ce0fea6d44489e99	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-BigIntDecl	2	359cb15572f79b14	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-BigIntDecl	3	1225a992be699c2a	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-BigIntDecl	4	6d7976d82081baa8	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-RegExpDecl	0	a121759a6b0b5f8f	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-RegExpDecl	1	57bd6b9158f7a460	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+BigIntDecl	0	99ca75630c944a63	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+BigIntDecl	1	86df84f11f70e24e	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+BigIntDecl	2	7a15a725b8478c57	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+BigIntDecl	3	74a1aa0f77a6b7d4	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+BigIntDecl	4	31e058f657da4bff	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+RegExpDecl	0	25f80f434dc9108f	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+RegExpDecl	1	e66f56cdd409bf1f	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 RegExpDecl	2	2f1303b0baaabec2	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 RegExpDecl	3	242df484e5a89df9	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-RegExpDecl	4	61a03c201973d9d9	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-NullishDecl	0	2451f88fa2b1fc6a	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+RegExpDecl	4	1117f547a28f6242	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+NullishDecl	0	405d83477363c7bf	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 NullishDecl	1	1540adcf895d9c56	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 NullishDecl	2	c8ff3581d96866e3	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 NullishDecl	3	fbb56f1851379731	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 NullishDecl	4	62b26b50dd8b3f70	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+UninitializedDecl	0	6d3843a0dcd8fd05	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+UninitializedDecl	1	9eaba11944675efe	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+UninitializedDecl	2	ba3b354bfb57ca1e	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+UninitializedDecl	3	1e66bb9014f1b466	let n = 42; let s = "text"; let v0; let a = [1, 2, 3]; let o = {x: 1,
+UninitializedDecl	4	fd1449e4eaa707fa	let n = 42; let s = "text"; let a = [1, 2, 3]; let v0; if (a.some((e0)
 SymbolDecl	0	231d008c69910a7e	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 SymbolDecl	1	7ca4f70852edb3dd	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 SymbolDecl	2	b5e977fa69245a77	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 SymbolDecl	3	a06af4993ccc3f27	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 SymbolDecl	4	2b7ab35f00b39fd2	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 ArrayDecl	0	1b33b9ded28421f8	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ArrayDecl	1	11ac1e068dd91d58	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ArrayDecl	2	40b40a10b7332016	const arr0 = [302395n]; let n = 42; let s = "text"; let a = [1, 2, 3];
-ArrayDecl	3	233b39c469ced728	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ArrayDecl	4	03aee093b95b9be9	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ArrayDecl	1	4daf53309e0eb96e	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ArrayDecl	2	81044429258c2866	const arr0 = ["0"]; let n = 42; let s = "text"; let a = [1, 2, 3]; let
+ArrayDecl	3	b597d51953b93c7e	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ArrayDecl	4	137efd1dfea17aa2	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 ObjectDecl	0	d8a57ccab377b006	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ObjectDecl	1	1f4718570f7d4779	let n = 42; let s = "text"; let obj0 = {a: n}; let a = [1, 2, 3]; let 
-ObjectDecl	2	c872aac0dfb4a731	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ObjectDecl	3	3eaa537ce5995f66	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ObjectDecl	4	d29b4181fa7484dc	let n = 42; let s = "text"; let obj0 = {"length": 11}; let a = [1, 2, 
-ConstructDecl	0	1e93a9c7db96ab73	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ConstructDecl	1	c524d88eac802135	let o0 = new Function("a", "return a"); let n = 42; let s = "text"; le
-ConstructDecl	2	fe345a79b98cd2d2	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ConstructDecl	3	dfc16e64653096d1	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ConstructDecl	4	6de6cf30c911665c	let n = 42; let s = "text"; let o0 = new Uint32Array([true, s, f, (-96
+ObjectDecl	1	bc1f2703e85d90d7	let n = 42; let s = "text"; let obj0 = {__proto__: {c: /\p{L}/v, 25775
+ObjectDecl	2	42397cce40c50bcd	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ObjectDecl	3	40d799bdab30bf30	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ObjectDecl	4	426f63c454486af3	let n = 42; let s = "text"; let obj0 = {p: typeof f}; let a = [1, 2, 3
+ConstructDecl	0	1fdf6ab2c8ca2c8a	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ConstructDecl	1	7cc466794f0bc656	let o0 = new Map([[f, f, -647564n]]); let n = 42; let s = "text"; let
+ConstructDecl	2	63c045dde58277a5	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ConstructDecl	3	2fad3d67edae4c41	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ConstructDecl	4	a28492f39bdfa7fa	let n = 42; let s = "text"; const o0 = new Temporal.PlainTime(); let a
 TypedArrayDecl	0	3dc42ba462383164	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-TypedArrayDecl	1	9c7438de5b1aba15	let n = 42; let s = "text"; let a = [1, 2, 3]; let ta0 = new Uint16Arr
+TypedArrayDecl	1	029a1124fc88a86b	let n = 42; let s = "text"; let a = [1, 2, 3]; let ta0 = new Uint16Arr
 TypedArrayDecl	2	a79cad4551608b49	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-TypedArrayDecl	3	e2617509db04a5f7	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-TypedArrayDecl	4	2f59cade95b1a87e	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ComputedDecl	0	0476b496e31d7a29	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+TypedArrayDecl	3	901f1e7c057d4772	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+TypedArrayDecl	4	01f002137cee59fc	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ComputedDecl	0	ed53f8249e1ab8c6	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 ComputedDecl	1	f3d09517d635a0a4	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ComputedDecl	2	bf7114fd52fba3d1	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ComputedDecl	3	debcb4b296dcbcf6	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ComputedDecl	4	7d0e16c845274009	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-TemplateDecl	0	b749c1ef3c8f9512	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ComputedDecl	2	e34af770bbdb795f	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ComputedDecl	3	e68dba8c8bf850b5	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ComputedDecl	4	1d0e2da08ed7adb5	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+TemplateDecl	0	18724d2539d26d28	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 TemplateDecl	1	eb83ff34e3b7475d	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 TemplateDecl	2	395756c4279d336d	let n = 42; let s = "text"; let a = [1, 2, 3]; let s0 = `b${n}a${n} `;
 TemplateDecl	3	5065a8a073acf5df	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-TemplateDecl	4	657075434c4c4f59	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-Destructuring	0	5e87ecfbb79518a0	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-Destructuring	1	90726fa074d14f10	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-Destructuring	2	47e1c5befdb99413	let n = 42; let [d0, ...rest0] = [{38: n, p: 498226n}, new Proxy([], {
-Destructuring	3	5fb094ca1b8c4720	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-Destructuring	4	fdfbddda576ffb93	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-FunctionDecl	0	18ccb2f0eda1c167	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-FunctionDecl	1	2c21996af764f783	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-FunctionDecl	2	26d20e1cd3178b70	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-FunctionDecl	3	fdd2b5e351062c66	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-FunctionDecl	4	e459a231032d9ec9	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ArrowDecl	0	be55e1b25c8415a8	let n = 42; const f0 = function(a0, a1) {   let arr0 = [];   return a1
-ArrowDecl	1	5df0834dfd76b195	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ArrowDecl	2	e98e0529f6d7e61f	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ArrowDecl	3	a342b345fd9c3722	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ArrowDecl	4	4ca77b18f141184d	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ClassDecl	0	68611ef119e30501	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ClassDecl	1	db010e154eddeb85	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ClassDecl	2	a7a783d92c4135ba	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ClassDecl	3	7b6c800d6a82ac36	let n = 42; let s = "text"; class C0 extends Function {   constructor(
-ClassDecl	4	16967d0f3f154b07	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-Iife	0	46c1a08062b17789	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-Iife	1	2c1290e69269d5eb	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-Iife	2	264f9fed2560f596	(function() {   class C0 {     constructor() {       this[2] = f;     
-Iife	3	a190b1b44a500a84	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-Iife	4	cf61ea02804da90b	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-Closure	0	53aef6260a76b909	let n = 42; let s = "text"; let v0 = 9; let f0 = () => {   v0 %= n;   
-Closure	1	2d1f8de421c4aa7f	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-Closure	2	7f80a44283918dea	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-Closure	3	f685e26eff6df1ba	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-Closure	4	40f91b7e981a85dd	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-BinaryOp	0	c4f2235234677590	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+TemplateDecl	4	635b7cc97db09649	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Destructuring	0	43fe28b665af40ff	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Destructuring	1	3605c65ae83ba4fc	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Destructuring	2	a482e9d642c0940c	let n = 42; let [d0, d1, d2, d3 = d2] = []; let s = "text"; let a = [1
+Destructuring	3	bde142ab90e50434	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Destructuring	4	7116ad255307c56f	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+FunctionDecl	0	32f0420d292b565c	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+FunctionDecl	1	1459a1376ece6252	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+FunctionDecl	2	97030a2074f6a3dc	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+FunctionDecl	3	c29e2ed9a335ac75	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+FunctionDecl	4	1d1595e820f887ed	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ArrowDecl	0	e6601b14367832d0	let n = 42; var f0 = function(a0 = (-2.8230217440715775), a1) {   a0.v
+ArrowDecl	1	d2e9a1f300fd3cc6	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ArrowDecl	2	b023b0824643636f	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ArrowDecl	3	eb8a85d4cfdb15dd	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ArrowDecl	4	da4f66275149af09	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ClassDecl	0	fe3b426a477aec48	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ClassDecl	1	16d260f8b00a218c	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ClassDecl	2	ca34f0fdfbc9d038	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ClassDecl	3	1eac66d4b3ed2cf1	let n = 42; let s = "text"; class C0 extends Date {   constructor(a0)
+ClassDecl	4	08206054ff0c4c99	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+PrivateAccess	0	3c1110bad16d326d	noop
+PrivateAccess	1	3c1110bad16d326d	noop
+PrivateAccess	2	3c1110bad16d326d	noop
+PrivateAccess	3	3c1110bad16d326d	noop
+PrivateAccess	4	3c1110bad16d326d	noop
+SuperAccess	0	eaeb07146c316ee8	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+SuperAccess	1	2fac2c8c705debd0	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+SuperAccess	2	02c22e59b43a5265	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+SuperAccess	3	2d14c75f96fd2d5a	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+SuperAccess	4	7680b815a3cc0852	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ClassMember	0	3c1110bad16d326d	noop
+ClassMember	1	3c1110bad16d326d	noop
+ClassMember	2	3c1110bad16d326d	noop
+ClassMember	3	3c1110bad16d326d	noop
+ClassMember	4	3c1110bad16d326d	noop
+LiteralMember	0	3c1110bad16d326d	noop
+LiteralMember	1	3c1110bad16d326d	noop
+LiteralMember	2	3c1110bad16d326d	noop
+LiteralMember	3	3c1110bad16d326d	noop
+LiteralMember	4	3c1110bad16d326d	noop
+Iife	0	f73773fe8722b4fa	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Iife	1	181db26f8789a5c4	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Iife	2	c523923407066574	(function() {   let b0 = (-4.054794798954298) < 7;   parseInt(206578n)
+Iife	3	aae240de2535d76a	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Iife	4	d9b5d86f2a159ef0	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Closure	0	e5b006f79e477697	let n = 42; let s = "text"; let v0 = 4440; let f0 = () => {   let obj0
+Closure	1	af67afe0cd117cef	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Closure	2	0e4e734c9b0adbbc	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Closure	3	96206766ad44f396	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Closure	4	79b2798e2641ea2d	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+BinaryOp	0	441b5cdd72f1e099	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 BinaryOp	1	ddc56a277a932fed	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 BinaryOp	2	46310a316c79c467	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 BinaryOp	3	1996c79ddc16a3a7	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-BinaryOp	4	a4929d95c02c0ce8	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-Compare	0	f0db1ec877fe64a3	let n = 42; let s = "text"; let b0 = new Function("a", "return a") !==
-Compare	1	7ce7dd879e54249d	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+BinaryOp	4	6d299ab8821822d8	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Compare	0	f7da81a2f97515a7	let n = 42; let s = "text"; let b0 = 2.9339753478123 === s; let a = [1
+Compare	1	b18cfb7fa20ff482	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 Compare	2	f675e3cc37fc72ba	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-Compare	3	e6040eae1f6f48aa	let n = 42; let s = "text"; let a = [1, 2, 3]; let b0 = "" >= n; let o
-Compare	4	15ebfa38a0a5791d	let n = 42; let b0 = n !== 7; let s = "text"; let a = [1, 2, 3]; let o
-UnaryOp	0	0d33fec93cfb25e5	let n = 42; n++; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: 
-UnaryOp	1	184c6a9d8764cba2	let n = 42; var v0 = typeof n; let s = "text"; let a = [1, 2, 3]; let 
-UnaryOp	2	ca05301db2c21394	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Compare	3	e814c32b1a8365e9	let n = 42; let s = "text"; let a = [1, 2, 3]; let b0 = 22 !== a; let
+Compare	4	63c6d00f37fc0bec	let n = 42; let b0 = n < {__proto__: {next: [], p: f, [n]: n, valueOf:
+UnaryOp	0	0d33fec93cfb25e5	let n = 42; n++; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y:
+UnaryOp	1	184c6a9d8764cba2	let n = 42; var v0 = typeof n; let s = "text"; let a = [1, 2, 3]; let
+UnaryOp	2	a9c825f387bb811b	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 UnaryOp	3	c62fe5a4bd6d0fe6	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 UnaryOp	4	90fe45b70cb87e8a	let n = 42; let v0 = -n; let s = "text"; let a = [1, 2, 3]; let o = {x
-Update	0	3b319c65e1c6390d	let n = 42; let s = "text"; let a = [1, 2, 3]; n--; let o = {x: 1, y: 
+Update	0	3b319c65e1c6390d	let n = 42; let s = "text"; let a = [1, 2, 3]; n--; let o = {x: 1, y:
 Update	1	84075c6b575c0847	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 Update	2	8d7ab59dc38c526f	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 Update	3	35fadaf766e71101	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-Update	4	4ea725f96ed3b513	let n = 42; let s = "text"; n++; let a = [1, 2, 3]; let o = {x: 1, y: 
+Update	4	4ea725f96ed3b513	let n = 42; let s = "text"; n++; let a = [1, 2, 3]; let o = {x: 1, y:
 Assignment	0	6ea87eeccb0803c0	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 Assignment	1	14754f3e5c88d9f2	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-Assignment	2	7061297f705fc7da	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-Assignment	3	3bbfb5e1ffb8d4b1	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-Assignment	4	28ed3619e3edd36b	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-PropertyLoad	0	9899942e0b0f86eb	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-PropertyLoad	1	9d99f2c45d825070	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-PropertyLoad	2	6aac094c54bd1769	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-PropertyLoad	3	b06c54fa236b8142	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-PropertyLoad	4	6579be7e6c8ae682	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-PropertyStore	0	8b0ff658ba4aa5ba	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-PropertyStore	1	1ebf8f5229844fa6	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-PropertyStore	2	fb9274aaf6e8f807	let n = 42; let s = "text"; f.name = n; let a = [1, 2, 3]; let o = {x:
-PropertyStore	3	ab9a8502a2ac4f9f	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-PropertyStore	4	5e1ef7a0c0da2942	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Assignment	2	3e41a988b61c22c3	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Assignment	3	f63213db67c48df9	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Assignment	4	388987331a18c523	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+PropertyLoad	0	ec035a39b2a721f8	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+PropertyLoad	1	dc175cf1f39baf35	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+PropertyLoad	2	e24fb67170198232	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+PropertyLoad	3	cd1c98dcdc7f1e47	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+PropertyLoad	4	86913d1f161aee69	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+PropertyStore	0	042fec06b483e25f	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+PropertyStore	1	1e94ca5c3729a4eb	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+PropertyStore	2	2b84fa3ae0f01def	let n = 42; let s = "text"; f.prototype = s; let a = [1, 2, 3]; let o
+PropertyStore	3	535f0b29e8f0f068	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+PropertyStore	4	852e199386b04c0d	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 ElementLoad	0	1b8ea8c01cba80c5	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 ElementLoad	1	a03dccecbfe2b846	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ElementLoad	2	231e4164ea6b4d54	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ElementLoad	2	ffb7c331e75577e8	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 ElementLoad	3	f3746f027e4fc1af	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 ElementLoad	4	bd2848994167c5fe	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ElementStore	0	c9f878463492405b	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ElementStore	0	3f1167f51bdf632a	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 ElementStore	1	3c1110bad16d326d	noop
-ElementStore	2	0901b3d1cc26ff84	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ElementStore	2	731d6d9e82a4bb5d	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 ElementStore	3	6a09da0212e682c3	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ElementStore	4	faa413075f1f70ce	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-PropertyDelete	0	f78921c9be46a580	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-PropertyDelete	1	6674cdb2149c4065	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ElementStore	4	bdcf414af53b428f	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+PropertyDelete	0	e33646b1032601e0	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+PropertyDelete	1	44be5b241186d765	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 PropertyDelete	2	3c1110bad16d326d	noop
-PropertyDelete	3	e369adae29108ba6	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+PropertyDelete	3	86c087e9522fbdd9	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 PropertyDelete	4	c19a9835413dc4ad	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-MethodCall	0	2e004ea78ec3deee	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-MethodCall	1	17296a0ac3de0bc2	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-MethodCall	2	ea2c75a2b9a65934	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-MethodCall	3	8abf8e7e4c85c220	let n = 42; let s = "text"; let a = [1, 2, 3]; s.slice(10); let o = {x
-MethodCall	4	bb9996fc6decd8fb	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-FunctionCall	0	741784451f1e03f0	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-FunctionCall	1	18e74c4dfaecb398	let n = 42; let v0 = f("éèà"); let s = "text"; let a = [1, 2, 3]; l
-FunctionCall	2	742b8588adbbdcdb	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-FunctionCall	3	70abb0ec022d8de4	let v0 = f(f, f); let n = 42; let s = "text"; let a = [1, 2, 3]; let o
-FunctionCall	4	e9ad6b005293df57	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-BuiltinCall	0	2e2b75e44c4503c4	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-BuiltinCall	1	33570bef966f7959	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-BuiltinCall	2	f02edc0c529af65f	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-BuiltinCall	3	8815629472ea706c	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-BuiltinCall	4	950d7697470472b2	let v0 = Promise.reject(f); let n = 42; let s = "text"; let a = [1, 2,
-Construct	0	cea245a7bde2cc0e	let n = 42; let s = "text"; let a = [1, 2, 3]; const o0 = new Uint16Ar
-Construct	1	ec6957e873527f4e	let n = 42; let o0 = new f(/(?ms:[xyz]){2}ab+(?m:\cJ(?i:0+[A-Z_]ab)0|[
-Construct	2	805d5cbf5befe2aa	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-Construct	3	f912d1189c548dbc	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-Construct	4	4d589eca0df19114	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+MethodCall	0	a567433ed4cd395a	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+MethodCall	1	c5384bfa2f0ac729	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+MethodCall	2	5636d0321aca04c4	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+MethodCall	3	c2f821a7121e119f	let n = 42; let s = "text"; let a = [1, 2, 3]; let k0 = "includes"; le
+MethodCall	4	fd7b63e41845f0e4	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+FunctionCall	0	5d4bb7debb10285e	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+FunctionCall	1	0495aeb1c5edeab6	let n = 42; f(n, n); let s = "text"; let a = [1, 2, 3]; let o = {x: 1,
+FunctionCall	2	37978843baca2a96	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+FunctionCall	3	f8db6c812cbda73c	f(29074, 16777215); let n = 42; let s = "text"; let a = [1, 2, 3]; let
+FunctionCall	4	37978843baca2a96	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+BuiltinCall	0	24a266a78cfc497f	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+BuiltinCall	1	3efc0c254b1a7572	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+BuiltinCall	2	6c6efc2593b08892	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+BuiltinCall	3	4d967bbfec41bd48	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+BuiltinCall	4	b4705aac3346c1fd	Reflect.preventExtensions(new Object(f)); let n = 42; let s = "text";
+Construct	0	d2bc660b28f5e83b	let n = 42; let s = "text"; let a = [1, 2, 3]; let o0 = new f(); let o
+Construct	1	d92569d96f883bd5	let n = 42; let o0 = new WeakSet(9223372036854775807n); let s = "text"
+Construct	2	3207ee5337ed5bcc	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Construct	3	92e1c2f25fd8b477	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Construct	4	2a0f32197e7b7cbf	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 TypeCheck	0	fa0d77ac3c4326b7	let b0 = "😀" in f; let n = 42; let s = "text"; let a = [1, 2, 3]; l
 TypeCheck	1	cd0650227945e301	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 TypeCheck	2	b22e32d8123f45af	let n = 42; var b0 = typeof n != "bigint"; let s = "text"; let a = [1,
-TypeCheck	3	30face7241770731	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-TypeCheck	4	cdd089368664c7da	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-SpreadCall	0	d929bafc94523901	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-SpreadCall	1	f0eb21c16e1ad218	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-SpreadCall	2	83ac8b9570fed73a	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-SpreadCall	3	3c1110bad16d326d	noop
-SpreadCall	4	d28601acc25696d9	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-StringOps	0	04c909b364bd497f	let n = 42; let s = "text"; let s0 = (s + "__proto__").repeat(4); let 
-StringOps	1	99402599e00ef6d7	let n = 42; let s = "text"; var s0 = s[0]; let a = [1, 2, 3]; let o = 
+TypeCheck	3	23647e9da83bbb50	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+TypeCheck	4	412df39a2078f5f0	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+SpreadCall	0	9e900f2dc6f89714	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+SpreadCall	1	4a991350ff531051	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+SpreadCall	2	4e25b085a570597c	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+SpreadCall	3	371d509bee7969d3	let n = 42; const v0 = n.toFixed(9, ...new Map([])); let s = "text"; l
+SpreadCall	4	faf5de989df3f6f7	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+StringOps	0	519ad991de92c9f6	let n = 42; let s = "text"; const s0 = %InternalizeString("x"); let a
+StringOps	1	99402599e00ef6d7	let n = 42; let s = "text"; var s0 = s[0]; let a = [1, 2, 3]; let o =
 StringOps	2	6a39ee093d477712	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-StringOps	3	e838149a7a4a5d1f	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-StringOps	4	ea17e87a49d09ef6	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-TypedArrayOps	0	d59a8f09b2b894ee	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+StringOps	3	7d82143a007deafd	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+StringOps	4	36facf016082525f	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+TypedArrayOps	0	bc4028c7fa76744f	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 TypedArrayOps	1	bfbb3d2e0912ad2a	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-TypedArrayOps	2	37a3319ea56a277c	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-TypedArrayOps	3	5f1e3859e3e7b93d	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+TypedArrayOps	2	d09b82596b79e81f	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+TypedArrayOps	3	f6c12fe62260e14a	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 TypedArrayOps	4	47d5d1cf21bf182f	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-MapSetOps	0	33443566dc5d4539	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-MapSetOps	1	4f53558d3dd3b0fd	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-MapSetOps	2	2c6eeaaed42749ae	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-MapSetOps	3	e7dedce127ecff1c	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-MapSetOps	4	55d196618c5c29c7	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+MapSetOps	0	14fa804f27c3ca96	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+MapSetOps	1	5972757fbb429aa0	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+MapSetOps	2	6c9e4f090c1b3b77	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+MapSetOps	3	2d1065ec68e0c80d	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+MapSetOps	4	6b7371f26b3b2564	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 IntlOps	0	527c82fe676ad35e	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-IntlOps	1	ffcf62984a7d4ae0	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-IntlOps	2	74b33f9eda2b1c4f	let n = 42; let s = "text"; let a = [1, 2, 3]; let intl0 = new Intl.Pl
-IntlOps	3	27dd0dcf8b3ed98d	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-IntlOps	4	0b70a7b5cde698c1	let n = 42; let s = "text"; var intl0 = new Intl.PluralRules("ar-EG", 
-FrozenArrayOps	0	b47df5ef5f720313	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-FrozenArrayOps	1	85e73eb16e14a19f	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-FrozenArrayOps	2	f5feb3e0dce341e6	let n = 42; let s = "text"; var farr0 = Object.freeze([f]); const v0 =
-FrozenArrayOps	3	d43a45480ffeb207	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-FrozenArrayOps	4	967a20b0a07fd993	let n = 42; let s = "text"; let farr0 = Object.seal([s]); let v0 = far
-TemporalOps	0	cf9e762b38927dee	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-TemporalOps	1	c25b7260b2a60201	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-TemporalOps	2	aacdd2dae5b78dc6	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-TemporalOps	3	357e40b1f1961168	let temp0 = new Temporal.Instant(123456789n); let r0; try {   r0 = Tem
-TemporalOps	4	c0dfa1a1f442f777	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-WasmModule	0	3b9e697366cbb62e	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-WasmModule	1	cc7bc98aaf239ef6	const bytes0 = new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 1, 17, 3, 
-WasmModule	2	aa5e193fdef730d4	const bytes0 = new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 1, 30, 6, 
-WasmModule	3	3f330f1ab8ab352e	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-WasmModule	4	9d9fa66c07201b42	let n = 42; let s = "text"; let a = [1, 2, 3]; const bytes0 = new Uint
-Iteration	0	5ce872d5f3c050ee	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+IntlOps	1	08e5af2b0586d447	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+IntlOps	2	fb8ea901d429dc60	let n = 42; let s = "text"; let a = [1, 2, 3]; let intl0 = new Intl.Pl
+IntlOps	3	3464e1f953e49afe	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+IntlOps	4	0b70a7b5cde698c1	let n = 42; let s = "text"; var intl0 = new Intl.PluralRules("ar-EG",
+FrozenArrayOps	0	50b11fe625027c13	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+FrozenArrayOps	1	dabd6bc4b8575d97	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+FrozenArrayOps	2	faeb62deea79778b	let n = 42; let s = "text"; let farr0 = Object.freeze([54141]); const
+FrozenArrayOps	3	c7114548da2e2085	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+FrozenArrayOps	4	bb0bffb62c5176e5	let n = 42; let s = "text"; const farr0 = Object.freeze([s]); const v0
+TemporalOps	0	77cc1bab508d18de	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+TemporalOps	1	b1d5843e7c6d8ba3	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+TemporalOps	2	040a07d67033b8d6	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+TemporalOps	3	76ac5152acf005e0	let temp0 = new Temporal.Instant(123456789n); let r0; try {   r0 = tem
+TemporalOps	4	218c966c6840350f	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+WasmModule	0	af639824879b9024	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+WasmModule	1	50f3c6634a6c32a2	const bytes0 = new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 1, 87, 7,
+WasmModule	2	7b7f06c165ca46d4	const bytes0 = new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 1, 89, 8,
+WasmModule	3	e59a2dedd98bb7fd	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+WasmModule	4	52b208ce793d2cc0	let n = 42; let s = "text"; let a = [1, 2, 3]; const bytes0 = new Uint
+Iteration	0	0f3ea094c59baa52	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 Iteration	1	9e1dd231acc56644	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 Iteration	2	c41a99bccef415ca	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 Iteration	3	0200042c2392fb34	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
@@ -223,186 +248,226 @@ DiscoveredApi	1	3c1110bad16d326d	noop
 DiscoveredApi	2	3c1110bad16d326d	noop
 DiscoveredApi	3	3c1110bad16d326d	noop
 DiscoveredApi	4	3c1110bad16d326d	noop
-PrototypeMethodCall	0	5c7932bd5e168f68	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-PrototypeMethodCall	1	032ee8ae6ccf376f	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-PrototypeMethodCall	2	fb8b5596493f7b39	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-PrototypeMethodCall	3	aa35f9308c7b5ceb	let n = 42; let r0; try {   r0 = Date.prototype.getFullYear.call([]); 
-PrototypeMethodCall	4	9838c58c9e21040b	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-UnboundMethodCall	0	2e31977870ae0e6c	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-UnboundMethodCall	1	d7580c31c5a6ba05	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-UnboundMethodCall	2	8f502edaa905c3ef	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+PrototypeMethodCall	0	cf6df6281d946634	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+PrototypeMethodCall	1	c1b6a3f3f52f9c1b	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+PrototypeMethodCall	2	50006c18178226a4	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+PrototypeMethodCall	3	b2aea68658245693	let n = 42; let r0; try {   r0 = Date.prototype.getTimezoneOffset.call
+PrototypeMethodCall	4	93609731d98b9e47	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+UnboundMethodCall	0	7a1db4fbc0783d63	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+UnboundMethodCall	1	714dd070cae1117b	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+UnboundMethodCall	2	afac602b6dd589a9	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 UnboundMethodCall	3	603e8514533bcb4d	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 UnboundMethodCall	4	12d7bbf37bb36077	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-BuiltinOverwrite	0	2f2bb244a580ba27	let n = 42; let s = "text"; Iterator.from = function(a0, a1) {   const
-BuiltinOverwrite	1	1560196a06e5ec52	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-BuiltinOverwrite	2	046b2041f6651638	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-BuiltinOverwrite	3	77904ab49d463461	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-BuiltinOverwrite	4	282714e396fe57e6	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ConstructorFunction	0	679f49b314daa83b	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ConstructorFunction	1	7ef184eec37f2b4f	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ConstructorFunction	2	ba9a4df64c6f3596	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ConstructorFunction	3	2693e18c72137806	let n = 42; function C0(a0, a1) {   if (!new.target) {     return new 
-ConstructorFunction	4	28807a1bb9cdefaa	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-CountedLoop	0	c9107a3387c34f6a	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-CountedLoop	1	091afdf6c03a44f9	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-CountedLoop	2	91da1e4799cf83cd	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-CountedLoop	3	ccb161483ecca3e0	for (let i0 = 0; i0 < (-9); i0++) {   let v0 = (0, eval)("1+1"); } let
-CountedLoop	4	d30681001c7ed41c	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-WhileLoop	0	54207e49044b74f1	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-WhileLoop	1	815256f695a7b516	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-WhileLoop	2	84732beee7dda584	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-WhileLoop	3	d5b27692eea7d274	let n = 42; let s = "text"; let a = [1, 2, 3]; let n0 = 0; do {   let 
-WhileLoop	4	f261a2f53b0a3146	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ForOf	0	320ba70528d2b08a	for (let e0 of Object.keys(Int8Array)) {   function rec0(d0) {     if 
-ForOf	1	fa44ce02bc1ab828	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ForOf	2	b1925621a3d08245	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ForOf	3	fd8fcaddfb154caf	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ForOf	4	4a718dc1d0adaeab	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ForIn	0	e22acf3bb86d8e28	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ForIn	1	a21ed18782e6bee5	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ForIn	2	56cc81c5b7707657	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ForIn	3	8c4c64f66ff17607	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ForIn	4	e39cab08045ad366	let n = 42; let s = "text"; let a = [1, 2, 3]; for (let k0 in [4]) {  
-IfElse	0	848ee64465f29196	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-IfElse	1	cb817a5633b7849b	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-IfElse	2	5c4e1669ab359252	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-IfElse	3	9053ad9ccb218fd4	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-IfElse	4	f32a80844e8fbe80	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-Switch	0	60f06d4de618eef1	let n = 42; switch (f) {   case 9:     function f0() {       let v0 = 
-Switch	1	92fc8f1418c4b431	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-Switch	2	556f9b8a5556ee37	let n = 42; let s = "text"; switch (s) {   case 49929:     class B0 { 
-Switch	3	3b58c45608929e8d	let n = 42; switch (n) {   case n:     var m0 = f.call;     let r0;   
-Switch	4	ea096cf820ccece8	let n = 42; let s = "text"; let a = [1, 2, 3]; switch ("toString" in {
-TryCatch	0	5f2df9e141e25617	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-TryCatch	1	883d611922c42aec	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-TryCatch	2	18d99fee4c15c223	let n = 42; try {   const v0 = 5;   throw f; } catch {   let o0 = new 
-TryCatch	3	91745fdc788ad397	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-TryCatch	4	e7e5c9dafd08d0e8	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+BuiltinOverwrite	0	3aec764c85c6a60e	let n = 42; let s = "text"; Number.isInteger = function(a0, a1) {   wi
+BuiltinOverwrite	1	683116586fcc43f0	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+BuiltinOverwrite	2	875773ed18a8cb35	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+BuiltinOverwrite	3	4ff658f33161ef25	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+BuiltinOverwrite	4	bab6f635689ee70b	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ConstructorFunction	0	7ff8f4e7edc42ec8	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ConstructorFunction	1	ead2254f62253cbb	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ConstructorFunction	2	27ba360032616c51	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ConstructorFunction	3	a0e8c8b57db20098	let n = 42; function C0(a0, a1) {   if (!new.target) {     return new
+ConstructorFunction	4	d5051410ef29daef	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+CountedLoop	0	84122737dc522d8f	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+CountedLoop	1	a248c5577d7f34a4	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+CountedLoop	2	deed6b07c178c129	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+CountedLoop	3	7f57e705d4a8d977	for (let i0 = 0; i0 < f.length; i0++) {   let rab0 = new ArrayBuffer(3
+CountedLoop	4	4b392eca0b946e7d	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+WhileLoop	0	23d0f57e2f529b41	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+WhileLoop	1	958e11b1326bc3f3	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+WhileLoop	2	6a46ad891e0bc223	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+WhileLoop	3	6de7ef2e16d8a610	let n = 42; let s = "text"; let a = [1, 2, 3]; let n0 = 0; do {   func
+WhileLoop	4	987f52612db69c2f	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ForOf	0	1d0bb5f616609f03	for (let e0 of Object.keys(Proxy)) {   const gsab0 = new SharedArrayBu
+ForOf	1	0c9fd698abcb4692	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ForOf	2	37ecc44bd7ce1fbd	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ForOf	3	2bd18ebb43752948	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ForOf	4	5e4fab6e415e5a51	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ForIn	0	9724ac55cd7e4bd1	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ForIn	1	93734cb198c80b37	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ForIn	2	f6bf6e43bdb3bf4a	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ForIn	3	322acfa32935b866	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ForIn	4	df64fe9b0405c5e7	let n = 42; let s = "text"; let a = [1, 2, 3]; for (let k0 in [n, ,])
+IfElse	0	3055e6c65b473ea3	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+IfElse	1	32ee9f750e59310c	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+IfElse	2	5225cd2d6d819611	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+IfElse	3	65691120ba8ebaa4	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+IfElse	4	23e8896c60c656ea	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Switch	0	f50cc7e770edc492	let n = 42; switch (f) {   default:     let o0 = new Proxy(["\t\n", n,
+Switch	1	e1d1d75e0c3e4ec5	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Switch	2	47cd6de1132051a8	let n = 42; let s = "text"; switch (s) {   default:     let r0;     tr
+Switch	3	5eeca50338342d26	let n = 42; switch (n) {   case 70:     %DeoptimizeNow();     var obj0
+Switch	4	e2c487781123fbc3	let n = 42; let s = "text"; let a = [1, 2, 3]; switch (undefined) {
+TryCatch	0	02b1f8bb2dc62de0	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+TryCatch	1	719ccb83de46ef66	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+TryCatch	2	edd70758013e3835	let n = 42; try {   const v0 = 5;   throw f; } catch (e0) {   function
+TryCatch	3	0f0301abde190364	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+TryCatch	4	b23a0197595e6e95	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 Throw	0	900a6aec15de6d09	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 Throw	1	7e0bef672496e132	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 Throw	2	311f5fba25b98410	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-Throw	3	46103b053cc40f45	try {   throw f; } catch (e0) {} let n = 42; let s = "text"; let a = [
+Throw	3	3d24b9cd063079a9	try {   throw f; } catch (e0) {   for (using e1 of [{[Symbol.dispose](
 Throw	4	cc20ba700e94fb91	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-LabeledBlock	0	b4c504159a6f567d	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-LabeledBlock	1	3116ada707a12837	let n = 42; let s = "text"; L0: {   const v0 = new BigInt64Array(1);  
-LabeledBlock	2	bbbfabdb0876a3ee	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-LabeledBlock	3	4eab5efc52ef7120	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-LabeledBlock	4	4c14bf802fe9b144	let n = 42; let s = "text"; L0: {   %CompileBaseline(f);   f(n, new Ui
-Return	0	3b839fb48f6ee6f2	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-Return	1	306cbba852db797d	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-Return	2	26d7f6ed91d5d71e	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-Return	3	97634560becc9e43	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+LabeledBlock	0	4b0e045fd1082869	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+LabeledBlock	1	36ba6fd650b48a10	let n = 42; let s = "text"; L0: {   function f0(a0, a1 = n && n) {
+LabeledBlock	2	a0225376a943fe1c	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+LabeledBlock	3	dd08d67da2781407	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+LabeledBlock	4	cb7708c5b4cb4196	let n = 42; let s = "text"; L0: {   var p0 = Promise.all([Promise.reso
+Return	0	9b75efc7af0754a3	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Return	1	02223ac37ebd395b	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Return	2	cfd8d1498b941fd6	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Return	3	2eada56a2aec9c91	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 Return	4	ab306353bc4b8e82	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-BreakContinue	0	55750c67a65f7004	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-BreakContinue	1	4ddb6bd5a368171e	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-BreakContinue	2	9ab58f462c9fc3b6	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-BreakContinue	3	6dd0f204fb20d002	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-BreakContinue	4	2c0ffe024cdf4d56	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-JitOptimize	0	b55c6300f9a377d7	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-JitOptimize	1	16e6591c4d4c4758	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-JitOptimize	2	03cf8ebabefccef8	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-JitOptimize	3	873cbf66f8ce35cf	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-JitOptimize	4	5f3f7882f3b92a1a	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-JitBaseline	0	851224678766820b	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-JitBaseline	1	c35e9c17806bce17	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-JitBaseline	2	830e31a10d4abc27	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-JitBaseline	3	9b2680deaa5ff899	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-JitBaseline	4	248ad7fb9784636c	let n = 42; let s = "text"; let a = [1, 2, 3]; %CompileBaseline(f); f(
+BreakContinue	0	67d82e2a246b1a8f	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+BreakContinue	1	55750c67a65f7004	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+BreakContinue	2	43c6181a6fa7e0e0	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+BreakContinue	3	cb3fdbf3321f5660	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+BreakContinue	4	395cda4b99f4c5ad	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+JitOptimize	0	4098d9867829d7c3	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+JitOptimize	1	235335777d96ad5b	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+JitOptimize	2	a7295466a2d3b344	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+JitOptimize	3	36432ee61d17089d	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+JitOptimize	4	2aecabfa3e724c52	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+JitBaseline	0	014a1cc716c4372e	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+JitBaseline	1	50a09793618fdbee	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+JitBaseline	2	1e4563193f153e3a	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+JitBaseline	3	fbc44ae33911c619	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+JitBaseline	4	67535b539d54cdde	let n = 42; let s = "text"; let a = [1, 2, 3]; %CompileBaseline(f); f(
 Deopt	0	7d172f4aca417f13	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 Deopt	1	4bc84ef2c7e1ee7b	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-Deopt	2	f26af8207c77e9b3	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Deopt	2	6f7d6d7d38617b7e	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 Deopt	3	510e90f57e29b741	let n = 42; %DeoptimizeFunction(f); let s = "text"; let a = [1, 2, 3];
 Deopt	4	aeff274f9cb69dbd	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-OsrLoop	0	27ade9e243f316fe	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-OsrLoop	1	a3930ceae52bff3d	let n = 42; let s = "text"; for (let i0 = 0; i0 < 10; i0++) {   if (i0
-OsrLoop	2	bb34929ab9ad8059	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-OsrLoop	3	42eb2fc7127afca4	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-OsrLoop	4	3e087de209e7137e	for (let i0 = 0; i0 < 5; i0++) {   if (i0 === 32) {     %OptimizeOsr()
-NativeCall	0	1b035c7d9d8c5b4f	let n = 42; let s = "text"; let a = [1, 2, 3]; let v0 = %HasDictionary
-NativeCall	1	97f9f105049ab1dd	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-NativeCall	2	cb8a6892692b6723	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-NativeCall	3	47129197c0970376	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-NativeCall	4	5e8ee37c4be1b807	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+OsrLoop	0	e14139998e09afeb	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+OsrLoop	1	2d3444c9fad2d2fa	let n = 42; let s = "text"; function f0() {   for (let i0 = 0; i0 < 20
+OsrLoop	2	b3f163e568865932	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+OsrLoop	3	934118d9df92bc0a	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+OsrLoop	4	271b671a03b18731	for (let i0 = 0; i0 < 100; i0++) {   if (i0 === 30) {     %OptimizeOsr
+JitTricky	0	f690b054ef50a757	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+JitTricky	1	b051d5fb2154ab53	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+JitTricky	2	85acba911b10e414	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+JitTricky	3	a4fc763cb9d47991	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+JitTricky	4	4ab62b03e605e7c6	let n = 42; function f0(i0, a0, a1) {   %PrepareFunctionForOptimizatio
+LazyDeopt	0	5217cc3567f5b5f7	let n = 42; let s = "text"; let c0 = 0; function f0(a0, a1 = [], ...a2
+LazyDeopt	1	cca01d56be78f787	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+LazyDeopt	2	659f01bfabd873d2	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+LazyDeopt	3	d05e801c967cd189	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+LazyDeopt	4	f9edc1dcd81e3b7c	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+HotLoop	0	031c4b4cf77dd0d8	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+HotLoop	1	92bae0d3b4705f59	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+HotLoop	2	cac968387bb65b9c	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+HotLoop	3	a9ee93791bf52008	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+HotLoop	4	36849d391804f750	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+DestructuringAssign	0	ad41db65781e516d	let n = 42; let s = "text"; ({"42": f, length: s = 3926} = []); let a
+DestructuringAssign	1	efc6bbf430140865	let n = 42; let s = "text"; [f, s, n = s, s] = ["xlsohe", s, "ab"]; le
+DestructuringAssign	2	ab89a8524624fabb	({d: f.length, [Symbol.species]: f} = f); let n = 42; let s = "text";
+DestructuringAssign	3	b71c60a6e673d0fb	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+DestructuringAssign	4	1676f7d3349116d1	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ForOfPattern	0	98c2e7c422b06bd4	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ForOfPattern	1	d1d53fc7e053f2de	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ForOfPattern	2	a56377453241adfe	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ForOfPattern	3	16fddc90f3255010	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ForOfPattern	4	f5e2deeab33e2ac0	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+EvalCode	0	fcfea64e9fe99cad	eval("f.toString = () => false; let v0 = f + 74.625; function* f0(a0)
+EvalCode	1	2739e881f4dc41cc	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+EvalCode	2	c718758f1a94d696	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+EvalCode	3	bf54c36c3e7e6401	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+EvalCode	4	74cf5cc64969d584	let n = 42; let s = "text"; try {   eval("for (let k0 in Error) { let
+SharedNameDecl	0	ba615c21ed81f40f	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+SharedNameDecl	1	3c1110bad16d326d	noop
+SharedNameDecl	2	8d4c1f2dc236703f	let n = 42; let s = "text"; let a = [1, 2, 3]; let b = n; let o = {x:
+SharedNameDecl	3	4e629875f95f405a	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+SharedNameDecl	4	a8083d96ad3fe41f	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+BuiltinReassign	0	eda9b80c954ffc74	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+BuiltinReassign	1	ab884990e84412dd	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+BuiltinReassign	2	f445b7eeba6e235c	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+BuiltinReassign	3	dba8992b47dba674	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+BuiltinReassign	4	47f44f819ef98c86	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+NativeCall	0	a88d921321fc2262	let n = 42; let s = "text"; let a = [1, 2, 3]; %ConstructConsString(s,
+NativeCall	1	2b17d8a20baa968e	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+NativeCall	2	e5ffac9511518424	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+NativeCall	3	4aa066c2adbb6dca	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+NativeCall	4	7c7bc1f3a66f51b1	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 Gc	0	2e28e2e3c22d80de	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 Gc	1	60d32e81e006ba6e	let n = 42; let s = "text"; gc(); let a = [1, 2, 3]; let o = {x: 1, y:
 Gc	2	ca389f230e9b29d6	gc({execution: "async"}); let n = 42; let s = "text"; let a = [1, 2, 3
 Gc	3	8af22f5fed7a4eee	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 Gc	4	336b5075ee6e4306	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-PrototypeSet	0	6d3db32787e2a5f3	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-PrototypeSet	1	36e1809d0e35a541	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-PrototypeSet	2	8f2e609fe86cfd0e	f.__proto__ = f; let n = 42; let s = "text"; let a = [1, 2, 3]; let o 
-PrototypeSet	3	c2b9b6067cb2d879	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-PrototypeSet	4	298ace00a2fb69af	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-DefineProperty	0	647073e2288749e3	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-DefineProperty	1	32cf82f33412c796	Object.defineProperty({}, (-21.75), {value: (-4.440254125672173), writ
-DefineProperty	2	82c67e4331482669	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-DefineProperty	3	d15bc0e824ef1350	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-DefineProperty	4	5fd56b8c2d88206a	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ValueOfOverride	0	a7f701cc8ae8ef38	({}[Symbol.toPrimitive] = () => 665917n); var v0 = {} + 96; let n = 42
+PrototypeSet	0	09750c14b22b991c	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+PrototypeSet	1	6f3c71c6afbc81d3	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+PrototypeSet	2	849d9c478c19c153	const arr0 = [77, , 5, 0, 4, 36717, (-2147483649), 84]; Object.defineP
+PrototypeSet	3	49a232cad70a68bf	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+PrototypeSet	4	039a084340d77ba7	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+DefineProperty	0	0f85b453eab2db39	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+DefineProperty	1	6666fbc3f0c5b90e	Object.defineProperty(Temporal.PlainMonthDay, "!", {get: function() {
+DefineProperty	2	1be27c92f0806c03	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+DefineProperty	3	178afcb0ac02e898	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+DefineProperty	4	e63897eb30415b89	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ValueOfOverride	0	2cb70a21a21bbc05	({}[Symbol.toPrimitive] = () => [""]); let v0 = {} + 2; let n = 42; le
 ValueOfOverride	1	ff262fbe8da9ff82	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ValueOfOverride	2	fcc9d1e0fff88476	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ValueOfOverride	3	a17eff224fd23545	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ValueOfOverride	4	988cc04c634f9a8f	({p: f, c: f}.valueOf = () => 2); var v0 = {p: f, c: f} + (-94.375); l
-ElementsKind	0	e21f919dc5d4cbcb	let n = 42; let arr0 = [{p: 2n, value: f, [7]: f}]; arr0.shift(); let 
+ValueOfOverride	2	6645ce043ff78fe3	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ValueOfOverride	3	772ac7f87b1d770d	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ValueOfOverride	4	0ff116b56c3c2b5f	({42: f, 1: f}.valueOf = () => "kzfq" / {__proto__: {4095: f}, 44: f,
+ElementsKind	0	d87709f6fbe076f8	let n = 42; let arr0 = [9007199254740991]; %NormalizeElements(arr0); l
 ElementsKind	1	6fc809d0da586d47	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ElementsKind	2	f8480a6b1e2b30f0	let arr0 = [new Object()]; %NormalizeElements(arr0); arr0.push(f); arr
-ElementsKind	3	874af5694aabb8aa	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ElementsKind	2	9717fb54daf02751	let arr0 = [f]; %NormalizeElements(arr0); arr0.push(f); arr0[100] = 53
+ElementsKind	3	f6f2f0d94caac2c9	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 ElementsKind	4	3b1d3f38393b0c3a	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 FreezeSeal	0	7258823647c97181	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 FreezeSeal	1	5171b5cf702ad031	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 FreezeSeal	2	d77afd5f550b35fb	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 FreezeSeal	3	7eb0b5437d884d92	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-FreezeSeal	4	dfb96195d15aa806	let n = 42; let s = "text"; let a = [1, 2, 3]; Object.preventExtension
-ProxyDecl	0	dacd1fe65a6068e7	let proxy0 = new Proxy({}, {getOwnPropertyDescriptor(t0, k0) {   retur
-ProxyDecl	1	6f1367ca454cfb7f	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ProxyDecl	2	52646197a81f8075	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ProxyDecl	3	4ee09dc8e03ac4c1	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ProxyDecl	4	169cc926d9e6e91c	let n = 42; let s = "text"; let proxy0 = new Proxy(s, {defineProperty(
-With	0	e06b6dd0b6887129	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-With	1	db763d514faf41cb	let n = 42; with (f) {   f |= n; } let s = "text"; let a = [1, 2, 3]; 
-With	2	d9abb20776d893b7	let n = 42; let s = "text"; let a = [1, 2, 3]; with ([5, ...a, 19, 96,
-With	3	0044ab53fb707278	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-With	4	9711b8e4999b0fcd	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ShapeChange	0	d7a7b650901c6157	let n = 42; let s = "text"; let a = [1, 2, 3]; let obj0 = {p: "prototy
-ShapeChange	1	383f21fde9b035df	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ShapeChange	2	e63c38fd42f2b4cc	let n = 42; let obj0 = {p: f, y: /(?<!\B(?i:\b[xyz].?)\cJb)./, key: f}
-ShapeChange	3	8f0c7960666e71e3	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ShapeChange	4	b0dd2b09f7f48595	let n = 42; let s = "text"; let obj0 = {size: n, y: {a: n}}; delete ob
+FreezeSeal	4	120306472db0f582	let n = 42; let s = "text"; let a = [1, 2, 3]; Object.preventExtension
+ProxyDecl	0	15fa8a47f7280cd7	let proxy0 = new Proxy({}, {getPrototypeOf(t0, k0) {   let v0 = k0[k0]
+ProxyDecl	1	92641ea6db58dfb6	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ProxyDecl	2	6319b5726d94221e	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ProxyDecl	3	efd319a355b37a7b	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ProxyDecl	4	1f59507b14adb322	let n = 42; let s = "text"; const proxy0 = new Proxy(n, {getPrototypeO
+With	0	7db8734c8224a072	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+With	1	9682cbc2763acc2e	let n = 42; with (f) {   let t0 = n + n;   let t1 = -0 - t0;   let t2
+With	2	43833c6ef5497524	let n = 42; let s = "text"; let a = [1, 2, 3]; with ([, , , , n, 16777
+With	3	a8505e5b68b9cb35	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+With	4	7a7dc5cc2f741787	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ShapeChange	0	5507c47004ec9569	let n = 42; let s = "text"; let a = [1, 2, 3]; let obj0 = {["__proto__
+ShapeChange	1	f2acd061848f9598	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ShapeChange	2	e6b07933e4537fd0	let n = 42; const o0 = {y: f}; const o1 = {y: f, p0: n}; const o2 = {y
+ShapeChange	3	54a44e42086b73cb	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ShapeChange	4	17b73285ec063c98	let n = 42; let s = "text"; const o0 = {callee: s}; const o1 = {callee
 Eval	0	7fd79c914eb7e99c	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 Eval	1	9e4890e0eb281e0a	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 Eval	2	2ce06d76913e52d7	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 Eval	3	26a36bdee67277b8	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 Eval	4	c6e8e055531f54ab	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-Recursion	0	79fac07139d847c8	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-Recursion	1	593f500be8384d58	let n = 42; let s = "text"; function rec0(d0) {   const v0 = s[d0];   
+Recursion	0	ea74c280f66ea46e	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Recursion	1	6a9abbde79c51b88	let n = 42; let s = "text"; function rec0(d0) {   const v0 = Error.cap
 Recursion	2	f8990874646a1360	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-Recursion	3	d676c2b432959c26	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Recursion	3	27b725f2315b1b68	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 Recursion	4	e21d205ccc50892e	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-WrapperChain	0	ebc16e10c5cd3155	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+WrapperChain	0	6cb82220a6441ff5	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 WrapperChain	1	30c4df9a7d931a60	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-WrapperChain	2	75e1d3520f83457e	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-WrapperChain	3	f6c6101b3dc0ddea	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-WrapperChain	4	8e48052efb074ad4	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ManyProperties	0	a2c3ab572e4027f4	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ManyProperties	1	40dca84fa28879b9	let n = 42; let s = "text"; let a = [1, 2, 3]; let obj0 = s; for (let 
-ManyProperties	2	b23d00778397e3e5	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ManyProperties	3	265f4ff487964407	let n = 42; let obj0 = [undefined, f]; for (let i0 = 0; i0 < 128; i0++
-ManyProperties	4	d46fb10023c04158	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ReturnOverride	0	0a4d2fde3a7b5eb7	let n = 42; let s = "text"; let a = [1, 2, 3]; class B0 {   constructo
-ReturnOverride	1	20c913d317f00e24	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ReturnOverride	2	96dc0d9921736229	let n = 42; let s = "text"; class B0 {   constructor(o0) {     return 
-ReturnOverride	3	a397ca815ca0acb2	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ReturnOverride	4	cfa9a93cb000de2c	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+WrapperChain	2	58b2414b9dd3a524	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+WrapperChain	3	47f7580a9fec2398	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+WrapperChain	4	dc3d705f128d224b	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ManyProperties	0	4e5a5c803e1e6157	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ManyProperties	1	2b22c1b2502ddf85	let n = 42; let s = "text"; let a = [1, 2, 3]; let obj0 = a; for (let
+ManyProperties	2	af2e118a3c0190ee	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ManyProperties	3	723c96ac4f9aae6d	let n = 42; let obj0 = n; for (let i0 = 0; i0 < 128; i0++) {   obj0["c
+ManyProperties	4	ad54ff4f6fd76b1b	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ReturnOverride	0	bb44d38685d07333	let n = 42; let s = "text"; let a = [1, 2, 3]; class B0 {   constructo
+ReturnOverride	1	7cf04dde432e193a	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ReturnOverride	2	d21391b61b4ee803	let n = 42; let s = "text"; class B0 {   constructor(o0) {     return
+ReturnOverride	3	7521ecbb5caee107	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ReturnOverride	4	f793fb26ded7c8ef	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 ArgumentsUse	0	c4990aca02847428	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 ArgumentsUse	1	f82bac662b57cfdd	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 ArgumentsUse	2	52bf6f3ff3201dc1	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 ArgumentsUse	3	52bf6f3ff3201dc1	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ArgumentsUse	4	fa638fca72884fc8	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ThisUse	0	29bab05a5c62f57f	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ThisUse	1	9565df350f77ef25	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ThisUse	2	2c9cf887e447ad75	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ThisUse	3	3447c87ddeeda264	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ThisUse	4	83fc41237788ab5f	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ArgumentsUse	4	c916fbed444234bb	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ThisUse	0	9672f089dd26365f	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ThisUse	1	47762eba4f1d748d	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ThisUse	2	564fe6c2913d1680	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ThisUse	3	67e960afb421f0ce	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ThisUse	4	8825a0bfc6f37593	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 Await	0	3c1110bad16d326d	noop
 Await	1	3c1110bad16d326d	noop
 Await	2	3c1110bad16d326d	noop
@@ -413,58 +478,208 @@ Yield	1	3c1110bad16d326d	noop
 Yield	2	3c1110bad16d326d	noop
 Yield	3	3c1110bad16d326d	noop
 Yield	4	3c1110bad16d326d	noop
-AsyncIife	0	6a40efa33be59f47	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-AsyncIife	1	039ebffcba55bf61	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-AsyncIife	2	0bd62ee9aedc068f	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-AsyncIife	3	bcf42907e0838541	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-AsyncIife	4	a2b4c27bc85aca01	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-GeneratorIterate	0	7f0e9fb553a4efdc	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-GeneratorIterate	1	c0932414ef9ef09e	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-GeneratorIterate	2	be928494e0c535b2	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-GeneratorIterate	3	248a673be7e19a85	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-GeneratorIterate	4	2b7a234adee6281d	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-PromiseThen	0	e7e10d5474ea5b6a	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-PromiseThen	1	3210e32ab6c7398d	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-PromiseThen	2	0d166dc5c4ef8696	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-PromiseThen	3	b14940cba3314c4d	let n = 42; let s = "text"; Promise.resolve(true ?? f).then((v0) => { 
-PromiseThen	4	465f63fb7fed35e7	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-WorkerSpawn	0	42d53bb737152ff6	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-WorkerSpawn	1	80de419722ab560a	let w0 = new Worker("onmessage = function(e) { postMessage(e.data); }"
-WorkerSpawn	2	d8e2706a9b45a489	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-WorkerSpawn	3	fbdbe624ed1841a6	let n = 42; let s = "text"; let w0 = new Worker("onmessage = function(
-WorkerSpawn	4	be4956854b8ae32b	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ArrowStore	0	ab28f573fe0cb5e7	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ArrowStore	1	f95296340537c4a3	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ArrowStore	2	deb135d3981704d5	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-ArrowStore	3	e28dbbf3f44dd971	function f0() {   const v0 = 255n;   const v1 = f;   var v2 = ["fcaw",
-ArrowStore	4	abe0ff058ef42ddd	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-DynamicFunctionTransition	0	7c481d460a2f3213	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+AsyncIife	0	4a8584eb3f851aea	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+AsyncIife	1	491bb4963e908adc	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+AsyncIife	2	1bf2ad8c4163c263	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+AsyncIife	3	05d6e8c5dffa0def	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+AsyncIife	4	4a854486a430aa91	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+GeneratorIterate	0	f4e10ff16fbf32a0	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+GeneratorIterate	1	ea29c0cf2428e004	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+GeneratorIterate	2	8df04ff5f887f7a6	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+GeneratorIterate	3	15aeb42e1aa912d1	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+GeneratorIterate	4	d1ed808f3dbd7361	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+PromiseThen	0	0249bd1adee8ddd8	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+PromiseThen	1	e0de2181e9221fe9	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+PromiseThen	2	f19f8d19cb9387cc	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+PromiseThen	3	13f12abbcf8570b1	let n = 42; let s = "text"; let p0 = Promise.resolve(/(?<x>a)\k<x>/).t
+PromiseThen	4	0d25006879ce6612	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+PromiseOps	0	de5c620cb16dd6c2	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+PromiseOps	1	582146a85b55cfc3	let n = 42; Promise.reject(/(?<=^|(?<!.\x7f)0)(?<!(?!.*$\u0041*?|7*\\?
+PromiseOps	2	37d08e72a70b446f	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+PromiseOps	3	88c76c335a7ec533	let n = 42; let s = "text"; async function* g0() {   yield f;   yield
+PromiseOps	4	d32e78d080ff583d	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+HostObjectDecl	0	6d910940207bd731	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+HostObjectDecl	1	c7811776c361d4b8	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+HostObjectDecl	2	ff8e07d4baa91c33	let n = 42; let s = "text"; const io0 = d8.test.createInterceptorObjec
+HostObjectDecl	3	e75b043209520471	let aco0 = d8.test.createAccessCheckedInterceptorObject(false, functio
+HostObjectDecl	4	cefd354aa4dde537	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+WorkerSpawn	0	89c8af9a63adee80	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+WorkerSpawn	1	9460e692cb2e9bdf	let sab0 = new SharedArrayBuffer(16); let view0 = new Int32Array(sab0)
+WorkerSpawn	2	47cc1793dfd65c4c	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+WorkerSpawn	3	46c1dd8983f3e91b	let n = 42; let s = "text"; let sab0 = new SharedArrayBuffer(16); let
+WorkerSpawn	4	b3097548045a8e45	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ArrowStore	0	cd13f14f213281ec	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ArrowStore	1	90d1b5f791bc451a	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ArrowStore	2	a4fffcec12d7212e	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ArrowStore	3	b472ceddc32af7c4	function f0() {   let v0 = 6;   let v1 = v0;   const v2 = f(v0, v1);
+ArrowStore	4	03efe62ed5120ef9	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+DynamicFunctionTransition	0	991e7cbbd939812f	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 DynamicFunctionTransition	1	36450bf1721e3a67	let n = 42; let s = "text"; let dynFn0 = Reflect.construct(Function, [
-DynamicFunctionTransition	2	a29bad378663ee38	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-DynamicFunctionTransition	3	e4f438bb53beec77	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-DynamicFunctionTransition	4	0afbeb7b6b70cac6	let n = 42; let dynFn0 = new Function("'use strict'; " + "1"); dynFn0.
-CrossContextPrivateStore	0	9fde8b6b37fb87fc	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+DynamicFunctionTransition	2	e44b30681f77e080	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+DynamicFunctionTransition	3	147d54edec8d0ede	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+DynamicFunctionTransition	4	889a15fdf78087c2	let n = 42; let dynFn0 = new Function("'use strict'; " + "1"); dynFn0.
+CrossContextPrivateStore	0	8752807c49911ed5	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 CrossContextPrivateStore	1	7c195db234d9d9e5	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-CrossContextPrivateStore	2	8b1138207d09f5f4	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-CrossContextPrivateStore	3	a7ad7b8a820ff80f	let n = 42; class PrivClass0 {   #p0 = f;   #p1 = f;   #p2 = 1.1294121
-CrossContextPrivateStore	4	018ef033d6439880	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-UsingDecl	0	b31a86379b4e5fc7	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-UsingDecl	1	47a9444637a77f9c	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-UsingDecl	2	86e003a1ee414580	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-UsingDecl	3	420bc753d7ef748f	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-UsingDecl	4	106f8ef2e53de039	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+CrossContextPrivateStore	2	645431b72c1adedc	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+CrossContextPrivateStore	3	a64f882b906aff40	let n = 42; class Base0 {   constructor(o3) {     return {};   } } cla
+CrossContextPrivateStore	4	e04983e291d91f92	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+UsingDecl	0	b52aff2d08cf520c	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+UsingDecl	1	02d028a6859f7b9f	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+UsingDecl	2	d9fbf3b0d7d60e26	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+UsingDecl	3	d61df0718973fa6e	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+UsingDecl	4	275d752f5eb1475c	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 AwaitUsingDecl	0	3c1110bad16d326d	noop
 AwaitUsingDecl	1	3c1110bad16d326d	noop
 AwaitUsingDecl	2	3c1110bad16d326d	noop
 AwaitUsingDecl	3	3c1110bad16d326d	noop
 AwaitUsingDecl	4	3c1110bad16d326d	noop
-RawThrow	0	bdc871ba79f2b38d	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+RawThrow	0	5b3b33ec6ed6ce43	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 RawThrow	1	c0ee9516a72befa1	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 RawThrow	2	8064773cd90f9e83	let n = 42; let s = "text"; let a = [1, 2, 3]; throw n; let o = {x: 1,
-RawThrow	3	66026cd771054498	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
-RawThrow	4	9fba1fda199a3d53	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+RawThrow	3	e54157d1d3f265bf	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+RawThrow	4	e6e99e8eabda6fdd	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 NewTargetExpr	0	2fc176f45befbce2	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 NewTargetExpr	1	87451ef31cdbeb66	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 NewTargetExpr	2	fe9e348275eb4986	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 NewTargetExpr	3	6cbd57c33890cde2	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
 NewTargetExpr	4	ed13c2a8ea07258e	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+BuiltinInstanceDecl	0	279bbfb28d5b336b	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+BuiltinInstanceDecl	1	f95ef62a7d4bd1d3	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+BuiltinInstanceDecl	2	d3048559c0e2f251	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+BuiltinInstanceDecl	3	13c19a9a9c6a56b2	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+BuiltinInstanceDecl	4	00bac9366bd707e3	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ConstructorFunctionDecl	0	c999ff1986cd772d	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ConstructorFunctionDecl	1	67a0b90841bf7974	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ConstructorFunctionDecl	2	b44f47d180cd8b36	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ConstructorFunctionDecl	3	6943c73809f21dfd	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ConstructorFunctionDecl	4	3b0a5bcb25096b17	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+IterableDecl	0	392ef1939d8aa565	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+IterableDecl	1	67f52cb1f9e9bf43	let e = {[Symbol.iterator]() {   let n0 = 5;   return {next() {     n0
+IterableDecl	2	e46f6bf9aca72899	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+IterableDecl	3	0661f8c7d86356f0	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+IterableDecl	4	ba612b1e81caab9e	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+DisposableDecl	0	c77266d1a5e14e53	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+DisposableDecl	1	e5411d2ca53a8b2d	let n = 42; let s = "text"; let a = [1, 2, 3]; class D0 {   [Symbol.di
+DisposableDecl	2	8e1a58df9fc807a5	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+DisposableDecl	3	dbd1eac52e75df5b	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+DisposableDecl	4	c0b30538a950f3c2	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+AsyncDisposableDecl	0	8270a496d29589e0	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+AsyncDisposableDecl	1	915416e440ce7fac	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+AsyncDisposableDecl	2	f8b406def8187aca	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+AsyncDisposableDecl	3	394c04a8f8fc8d0f	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+AsyncDisposableDecl	4	5a100897d51e3312	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ResizableBufferDecl	0	7d7b41fb3e4144d4	let gsab0 = new SharedArrayBuffer(2207, {maxByteLength: 3346}); const
+ResizableBufferDecl	1	bdaea765e6a34689	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ResizableBufferDecl	2	b9c634cc8e79c79b	let n = 42; let gsab0 = new SharedArrayBuffer(848, {maxByteLength: 853
+ResizableBufferDecl	3	b40e6fd7c1e96be4	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ResizableBufferDecl	4	1a11e0e738ebc37f	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ResizableBuffer	0	4aebb74e5899eb8c	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ResizableBuffer	1	369ffe09a34c57b0	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ResizableBuffer	2	34e617cdfc971e23	let n = 42; let s = "text"; const gsab0 = new SharedArrayBuffer(2810,
+ResizableBuffer	3	d2b73eb085427a5f	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ResizableBuffer	4	52a8fa348df3487c	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ForOfUsing	0	41f9bace0b36d84c	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ForOfUsing	1	3cdaecf32cec7beb	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ForOfUsing	2	443a6458272a84a3	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ForOfUsing	3	7597231c8a25381d	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ForOfUsing	4	183b91f0dac633ef	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+DisposableStackOps	0	a37cb891c3aa2fa2	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+DisposableStackOps	1	d14f1b641380a2bd	let n = 42; let s = "text"; let a = [1, 2, 3]; let st0 = new Disposabl
+DisposableStackOps	2	8a9e4827c969d611	const st0 = new DisposableStack(); st0.adopt(-256n, (a0) => {   throw
+DisposableStackOps	3	3d5bd3125d13cf85	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+DisposableStackOps	4	bd318a6da0f55591	let n = 42; let s = "text"; let st0 = new DisposableStack(); st0.use(n
+GcNative	0	9665e90640697ea6	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+GcNative	1	e0c36a774b25613d	let n = 42; let s = "text"; gc({execution: "sync"}); let a = [1, 2, 3]
+GcNative	2	e88f9934157e57ca	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+GcNative	3	97b608b6b376232e	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+GcNative	4	a4c60f4c319b8dc1	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+VerifyType	0	6bceed943d93ac81	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+VerifyType	1	3346b92f8e2ae699	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+VerifyType	2	4d1945bc44c4367c	let n = 42; let s = "text"; %VerifyType(f); let a = [1, 2, 3]; let o =
+VerifyType	3	4a47b82e6d925047	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+VerifyType	4	9aeabe5ce29ce9b2	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+SpecialValueDecl	0	b99d61e776a622c3	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+SpecialValueDecl	1	1da771cbd3fcd388	let n = 42; let s = "text"; let a = [1, 2, 3]; const w0 = %GetUndetect
+SpecialValueDecl	2	9dbe15580061b2a9	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+SpecialValueDecl	3	03ca65863fc38bd0	let n = 42; let s = "text"; let a = [1, 2, 3]; const v0 = %GetHoleNaN(
+SpecialValueDecl	4	6408f3a48662efa3	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Imitation	0	77ead46ed8e6df59	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Imitation	1	12ff4aea954ef375	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Imitation	2	618e3193e520b6be	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+Imitation	3	775286a2af8a019e	let n = 42; let s = "text"; let w0 = {valueOf() {   let p0 = Promise.r
+Imitation	4	89a1a18f2ffeaf19	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+LiteralFactory	0	9d29715134c0155f	let n = 42; let s = "text"; function mk0(a0) {   let arr0 = Array.from
+LiteralFactory	1	36e2903bc71854d1	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+LiteralFactory	2	a33361897c6cee80	let n = 42; let s = "text"; let a = [1, 2, 3]; function mk0(a0, a1) {
+LiteralFactory	3	9b48a583183c3d29	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+LiteralFactory	4	1d747c7104a784f6	let n = 42; function mk0(a0, a1, a2) {   %NormalizeElements(a2);   ret
+ObjectFlow	0	31f92655d37d765e	let n = 42; let s = "text"; let a = [1, 2, 3]; function mk0(a0, a1) {
+ObjectFlow	1	7ce17d9d8c7c164d	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ObjectFlow	2	1899cd27b2526c0d	function mk0(a0) {   return {p1: 5543, p0: 1.032681010099754, p2: 1, p
+ObjectFlow	3	9c64395e161c88a7	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ObjectFlow	4	67e9bac0c05ea5a4	function C0() {   this.c = 0.48981068319792964;   this.then = 74;   th
+NumberChain	0	ddc88734ed3970e4	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+NumberChain	1	a24fe11f95b8d3db	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+NumberChain	2	598c0922a856912d	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+NumberChain	3	0d56645159db1663	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+NumberChain	4	4bb80fc176b46d50	let n = 42; let s = "text"; let a = [1, 2, 3]; let t0 = 4.709171383156
+TryFinally	0	429aa11b573666ff	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+TryFinally	1	40fa4b51f5b95743	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+TryFinally	2	972e9fbca228c0c3	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+TryFinally	3	e6cb6978ccb13945	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+TryFinally	4	95189a6155592f7c	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ComplexForLoop	0	313d27f4f49a77bb	let n = 42; for (let i0 = 0, j0 = 9, k0 = (-121.25);; i0++, j0--, k0 >
+ComplexForLoop	1	450605fbab2d03a4	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ComplexForLoop	2	a90063d8f4ccb0a4	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ComplexForLoop	3	8937a961a7db2f7c	for (let i0 = 0, j0 = 8; i0 < j0; i0++, j0--) {   function f0() {
+ComplexForLoop	4	7be551000b629d7d	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+LabeledLoops	0	d584ca997ffc6637	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+LabeledLoops	1	a7ad30b64b1f85ad	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+LabeledLoops	2	7f6225f97a7ee7cd	let n = 42; let s = "text"; L0: {   let obj0 = [s, s, -65536n, /(a|b)*
+LabeledLoops	3	d48a64edb8b450bb	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+LabeledLoops	4	0e41886385b116b7	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+SymbolHook	0	a5b9a17615870980	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+SymbolHook	1	9e28295de78deee3	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+SymbolHook	2	b269911bf549ecc1	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+SymbolHook	3	f4c3366edee353cc	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+SymbolHook	4	45bd20818682aafd	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+IteratorChain	0	e93d7b97f3ab163f	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+IteratorChain	1	010bbce8f4b9ae83	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+IteratorChain	2	207b6ad015d99216	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+IteratorChain	3	0ebe3e844c6559d9	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+IteratorChain	4	38e0107742091eb9	let n = 42; let s = "text"; let it0; try {   it0 = Iterator.from(new F
+RegExpPaths	0	99024f2e8dfc9cc3	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+RegExpPaths	1	17d62fbb4c61928f	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+RegExpPaths	2	575e64eb808ebf51	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+RegExpPaths	3	0eb9d18f58ef9a8b	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+RegExpPaths	4	27f093c4912f1604	let n = 42; let s = "text"; let a = [1, 2, 3]; function f0() {   const
+SerializerRoundTrip	0	525ee2cb0864ce1d	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+SerializerRoundTrip	1	d1c83ab4f46dd2ed	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+SerializerRoundTrip	2	34a149e91d7a0394	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+SerializerRoundTrip	3	d0a6ac23e887d486	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+SerializerRoundTrip	4	0b844b01ef4051e0	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+FastApiCall	0	413c49b8cf346bf6	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+FastApiCall	1	2bdef8af0d533c43	let n = 42; let s = "text"; let api0 = new d8.test.FastCAPI(); functio
+FastApiCall	2	6bfa4a82d8b460f1	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+FastApiCall	3	a6ea0eff69e9a550	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+FastApiCall	4	43346e3be85d152b	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+HomomorphicFeedback	0	591ebcadd597c687	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+HomomorphicFeedback	1	b23c0e09f677ef02	let n = 42; let s = "text"; let a = [1, 2, 3]; let o0 = {d: "-1"}; let
+HomomorphicFeedback	2	4c8c5844c197c073	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+HomomorphicFeedback	3	3bcf137a57071bb4	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+HomomorphicFeedback	4	c1bb4cae2fb9ad93	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ProtoAssignSeq	0	30a474c96d666636	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ProtoAssignSeq	1	98521aacefd553b9	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ProtoAssignSeq	2	37ecf4722b68a48f	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ProtoAssignSeq	3	a0e91a3d4625d3a5	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+ProtoAssignSeq	4	987184fed1efd7da	let n = 42; function f0(a0) {   class g0 extends a0 {}   const proto0
+MapTransitionFocus	0	7237bee234e1f87d	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+MapTransitionFocus	1	38889442d67509d7	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+MapTransitionFocus	2	9521eba267027cb1	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+MapTransitionFocus	3	264a420c7e50f410	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+MapTransitionFocus	4	f07bf1e25acaca06	let n = 42; function f0(a0, a1) {   let r0;   try {     r0 = Number.pr
+JsonRoundTrip	0	fc737d70aea5ed01	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+JsonRoundTrip	1	46741d364819d4c9	let n = 42; let s = "text"; let json0; try {   json0 = JSON.stringify(
+JsonRoundTrip	2	f965a48745b5bfb0	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+JsonRoundTrip	3	c21c5b73d3847651	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"
+JsonRoundTrip	4	120afa9e0b0766c1	let n = 42; let s = "text"; let a = [1, 2, 3]; let o = {x: 1, y: "two"

@@ -7,6 +7,7 @@
 
 #include "include/v8-fast-api-calls.h"
 #include "src/base/logging.h"
+#include "src/codegen/signature.h"
 #include "src/compiler/fast-api-calls.h"
 #include "src/compiler/globals.h"
 #include "src/compiler/turboshaft/assembler.h"
@@ -27,11 +28,12 @@ class FastApiCallLoweringReducer : public Next {
   TURBOSHAFT_REDUCER_BOILERPLATE(FastApiCallLowering)
 
   OpIndex REDUCE(FastApiCall)(
-      V<LazyFrameState> frame_state, V<Object> data_argument,
+      V<LazyFrameState> frame_state,
+      OptionalV<EagerFrameState> eager_frame_state, V<Object> data_argument,
       V<Context> context, base::Vector<const OpIndex> arguments,
       const FastApiCallParameters* parameters,
       base::Vector<const RegisterRepresentation> out_reps) {
-    __ data() -> set_graph_has_lowered_fast_api_calls();
+    __ data()->set_graph_has_lowered_fast_api_calls();
 
     FastApiCallFunction c_function = parameters->c_function;
     const auto& c_signature = parameters->c_signature();
@@ -49,12 +51,19 @@ class FastApiCallLoweringReducer : public Next {
     base::SmallVector<OpIndex, 16> args;
     for (int i = 0; i < c_arg_count; ++i) {
       CTypeInfo type = c_signature->ArgumentInfo(i);
-      args.push_back(AdaptFastCallArgument(arguments[i], type, handle_error));
+      args.push_back(AdaptFastCallArgument(arguments[i], type, handle_error,
+                                           eager_frame_state,
+                                           parameters->feedback));
+      if (__ generating_unreachable_operations()) {
+        // AdaptFastCallArgument unconditionally jumped to {handle_error} or
+        // deopted.
+        break;
+      }
     }
 
     // While adapting the arguments, we might have noticed an inconsistency that
-    // lead to unconditionally jumping to {handle_error}. If this happens, then
-    // we don't emit the call.
+    // led to unconditionally jumping to {handle_error} or deoptimizing. If this
+    // happens, then we don't emit the call.
     if (V8_LIKELY(!__ generating_unreachable_operations())) {
       MachineSignature::Builder builder(
           __ graph_zone(), 1,
@@ -86,10 +95,8 @@ class FastApiCallLoweringReducer : public Next {
             offsetof(v8::FastApiCallbackOptions, isolate));
         // data = data_argument
         OpIndex data_argument_to_pass = __ AdaptLocalArgument(data_argument);
-        START_ALLOW_USE_DEPRECATED()
         constexpr size_t data_offset =
             offsetof(v8::FastApiCallbackOptions, data);
-        END_ALLOW_USE_DEPRECATED()
         __ StoreOffHeap(stack_slot, data_argument_to_pass,
                         MemoryRepresentation::UintPtr(), data_offset);
 
@@ -167,8 +174,11 @@ class FastApiCallLoweringReducer : public Next {
   }
 
   OpIndex AdaptFastCallArgument(OpIndex argument, CTypeInfo arg_type,
-                                Label<>& handle_error) {
+                                Label<>& handle_error,
+                                OptionalV<EagerFrameState> eager_frame_state,
+                                FeedbackSource feedback) {
     uint8_t flags = static_cast<uint8_t>(arg_type.GetFlags());
+    START_ALLOW_USE_DEPRECATED()
     if (flags & static_cast<uint8_t>(CTypeInfo::Flags::kEnforceRangeBit)) {
       switch (arg_type.GetType()) {
         case CTypeInfo::Type::kInt32: {
@@ -224,9 +234,16 @@ class FastApiCallLoweringReducer : public Next {
           }
           return argument;
         }
+          END_ALLOW_USE_DEPRECATED()
         case CTypeInfo::Type::kPointer: {
+          DCHECK(eager_frame_state.valid());
+          DCHECK(feedback.IsValid());
           // Check that the value is a HeapObject.
-          GOTO_IF(__ ObjectIsSmi(argument), handle_error);
+          __ DeoptimizeIf(__ ObjectIsSmi(argument), eager_frame_state.value(),
+                          DeoptimizeReason::kSmi, feedback);
+          if (V8_UNLIKELY(__ generating_unreachable_operations())) {
+            return OpIndex::Invalid();
+          }
           Label<WordPtr> done(this);
 
           // Check if the value is null.
@@ -235,10 +252,10 @@ class FastApiCallLoweringReducer : public Next {
                   done, 0);
 
           // Check that the value is a JSExternalObject.
-          GOTO_IF_NOT(
+          __ DeoptimizeIfNot(
               __ TaggedEqual(__ LoadMapField(argument),
                              __ template LoadRoot<RootIndex::kExternalMap>()),
-              handle_error);
+              eager_frame_state.value(), DeoptimizeReason::kWrongMap, feedback);
 
           GOTO(done, __ template LoadField<WordPtr>(
                          V<HeapObject>::Cast(argument),
@@ -248,8 +265,14 @@ class FastApiCallLoweringReducer : public Next {
           return result;
         }
         case CTypeInfo::Type::kSeqOneByteString: {
+          DCHECK(eager_frame_state.valid());
+          DCHECK(feedback.IsValid());
           // Check that the value is a HeapObject.
-          GOTO_IF(__ ObjectIsSmi(argument), handle_error);
+          __ DeoptimizeIf(__ ObjectIsSmi(argument), eager_frame_state.value(),
+                          DeoptimizeReason::kNotAString, feedback);
+          if (V8_UNLIKELY(__ generating_unreachable_operations())) {
+            return OpIndex::Invalid();
+          }
           V<HeapObject> argument_obj = V<HeapObject>::Cast(argument);
 
           V<Map> map = __ LoadMapField(argument_obj);
@@ -258,8 +281,12 @@ class FastApiCallLoweringReducer : public Next {
           V<Word32> encoding = __ Word32BitwiseAnd(
               instance_type,
               kIsNotStringMask | kStringRepresentationAndEncodingMask);
-          GOTO_IF_NOT(__ Word32Equal(encoding, kSeqOneByteStringTag),
-                      handle_error);
+          __ DeoptimizeIfNot(__ Word32Equal(encoding, kSeqOneByteStringTag),
+                             eager_frame_state.value(),
+                             DeoptimizeReason::kWrongInstanceType, feedback);
+          if (V8_UNLIKELY(__ generating_unreachable_operations())) {
+            return OpIndex::Invalid();
+          }
 
           V<WordPtr> length_in_bytes = __ template LoadField<WordPtr>(
               argument_obj, AccessBuilder::ForStringLength());
@@ -313,16 +340,16 @@ class FastApiCallLoweringReducer : public Next {
         UNREACHABLE();
     }
 
+    Label<Float64> done(this);
+    GOTO_IF(UNLIKELY(__ Float64IsNaN(argument)), done, 0.0);
+
     V<Float64> clamped =
         __ Conditional(__ Float64LessThan(min, argument),
                        __ Conditional(__ Float64LessThan(argument, max),
                                       argument, __ Float64Constant(max)),
                        __ Float64Constant(min));
 
-    Label<Float64> done(this);
-    V<Float64> rounded = __ Float64RoundTiesEven(clamped);
-    GOTO_IF(__ Float64IsNaN(rounded), done, 0.0);
-    GOTO(done, rounded);
+    GOTO(done, __ Float64RoundTiesEven(clamped));
 
     BIND(done, rounded_result);
     switch (scalar_type) {
@@ -434,30 +461,22 @@ class FastApiCallLoweringReducer : public Next {
     __ InitializeField(external, AccessBuilder::ForJSObjectElements(),
                        empty_fixed_array);
 
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
     OpIndex isolate_ptr =
         __ ExternalConstant(ExternalReference::isolate_address());
-    MachineSignature::Builder builder(__ graph_zone(), 1, 2);
-    builder.AddReturn(MachineType::Uint32());
-    builder.AddParam(MachineType::Pointer());
-    builder.AddParam(MachineType::Pointer());
-    OpIndex allocate_and_initialize_young_external_pointer_table_entry =
-        __ ExternalConstant(
-            ExternalReference::
-                allocate_and_initialize_young_external_pointer_table_entry());
-    auto call_descriptor =
-        Linkage::GetSimplifiedCDescriptor(__ graph_zone(), builder.Get());
-    OpIndex handle = __ Call(
-        allocate_and_initialize_young_external_pointer_table_entry,
-        {isolate_ptr, pointer},
-        TSCallDescriptor::Create(call_descriptor, CanThrow{false},
-                                 LazyDeoptOnThrow{false}, __ graph_zone()));
+    auto sig = FixedSizeSignature<MachineType>::Returns(MachineType::Uint32())
+                   .Params(MachineType::Pointer(), MachineType::Pointer());
+    V<Word32> handle = __ template CallC<Word32>(
+        &sig,
+        ExternalReference::
+            allocate_and_initialize_young_external_pointer_table_entry(),
+        {isolate_ptr, pointer});
     __ InitializeField(
         external, AccessBuilder::ForJSExternalObjectPointerHandle(), handle);
 #else
     __ InitializeField(external, AccessBuilder::ForJSExternalObjectValue(),
                        pointer);
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
     GOTO(done, __ FinishInitialization(std::move(external)));
 
     BIND(done, result);

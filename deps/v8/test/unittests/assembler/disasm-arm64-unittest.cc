@@ -2104,6 +2104,16 @@ TEST_F(DisasmArm64Test, brk) {
   CLEANUP();
 }
 
+TEST_F(DisasmArm64Test, udf) {
+  SET_UP_ASM();
+
+  COMPARE(dci(0), "udf #0x0");
+  COMPARE(dci(1), "udf #0x1");
+  COMPARE(dci(65535), "udf #0xffff");
+
+  CLEANUP();
+}
+
 TEST_F(DisasmArm64Test, add_sub_negative) {
   SET_UP_MASM();
 

@@ -1,0 +1,11 @@
+Sparkplug: result pair of FindNonDefaultConstructorOrConstruct is lost when the debugger discards the baseline frame
+
+Running attack(Observe, 0x20000000)
+paused in trap, stepping out
+paused in A, resuming
+constructed [object Object] (correct)
+
+Running attack(Brand, 0x20000000)
+paused in trap, stepping out
+paused in A, resuming
+constructed [object Object] (correct)

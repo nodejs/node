@@ -9,6 +9,7 @@
 #include <stdint.h>
 
 #include <cmath>
+#include <limits>
 #include <optional>
 
 #include "src/ast/ast-value-factory.h"
@@ -20,6 +21,7 @@
 #include "src/objects/bigint.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/scanner-inl.h"
+#include "src/utils/utils.h"
 #include "src/zone/zone.h"
 
 namespace v8::internal {
@@ -189,6 +191,60 @@ Token::Value Scanner::Next() {
     DCHECK_NE(Token::kUninitialized, current().token);
   }
   return current().token;
+}
+
+base::Vector<const Scanner::ArrayLiteralElement>
+Scanner::ScanArrayLiteralElementRun() {
+  const int begin_pos = source_pos();
+  int count = 0;
+  int comma_pos = -1;
+  base::uc32 c = source_->ScanBuffered([&](const uint16_t* begin,
+                                           const uint16_t* end) {
+    DCHECK_EQ(*begin, c0_);
+    const uint16_t* cursor = begin;
+    const uint16_t* resume = begin;
+    while (count < kArrayLiteralElementBatchSize) {
+      const uint16_t* element_begin = cursor;
+      uint64_t number = 0;
+      bool is_null = false;
+      if (cursor < end && IsDecimalDigit(*cursor)) {
+        if (*cursor == '0') {
+          // A leading zero is only scanned as the number 0. Legacy octal and
+          // prefixed literals fail the comma check below.
+          ++cursor;
+        } else {
+          // Integers of up to digits10 digits are exactly representable as a
+          // double.
+          const uint16_t* limit =
+              cursor + std::min<ptrdiff_t>(
+                           std::numeric_limits<double>::digits10, end - cursor);
+          do {
+            number = number * 10 + (*cursor - '0');
+            ++cursor;
+          } while (cursor < limit && IsDecimalDigit(*cursor));
+        }
+      } else if (end - cursor >= 4 && CompareCharsEqual("null", cursor, 4)) {
+        cursor += 4;
+        is_null = true;
+      } else {
+        break;
+      }
+      // Keep the code unit after the comma in the buffer to resume at.
+      if (end - cursor < 2 || *cursor != ',') break;
+      int beg_pos = begin_pos + static_cast<int>(element_begin - begin);
+      comma_pos = begin_pos + static_cast<int>(cursor - begin);
+      array_literal_elements_[count++] = {is_null, static_cast<double>(number),
+                                          Location(beg_pos, comma_pos)};
+      resume = ++cursor;
+    }
+    return resume;
+  });
+  if (count == 0) return {};
+  c0_ = c;
+  next().location = Location(comma_pos, comma_pos + 1);
+  next().after_line_terminator = false;
+  return base::Vector<const ArrayLiteralElement>(array_literal_elements_,
+                                                 count);
 }
 
 Token::Value Scanner::PeekAhead() {

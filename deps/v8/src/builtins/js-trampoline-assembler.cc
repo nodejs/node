@@ -38,17 +38,27 @@ void JSTrampolineAssembler::TailCallJSFunction(
                  expected_parameter_count);
 }
 
-void JSTrampolineAssembler::CompileLazy(TNode<JSFunction> function,
-                                        TNode<Context> context) {
+TNode<Uint16T> JSTrampolineAssembler::LoadIncomingParameterCount() {
 #ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
+  // TODO(crbug.com/465487205): Until incoming JSDispatchHandles are kept alive
+  // via the stack, the parameter count must be loaded at the very start of the
+  // builtin before any runtime call or stack check can trigger a GC and sweep
+  // an unrooted dispatch table entry.
+  DCHECK(IsAtStart());
   auto dispatch_handle =
       UncheckedParameter<JSDispatchHandleT>(Descriptor::kDispatchHandle);
-  TNode<Uint16T> expected_parameter_count =
-      LoadParameterCountFromJSDispatchTable(dispatch_handle);
+  return LoadParameterCountFromJSDispatchTable(dispatch_handle);
 #else
   CHECK(!V8_ENABLE_SANDBOX_BOOL);
-  TNode<Uint16T> expected_parameter_count = Uint16Constant(0);
+  return Uint16Constant(0);
 #endif
+}
+
+TF_BUILTIN(CompileLazy, JSTrampolineAssembler) {
+  TNode<Uint16T> expected_parameter_count = LoadIncomingParameterCount();
+
+  auto function = Parameter<JSFunction>(Descriptor::kTarget);
+  auto context = Parameter<Context>(Descriptor::kContext);
 
   // First lookup code, maybe we don't need to compile!
   Label compile_function(this, Label::kDeferred);
@@ -98,16 +108,10 @@ void JSTrampolineAssembler::CompileLazy(TNode<JSFunction> function,
   TailCallJSFunction(function, expected_parameter_count);
 }
 
-TF_BUILTIN(CompileLazy, JSTrampolineAssembler) {
-  auto function = Parameter<JSFunction>(Descriptor::kTarget);
-  auto context = Parameter<Context>(Descriptor::kContext);
-
-  CompileLazy(function, context);
-}
-
-
 template <typename Function>
 void JSTrampolineAssembler::TieringBuiltinImpl(const Function& Impl) {
+  TNode<Uint16T> expected_parameter_count = LoadIncomingParameterCount();
+
   auto function = Parameter<JSFunction>(Descriptor::kTarget);
   auto context = Parameter<Context>(Descriptor::kContext);
   auto argc = UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
@@ -116,13 +120,9 @@ void JSTrampolineAssembler::TieringBuiltinImpl(const Function& Impl) {
 #ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
   auto dispatch_handle =
       UncheckedParameter<JSDispatchHandleT>(Descriptor::kDispatchHandle);
-  TNode<Uint16T> expected_parameter_count =
-      LoadParameterCountFromJSDispatchTable(dispatch_handle);
 #else
-  CHECK(!V8_ENABLE_SANDBOX_BOOL);
   auto dispatch_handle = LoadObjectField<JSDispatchHandleT>(
       function, offsetof(JSFunction, dispatch_handle_));
-  TNode<Uint16T> expected_parameter_count = Uint16Constant(0);
 #endif
 
   // Apply the actual tiering. This function must uninstall the tiering builtin.

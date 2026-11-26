@@ -129,7 +129,7 @@ FunctionLiteral* Parser::MakeAutoAccessorSetter(VariableProxy* name_proxy,
   function_scope->set_end_position(pos);
   function_scope->DeclareParameter(ast_value_factory()->empty_string(),
                                    VariableMode::kTemporary, false, false,
-                                   ast_value_factory(), kNoSourcePosition);
+                                   kNoSourcePosition);
   {
     FunctionState function_state(&function_state_, &scope_, function_scope);
     body.Add(factory()->NewAutoAccessorSetterBody(name_proxy, pos));
@@ -427,6 +427,7 @@ const AstRawString* Parser::GetBigIntAsSymbol() {
     return ast_value_factory()->GetOneByteString(literal);
   }
   auto [decimal, length] = BigIntLiteralToDecimal(local_isolate_, literal);
+  DCHECK_LE(length, String::kMaxLength);
   return ast_value_factory()->GetOneByteString({decimal.get(), length});
 }
 
@@ -666,7 +667,7 @@ void Parser::DeserializeScopeChain(
   InitializeEmptyScopeChain(info);
   DirectHandle<ScopeInfo> outer_scope_info;
   if (maybe_outer_scope_info.ToHandle(&outer_scope_info)) {
-    DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
+    DCHECK_EQ(base::ThreadId::Current(), isolate->thread_id());
     Tagged<Script> eval_from_script = *script;
     Tagged<ScopeInfo> eval_from_scope_info;
     if (eval_from_script->has_eval_from_scope_info()) {
@@ -869,11 +870,6 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info,
         info->ast_value_factory()->Internalize(isolate);
       }
       CheckConflictingVarDeclarations(scope);
-      if (flags().is_eval() && !has_error() &&
-          scope->HasConflictingArgumentsVarDeclaration(ast_value_factory())) {
-        ReportVarRedeclarationIn(ast_value_factory()->arguments_string(),
-                                 scope);
-      }
     }
 
     // For sloppy eval though, we clear dynamic variables created for toplevel
@@ -1019,7 +1015,7 @@ void Parser::ParseREPLProgram(ParseInfo* info, ScopedPtrList<Statement>* body,
   this->scope()->SetLanguageMode(info->language_mode());
   PrepareGeneratorVariables();
 
-  BlockT block = impl()->NullBlock();
+  BlockT block = Parser::NullBlock();
   {
     StatementListT statements(pointer_buffer());
     ParseStatementList(&statements, Token::kEos);
@@ -1215,6 +1211,10 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
       scope->set_start_position(start_position);
       ParserFormalParameters formals(scope);
       {
+        // Parse inner functions in arrow parameter initializers lazily; this
+        // scope must end before ParseArrowFunctionLiteral so the outer
+        // PARSE_EAGERLY stops the arrow being compiled from preparsing itself.
+        LazyParsingScope lazy_mode_scope(this);
         ParameterDeclarationParsingScope formals_scope(this);
         // Parsing patterns as variable reference expression creates
         // NewUnresolved references in current scope. Enter arrow function
@@ -1318,6 +1318,14 @@ FunctionLiteral* Parser::ParseClassForMemberInitialization(
   {
     bool is_anonymous = IsEmptyIdentifier(class_name);
     BlockState block_state(&scope_, original_scope_);
+    // Class bodies are strict. If the class scope didn't need a context it was
+    // elided from the ScopeInfo chain, and `original_scope_` is a deserialized
+    // outer scope that may be sloppy (e.g., a context-less sloppy eval scope).
+    // Only treat it as strict (and update its end position) while reparsing
+    // the class body, and restore its deserialized state afterwards so that
+    // scope analysis sees the outer scope chain as described by its ScopeInfos.
+    const LanguageMode outer_language_mode = original_scope_->language_mode();
+    const int outer_end_position = original_scope_->end_position();
     RaiseLanguageMode(LanguageMode::kStrict);
 
     BlockState object_literal_scope_state(&object_literal_scope_, nullptr);
@@ -1386,6 +1394,9 @@ FunctionLiteral* Parser::ParseClassForMemberInitialization(
     ResetInfoId(initializer_id - 1);
 
     ParseClassLiteralBody(class_info, class_name, class_token_pos, Token::kEos);
+    original_scope_->SetLanguageMode(outer_language_mode);
+    original_scope_->set_end_position(outer_end_position);
+    if (V8_UNLIKELY(has_error())) return nullptr;
 
     if (IsClassInstanceInitializerFunction(initializer_kind)) {
       DCHECK_EQ(class_info.instance_members_function_id, initializer_id);
@@ -1396,7 +1407,6 @@ FunctionLiteral* Parser::ParseClassForMemberInitialization(
     }
   }
 
-  if (has_error()) return nullptr;
   if (V8_UNLIKELY(flags().private_name_lookup_skips_outer_class())) {
     initializer->scope()->RecordNeedsPrivateNameContextChainRecalc();
   }
@@ -3135,6 +3145,13 @@ bool Parser::SkipFunction(int function_literal_id,
   if (result == PreParser::kPreParseStackOverflow) {
     // Propagate stack overflow.
     set_stack_overflow();
+    // Unwind any preparser_zone_-allocated unresolved private name proxies
+    // appended to an enclosing ClassScope before preparser_zone_ is reset.
+    if (!private_name_scope_iter.Done()) {
+      private_name_scope_iter.GetScope()->ResetUnresolvedPrivateNameTail(
+          unresolved_private_tail);
+    }
+    function_scope->ResetAfterPreparsing(ast_value_factory_, false);
   } else if (pending_error_handler()->has_error_unidentifiable_by_preparser()) {
     // Make sure we don't re-preparse inner functions of the aborted function.
     // The error might be in an inner function.
@@ -3155,6 +3172,13 @@ bool Parser::SkipFunction(int function_literal_id,
   } else if (pending_error_handler()->has_pending_error()) {
     DCHECK(!pending_error_handler()->stack_overflow());
     DCHECK(has_error());
+    // Unwind any preparser_zone_-allocated unresolved private name proxies
+    // appended to an enclosing ClassScope before preparser_zone_ is reset.
+    if (!private_name_scope_iter.Done()) {
+      private_name_scope_iter.GetScope()->ResetUnresolvedPrivateNameTail(
+          unresolved_private_tail);
+    }
+    function_scope->ResetAfterPreparsing(ast_value_factory_, false);
   } else {
     DCHECK(!pending_error_handler()->stack_overflow());
     set_allow_eval_cache(reusable_preparser()->allow_eval_cache());
@@ -3886,6 +3910,8 @@ void Parser::SetFunctionName(Expression* value, const AstRawString* name,
     AstConsString* cons_name = nullptr;
     if (name != nullptr) {
       if (prefix != nullptr) {
+        DCHECK_LE(static_cast<uint64_t>(prefix->length()) + name->length(),
+                  String::kMaxLength);
         cons_name = ast_value_factory()->NewConsString(prefix, name);
       } else {
         cons_name = ast_value_factory()->NewConsString(name);

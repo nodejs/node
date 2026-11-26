@@ -1,0 +1,49 @@
+description: >-
+  Verify fuzzing-cls-with-redline analyzes a Maglev diff with analyze_diff.py
+  and presents plain V8 confirmation questions with the 12 h default duration.
+owner: rherouart@chromium.org
+prompts:
+  - >-
+    Plan a fuzzing run for my uncommitted changes on this branch (treat the
+    host as local). Analyze the diff and stop at the confirmation step with
+    your V8 questions. Do not sync, build, or start fuzzing.
+providers:
+  - id: python:../../../testing/gemini_provider.py
+    config:
+      timeoutSeconds: 300
+      skills:
+        - fuzzing-cls-with-redline
+      changes:
+        - apply: >-
+            agents/prompts/eval/fuzzing-cls-with-redline/maglev_new_file.patch
+        - stage: src/maglev/eval_dummy_maglev_change.cc
+tests:
+  - assert:
+      - type: python
+        value: >-
+          file://../../../testing/asserts/check_tool_calls.py:check_tool_used_with_args_match
+        config:
+          tool_names:
+            - run_shell_command
+            - run_command
+          args_regexes:
+            - 'analyze_diff\.py'
+            - '--include-worktree'
+      - type: icontains
+        value: 'maglev'
+      - type: icontains
+        value: 'asan'
+      - type: regex
+        value: '12\s*[hH]'
+      - type: not-icontains
+        value: 'inline-8bit-counters'
+      - type: not-icontains
+        value: 'd8_flag_profile'
+      - type: not-icontains
+        value: '--bundle-reprl'
+    metadata:
+      category: planning-ux
+      tags:
+        - fuzzing
+        - maglev
+        - redline

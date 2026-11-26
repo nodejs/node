@@ -81,7 +81,10 @@ class DefaultInSandboxAllocator final : public v8::Allocator {
   // The backing memory's accessible region is grown in chunks of this size.
   static constexpr size_t kChunkSize = 1 * MB;
 
+  enum class InitializationMode { kZeroInitialized, kUninitialized };
+
   V8_NOINLINE V8_PRESERVE_MOST void LazyInitialize();
+  void* AllocateInternal(size_t length, InitializationMode mode);
 
   bool is_initialized() const { return static_cast<bool>(region_alloc_); }
 
@@ -96,7 +99,7 @@ DefaultInSandboxAllocator::DefaultInSandboxAllocator(Sandbox* sandbox)
 
 void DefaultInSandboxAllocator::LazyInitialize() {
   CHECK(sandbox_->is_initialized());
-  constexpr size_t max_backing_memory_size = 8ULL * GB;
+  constexpr size_t max_backing_memory_size = 16ULL * GB;
   constexpr size_t min_backing_memory_size = 1ULL * GB;
   size_t backing_memory_size = max_backing_memory_size;
   Address backing_memory_base = 0;
@@ -131,7 +134,8 @@ DefaultInSandboxAllocator::~DefaultInSandboxAllocator() {
   region_alloc_.reset(nullptr);
 }
 
-void* DefaultInSandboxAllocator::Allocate(size_t length) {
+void* DefaultInSandboxAllocator::AllocateInternal(size_t length,
+                                                  InitializationMode mode) {
   base::MutexGuard guard(&mutex_);
 
   if (!is_initialized()) [[unlikely]] {
@@ -164,44 +168,28 @@ void* DefaultInSandboxAllocator::Allocate(size_t length) {
   }
 
   void* mem = reinterpret_cast<void*>(region);
-  memset(mem, 0, length_to_memset);
+  if (mode == InitializationMode::kZeroInitialized && length_to_memset > 0) {
+    memset(mem, 0, length_to_memset);
+  }
   return mem;
 }
 
+void* DefaultInSandboxAllocator::Allocate(size_t length) {
+  return AllocateInternal(length, InitializationMode::kZeroInitialized);
+}
+
 void* DefaultInSandboxAllocator::AllocateUninitialized(size_t length) {
-  return Allocate(length);
+  return AllocateInternal(length, InitializationMode::kUninitialized);
 }
 
 void* DefaultInSandboxAllocator::AllocateUninitializedOrCrash(size_t length) {
-  base::MutexGuard guard(&mutex_);
-
-  if (!is_initialized()) [[unlikely]] {
-    LazyInitialize();
-  }
-
-  length = RoundUp(length, kAllocationGranularity);
-  Address region = region_alloc_->AllocateRegion(length);
-  if (region == base::RegionAllocator::kAllocationFailure) {
+  void* result = AllocateUninitialized(length);
+  if (result == nullptr) {
     V8::FatalProcessOutOfMemory(
         nullptr,
         "SandboxedArrayBufferAllocator::AllocateUninitializedOrCrash()");
   }
-
-  // Check if the memory is inside the accessible region. If not, grow it.
-  Address end = region + length;
-  if (end > end_of_accessible_region_) {
-    Address new_end_of_accessible_region = RoundUp(end, kChunkSize);
-    size_t size = new_end_of_accessible_region - end_of_accessible_region_;
-    if (!sandbox_->address_space()->SetPagePermissions(
-            end_of_accessible_region_, size, PagePermissions::kReadWrite)) {
-      V8::FatalProcessOutOfMemory(
-          nullptr,
-          "SandboxedArrayBufferAllocator::AllocateUninitializedOrCrash()");
-    }
-    end_of_accessible_region_ = new_end_of_accessible_region;
-  }
-
-  return reinterpret_cast<void*>(region);
+  return result;
 }
 
 void DefaultInSandboxAllocator::Free(void* data) {

@@ -46,7 +46,7 @@
     const {a: sibling} = make();
     sibling.r = 1;
 
-    if (!%IsDictPropertyConstTrackingEnabled()) {
+    if (!%IsDictPrototypesEnabled()) {
       assertUnoptimized(foo);
     }
   }

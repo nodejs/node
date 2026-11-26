@@ -16,10 +16,10 @@
 #include "acoshf_utils.h"
 #include "src/__support/FPUtil/FEnvImpl.h"
 #include "src/__support/FPUtil/FPBits.h"
-#include "src/__support/FPUtil/PolyEval.h"
 #include "src/__support/FPUtil/cast.h"
 #include "src/__support/FPUtil/except_value_utils.h"
 #include "src/__support/FPUtil/multiply_add.h"
+#include "src/__support/FPUtil/polyeval.h"
 #include "src/__support/FPUtil/sqrt.h"
 #include "src/__support/macros/config.h"
 #include "src/__support/macros/optimization.h"
@@ -108,7 +108,7 @@ LIBC_INLINE constexpr float16 acoshf16(float16 x) {
   }
 
   // acosh(x) = log(x + sqrt(x^2 - 1))
-  float sqrt_term = fputil::sqrt<float>(fputil::multiply_add(xf, xf, -1.0f));
+  float sqrt_term = fputil::sqrt<float>(fputil::multiply_sub(xf, xf, 1.0f));
   float result = static_cast<float>(log_eval(xf + sqrt_term));
 
   return fputil::cast<float16>(result);

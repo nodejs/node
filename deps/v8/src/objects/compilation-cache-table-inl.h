@@ -63,12 +63,14 @@ class ScriptCacheKey : public HashTableKey {
 
   ScriptCacheKey(Handle<String> source, const ScriptDetails* script_details,
                  Isolate* isolate);
+  // |context_extension_count| is the number of outer WITH_SCOPE extensions
+  // passed to ScriptCompiler::CompileFunction (0 for regular scripts).
   ScriptCacheKey(Handle<String> source, MaybeHandle<Object> name,
                  int line_offset, int column_offset,
                  v8::ScriptOriginOptions origin_options,
                  MaybeHandle<Object> host_defined_options,
                  MaybeHandle<FixedArray> maybe_wrapped_arguments,
-                 Isolate* isolate);
+                 uint32_t context_extension_count, Isolate* isolate);
 
   bool IsMatch(Tagged<Object> other) override;
   bool MatchesScript(Tagged<Script> script);
@@ -102,6 +104,7 @@ class ScriptCacheKey : public HashTableKey {
   v8::ScriptOriginOptions origin_options_;
   MaybeHandle<Object> host_defined_options_;
   MaybeHandle<FixedArray> wrapped_arguments_;
+  uint32_t context_extension_count_;
   Isolate* isolate_;
 };
 

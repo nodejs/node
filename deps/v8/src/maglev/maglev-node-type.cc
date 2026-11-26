@@ -15,7 +15,9 @@ LEAF_NODE_TYPE_LIST(ADD_STATIC_ASSERT)
 
 NodeType StaticTypeForMap(compiler::MapRef map,
                           compiler::JSHeapBroker* broker) {
-  if (map.IsHeapNumberMap()) return NodeType::kHeapNumber;
+  if (map.IsHeapNumberMap() || map.IsUninitializedHeapNumberMap()) {
+    return NodeType::kHeapNumber;
+  }
   if (map.IsStringMap()) {
     if (map.IsInternalizedStringMap()) {
       return NodeType::kInternalizedString;
@@ -63,7 +65,7 @@ bool IsInstanceOfLeafNodeType(compiler::MapRef map, NodeType type,
     case NodeType::kSmi:
       return false;
     case NodeType::kHeapNumber:
-      return map.IsHeapNumberMap();
+      return map.IsHeapNumberMap() || map.IsUninitializedHeapNumberMap();
     case NodeType::kNull:
       return map.IsNullMap(broker);
     case NodeType::kUndefined:
@@ -102,9 +104,9 @@ bool IsInstanceOfLeafNodeType(compiler::MapRef map, NodeType type,
              !map.IsJSDataViewMap() &&
              map.instance_type() != JS_GENERATOR_OBJECT_TYPE;
     case NodeType::kOtherHeapObject:
-      return !map.IsHeapNumberMap() && !map.IsOddballMap() &&
-             !map.IsContextMap() && !map.IsSymbolMap() && !map.IsStringMap() &&
-             !map.IsJSReceiverMap() && !map.IsBigIntMap();
+      return !map.IsHeapNumberMap() && !map.IsUninitializedHeapNumberMap() &&
+             !map.IsOddballMap() && !map.IsContextMap() && !map.IsSymbolMap() &&
+             !map.IsStringMap() && !map.IsJSReceiverMap() && !map.IsBigIntMap();
     default:
       UNREACHABLE();
   }

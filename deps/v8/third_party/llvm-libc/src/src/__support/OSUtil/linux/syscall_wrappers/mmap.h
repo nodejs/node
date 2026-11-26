@@ -22,9 +22,9 @@ namespace linux_syscalls {
 
 LIBC_INLINE ErrorOr<void *> mmap(void *addr, size_t size, int prot, int flags,
                                  int fd, off_t offset) {
+#ifdef SYS_mmap2
   if (offset < 0)
     return Error(EINVAL);
-#ifdef SYS_mmap2
   // The mmap2 syscall uses 4k units, regardless of the actual page, size on
   // almost every architecture. If porting to a new architecture (Openrisc,
   // hexagon?), please confirm this code is correct.
@@ -34,6 +34,8 @@ LIBC_INLINE ErrorOr<void *> mmap(void *addr, size_t size, int prot, int flags,
   offset /= MMAP2_FACTOR;
   long syscall_number = SYS_mmap2;
 #elif defined(SYS_mmap)
+  // The kernel takes the offset as unsigned, and some drivers expect large
+  // offsets with the top bit set. Leave validating the offset to the kernel.
   long syscall_number = SYS_mmap;
 #else
 #error "mmap or mmap2 syscalls not available."

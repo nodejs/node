@@ -4,6 +4,7 @@
 
 #include "src/compiler/backend/register-allocator-verifier.h"
 
+#include <algorithm>
 #include <optional>
 
 #include "src/compiler/backend/instruction.h"
@@ -66,7 +67,9 @@ RegisterAllocatorVerifier::RegisterAllocatorVerifier(
       assessments_(zone),
       outstanding_assessments_(zone),
       spill_slot_delta_(frame->GetTotalFrameSlotCount() -
-                        frame->GetSpillSlotCount()) {
+                        frame->GetSpillSlotCount()),
+      pending_worklist_(zone),
+      pending_seen_epoch_(sequence->InstructionBlockCount(), 0, zone) {
   constraints_.reserve(sequence->instructions().size());
   // TODO(dcarney): model unique constraints.
   // Construct OperandConstraints for all InstructionOperands, eliminating
@@ -276,6 +279,33 @@ void RegisterAllocatorVerifier::CheckConstraint(
   UNREACHABLE();
 }
 
+void BlockAssessments::DropInterferingStackSlots(InstructionOperand op) {
+  DCHECK(op.IsAnyStackSlot());
+  const LocationOperand& loc = LocationOperand::cast(op);
+  int num_slots = loc.NumStackSlots();
+  max_stack_slot_width_ = std::max(max_stack_slot_width_, num_slots);
+  int index = loc.index();
+  map_.erase(op);
+  stale_ref_stack_slots_.erase(op);
+  // Erase any stack slots at lower indices covered by `op`.
+  for (int i = index - num_slots + 1; i < index; ++i) {
+    AllocatedOperand probe(LocationOperand::STACK_SLOT,
+                           MachineRepresentation::kWord32, i);
+    map_.erase(probe);
+    stale_ref_stack_slots_.erase(probe);
+  }
+  // Erase any wider stack slots anchored at higher indices that overlap `op`.
+  for (int i = index + 1; i < index + max_stack_slot_width_; ++i) {
+    AllocatedOperand probe(LocationOperand::STACK_SLOT,
+                           MachineRepresentation::kWord32, i);
+    auto it = map_.find(probe);
+    if (it != map_.end() && it->first.InterferesWith(op)) {
+      stale_ref_stack_slots_.erase(it->first);
+      map_.erase(it);
+    }
+  }
+}
+
 void BlockAssessments::PerformMoves(const Instruction* instruction) {
   const ParallelMove* first =
       instruction->GetParallelMove(Instruction::GapPosition::START);
@@ -289,28 +319,36 @@ void BlockAssessments::PerformParallelMoves(const ParallelMove* moves) {
   if (moves == nullptr) return;
 
   CHECK(map_for_moves_.empty());
+  bool has_complex_dest = false;
   for (MoveOperands* move : *moves) {
     if (move->IsEliminated() || move->IsRedundant()) continue;
     auto it = map_.find(move->source());
     // The RHS of a parallel move should have been already assessed.
     CHECK(it != map_.end());
     // The LHS of a parallel move should not have been assigned in this
-    // parallel move.
-    CHECK(map_for_moves_.find(move->destination()) == map_for_moves_.end());
+    // parallel move, nor interfere with any other destination in this parallel
+    // move.
+    const InstructionOperand& dest = move->destination();
+    CHECK(map_for_moves_.find(dest) == map_for_moves_.end());
+    has_complex_dest = has_complex_dest || dest.HasComplexAliasing();
+    if (has_complex_dest) {
+      for (const auto& prev : map_for_moves_) {
+        CHECK(!prev.first.InterferesWith(dest));
+      }
+    }
     // The RHS of a parallel move should not be a stale reference.
     CHECK(!IsStaleReferenceStackSlot(move->source()));
     // Copy the assessment to the destination.
-    map_for_moves_[move->destination()] = it->second;
+    map_for_moves_[dest] = it->second;
   }
-  for (auto pair : map_for_moves_) {
+  for (const auto& pair : map_for_moves_) {
+    Drop(pair.first);
+  }
+  for (const auto& pair : map_for_moves_) {
     // Re-insert the existing key for the new assignment so that it has the
     // correct representation (which is ignored by the canonicalizing map
     // comparator).
-    InstructionOperand op = pair.first;
-    map_.erase(op);
     map_.insert(pair);
-    // Destination is no longer a stale reference.
-    stale_ref_stack_slots().erase(op);
   }
   map_for_moves_.clear();
 }
@@ -414,11 +452,19 @@ BlockAssessments* RegisterAllocatorVerifier::CreateForBlock(
       }
       const BlockAssessments* pred_assessments = iterator->second;
       CHECK_NOT_NULL(pred_assessments);
+      ret->UpdateMaxStackSlotWidth(pred_assessments->max_stack_slot_width());
       for (auto pair : pred_assessments->map()) {
         InstructionOperand operand = pair.first;
-        if (ret->map().find(operand) == ret->map().end()) {
+        auto existing = ret->map().find(operand);
+        if (existing == ret->map().end()) {
           ret->map().insert(std::make_pair(
               operand, zone()->New<PendingAssessment>(zone(), block, operand)));
+        } else if (operand.IsAnyStackSlot() &&
+                   LocationOperand::cast(operand).NumStackSlots() >
+                       LocationOperand::cast(existing->first).NumStackSlots()) {
+          Assessment* assessment = existing->second;
+          ret->map().erase(existing);
+          ret->map().insert(std::make_pair(operand, assessment));
         }
       }
 
@@ -441,19 +487,18 @@ void RegisterAllocatorVerifier::ValidatePendingAssessment(
   // When validating a pending assessment, it is possible some of the
   // assessments for the original operand (the one where the assessment was
   // created for first) are also pending. To avoid recursion, we use a work
-  // list. To deal with cycles, we keep a set of seen nodes.
-  Zone local_zone(zone()->allocator(), ZONE_NAME);
-  ZoneQueue<std::pair<const PendingAssessment*, int>> worklist(&local_zone);
-  ZoneSet<RpoNumber> seen(&local_zone);
-  worklist.push(std::make_pair(assessment, virtual_register));
-  seen.insert(block_id);
+  // list. To deal with cycles, we mark seen blocks in pending_seen_epoch_.
+  pending_worklist_.clear();
+  ++pending_current_epoch_;
+  DCHECK_NE(pending_current_epoch_, 0);
+  pending_worklist_.push_back({assessment, virtual_register});
+  pending_seen_epoch_[block_id.ToSize()] = pending_current_epoch_;
 
-  while (!worklist.empty()) {
-    auto work = worklist.front();
-    const PendingAssessment* current_assessment = work.first;
-    int current_virtual_register = work.second;
+  for (size_t head = 0; head < pending_worklist_.size(); ++head) {
+    // Copy by value, as push_back below may reallocate pending_worklist_.
+    auto [current_assessment, current_virtual_register] =
+        pending_worklist_[head];
     InstructionOperand current_operand = current_assessment->operand();
-    worklist.pop();
 
     const InstructionBlock* origin = current_assessment->origin();
     CHECK(origin->PredecessorCount() > 1 || !origin->phis().empty());
@@ -503,9 +548,9 @@ void RegisterAllocatorVerifier::ValidatePendingAssessment(
           // This happens if we have a diamond feeding into another one, and
           // the inner one never being used - other than for carrying the value.
           const PendingAssessment* next = PendingAssessment::cast(contribution);
-          auto [it, inserted] = seen.insert(pred);
-          if (inserted) {
-            worklist.push({next, expected});
+          if (pending_seen_epoch_[pred.ToSize()] != pending_current_epoch_) {
+            pending_seen_epoch_[pred.ToSize()] = pending_current_epoch_;
+            pending_worklist_.push_back({next, expected});
           }
           // Note that we do not want to finalize pending assessments at the
           // beginning of a block - which is the information we'd have

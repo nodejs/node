@@ -71,10 +71,12 @@ inline constexpr const std::in_place_t& in_place ABSL_DEPRECATE_AND_INLINE() =
 
 template <size_t I>
 inline constexpr const std::in_place_index_t<I>& in_place_index
-ABSL_DEPRECATE_AND_INLINE() = std::in_place_index<I>;
+    [[deprecated("Use std::in_place_index<I> instead.")]] =
+        std::in_place_index<I>;
 
 template <size_t I>
-using in_place_index_t ABSL_DEPRECATE_AND_INLINE() = std::in_place_index_t<I>;
+using in_place_index_t [[deprecated("Use std::in_place_index_t<I> instead.")]] =
+    std::in_place_index_t<I>;
 
 using in_place_t ABSL_DEPRECATE_AND_INLINE() = std::in_place_t;
 
@@ -89,12 +91,13 @@ template <size_t... I>
 using index_sequence ABSL_DEPRECATE_AND_INLINE() = std::index_sequence<I...>;
 
 template <class T, T... I>
-using integer_sequence ABSL_DEPRECATE_AND_INLINE() =
+using integer_sequence [[deprecated("Use std::integer_sequence instead.")]] =
     std::integer_sequence<T, I...>;
 
 template <class... T>
-using index_sequence_for ABSL_DEPRECATE_AND_INLINE() =
-    std::index_sequence_for<T...>;
+using index_sequence_for
+    [[deprecated("Use std::index_sequence_for instead.")]] =
+        std::index_sequence_for<T...>;
 
 template <class T, class Tuple>
 ABSL_DEPRECATE_AND_INLINE()
@@ -109,8 +112,9 @@ using make_index_sequence ABSL_DEPRECATE_AND_INLINE() =
     std::make_index_sequence<N>;
 
 template <class T, T N>
-using make_integer_sequence ABSL_DEPRECATE_AND_INLINE() =
-    std::make_integer_sequence<T, N>;
+using make_integer_sequence
+    [[deprecated("Use std::make_integer_sequence instead.")]] =
+        std::make_integer_sequence<T, N>;
 
 template <class It, class OutIt>
 [[deprecated("Use std::move instead.")]]

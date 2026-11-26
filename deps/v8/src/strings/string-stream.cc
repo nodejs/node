@@ -424,8 +424,12 @@ void StringStream::PrintPrototype(Isolate* isolate, Tagged<JSFunction> fun,
 #ifdef V8_ENABLE_TDZ_HOLE
   DCHECK(!IsTheHole(receiver));
 #endif
+  // Receiver can be `tdz_hole` in derived/builtin constructors before `super`,
+  // or `arguments_marker` when printing the stack during deopt materialization
+  // of an escape-analyzed receiver.
   if (IsNullOrUndefined(receiver) || IsTdzHole(receiver) ||
-      IsJSProxy(receiver) || IsWasmObject(receiver)) {
+      IsArgumentsMarker(receiver) || IsJSProxy(receiver) ||
+      IsWasmObject(receiver)) {
     print_name = true;
   } else if (!isolate->context().is_null()) {
     if (!IsJSObject(receiver)) {

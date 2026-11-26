@@ -1,0 +1,26 @@
+description: >-
+  Verify minimize-reproducer invokes minimize_dd.py in a single automated pass
+  to shrink flags and JS lines instead of manual turn-by-turn loops.
+owner: leszeks@chromium.org
+prompts:
+  - 'file://minimize_dd_prompt.md'
+providers:
+  - id: python:../../../testing/gemini_provider.py
+    config:
+      timeoutSeconds: 300
+      skills:
+        - minimize-reproducer
+tests:
+  - assert:
+      - type: python
+        value: >-
+          file://../../../testing/asserts/check_tool_calls.py:check_tool_used_with_args_match
+        config:
+          tool_name: run_command
+          args_pattern: 'minimize_dd\.py'
+    metadata:
+      category: scripted-minimization
+      tags:
+        - debugging
+        - efficiency
+        - minimize-reproducer

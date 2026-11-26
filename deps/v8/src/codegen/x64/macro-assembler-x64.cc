@@ -727,7 +727,7 @@ void MacroAssembler::LoadExternalPointerField(
     ExternalPointerTagRange tag_range, Register scratch,
     IsolateRootLocation isolateRootLocation) {
   DCHECK(!AreAliased(destination, scratch));
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
   DCHECK(!tag_range.IsEmpty());
   DCHECK(!IsSharedExternalPointerType(tag_range));
   DCHECK(!field_operand.AddressUsesRegister(scratch));
@@ -775,7 +775,7 @@ void MacroAssembler::LoadExternalPointerField(
   }
 #else
   movq(destination, field_operand);
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
 }
 
 void MacroAssembler::LoadTrustedPointerField(Register destination,
@@ -944,6 +944,7 @@ void MacroAssembler::PushDispatchHandle(Register dispatch_handle,
   DCHECK(!AreAliased(dispatch_handle, scratch, kScratchRegister));
 #ifdef V8_ENABLE_SANDBOX
   AssertZeroExtended(dispatch_handle);
+  andl(dispatch_handle, Immediate(~((1 << kJSDispatchHandleShift) - 1)));
   LoadParameterCountFromJSDispatchTable(scratch, dispatch_handle);
   shlq(scratch, Immediate(32));
   orq(dispatch_handle, scratch);
@@ -1367,6 +1368,12 @@ void MacroAssembler::Abort(AbortReason reason) {
 
   Move(rdx, Smi::FromInt(static_cast<int>(reason)));
 
+  if constexpr (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+    // 16-byte stack alignment: Abort can be reached from any stack state and
+    // control never returns here, so simply align rsp for the call.
+    andq(rsp, Immediate(-2 * kSystemPointerSize));
+  }
+
   {
     // We don't actually want to generate a pile of code for this, so just
     // claim there is a stack frame, without generating one.
@@ -1468,9 +1475,26 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
     PushDispatchHandle(kJavaScriptCallDispatchHandleRegister, rcx);
 #endif
     // Function is also the parameter to the runtime call.
-    Push(kJavaScriptCallTargetRegister);
+    //
+    // 16-byte stack alignment: the INTERNAL frame header is even (see
+    // EnterFrame), so rsp must be 16-byte aligned *before* the arguments are
+    // pushed. CEntry relies on this: for an odd argc (here: 1) it always
+    // expects a padding slot directly above the arguments and drops it
+    // together with them (it re-derives the padding from the alignment of
+    // that "pre-argument" rsp). So:
+    //  - if we saved an odd number of registers, push an extra padding slot
+    //    *below* the saved registers (dropped manually after the call), and
+    //  - always push the single argument via PushArgument, which adds the
+    //    padding slot above it that CEntry drops.
+    constexpr int kSavedSlots =
+        3 + (V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE_BOOL ? 1 : 0);
+    constexpr bool kPadSavedSlots =
+        V8_X64_16BYTE_STACK_ALIGNMENT_BOOL && (kSavedSlots % 2 != 0);
+    if constexpr (kPadSavedSlots) PushTaggedStackPadding();
+    PushArgument(kJavaScriptCallTargetRegister);
 
     CallRuntime(function_id, 1);
+    if constexpr (kPadSavedSlots) DropStackPadding();
 
     // Restore target function, new target, actual argument count and dispatch
     // handle.
@@ -1499,11 +1523,19 @@ int MacroAssembler::RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
                                                     Register exclusion) const {
   int bytes = 0;
   RegList saved_regs = kCallerSaved - exclusion;
-  bytes += kSystemPointerSize * saved_regs.Count();
+  int count = saved_regs.Count();
+  if constexpr (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+    count = RoundUp<2>(count);
+  }
+  bytes += kSystemPointerSize * count;
 
   // R12 to r15 are callee save on all platforms.
   if (fp_mode == SaveFPRegsMode::kSave) {
-    bytes += kStackSavedSavedFPSize * kAllocatableDoubleRegisters.Count();
+    int fp_bytes = kStackSavedSavedFPSize * kAllocatableDoubleRegisters.Count();
+    if constexpr (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+      fp_bytes = RoundUp<2 * kSystemPointerSize>(fp_bytes);
+    }
+    bytes += fp_bytes;
   }
 
   return bytes;
@@ -1538,11 +1570,23 @@ int MacroAssembler::PushAll(RegList registers) {
     pushq(reg);
     bytes += kSystemPointerSize;
   }
+  if constexpr (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+    if (registers.Count() % 2 != 0) {
+      pushq(Immediate(0));
+      bytes += kSystemPointerSize;
+    }
+  }
   return bytes;
 }
 
 int MacroAssembler::PopAll(RegList registers) {
   int bytes = 0;
+  if constexpr (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+    if (registers.Count() % 2 != 0) {
+      leaq(rsp, Operand(rsp, kSystemPointerSize));
+      bytes += kSystemPointerSize;
+    }
+  }
   for (Register reg : base::Reversed(registers)) {
     popq(reg);
     bytes += kSystemPointerSize;
@@ -1552,7 +1596,10 @@ int MacroAssembler::PopAll(RegList registers) {
 
 int MacroAssembler::PushAll(DoubleRegList registers, int stack_slot_size) {
   if (registers.is_empty()) return 0;
-  const int delta = stack_slot_size * registers.Count();
+  int delta = stack_slot_size * registers.Count();
+  if constexpr (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+    delta = RoundUp<2 * kSystemPointerSize>(delta);
+  }
   AllocateStackSpace(delta);
   int slot = 0;
   for (XMMRegister reg : registers) {
@@ -1564,7 +1611,7 @@ int MacroAssembler::PushAll(DoubleRegList registers, int stack_slot_size) {
     }
     slot += stack_slot_size;
   }
-  DCHECK_EQ(slot, delta);
+  DCHECK_EQ(slot, stack_slot_size * registers.Count());
   return delta;
 }
 
@@ -1581,8 +1628,12 @@ int MacroAssembler::PopAll(DoubleRegList registers, int stack_slot_size) {
     slot += stack_slot_size;
   }
   DCHECK_EQ(slot, stack_slot_size * registers.Count());
-  addq(rsp, Immediate(slot));
-  return slot;
+  int delta = slot;
+  if constexpr (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+    delta = RoundUp<2 * kSystemPointerSize>(delta);
+  }
+  addq(rsp, Immediate(delta));
+  return delta;
 }
 
 void MacroAssembler::Movq(XMMRegister dst, Register src) {
@@ -2385,9 +2436,36 @@ void MacroAssembler::F32x8Max(YMMRegister dst, YMMRegister lhs, YMMRegister rhs,
   vandnps(dst, dst, scratch);
 }
 
+namespace {
+void CanonicalizeF16x8NaNs(MacroAssembler* masm, XMMRegister dst,
+                           XMMRegister value, XMMRegister scratch) {
+  masm->vpsllw(dst, value, uint8_t{1});
+  masm->vpsrlw(dst, dst, uint8_t{1});
+  masm->vpcmpeqw(scratch, scratch, scratch);
+  masm->vpsrlw(scratch, scratch, uint8_t{11});
+  masm->vpsllw(scratch, scratch, uint8_t{10});
+  masm->vpcmpgtw(dst, dst, scratch);
+  masm->vpor(value, value, dst);
+  masm->vpsrlw(dst, dst, uint8_t{7});
+  masm->vpandn(dst, dst, value);
+}
+}  // namespace
+
 void MacroAssembler::F16x8Min(YMMRegister dst, XMMRegister lhs, XMMRegister rhs,
                               YMMRegister scratch, YMMRegister scratch2) {
   ASM_CODE_COMMENT(this);
+  if (UseAvx10_1()) {
+    CpuFeatureScope avx10_1_scope(this, AVX10_1);
+    CpuFeatureScope avx_scope(this, AVX);
+    XMMRegister xdst = dst;
+    XMMRegister xscratch = scratch;
+    XMMRegister xscratch2 = scratch2;
+    vminph(xscratch, lhs, rhs);
+    vminph(xdst, rhs, lhs);
+    vpor(xscratch, xscratch, xdst);
+    CanonicalizeF16x8NaNs(this, xdst, xscratch, xscratch2);
+    return;
+  }
   CpuFeatureScope f16c_scope(this, F16C);
   CpuFeatureScope avx_scope(this, AVX);
   vcvtph2ps(scratch, lhs);
@@ -2419,6 +2497,20 @@ void MacroAssembler::F16x8Min(YMMRegister dst, XMMRegister lhs, XMMRegister rhs,
 void MacroAssembler::F16x8Max(YMMRegister dst, XMMRegister lhs, XMMRegister rhs,
                               YMMRegister scratch, YMMRegister scratch2) {
   ASM_CODE_COMMENT(this);
+  if (UseAvx10_1()) {
+    CpuFeatureScope avx10_1_scope(this, AVX10_1);
+    CpuFeatureScope avx_scope(this, AVX);
+    XMMRegister xdst = dst;
+    XMMRegister xscratch = scratch;
+    XMMRegister xscratch2 = scratch2;
+    vmaxph(xscratch, lhs, rhs);
+    vmaxph(xdst, rhs, lhs);
+    vpxor(xdst, xdst, xscratch);
+    vpor(xscratch, xscratch, xdst);
+    vsubph(xscratch, xscratch, xdst);
+    CanonicalizeF16x8NaNs(this, xdst, xscratch, xscratch2);
+    return;
+  }
   CpuFeatureScope f16c_scope(this, F16C);
   CpuFeatureScope avx_scope(this, AVX);
   vcvtph2ps(scratch, lhs);
@@ -3441,8 +3533,41 @@ void MacroAssembler::DropUnderReturnAddress(int stack_elements,
   PushReturnAddressFrom(scratch);
 }
 
+void MacroAssembler::PushTaggedStackPadding() {
+  ASM_CODE_COMMENT(this);
+  // Smi zero is a valid tagged value in case the slot is visited by the GC.
+  Push(Immediate(0));
+}
+
+void MacroAssembler::DropStackPadding() {
+  ASM_CODE_COMMENT(this);
+  // leaq instead of addq to preserve EFLAGS.
+  leaq(rsp, Operand(rsp, kSystemPointerSize));
+}
+
+void MacroAssembler::PushArgument(Register arg) {
+  if (ShouldPadArguments(1)) PushTaggedStackPadding();
+  Push(arg);
+}
+
+void MacroAssembler::PushArgument(Operand arg) {
+  if (ShouldPadArguments(1)) PushTaggedStackPadding();
+  Push(arg);
+}
+
 void MacroAssembler::DropArguments(Register count) {
   leaq(rsp, Operand(rsp, count, times_system_pointer_size, 0));
+  if constexpr (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+    // The caller pushed one padding slot above the arguments if {count} is
+    // odd (see ArgumentPaddingSlots). Drop it as well. This is deliberately
+    // computed from {count} rather than by re-aligning rsp, so that a
+    // misaligned caller is not silently "repaired" here.
+    Label done;
+    testb(count, Immediate(1));
+    j(zero, &done, Label::kNear);
+    DropStackPadding();
+    bind(&done);
+  }
 }
 
 void MacroAssembler::DropArguments(Register count, Register scratch) {
@@ -3458,7 +3583,8 @@ void MacroAssembler::DropArgumentsAndPushNewReceiver(Register argc,
   DCHECK(!AreAliased(argc, receiver, scratch));
   PopReturnAddressTo(scratch);
   DropArguments(argc);
-  Push(receiver);
+  // The receiver is the single stack argument of the following call.
+  PushArgument(receiver);
   PushReturnAddressFrom(scratch);
 }
 
@@ -3469,7 +3595,8 @@ void MacroAssembler::DropArgumentsAndPushNewReceiver(Register argc,
   DCHECK(!receiver.AddressUsesRegister(scratch));
   PopReturnAddressTo(scratch);
   DropArguments(argc);
-  Push(receiver);
+  // The receiver is the single stack argument of the following call.
+  PushArgument(receiver);
   PushReturnAddressFrom(scratch);
 }
 
@@ -4572,18 +4699,25 @@ void MacroAssembler::InvokeFunctionCode(
     LoadRoot(rdx, RootIndex::kUndefinedValue);
   }
 
-  if (argument_adaption_mode == ArgumentAdaptionMode::kAdapt) {
-    Register expected_parameter_count = rbx;
-    LoadParameterCountFromJSDispatchTable(expected_parameter_count,
-                                          dispatch_handle);
-    InvokePrologue(expected_parameter_count, actual_parameter_count, type);
-  }
-
   // We call indirectly through the code field in the function to
   // allow recompilation to take effect without changing any of the
   // call sites.
   static_assert(kJavaScriptCallCodeStartRegister == rcx, "ABI mismatch");
-  LoadEntrypointFromJSDispatchTable(rcx, dispatch_handle);
+  if (argument_adaption_mode == ArgumentAdaptionMode::kAdapt) {
+    // InvokePrologue preserves rcx.
+    Register expected_parameter_count = rbx;
+    LoadEntrypointAndParameterCountFromJSDispatchTable(
+        rcx, expected_parameter_count, dispatch_handle);
+    InvokePrologue(expected_parameter_count, actual_parameter_count, type);
+    if (v8_flags.debug_code) {
+      Register reloaded_entrypoint = expected_parameter_count;
+      LoadEntrypointFromJSDispatchTable(reloaded_entrypoint, dispatch_handle);
+      cmpq(rcx, reloaded_entrypoint);
+      Check(equal, AbortReason::kWrongFunctionCodeStart);
+    }
+  } else {
+    LoadEntrypointFromJSDispatchTable(rcx, dispatch_handle);
+  }
   Label done;
   switch (type) {
     case InvokeType::kCall:
@@ -4639,6 +4773,8 @@ void MacroAssembler::StackOverflowCheck(
   j(less_equal, stack_overflow, stack_overflow_distance);
 }
 
+// Must preserve rcx (kJavaScriptCallCodeStartRegister): InvokeFunctionCode
+// loads the code entry point into it before calling this.
 void MacroAssembler::InvokePrologue(Register expected_parameter_count,
                                     Register actual_parameter_count,
                                     InvokeType type) {
@@ -4662,9 +4798,27 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
     {
       Label copy, check;
       Register src = r8, dest = rsp, num = r9, current = r11;
+      DCHECK_EQ(actual_parameter_count, rax);
+      DCHECK(!AreAliased(expected_parameter_count, rax, src, num, current,
+                         kScratchRegister));
       movq(src, rsp);
-      leaq(kScratchRegister,
-           Operand(expected_parameter_count, times_system_pointer_size, 0));
+      if constexpr (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+        // The caller padded its {actual} stack arguments to an even slot
+        // count and the callee will drop RoundUp(expected, 2) slots, so grow
+        // the argument area by RoundUp(expected, 2) - RoundUp(actual, 2)
+        // slots. With {expected_parameter_count} now holding
+        // delta = expected - actual, this equals (delta + 1 - (actual & 1))
+        // rounded down to even.
+        movl(num, rax);
+        andl(num, Immediate(1));
+        leaq(kScratchRegister, Operand(expected_parameter_count, 1));
+        subq(kScratchRegister, num);
+        andq(kScratchRegister, Immediate(~1));
+        shlq(kScratchRegister, Immediate(kSystemPointerSizeLog2));
+      } else {
+        leaq(kScratchRegister,
+             Operand(expected_parameter_count, times_system_pointer_size, 0));
+      }
       AllocateStackSpace(kScratchRegister);
       // Extra words are for the return address (if a jump).
       int extra_words =
@@ -4686,6 +4840,19 @@ void MacroAssembler::InvokePrologue(Register expected_parameter_count,
     }
     // Fill remaining expected arguments with undefined values.
     LoadRoot(kScratchRegister, RootIndex::kUndefinedValue);
+    if constexpr (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+      // If the total (expected) argument count is odd, the slot right above
+      // the last expected argument is the padding slot. It either still holds
+      // the caller's padding or a stale copy of a shifted argument; make sure
+      // it always holds a valid tagged value.
+      Label no_padding;
+      leaq(r9, Operand(rax, expected_parameter_count, times_1, 0));
+      testb(r9, Immediate(1));
+      j(zero, &no_padding, Label::kNear);
+      movq(Operand(r8, expected_parameter_count, times_system_pointer_size, 0),
+           kScratchRegister);
+      bind(&no_padding);
+    }
     {
       Label loop;
       bind(&loop);
@@ -4732,9 +4899,25 @@ void MacroAssembler::CallDebugOnFunctionCall(Register fun, Register new_target,
     Push(new_target);
   }
   Push(fun);
+  // 16-byte stack alignment: we are either inside an INTERNAL frame (even
+  // header, see EnterFrame) or inside the caller's frame right before a call
+  // (rsp aligned). Either way the slots pushed here must be even before the
+  // runtime call. We saved 3 or 4 values above and push 2 arguments below, so
+  // pad the saved registers when {new_target} was not saved (and drop that
+  // padding manually after CEntry drops the 2 arguments).
+  if constexpr (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+    if (!new_target.is_valid()) {
+      PushTaggedStackPadding();
+    }
+  }
   Push(fun);
   Push(kScratchRegister);
   CallRuntime(Runtime::kDebugOnFunctionCall);
+  if constexpr (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+    if (!new_target.is_valid()) {
+      DropStackPadding();
+    }
+  }
   Pop(fun);
   if (new_target.is_valid()) {
     Pop(new_target);
@@ -4768,6 +4951,16 @@ void MacroAssembler::EnterFrame(StackFrame::Type type) {
     static_assert(CommonFrameConstants::kContextOrFrameTypeOffset ==
                   -kSystemPointerSize);
     Push(Immediate(StackFrame::TypeToMarker(type)));
+  }
+  if constexpr (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+    if (type == StackFrame::INTERNAL) {
+      // 16-byte stack alignment: an INTERNAL frame header consists of just the
+      // frame type marker so we push one extra padding slot here, making static
+      // frame header slots = 2 (even) for every INTERNAL frame. Code inside an
+      // INTERNAL frame then only has to keep the number of slots it pushes
+      // itself (saved registers + outgoing arguments) even.
+      PushTaggedStackPadding();
+    }
   }
 #if V8_ENABLE_WEBASSEMBLY
   if (type == StackFrame::WASM) Push(kWasmImplicitArgRegister);
@@ -5060,16 +5253,16 @@ void MacroAssembler::CheckPageFlag(Register object, Register scratch, int mask,
 
 void MacroAssembler::JumpIfMarking(Label* is_marking,
                                    Label::Distance condition_met_distance) {
-  testb(Operand(kRootRegister, IsolateData::is_marking_flag_offset()),
-        Immediate(static_cast<uint8_t>(1)));
-  j(not_zero, is_marking, condition_met_distance);
+  cmpb(Operand(kRootRegister, IsolateData::is_marking_flag_offset()),
+       Immediate(0));
+  j(not_equal, is_marking, condition_met_distance);
 }
 
 void MacroAssembler::JumpIfNotMarking(Label* not_marking,
                                       Label::Distance condition_met_distance) {
-  testb(Operand(kRootRegister, IsolateData::is_marking_flag_offset()),
-        Immediate(static_cast<uint8_t>(1)));
-  j(zero, not_marking, condition_met_distance);
+  cmpb(Operand(kRootRegister, IsolateData::is_marking_flag_offset()),
+       Immediate(0));
+  j(equal, not_marking, condition_met_distance);
 }
 
 void MacroAssembler::PreCheckSkippedWriteBarrier(Register object,
@@ -5351,12 +5544,23 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
 
   if (argc_operand == nullptr) {
     DCHECK_NE(slots_to_drop_on_return, 0);
-    __ Ret(slots_to_drop_on_return * kSystemPointerSize, scratch);
+    __ Ret(
+        AddArgumentPaddingSlots(slots_to_drop_on_return) * kSystemPointerSize,
+        scratch);
   } else {
     __ PopReturnAddressTo(scratch);
     // {argc_operand} was loaded into {argc_reg} above.
-    __ leaq(rsp, Operand(rsp, argc_reg, times_system_pointer_size,
-                         slots_to_drop_on_return * kSystemPointerSize));
+    if constexpr (V8_X64_16BYTE_STACK_ALIGNMENT_BOOL) {
+      // The JS caller padded (receiver + argc) to an even number of slots and
+      // the builtin's own API argument slots are even, so drop
+      // RoundUp(argc + slots_to_drop_on_return, 2) slots in total.
+      __ leaq(argc_reg, Operand(argc_reg, slots_to_drop_on_return + 1));
+      __ andq(argc_reg, Immediate(~1));
+      __ leaq(rsp, Operand(rsp, argc_reg, times_system_pointer_size, 0));
+    } else {
+      __ leaq(rsp, Operand(rsp, argc_reg, times_system_pointer_size,
+                           slots_to_drop_on_return * kSystemPointerSize));
+    }
     // Push and ret (instead of jmp) to keep the RSB and the CET shadow stack
     // balanced.
     __ PushReturnAddressFrom(scratch);

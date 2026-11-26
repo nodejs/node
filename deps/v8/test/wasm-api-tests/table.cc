@@ -111,8 +111,13 @@ TEST_F(WasmCapiTest, Table) {
       TableType::make(ValType::make(FUNCREF), Limits(5, 5));
   own<Table> table2 = Table::make(store(), tabletype.get());
   EXPECT_EQ(5u, table2->size());
+  EXPECT_EQ(nullptr, table2->get(0));
   EXPECT_FALSE(table2->grow(1));
   EXPECT_TRUE(table2->grow(0));
+
+  own<Table> table3 = Table::make(store(), tabletype.get(), f);
+  ASSERT_NE(nullptr, table3->get(0));
+  EXPECT_TRUE(f->same(table3->get(0).get()));
 }
 
 }  // namespace wasm

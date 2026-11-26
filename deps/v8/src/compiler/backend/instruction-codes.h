@@ -376,14 +376,16 @@ using InstructionCode = uint32_t;
 // AtomicWidth                  | 1
 // AtomicMemoryOrder            | 1
 // AccessMode                   | 1
-// Undefined                    | 3
+// CheckSmi                     | 1
+// Undefined                    | 2
 //
 // -- Non-atomic stores
 // Field                        | Bits
 // RecordWriteMode              | 3
 // Undefined                    | 2
 // AccessMode                   | 1
-// Undefined                    | 3
+// CheckSmi                     | 1
+// Undefined                    | 2
 //
 // -- Non-atomic loads
 // Field                        | Bits
@@ -434,6 +436,7 @@ using AtomicMemoryOrderField = AtomicWidthField::Next<AtomicMemoryOrder, 1>;
 // Denotes whether the instruction needs to emit an accompanying landing pad for
 // the trap handler.
 using AccessModeField = AtomicMemoryOrderField::Next<MemoryAccessMode, 1>;
+using CheckSmiField = AccessModeField::Next<bool, 1>;
 
 // LaneSizeField and AccessModeField are helper types to encode/decode a lane
 // size, an access mode, or both inside the overlapping MiscField.

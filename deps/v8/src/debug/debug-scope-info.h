@@ -30,6 +30,7 @@ struct DebugVariableInfo {
   int initializer_position;
   bool is_synthetic;
   bool is_receiver;
+  bool is_hole_initialization_elided;
 
   // LINT.IfChange(VariableIsExport)
   bool is_export() const {
@@ -187,6 +188,42 @@ FindInnermostScope(DebugScriptScope closure_scope, int position);
 // caller script can't be reparsed.
 V8_EXPORT_PRIVATE std::optional<DebugScriptScope> FindEvalOuterScope(
     Isolate* isolate, DirectHandle<Script> script);
+
+// Returns whether `parent` must be visible to the debugger when leaving
+// `child`.
+//
+// In V8, hidden scopes (`scope.is_hidden()`) are internal scopes synthesized by
+// the parser for desugared language constructs rather than explicit `{ ... }`
+// blocks in user source code. Examples include the outer TDZ/initializer
+// `BLOCK_SCOPE` around a `for (let x = ...)` loop (whose per-iteration body
+// `BLOCK_SCOPE` redeclares fresh copies of `x`), the hidden `BLOCK_SCOPE`
+// holding synthetic `.home_object` around an object literal using `super`, or
+// helper scopes holding only synthetic temporaries (`.result`, `.iterator`,
+// etc.) or no variables at all.
+//
+// Exposing every hidden scope would clutter the debugger with empty/synthetic
+// internal blocks or duplicate `x` bindings when paused inside the
+// `for (let x = ...)` loop body. Conversely, unconditionally skipping hidden
+// scopes hides real user bindings when paused in a child scope that does not
+// redeclare them — such as a closure or `eval()` inside the
+// `for (let x = (() => { debugger; })(), ...)` header (where `child` is the
+// arrow's `FUNCTION_SCOPE`) or the right-hand side of `for (const x of expr)`
+// (where `child` is the empty `subject_scope` and `parent` holds `x` in TDZ).
+//
+// The exact rule: non-hidden parent scopes are always visible. A hidden
+// `parent` scope is skipped when leaving `child` iff it declares no
+// non-synthetic variables or every non-synthetic variable in `parent` is
+// shadowed by a non-synthetic variable of the same name in `child`.
+//
+// `ScopeIterator::AdvanceScope` uses `IsDebuggerVisibleParent` to decide
+// which hidden ancestor scopes are exposed during scope iteration. In contrast,
+// `AddScopeStackLocalsToBlockList` achieves the matching shadowing behavior for
+// `DebugEvaluate` blocklists by unconditionally collecting non-synthetic
+// stack-allocated locals from all ancestor scopes (including hidden ones, since
+// empty or synthetic-only hidden scopes contribute nothing and redeclared names
+// are idempotent in the `StringSet`).
+V8_EXPORT_PRIVATE bool IsDebuggerVisibleParent(const DebugScriptScope& child,
+                                               const DebugScriptScope& parent);
 
 }  // namespace internal
 }  // namespace v8

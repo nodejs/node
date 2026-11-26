@@ -19,18 +19,23 @@
 #include "src/__support/macros/optimization.h"
 #include "src/__support/macros/properties/cpu_features.h"
 
+#ifndef LIBC_MATH_POWF_IMPL
 #if defined(LIBC_MATH_HAS_SKIP_ACCURATE_PASS) &&                               \
     (defined(LIBC_MATH_HAS_SMALL_TABLES) ||                                    \
      defined(LIBC_MATH_HAS_INTERMEDIATE_COMP_IN_FLOAT))
-
-#include "src/__support/math/powf_float_eval.h"
 #define LIBC_MATH_POWF_IMPL float_eval
-
-#else // !LIBC_MATH_HAS_SKIP_ACCURATE_PASS
-#include "src/__support/math/powf_double_eval.h"
+#else
 #define LIBC_MATH_POWF_IMPL double_eval
+#endif
+#endif // !LIBC_MATH_POWF_IMPL
 
-#endif // LIBC_MATH_HAS_SKIP_ACCURATE_PASS
+#if LIBC_MATH_IMPL_IS(LIBC_MATH_POWF_IMPL, float_eval)
+#include "src/__support/math/powf_float_eval.h"
+#elif LIBC_MATH_IMPL_IS(LIBC_MATH_POWF_IMPL, double_eval)
+#include "src/__support/math/powf_double_eval.h"
+#else
+#error "Unsupported LIBC_MATH_POWF_IMPL"
+#endif // LIBC_MATH_IMPL_IS
 
 namespace LIBC_NAMESPACE_DECL {
 namespace math {

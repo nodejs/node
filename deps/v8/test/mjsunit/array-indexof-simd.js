@@ -200,3 +200,51 @@
     assertEquals(b.indexOf(x), a.indexOf(x));
   }
 })();
+
+// Match at every position and no match, for lengths covering every remainder
+// of the 4x-unrolled loop, the 1x loop and the scalar tail. Arrays shorter than
+// 48 elements do not take the SIMD path. Objects share the Smi code path.
+(() => {
+  const sentinelSmi = 99999;
+  const sentinelDouble = 99999.5;
+
+  for (let len = 48; len < 68; len++) {
+    const smiArr = new Array(len);
+    const dblArr = new Array(len);
+    for (let i = 0; i < len; i++) {
+      smiArr[i] = i;
+      dblArr[i] = i + 0.5;
+    }
+
+    assertEquals(-1, smiArr.indexOf(sentinelSmi));
+    assertEquals(-1, dblArr.indexOf(sentinelDouble));
+
+    for (let pos = 0; pos < len; pos++) {
+      assertEquals(pos, smiArr.indexOf(pos));
+      assertEquals(pos, dblArr.indexOf(pos + 0.5));
+    }
+  }
+
+  // Two matches at varying distances, in the same and in different vectors of
+  // an unrolled iteration (16 Smi or 8 Double elements).
+  const len = 80;
+  const baseSmi = new Array(len).fill(0);
+  const baseDbl = new Array(len).fill(0.5);
+  for (let first = 0; first < 48; first += 3) {
+    for (let delta of [1, 3, 4, 5, 7, 8, 12, 15, 16]) {
+      const second = first + delta;
+      baseSmi[first] = 42;
+      baseSmi[second] = 42;
+      baseDbl[first] = 42.5;
+      baseDbl[second] = 42.5;
+      assertEquals(first, baseSmi.indexOf(42));
+      assertEquals(first, baseDbl.indexOf(42.5));
+      assertEquals(second, baseSmi.indexOf(42, first + 1));
+      assertEquals(second, baseDbl.indexOf(42.5, first + 1));
+      baseSmi[first] = 0;
+      baseSmi[second] = 0;
+      baseDbl[first] = 0.5;
+      baseDbl[second] = 0.5;
+    }
+  }
+})();

@@ -8,6 +8,7 @@
 #include <fstream>
 #include <ostream>
 
+#include "src/base/macros.h"
 #include "src/handles/handles.h"
 #include "src/maglev/maglev-phase.h"
 
@@ -31,7 +32,20 @@ inline MaglevGraphAsJSON AsJSON(Graph* graph) {
   return MaglevGraphAsJSON{graph};
 }
 
-std::ostream& operator<<(std::ostream& os, const MaglevGraphAsJSON& ad);
+struct MaglevCustomDataAsJSON {
+  Graph* graph;
+  MaglevPhase phase;
+};
+
+inline MaglevCustomDataAsJSON CustomDataAsJSON(Graph* graph,
+                                               MaglevPhase phase) {
+  return MaglevCustomDataAsJSON{graph, phase};
+}
+
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           const MaglevGraphAsJSON& ad);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           const MaglevCustomDataAsJSON& ad);
 
 void JsonPrintFunctionSource(std::ostream& os, int source_id,
                              const std::string& function_name,

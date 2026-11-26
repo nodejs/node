@@ -74,15 +74,16 @@ class AllowNativesSyntaxNoInlining {
             i::v8_flags.minimum_invocations_before_optimization),
         allow_natives_syntax_(i::v8_flags.allow_natives_syntax),
         turbo_inlining_(i::v8_flags.turbo_inlining) {
-    i::v8_flags.minimum_invocations_before_optimization = 0;
-    i::v8_flags.allow_natives_syntax = true;
-    i::v8_flags.turbo_inlining = false;
+    i::v8_flags.minimum_invocations_before_optimization.Set(0);
+    i::v8_flags.allow_natives_syntax.Set(true);
+    i::v8_flags.turbo_inlining.Set(false);
   }
 
   ~AllowNativesSyntaxNoInlining() {
-    i::v8_flags.minimum_invocations_before_optimization = minimum_invocations_;
-    i::v8_flags.allow_natives_syntax = allow_natives_syntax_;
-    i::v8_flags.turbo_inlining = turbo_inlining_;
+    i::v8_flags.minimum_invocations_before_optimization.Set(
+        minimum_invocations_);
+    i::v8_flags.allow_natives_syntax.Set(allow_natives_syntax_);
+    i::v8_flags.turbo_inlining.Set(turbo_inlining_);
   }
 
  private:
@@ -388,7 +389,9 @@ class DeoptimizationDisableConcurrentRecompilationTest
         "  if (deopt) { count++; %DeoptimizeFunction(f); } return 8"
         "};");
   }
-  static void SetUpTestSuite() { i::v8_flags.concurrent_recompilation = false; }
+  static void SetUpTestSuite() {
+    i::v8_flags.concurrent_recompilation.Set(false);
+  }
   void TestDeoptimizeBinaryOp(const char* binary_op) {
     std::array<char, SMALL_STRING_BUFFER_SIZE> f_source_buffer;
     v8::base::SNPrintF(f_source_buffer, "function f(x, y) { return x %s y; };",
@@ -398,7 +401,7 @@ class DeoptimizationDisableConcurrentRecompilationTest
     AllowNativesSyntaxNoInlining options;
     // Compile function f and collect to type feedback to insert binary op stub
     // call in the optimized code.
-    i::v8_flags.minimum_invocations_before_optimization = 0;
+    i::v8_flags.minimum_invocations_before_optimization.Set(0);
     CompileConstructorWithDeoptimizingValueOf();
     RunJS(f_source);
     RunJS(

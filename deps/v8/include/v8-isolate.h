@@ -684,6 +684,7 @@ class V8_EXPORT Isolate {
     kRegExpCustomSpecies = 189,
     kWasmWideArithmetic = 190,
     kBigInt = 191,
+    kExtendingNonExtensibleWithPrivateProxyTrap = 192,
 
     // If you add new values here, you'll also need to update Chromium's:
     // web_feature.mojom, use_counter_callback.cc, and enums.xml. V8 changes to
@@ -1512,12 +1513,14 @@ class V8_EXPORT Isolate {
    * predefined set of data as crash keys to be used in postmortem debugging in
    * case of a crash.
    */
+  V8_DEPRECATED("Use V8::SetCrashKeyCallbacks instead")
   void SetAddCrashKeyCallback(AddCrashKeyCallback);
 
   /**
    * Enables the host application to provide a mechanism for allocating a new
    * crash key and setting/updating values for them.
    */
+  V8_DEPRECATED("Use V8::SetCrashKeyCallbacks instead")
   void SetCrashKeyStringCallbacks(AllocateCrashKeyStringCallback,
                                   SetCrashKeyStringCallback);
 
@@ -1766,11 +1769,7 @@ class V8_EXPORT Isolate {
    * is that the embedder sets them at most once.
    */
   void SetWasmModuleCallback(WasmModuleCallback callback);
-  V8_DEPRECATE_SOON("Use the WasmModuleCallback overload instead")
-  void SetWasmModuleCallback(ExtensionCallback callback);
   void SetWasmInstanceCallback(WasmInstanceCallback callback);
-  V8_DEPRECATE_SOON("Use the WasmInstanceCallback overload instead")
-  void SetWasmInstanceCallback(ExtensionCallback callback);
 
   void SetWasmStreamingCallback(WasmStreamingCallback callback);
 

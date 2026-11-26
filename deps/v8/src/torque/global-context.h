@@ -102,27 +102,36 @@ class GlobalContext : public base::ContextualClass<GlobalContext> {
   }
 
   struct KytheInlineMetadata {
+    enum class EdgeKind { kImputes, kRefCall };
+
     size_t begin;
     size_t end;
-    std::string vname_sig;
-    std::string vname_path = "";
-    size_t source_begin = 0;
-    size_t source_end = 0;
-    bool is_call_anchor = false;
+    size_t source_begin;
+    size_t source_end;
+    std::string vname_path;
+    EdgeKind edge_kind;
 
-    static KytheInlineMetadata Generates(size_t begin, size_t end,
-                                         std::string vname_sig,
-                                         std::string vname_path) {
-      return {begin, end,  std::move(vname_sig), std::move(vname_path), 0,
-              0,     false};
+    static KytheInlineMetadata Imputes(size_t begin, size_t end,
+                                       size_t source_begin, size_t source_end,
+                                       std::string vname_path) {
+      return {begin,
+              end,
+              source_begin,
+              source_end,
+              std::move(vname_path),
+              EdgeKind::kImputes};
     }
 
     static KytheInlineMetadata CallAnchor(size_t begin, size_t end,
                                           size_t source_begin,
                                           size_t source_end,
                                           std::string vname_path) {
-      return {begin,        end,        "",  std::move(vname_path),
-              source_begin, source_end, true};
+      return {begin,
+              end,
+              source_begin,
+              source_end,
+              std::move(vname_path),
+              EdgeKind::kRefCall};
     }
   };
 

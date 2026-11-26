@@ -12,7 +12,19 @@ namespace redline {
 
 namespace {
 constexpr const char* kLog = "runner";
+
+// Tells `coverage` if the current process of `child` runs with optimized
+// code coverage, and if a process of this target can run with it. The
+// random flags come before the fixed flags.
+void NoteOptimizedCoverage(const TargetOptions& options,
+                           const ReprlChild& child, CoverageMap* coverage) {
+  std::vector<std::string> args = child.random_args();
+  args.insert(args.end(), options.args.begin(), options.args.end());
+  const bool requested = CoverageMap::RequestsOptimizedCoverage(args);
+  coverage->SetOptimizedCoverage(requested,
+                                 requested || options.random_args != nullptr);
 }
+}  // namespace
 
 // static
 std::unique_ptr<ScriptRunner> ScriptRunner::Create(const TargetOptions& options,
@@ -22,6 +34,11 @@ std::unique_ptr<ScriptRunner> ScriptRunner::Create(const TargetOptions& options,
   if (!runner->coverage_) {
     return nullptr;
   }
+  CoverageMap::Watch watch;
+  watch.edges = options.watch_edges;
+  watch.optimized = options.watch_optimized;
+  runner->coverage_->SetWatch(std::move(watch));
+  runner->coverage_->SetTargetKind(options.kind);
   runner->child_ = ReprlChild::Create(
       options.ToReprlOptions(runner->coverage_->shm_name()), error);
   if (!runner->child_) {
@@ -52,6 +69,7 @@ bool ScriptRunner::Initialize(std::string* error) {
         execution.stderr_output.c_str());
     return false;
   }
+  NoteOptimizedCoverage(options_, *child_, coverage_.get());
   if (!coverage_->FinishInitialization(error)) {
     return false;
   }
@@ -83,7 +101,26 @@ void ScriptRunner::Account(const Execution& execution) {
 bool ScriptRunner::ExecuteWithRetry(std::string_view script,
                                     uint64_t timeout_us, Execution* execution,
                                     std::string* error) {
+  if (script.size() > ReprlChild::kMaxDataSize) {
+    // A script above the channel limit fails on every target. Keep the current
+    // target alive and return at once without a retry.
+    *execution = Execution();
+    *error = StringPrintf("Script too large (%zu bytes)", script.size());
+    stats_.infrastructure_failures++;
+    return false;
+  }
+  const uint64_t spawns_before = child_->total_spawns();
   if (child_->Execute(script, timeout_us, execution, error)) {
+    // A new process (after a crash, a timeout or a respawn) publishes its
+    // edge count again. It must fit the coverage map.
+    if (child_->total_spawns() != spawns_before) {
+      NoteOptimizedCoverage(options_, *child_, coverage_.get());
+      if (!coverage_->FinishInitialization(error)) {
+        child_->Kill();
+        return false;
+      }
+    }
+    coverage_->Refresh();
     return true;
   }
   // Like Fuzzilli: retry once with a fresh instance after a short pause;
@@ -99,7 +136,12 @@ bool ScriptRunner::ExecuteWithRetry(std::string_view script,
   if (child_->Execute(script, timeout_us, execution, error)) {
     // A respawned child publishes its edge count again; make sure it is
     // the same binary.
-    return coverage_->FinishInitialization(error);
+    NoteOptimizedCoverage(options_, *child_, coverage_.get());
+    if (!coverage_->FinishInitialization(error)) {
+      return false;
+    }
+    coverage_->Refresh();
+    return true;
   }
   stats_.infrastructure_failures++;
   return false;

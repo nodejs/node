@@ -1,4 +1,7 @@
 header: netdb.h
+public_includes:
+  # POSIX allows <netdb.h> to make the symbols of <netinet/in.h> visible.
+  - netinet/in.h
 standards:
   - posix
 macros:

@@ -322,6 +322,38 @@ class RecursionCheck {
   Compiler* compiler_;
 };
 
+void FrequencyCollator::UseStaticFrequencies() {
+  // Frequency (scaled to sum to 10000) of each character modulo kTableSize in
+  // regexp subject strings.  Harvested from the Octane regexp benchmark (with
+  // its ROT13 encoding undone), which is weighted by how often each regexp was
+  // executed on popular web pages, sampling up to 128 characters from the
+  // middle of the subject on each execution just like CountCharacter's caller.
+  static constexpr uint16_t kFrequencies[RegExpMacroAssembler::kTableSize] = {
+      0,   0,   0,   0,   0,   0,   0,   0,    // ........
+      0,   0,   1,   0,   0,   0,   0,   0,    // ........
+      0,   0,   0,   0,   0,   0,   0,   0,    // ........
+      0,   0,   0,   0,   0,   0,   0,   0,    // ........
+      308, 0,   46,  25,  11,  43,  27,  0,    //  !"#$%&'
+      41,  44,  0,   9,   54,  43,  379, 277,  // ()*+,-./
+      162, 203, 142, 161, 87,  152, 115, 68,   // 01234567
+      88,  105, 92,  60,  5,   95,  13,  1,    // 89:;<=>?
+      0,   25,  16,  67,  75,  11,  28,  39,   // @ABCDEFG
+      45,  31,  29,  20,  32,  103, 31,  28,   // HIJKLMNO
+      48,  19,  25,  66,  58,  77,  58,  52,   // PQRSTUVW
+      5,   9,   47,  9,   0,   8,   0,   82,   // XYZ[\]^_
+      0,   302, 131, 483, 277, 543, 154, 120,  // `abcdefg
+      212, 406, 15,  216, 373, 238, 296, 464,  // hijklmno
+      292, 6,   238, 184, 437, 134, 32,  205,  // pqrstuvw
+      52,  108, 17,  19,  14,  19,  14,  0,    // xyz{|}~.
+  };
+  total_samples_ = 0;
+  for (int i = 0; i < RegExpMacroAssembler::kTableSize; i++) {
+    frequencies_[i] = CharacterFrequency(i);
+    frequencies_[i].Add(kFrequencies[i]);
+    total_samples_ += kFrequencies[i];
+  }
+}
+
 // Attempts to compile the regexp using an Irregexp code generator.  Returns
 // a fixed array or a null handle depending on whether it succeeded.
 Compiler::Compiler(Isolate* isolate, Zone* zone, int capture_count, Flags flags,

@@ -134,8 +134,6 @@ void JSFunction::UpdateOptimizedCode(Isolate* isolate, Tagged<Code> code,
       return;
     }
   }
-  // Required for being able to deoptimize this code.
-  code->set_js_dispatch_handle(dispatch_handle());
   UpdateCodeImpl(isolate, code, mode, false);
 }
 
@@ -150,15 +148,21 @@ void JSFunction::UpdateCodeImpl(Isolate* isolate, Tagged<Code> value,
     DCHECK_NE(handle, kNullJSDispatchHandle);
     set_dispatch_handle(handle, mode);
   }
+  if (value->is_optimized_code()) {
+    // Required for being able to deoptimize this code.
+    DCHECK_EQ(value->js_dispatch_handle(), kNullJSDispatchHandle);
+    value->set_js_dispatch_handle(handle);
+  }
   if (keep_tiering_request) {
-    UpdateDispatchEntryKeepTieringRequest(isolate, value, mode);
+    isolate->js_dispatch_table().SetCodeKeepTieringRequest(handle, value, this,
+                                                           isolate, mode);
   } else {
-    UpdateDispatchEntry(isolate, value, mode);
+    isolate->js_dispatch_table().SetCode(handle, value, this, isolate, mode);
   }
 
   if (V8_UNLIKELY(v8_flags.log_function_events)) {
     isolate->js_dispatch_table().SetTieringRequest(
-        dispatch_handle(), TieringBuiltin::kFunctionLogNextExecution, isolate);
+        handle, TieringBuiltin::kFunctionLogNextExecution, isolate);
   }
 }
 
@@ -215,17 +219,6 @@ void JSFunction::clear_dispatch_handle() { dispatch_handle_.Relaxed_Clear(); }
 void JSFunction::set_dispatch_handle(JSDispatchHandle handle,
                                      WriteBarrierMode mode) {
   dispatch_handle_.Release_Store(this, handle, mode);
-}
-void JSFunction::UpdateDispatchEntry(Isolate* isolate, Tagged<Code> new_code,
-                                     WriteBarrierMode mode) {
-  isolate->js_dispatch_table().SetCode(dispatch_handle(), new_code, this,
-                                       isolate, mode);
-}
-void JSFunction::UpdateDispatchEntryKeepTieringRequest(Isolate* isolate,
-                                                       Tagged<Code> new_code,
-                                                       WriteBarrierMode mode) {
-  isolate->js_dispatch_table().SetCodeKeepTieringRequest(
-      dispatch_handle(), new_code, this, isolate, mode);
 }
 JSDispatchHandle JSFunction::dispatch_handle() const {
   return dispatch_handle_.Relaxed_Load();
@@ -467,15 +460,9 @@ bool JSFunction::TryGetPrototypeOrInitialMap(
     out->instance_prototype = initial_map->prototype();
     out->has_initial_map = true;
     out->initial_map = initial_map;
-    // Constructors from https://tc39.es/proposal-structs/ do not have
-    // instance prototypes yet. Per-Realm prototypes is currently an open
-    // design question and not included in this draft. Thus, once bootstrapper
-    // is done, this is the only "legitimate" case of a function without an
-    // instance prototype.
     out->has_instance_prototype = !IsNull(out->instance_prototype);
     DCHECK_IMPLIES(!out->has_instance_prototype,
-                   Isolate::Current()->bootstrapper()->IsActive() ||
-                       v8_flags.harmony_struct);
+                   Isolate::Current()->bootstrapper()->IsActive());
     return true;
   }
   DCHECK(IsJSReceiver(proto_or_map));
@@ -577,7 +564,8 @@ Tagged<JSAny> JSFunction::prototype() const {
 }
 
 bool JSFunction::is_compiled(IsolateForSandbox isolate) const {
-  return code(isolate, kAcquireLoad)->builtin_id() != Builtin::kCompileLazy &&
+  return dispatch_handle(kAcquireLoad) != kNullJSDispatchHandle &&
+         code(isolate, kAcquireLoad)->builtin_id() != Builtin::kCompileLazy &&
          shared()->is_compiled();
 }
 

@@ -9,6 +9,7 @@
 
 #include "include/cppgc/heap-consistency.h"
 #include "include/cppgc/platform.h"
+#include "src/base/bits.h"
 #include "src/base/logging.h"
 #include "src/base/sanitizer/lsan-page-allocator.h"
 #include "src/heap/base/stack.h"
@@ -19,6 +20,7 @@
 #include "src/heap/cppgc-internal/heap-statistics-collector.h"
 #include "src/heap/cppgc-internal/heap-visitor.h"
 #include "src/heap/cppgc-internal/marking-verifier.h"
+#include "src/heap/cppgc-internal/memory.h"
 #include "src/heap/cppgc-internal/object-view.h"
 #include "src/heap/cppgc-internal/page-memory.h"
 #include "src/heap/cppgc-internal/platform.h"
@@ -126,6 +128,8 @@ HeapBase::HeapBase(
     cppgc::AllocationSampler* allocation_sampler)
     : raw_heap_(this, custom_spaces),
       platform_(std::move(platform)),
+      commit_page_size_bits_(v8::base::bits::WhichPowerOfTwo(
+          platform_->GetPageAllocator()->CommitPageSize())),
       oom_handler_(std::make_unique<FatalOutOfMemoryHandler>(this)),
 #if defined(LEAK_SANITIZER)
       lsan_page_allocator_(std::make_unique<v8::base::LsanPageAllocator>(
@@ -195,6 +199,14 @@ void HeapBase::FilterSampledObjects() {
       return false;
     });
   }
+}
+
+void HeapBase::set_purge_memory_mode(PurgeMemoryMode mode) {
+  CHECK(!sweeper_.IsSweepingInProgress());
+  CHECK_IMPLIES(!CanPurgeMemory(), mode == PurgeMemoryMode::kOff);
+  CHECK_IMPLIES(mode != purge_memory_mode_,
+                stats_collector_->purged_memory_size() == 0);
+  purge_memory_mode_ = mode;
 }
 
 PageAllocator* HeapBase::page_allocator() const {

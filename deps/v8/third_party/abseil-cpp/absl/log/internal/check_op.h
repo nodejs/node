@@ -425,7 +425,7 @@ using CheckOpStreamType =
 
 // Build the error message string.  Specify no inlining for code size.
 template <typename T1, typename T2>
-ABSL_ATTRIBUTE_NOINLINE ABSL_ATTRIBUTE_RETURNS_NONNULL const char* absl_nonnull
+ABSL_ATTRIBUTE_RETURNS_NONNULL ABSL_ATTRIBUTE_NOINLINE const char* absl_nonnull
 MakeCheckOpString(T1 v1, T2 v2, const char* absl_nonnull exprtext);
 
 template <typename T1, typename T2>

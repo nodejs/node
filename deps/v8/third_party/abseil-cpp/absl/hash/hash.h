@@ -254,6 +254,15 @@ ABSL_NAMESPACE_BEGIN
 // Note: unlike `std::hash', `absl::Hash` should never be specialized. It must
 // only be extended by adding `AbslHashValue()` overloads.
 //
+// `AbslHashValue()` may only be defined for user-defined types (such as
+// classes, structs, unions, or enums) that you own. It is not allowed to define
+// `AbslHashValue()` overloads for built-in types such as pointers (e.g.
+// `const MyType*`), standard library types (e.g. `std::unique_ptr<MyType>`), or
+// types that `absl::Hash` natively supports. In `absl::Hash`, pointers are
+// always hashed by their memory address; to hash pointers by their pointee
+// value in a container, pass custom hash and equality functors to the container
+// instead.
+//
 template <typename T>
 using Hash = absl::hash_internal::Hash<T>;
 

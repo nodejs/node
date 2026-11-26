@@ -1911,8 +1911,8 @@ MaybeDirectHandle<String> JSDateTimeFormat::ToLocaleDateTime(
       (IsString(*locales) || IsUndefined(*locales)) && IsUndefined(*options);
   if (can_cache) {
     // Both locales and options are undefined, check the cache.
-    icu::SimpleDateFormat* cached_icu_simple_date_format =
-        static_cast<icu::SimpleDateFormat*>(
+    std::shared_ptr<icu::SimpleDateFormat> cached_icu_simple_date_format =
+        std::static_pointer_cast<icu::SimpleDateFormat>(
             isolate->get_cached_icu_object(cache_type, locales));
     if (cached_icu_simple_date_format != nullptr) {
       return FormatDateTime(isolate, *cached_icu_simple_date_format, x);
@@ -2648,7 +2648,6 @@ MaybeDirectHandle<JSDateTimeFormat> JSDateTimeFormat::CreateDateTimeFormat(
   std::string calendar_stdstr;
   if (maybe_calendar.FromJust()) {
     calendar_stdstr = calendar_str->ToStdString();
-    icu::Locale default_locale;
     if (!Intl::IsWellFormedCalendar(calendar_stdstr)) {
       THROW_NEW_ERROR(isolate,
                       NewRangeError(MessageTemplate::kInvalid,
@@ -2692,7 +2691,7 @@ MaybeDirectHandle<JSDateTimeFormat> JSDateTimeFormat::CreateDateTimeFormat(
   //     localeData).
   //
   Intl::ResolvedLocale r;
-  if (!Intl::ResolveLocale(isolate, JSDateTimeFormat::GetAvailableLocales(),
+  if (!Intl::ResolveLocale(isolate, JSDateTimeFormat::GetAvailableLocales,
                            requested_locales, locale_matcher,
                            {"nu", "ca", "hc"})
            .To(&r)) {

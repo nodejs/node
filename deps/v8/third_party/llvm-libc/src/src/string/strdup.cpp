@@ -20,7 +20,7 @@ namespace LIBC_NAMESPACE_DECL {
 LLVM_LIBC_FUNCTION(char *, strdup, (const char *src)) {
   auto dup = internal::strdup(src);
   if (dup)
-    return *dup;
+    return dup.release();
   if (src != nullptr)
     libc_errno = ENOMEM;
   return nullptr;

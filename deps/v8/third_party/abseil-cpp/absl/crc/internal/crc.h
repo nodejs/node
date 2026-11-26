@@ -85,8 +85,21 @@ class CRC {
 };
 // Bookkeeping hooks called by non-temporal store functions and
 // NonTemporalStoreFence(), for use in tests.
+//
+// In debug builds (!defined(NDEBUG)), these are declared out-of-line and
+// defined as weak symbols in crc.cc so crc_memcpy_test.cc can override them to
+// verify non-temporal store fencing. In optimized builds (NDEBUG), they must be
+// defined inline here so the compiler eliminates the call within the same
+// translation unit without needing LTO; otherwise, an external call following a
+// non-temporal store causes the compiler's x86-fence-nontemporal-stores pass to
+// insert an sfence after every store.
+#ifndef NDEBUG
 void DebugReportNonTemporalStore();
 void DebugReportStoreFence();
+#else
+inline void DebugReportNonTemporalStore() {}
+inline void DebugReportStoreFence() {}
+#endif
 
 }  // namespace crc_internal
 ABSL_NAMESPACE_END
