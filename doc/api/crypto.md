@@ -5307,7 +5307,7 @@ the process unresponsive.
 added: v27.0.0-alpha.0.1.0
 -->
 
-> Stability: 1.2 - Release candidate
+> Stability: 1.1 - Active development
 
 * `options` {Object}
   * `csr` {string|ArrayBuffer|Buffer|TypedArray|DataView} A PEM string, or a
@@ -5552,7 +5552,7 @@ rejection of duplicate extension OIDs exposed by inspection.
 added: v27.0.0-alpha.0.1.0
 -->
 
-> Stability: 1.2 - Release candidate
+> Stability: 1.1 - Active development
 
 * `options` {Object} See [`crypto.generateX509Certificate()`][].
 * Returns: {X509Certificate}
