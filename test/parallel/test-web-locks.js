@@ -190,6 +190,38 @@ describe('Web Locks with worker threads', () => {
     }));
   });
 
+  it('should throw proper errors on illegal constructor and invalid receiver', async () => {
+    const LockManager = navigator.locks.constructor;
+    assert.throws(
+      () => new LockManager(),
+      { code: 'ERR_ILLEGAL_CONSTRUCTOR' },
+    );
+    await assert.rejects(
+      LockManager.prototype.request.call({}, 'test', common.mustNotCall()),
+      { code: 'ERR_INVALID_THIS' },
+    );
+    await assert.rejects(
+      LockManager.prototype.query.call({}),
+      { code: 'ERR_INVALID_THIS' },
+    );
+
+    await navigator.locks.request('receiver-test', common.mustCall((lock) => {
+      const Lock = lock.constructor;
+      assert.throws(
+        () => new Lock(),
+        { code: 'ERR_ILLEGAL_CONSTRUCTOR' },
+      );
+      assert.throws(
+        () => Reflect.get(Lock.prototype, 'name', {}),
+        { code: 'ERR_INVALID_THIS' },
+      );
+      assert.throws(
+        () => Reflect.get(Lock.prototype, 'mode', {}),
+        { code: 'ERR_INVALID_THIS' },
+      );
+    }));
+  });
+
   it('should clean up when worker is terminated with a pending lock', async () => {
     // Acquire the lock in the main thread so that the worker's request will be pending
     await navigator.locks.request('cleanup-test', common.mustCall(async () => {
