@@ -193,6 +193,8 @@ A good commit message should describe what changed and why.
 4. If your patch fixes an open issue, include a reference in the pull request
    description. Use the `Fixes:` prefix and the full issue URL. For other
    references, use `Refs:`.
+   The landing tool also accepts `Closes:` and `Resolved:` and records them as
+   `Fixes:` trailers.
 
    `Fixes:` and `Refs:` trailers are automatically added to the commit message
    when the pull request lands. If the pull request lands as several commits,
