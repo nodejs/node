@@ -532,9 +532,20 @@ void ConverterObject::Decode(const FunctionCallbackInfo<Value>& args) {
     if (StringBytes::Encode(env->isolate(), value, length, UCS2)
             .ToLocal(&ret)) {
       args.GetReturnValue().Set(ret);
+      return;
     }
-    // If Encode() failed, it has already scheduled an exception; do not
-    // replace it with ERR_ENCODING_INVALID_ENCODED_DATA below.
+  }
+
+  // Reset the converter state on errors. This covers every throw below:
+  // after U_BUFFER_OVERFLOW_ERROR, ICU keeps the UChars that did not fit
+  // in its overflow buffer and would emit them at the start of the next
+  // decode() call.
+  converter->set_bom_seen(false);
+  converter->reset();
+
+  if (U_SUCCESS(status)) {
+    // StringBytes::Encode() failed and has already scheduled an exception
+    // (ERR_STRING_TOO_LONG for oversized results); do not replace it.
     return;
   }
 
@@ -547,9 +558,6 @@ void ConverterObject::Decode(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  // Reset the converter state on errors.
-  converter->set_bom_seen(false);
-  converter->reset();
   node::THROW_ERR_ENCODING_INVALID_ENCODED_DATA(
       env->isolate(),
       "The encoded data was not valid for encoding %s",
