@@ -9,7 +9,6 @@
 const common = require('../common');
 const tmpdir = require('../common/tmpdir');
 const assert = require('assert');
-const path = require('path');
 const fsPromises = require('fs/promises');
 const zlib = require('zlib');
 const vfs = require('node:vfs');
@@ -24,7 +23,7 @@ async function buildArchive(entries) {
 
 async function writeArchive(name) {
   const archive = await buildArchive([await zlib.ZipEntry.create('a.txt', Buffer.from('x'))]);
-  const filePath = path.join(tmpdir.path, name);
+  const filePath = tmpdir.resolve(name);
   await fsPromises.writeFile(filePath, archive);
   return filePath;
 }

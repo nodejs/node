@@ -12,7 +12,6 @@ const {
   stat,
 } = require('node:fs');
 const { Utf8Stream } = require('node:fs');
-const { join } = require('node:path');
 const { isMainThread } = require('node:worker_threads');
 
 tmpdir.refresh();
@@ -22,7 +21,7 @@ if (isMainThread) {
 }
 
 function getTempFile() {
-  return join(tmpdir.path, `fastutf8stream-${process.pid}-${Date.now()}-${fileCounter++}.log`);
+  return tmpdir.resolve(`fastutf8stream-${process.pid}-${Date.now()}-${fileCounter++}.log`);
 }
 
 runTests(false);

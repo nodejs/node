@@ -13,7 +13,6 @@
 const common = require('../common');
 const tmpdir = require('../common/tmpdir');
 const assert = require('assert');
-const path = require('path');
 const fs = require('fs');
 const fsPromises = require('fs/promises');
 const zlib = require('zlib');
@@ -414,7 +413,7 @@ function buildArchiveSync(entries, comment) {
 // --- open() with a write flag against a readonly (ZipFile) archive: EROFS --
 (async () => {
   const archive = await buildArchive([await zlib.ZipEntry.create('a.txt', Buffer.from('x'))]);
-  const filePath = path.join(tmpdir.path, 'vfs-archive-handle-readonly.zip');
+  const filePath = tmpdir.resolve('vfs-archive-handle-readonly.zip');
   await fsPromises.writeFile(filePath, archive);
   const zip = await zlib.ZipFile.open(filePath);
   const provider = new vfs.ZipProvider(zip);
@@ -428,7 +427,7 @@ function buildArchiveSync(entries, comment) {
 // --- ZipFile-backed writable archive: sync unlink/rmdir (deleteSync) ------
 (async () => {
   const archive = await buildArchive([await zlib.ZipEntry.create('a.txt', Buffer.from('x'))]);
-  const filePath = path.join(tmpdir.path, 'vfs-archive-handle-writable-sync.zip');
+  const filePath = tmpdir.resolve('vfs-archive-handle-writable-sync.zip');
   await fsPromises.writeFile(filePath, archive);
   const zip = await zlib.ZipFile.open(filePath, { writable: true });
   const provider = new vfs.ZipProvider(zip);
@@ -477,7 +476,7 @@ function buildArchiveSync(entries, comment) {
 // O_RDWR) is rejected with EROFS, matching MemoryProvider/real fs -----------
 (async () => {
   const archive = await buildArchive([await zlib.ZipEntry.create('a.txt', Buffer.from('x'))]);
-  const filePath = path.join(tmpdir.path, 'vfs-archive-handle-rplus-readonly.zip');
+  const filePath = tmpdir.resolve('vfs-archive-handle-rplus-readonly.zip');
   await fsPromises.writeFile(filePath, archive);
   const zip = await zlib.ZipFile.open(filePath); // read-only
   const provider = new vfs.ZipProvider(zip);

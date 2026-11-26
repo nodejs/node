@@ -18,7 +18,7 @@ function buildArchiveSync(entries, comment) {
 }
 
 function createTempZipSync(entries, comment) {
-  const dir = fs.mkdtempSync(path.join(tmpdir.path, 'zlib-zip-sync-'));
+  const dir = fs.mkdtempSync(tmpdir.resolve('zlib-zip-sync-'));
   const filePath = path.join(dir, 'archive.zip');
   fs.writeFileSync(filePath, buildArchiveSync(entries, comment));
   return { filePath, cleanup: () => fs.rmSync(dir, { recursive: true, force: true }) };

@@ -20,7 +20,6 @@ skipIfSigningIsNotSupported();
 
 const assert = require('assert');
 const fs = require('fs');
-const path = require('path');
 const { createWriteStream } = require('fs');
 const { pipeline } = require('stream/promises');
 const { zipFiles } = require('zlib');
@@ -93,7 +92,7 @@ async function main() {
       cwd: tmpdir.path,
       env: {
         ...process.env,
-        NODE_COMPILE_CACHE: path.join(tmpdir.path, 'config.json', 'nope'),
+        NODE_COMPILE_CACHE: tmpdir.resolve('config.json', 'nope'),
         NODE_DISABLE_COMPILE_CACHE: '1',
         NODE_DEBUG_NATIVE: undefined,
       },

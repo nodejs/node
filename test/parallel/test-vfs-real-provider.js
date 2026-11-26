@@ -16,7 +16,7 @@ const vfs = require('node:vfs');
 
 tmpdir.refresh();
 
-const testDir = path.join(tmpdir.path, 'vfs-real-provider');
+const testDir = tmpdir.resolve('vfs-real-provider');
 fs.mkdirSync(testDir, { recursive: true });
 
 // Capability flags + construction

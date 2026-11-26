@@ -11,7 +11,7 @@ const path = require('path');
 const vfs = require('node:vfs');
 
 tmpdir.refresh();
-const root = path.join(tmpdir.path, 'real-symlinks');
+const root = tmpdir.resolve('real-symlinks');
 fs.mkdirSync(root, { recursive: true });
 const myVfs = vfs.create(new vfs.RealFSProvider(root));
 
@@ -79,14 +79,14 @@ const myVfs = vfs.create(new vfs.RealFSProvider(root));
 
   // Symlink that points outside root: realpath rejects with EACCES
   {
-    fs.writeFileSync(path.join(tmpdir.path, 'outside.txt'), 'forbidden');
-    fs.symlinkSync(path.join(tmpdir.path, 'outside.txt'),
+    fs.writeFileSync(tmpdir.resolve('outside.txt'), 'forbidden');
+    fs.symlinkSync(tmpdir.resolve('outside.txt'),
                    path.join(root, 'esc-link'));
 
     // Readlink returns the absolute target as-is (no translation since it's
     // outside the root)
     const target = myVfs.readlinkSync('/esc-link');
-    assert.strictEqual(target, path.join(tmpdir.path, 'outside.txt'));
+    assert.strictEqual(target, tmpdir.resolve('outside.txt'));
 
     // Realpath rejects: the resolved target escapes root
     assert.throws(() => myVfs.realpathSync('/esc-link'), { code: 'EACCES' });

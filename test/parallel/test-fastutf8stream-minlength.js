@@ -8,13 +8,12 @@ const {
   openSync,
 } = require('node:fs');
 const { Utf8Stream } = require('node:fs');
-const { join } = require('node:path');
 
 tmpdir.refresh();
 let fileCounter = 0;
 
 function getTempFile() {
-  return join(tmpdir.path, `fastutf8stream-${process.pid}-${Date.now()}-${fileCounter++}.log`);
+  return tmpdir.resolve(`fastutf8stream-${process.pid}-${Date.now()}-${fileCounter++}.log`);
 }
 
 const MAX_WRITE = 16 * 1024;

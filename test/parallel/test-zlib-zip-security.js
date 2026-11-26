@@ -18,7 +18,7 @@ tmpdir.refresh();
 
 let seq = 0;
 async function tempZip(entries) {
-  const dir = await fsp.mkdtemp(path.join(tmpdir.path, `zip-sec-${seq++}-`));
+  const dir = await fsp.mkdtemp(tmpdir.resolve(`zip-sec-${seq++}-`));
   const chunks = [];
   for await (const chunk of zlib.createZipArchive(entries)) chunks.push(chunk);
   const filePath = path.join(dir, 'archive.zip');
@@ -219,7 +219,7 @@ test('open() rejects contradictory classic-EOCD vs Zip64 metadata', async () => 
 
   assert.throws(() => new zlib.ZipBuffer(tampered), { code: 'ERR_ZIP_INVALID_ARCHIVE' });
 
-  const dir = await fsp.mkdtemp(path.join(tmpdir.path, `zip-sec-${seq++}-`));
+  const dir = await fsp.mkdtemp(tmpdir.resolve(`zip-sec-${seq++}-`));
   const p = path.join(dir, 'contradiction.zip');
   try {
     await fsp.writeFile(p, tampered);
@@ -253,7 +253,7 @@ test('central-directory record count must account for its full declared size', a
   assert.throws(() => [...zlib.ZipEntry.read(tampered)], expected);
   assert.throws(() => new zlib.ZipBuffer(tampered), expected);
 
-  const dir = await fsp.mkdtemp(path.join(tmpdir.path, `zip-sec-${seq++}-`));
+  const dir = await fsp.mkdtemp(tmpdir.resolve(`zip-sec-${seq++}-`));
   const p = path.join(dir, 'record-count-mismatch.zip');
   try {
     await fsp.writeFile(p, tampered);
@@ -287,7 +287,7 @@ test('ZipFile.open() enforces the same member-overlap check as ZipBuffer', async
 
   // The file-backed reader must reject it too, at open time - not silently
   // accept an archive whose members overlap.
-  const dir = await fsp.mkdtemp(path.join(tmpdir.path, `zip-sec-${seq++}-`));
+  const dir = await fsp.mkdtemp(tmpdir.resolve(`zip-sec-${seq++}-`));
   const p = path.join(dir, 'overlap.zip');
   try {
     await fsp.writeFile(p, tampered);

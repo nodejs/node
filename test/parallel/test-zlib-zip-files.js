@@ -33,7 +33,7 @@ async function waitForAllClosed(streams) {
 // so the test can observe how disposal closes every source. Their asynchronous
 // opens may still be pending when the archive starts.
 async function streamingEntries(count) {
-  const dir = await fsp.mkdtemp(path.join(tmpdir.path, 'zlib-zip-dispose-'));
+  const dir = await fsp.mkdtemp(tmpdir.resolve('zlib-zip-dispose-'));
   const streams = [];
   const entries = [];
   for (let i = 0; i < count; i++) {
@@ -47,7 +47,7 @@ async function streamingEntries(count) {
 }
 
 async function makeTree() {
-  const dir = await fsp.mkdtemp(path.join(tmpdir.path, 'zlib-zipfiles-'));
+  const dir = await fsp.mkdtemp(tmpdir.resolve('zlib-zipfiles-'));
   await fsp.writeFile(path.join(dir, 'a.txt'), 'alpha');
   await fsp.chmod(path.join(dir, 'a.txt'), 0o640);
   await fsp.mkdir(path.join(dir, 'sub'));
@@ -205,7 +205,7 @@ test('disposing an in-memory or file-backed entry is a harmless no-op', async ()
 
   // A file-backed entry borrows the ZipFile's descriptor; disposing it must
   // not close that descriptor.
-  const dir = await fsp.mkdtemp(path.join(tmpdir.path, 'zlib-zip-dispose-fb-'));
+  const dir = await fsp.mkdtemp(tmpdir.resolve('zlib-zip-dispose-fb-'));
   const archivePath = path.join(dir, 'a.zip');
   try {
     await fsp.writeFile(archivePath, await collect(zlib.createZipArchive(
