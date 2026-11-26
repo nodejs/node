@@ -49,7 +49,7 @@ const path = require('path');
       }
     });
 
-  const baseDir = path.join(tmpdir.path, 'node-compile-cache');
+  const baseDir = tmpdir.resolve('node-compile-cache');
   const cacheDir = fs.readdirSync(baseDir);
   assert.strictEqual(cacheDir.length, 1);
   const entries = fs.readdirSync(path.join(baseDir, cacheDir[0]));

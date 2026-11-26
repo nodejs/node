@@ -3,7 +3,6 @@ import '../common/index.mjs';
 import { run } from 'node:test';
 import assert from 'node:assert';
 import { writeFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { once } from 'node:events';
 import tmpdir from '../common/tmpdir.js';
 import { refreshForTestRunnerWatch, skipIfNoWatch, fixtureContent } from '../common/watch.js';
@@ -35,7 +34,7 @@ await once(stream, 'test:watch:drained');
 
 events.length = 0;
 written = true;
-writeFileSync(join(tmpdir.path, 'test.js'), fixtureContent['test.js']);
+writeFileSync(tmpdir.resolve('test.js'), fixtureContent['test.js']);
 
 // eslint-disable-next-line no-unused-vars
 for await (const _ of stream);

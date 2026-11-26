@@ -6,7 +6,6 @@ const { skipIfNoWatch } = require('../common/watch.js');
 skipIfNoWatch();
 
 const assert = require('assert');
-const path = require('path');
 const fs = require('fs');
 
 const tmpdir = require('../common/tmpdir');
@@ -14,9 +13,9 @@ const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
 const testFileName = 'file.txt';
-const testFilePath = path.join(tmpdir.path, testFileName);
+const testFilePath = tmpdir.resolve(testFileName);
 const ignoredFileName = 'file.log';
-const ignoredFilePath = path.join(tmpdir.path, ignoredFileName);
+const ignoredFilePath = tmpdir.resolve(ignoredFileName);
 
 const watcher = fs.watch(tmpdir.path, {
   ignore: '*.log',

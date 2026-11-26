@@ -12,7 +12,7 @@ const path = require('path');
 const fixtures = require('../common/fixtures');
 
 tmpdir.refresh();
-const workDir = path.join(tmpdir.path, 'work');
+const workDir = tmpdir.resolve('work');
 const cacheRel = '.compile_cache_dir';
 fs.mkdirSync(workDir, { recursive: true });
 

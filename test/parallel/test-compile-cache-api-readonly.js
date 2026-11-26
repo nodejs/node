@@ -7,17 +7,16 @@ const common = require('../common');
 const { spawnSyncAndAssert } = require('../common/compile-cache');
 const assert = require('assert');
 const fs = require('fs');
-const path = require('path');
 const tmpdir = require('../common/tmpdir');
 const fixtures = require('../common/fixtures');
 
 tmpdir.refresh();
 const wrapper = fixtures.path('compile-cache-wrapper-options.js');
-const target = path.join(tmpdir.path, 'target.js');
+const target = tmpdir.resolve('target.js');
 fs.writeFileSync(target, 'module.exports = 1;');
-const other = path.join(tmpdir.path, 'other.js');
+const other = tmpdir.resolve('other.js');
 fs.writeFileSync(other, 'module.exports = 2;');
-const directory = path.join(tmpdir.path, 'cache');
+const directory = tmpdir.resolve('cache');
 const list = () => fs.readdirSync(directory, { recursive: true }).sort();
 const run = (options, extraEnv, requires, check) => spawnSyncAndAssert(
   process.execPath,
