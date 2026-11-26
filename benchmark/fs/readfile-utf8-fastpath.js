@@ -2,7 +2,6 @@
 
 const common = require('../common.js');
 const fs = require('fs');
-const path = require('path');
 const tmpdir = require('../../test/common/tmpdir');
 
 const bench = common.createBenchmark(main, {
@@ -40,7 +39,7 @@ function buildContent(kind, size) {
 
 function main({ n, size, content, source }) {
   tmpdir.refresh();
-  const file = path.join(tmpdir.path, `bench-${content}-${size}.bin`);
+  const file = tmpdir.resolve(`bench-${content}-${size}.bin`);
   fs.writeFileSync(file, buildContent(content, size));
 
   let arg;

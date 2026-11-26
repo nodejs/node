@@ -16,7 +16,7 @@ function makeTestDirWithFiles(dirPath, count) {
 }
 
 function getTestDirPath(numberOfTestFiles) {
-  return join(tmpdir.path, `${numberOfTestFiles}-tests`);
+  return tmpdir.resolve(`${numberOfTestFiles}-tests`);
 }
 
 function setup(numberOfTestFiles) {
