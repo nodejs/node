@@ -434,7 +434,11 @@ class SerializerDelegate : public ValueSerializer::Delegate {
 
  private:
   Maybe<bool> WriteHostObject(BaseObjectPtr<BaseObject> host_object) {
-    BaseObject::TransferMode mode = host_object->GetTransferMode();
+    // A null host_object means the underlying BaseObject has already been
+    // destroyed (e.g. a MessagePort whose close has completed).
+    BaseObject::TransferMode mode =
+        host_object ? host_object->GetTransferMode()
+                    : TransferMode::kDisallowCloneAndTransfer;
     if (mode == TransferMode::kDisallowCloneAndTransfer) {
       ThrowDataCloneError(env_->clone_unsupported_type_str());
       return Nothing<bool>();
@@ -1160,8 +1164,8 @@ void MessagePort::ReceiveMessage(const FunctionCallbackInfo<Value>& args) {
         "The \"port\" argument must be a MessagePort instance");
   }
   MessagePort* port = Unwrap<MessagePort>(args[0].As<Object>());
-  if (port == nullptr) {
-    // Return 'no messages' for a closed port.
+  if (port == nullptr || !port->data_) {
+    // Return 'no messages' for a closed or detached (e.g. transferred) port.
     args.GetReturnValue().Set(env->no_message_symbol());
     return;
   }
