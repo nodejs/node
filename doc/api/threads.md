@@ -9,6 +9,8 @@
 The `node:threads/*` modules run JavaScript in parallel on multiple threads,
 and control how values are passed between them:
 
+* [`node:threads`][] has what applies to every kind of thread, such as the
+  [`IsolateGroup`][]s that threads run in.
 * [`node:threads/worker`][] creates [`Worker`][] threads, and tells code which
   thread it runs on.
 * [`node:threads/messaging`][] controls how values are cloned and transferred
@@ -102,6 +104,122 @@ in the `async_hooks` documentation for an example implementation.
 Worker threads inherit non-process-specific options by default. Refer to
 [`Worker constructor options`][] to know how to customize worker thread options,
 specifically `argv` and `execArgv` options.
+
+## The `node:threads` module
+
+<!-- YAML
+added: REPLACEME
+-->
+
+The `node:threads` module has what applies to every kind of thread.
+
+```mjs
+import { IsolateGroup } from 'node:threads';
+```
+
+```cjs
+const { IsolateGroup } = require('node:threads');
+```
+
+### Class: `IsolateGroup`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.0 - Early development
+
+Every thread runs JavaScript in its own V8 isolate, and every isolate is in an
+isolate group. The isolates in a group share a pointer compression cage, which
+limits the JavaScript heaps of all of them to 4 GB together, and they share the
+read-only part of their heaps. So threads in the same group use less memory
+each, but a thread whose heap grows large can leave less space for the others.
+
+Only builds of Node.js with pointer compression can have more than one isolate
+group (see [`IsolateGroup.supported`][]). In them, every [`Worker`][] is created
+in a new isolate group by default. In other builds, every isolate is in the
+same group.
+
+Pass an `IsolateGroup` as the `isolateGroup` option of [`new Worker()`][] to
+choose the group of a worker:
+
+```mjs
+import { IsolateGroup } from 'node:threads';
+import { Worker } from 'node:threads/worker';
+
+const code = 'console.log("hello");';
+
+// A worker in a new isolate group of its own, the default.
+const worker1 = new Worker(code, { eval: true });
+
+// Two workers in the same new isolate group.
+const group = new IsolateGroup();
+const worker2 = new Worker(code, { eval: true, isolateGroup: group });
+const worker3 = new Worker(code, { eval: true, isolateGroup: group });
+
+// A worker in the isolate group of the current thread.
+const worker4 = new Worker(code, {
+  eval: true,
+  isolateGroup: IsolateGroup.current,
+});
+```
+
+```cjs
+const { IsolateGroup } = require('node:threads');
+const { Worker } = require('node:threads/worker');
+
+const code = 'console.log("hello");';
+
+// A worker in a new isolate group of its own, the default.
+const worker1 = new Worker(code, { eval: true });
+
+// Two workers in the same new isolate group.
+const group = new IsolateGroup();
+const worker2 = new Worker(code, { eval: true, isolateGroup: group });
+const worker3 = new Worker(code, { eval: true, isolateGroup: group });
+
+// A worker in the isolate group of the current thread.
+const worker4 = new Worker(code, {
+  eval: true,
+  isolateGroup: IsolateGroup.current,
+});
+```
+
+An isolate group exists as long as an `IsolateGroup` that refers to it, or an
+isolate in it, does.
+
+#### `new IsolateGroup()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Creates a new isolate group. Throws [`ERR_ISOLATE_GROUPS_UNSUPPORTED`][] if
+[`IsolateGroup.supported`][] is `false`.
+
+#### Static property: `IsolateGroup.current`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {IsolateGroup}
+
+The isolate group of the current thread. It is the same object every time it is
+read in a thread. It is available whether or not [`IsolateGroup.supported`][]
+is `true`.
+
+#### Static property: `IsolateGroup.supported`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {boolean}
+
+`true` if this build of Node.js can create isolate groups, which requires
+pointer compression. If `false`, every isolate is in the same group, and
+[`new IsolateGroup()`][] throws.
 
 ## The `node:threads/worker` module
 
@@ -633,6 +751,9 @@ if (isMainThread) {
 <!-- YAML
 added: v10.5.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/00000
+    description: Added the `isolateGroup` option.
   - version:
     - v19.8.0
     - v18.16.0
@@ -755,6 +876,9 @@ changes:
       * NetBSD: limited to `PTHREAD_MAX_NAMELEN_NP`
       * FreeBSD and OpenBSD: limited to `MAXCOMLEN`
         **Default:** `'WorkerThread'`.
+  * `isolateGroup` {IsolateGroup} The [`IsolateGroup`][] to create the worker's
+    isolate in. **Default:** a new isolate group, in builds of Node.js that
+    support more than one.
 
 #### Event: `'error'`
 
@@ -2243,6 +2367,7 @@ thread spawned will spawn another until the application crashes.
 [`AsyncResource`]: async_hooks.md#class-asyncresource
 [`BroadcastChannel`]: #class-broadcastchannel-extends-eventtarget
 [`Buffer.allocUnsafe()`]: buffer.md#static-method-bufferallocunsafesize-alignment
+[`ERR_ISOLATE_GROUPS_UNSUPPORTED`]: errors.md#err_isolate_groups_unsupported
 [`ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST`]: errors.md#err_missing_message_port_in_transfer_list
 [`ERR_WORKER_MESSAGING_ERRORED`]: errors.md#err_worker_messaging_errored
 [`ERR_WORKER_MESSAGING_FAILED`]: errors.md#err_worker_messaging_failed
@@ -2250,6 +2375,8 @@ thread spawned will spawn another until the application crashes.
 [`ERR_WORKER_MESSAGING_TIMEOUT`]: errors.md#err_worker_messaging_timeout
 [`ERR_WORKER_NOT_RUNNING`]: errors.md#err_worker_not_running
 [`FileHandle`]: fs.md#class-filehandle
+[`IsolateGroup.supported`]: #static-property-isolategroupsupported
+[`IsolateGroup`]: #class-isolategroup
 [`LockManager`]: #class-lockmanager
 [`MessageChannel`]: #class-messagechannel
 [`MessagePort`]: #class-messageport
@@ -2261,9 +2388,12 @@ thread spawned will spawn another until the application crashes.
 [`fs.open()`]: fs.md#fsopenpath-flags-mode-callback
 [`markAsUntransferable()`]: #markasuntransferableobject
 [`navigator.locks`]: globals.md#navigatorlocks
+[`new IsolateGroup()`]: #new-isolategroup
+[`new Worker()`]: #new-workerfilename-options
 [`node:cluster` module]: cluster.md
 [`node:threads/messaging`]: #the-nodethreadsmessaging-module
 [`node:threads/worker`]: #the-nodethreadsworker-module
+[`node:threads`]: #the-nodethreads-module
 [`node:worker_threads`]: worker_threads.md
 [`perf_hooks` `eventLoopUtilization()`]: perf_hooks.md#perf_hookseventlooputilizationutilization1-utilization2
 [`port.on('message')`]: #event-message-1

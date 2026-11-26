@@ -2365,6 +2365,17 @@ for more information.
 
 IP is blocked by `net.BlockList`.
 
+<a id="ERR_ISOLATE_GROUPS_UNSUPPORTED"></a>
+
+### `ERR_ISOLATE_GROUPS_UNSUPPORTED`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+An [`IsolateGroup`][] was created by a build of Node.js that cannot create
+isolate groups. See [`IsolateGroup.supported`][].
+
 <a id="ERR_LOAD_SQLITE_EXTENSION"></a>
 
 ### `ERR_LOAD_SQLITE_EXTENSION`
@@ -4834,6 +4845,8 @@ An error occurred trying to allocate memory. This should never happen.
 [`ERR_REQUIRE_ASYNC_MODULE`]: #err_require_async_module
 [`Error.isError`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error/isError
 [`EventEmitter`]: events.md#class-eventemitter
+[`IsolateGroup.supported`]: threads.md#static-property-isolategroupsupported
+[`IsolateGroup`]: threads.md#class-isolategroup
 [`MessagePort`]: threads.md#class-messageport
 [`Object.getPrototypeOf`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/getPrototypeOf
 [`Object.setPrototypeOf`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/setPrototypeOf

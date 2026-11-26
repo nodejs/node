@@ -349,7 +349,20 @@ Isolate* NewIsolate(Isolate::CreateParams* params,
                     MultiIsolatePlatform* platform,
                     const SnapshotData* snapshot_data,
                     const IsolateSettings& settings) {
-  IsolateGroup group = GetOrCreateIsolateGroup();
+  return NewIsolate(params,
+                    event_loop,
+                    platform,
+                    snapshot_data,
+                    settings,
+                    GetOrCreateIsolateGroup());
+}
+
+Isolate* NewIsolate(Isolate::CreateParams* params,
+                    uv_loop_t* event_loop,
+                    MultiIsolatePlatform* platform,
+                    const SnapshotData* snapshot_data,
+                    const IsolateSettings& settings,
+                    const IsolateGroup& group) {
   Isolate* isolate = Isolate::Allocate(group);
   if (isolate == nullptr) return nullptr;
 

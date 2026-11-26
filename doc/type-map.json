@@ -78,6 +78,7 @@
   "Immediate": "timers.html#class-immediate",
   "import.meta": "esm.html#importmeta",
   "IntervalHistogram": "perf_hooks.html#class-intervalhistogram-extends-histogram",
+  "IsolateGroup": "threads.html#class-isolategroup",
   "KangarooTwelveParams": "webcrypto.html#class-kangarootwelveparams",
   "KeyAlgorithm": "webcrypto.html#class-keyalgorithm",
   "KeyObject": "crypto.html#class-keyobject",

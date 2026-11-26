@@ -322,7 +322,7 @@ For security reasons, the call will throw an \fBERR_ACCESS_DENIED\fR unless the
 user explicitly pass the flag \fB--allow-worker\fR in the main Node.js process.
 Example:
 .Bd -literal
-const { Worker } = require('node:worker_threads');
+const { Worker } = require('node:threads/worker');
 // Attempt to bypass the permission
 new Worker(__filename);
 .Ed
