@@ -5082,7 +5082,7 @@ This affects multiple TLS APIs:
 [`util.types`]: util.md#utiltypes
 [`util`]: util.md
 [`worker.exitedAfterDisconnect`]: cluster.md#workerexitedafterdisconnect
-[`worker.terminate()`]: worker_threads.md#workerterminate
+[`worker.terminate()`]: threads.md#workerterminate
 [`writable.writableLength`]: stream.md#writablewritablelength
 [`zlib.bytesWritten`]: zlib.md#zlibbyteswritten
 [alloc]: buffer.md#static-method-bufferallocsize-fill-encoding

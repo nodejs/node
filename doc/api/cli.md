@@ -511,7 +511,7 @@ user explicitly pass the flag `--allow-worker` in the main Node.js process.
 Example:
 
 ```js
-const { Worker } = require('node:worker_threads');
+const { Worker } = require('node:threads/worker');
 // Attempt to bypass the permission
 new Worker(__filename);
 ```
@@ -5046,7 +5046,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`NO_COLOR`]: https://no-color.org
 [`RealFSProvider`]: vfs.md#class-realfsprovider
 [`Web Storage`]: https://developer.mozilla.org/en-US/docs/Web/API/Web_Storage_API
-[`Worker`]: worker_threads.md#class-worker
+[`Worker`]: threads.md#class-worker
 [`YoungGenerationSizeFromSemiSpaceSize`]: https://chromium.googlesource.com/v8/v8.git/+/refs/tags/10.3.129/src/heap/heap.cc#328
 [`ZipProvider`]: vfs.md#class-zipprovider
 [`child_process.execSync()`]: child_process.md#child_processexecsynccommand-options

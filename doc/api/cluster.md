@@ -8,7 +8,7 @@
 
 Clusters of Node.js processes can be used to run multiple instances of Node.js
 that can distribute workloads among their application threads. When process
-isolation is not needed, use the [`worker_threads`][] module instead, which
+isolation is not needed, use the [`node:threads/worker`][] module instead, which
 allows running multiple application threads within a single Node.js instance.
 
 The cluster module allows easy creation of child processes that all share
@@ -1101,8 +1101,8 @@ for (const worker of Object.values(cluster.workers)) {
 [`cluster.settings`]: #clustersettings
 [`disconnect()`]: child_process.md#subprocessdisconnect
 [`kill()`]: process.md#processkillpid-signal
+[`node:threads/worker`]: threads.md#the-nodethreadsworker-module
 [`process` event: `'message'`]: process.md#event-message
 [`server.close()`]: net.md#event-close
 [`stdio`]: child_process.md#optionsstdio
 [`worker.exitedAfterDisconnect`]: #workerexitedafterdisconnect
-[`worker_threads`]: worker_threads.md

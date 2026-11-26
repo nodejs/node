@@ -1972,7 +1972,7 @@ added:
 -->
 
 These channels are emitted for each [`locks.request()`][] call. See
-[`worker_threads.locks`][] for details on Web Locks.
+[Web Locks][] for details.
 
 ##### Event: `'locks.request.start'`
 
@@ -2123,6 +2123,7 @@ use the [`performance.now()`][] timeline. `started - enqueued` is queue time;
 [BoundedChannel Channels]: #boundedchannel-channels
 [Test instrumentation and OpenTelemetry]: test.md#test-instrumentation-and-opentelemetry
 [TracingChannel Channels]: #tracingchannel-channels
+[Web Locks]: threads.md#web-locks
 [`'uncaughtException'`]: process.md#event-uncaughtexception
 [`--enable-fips-indicator-events`]: cli.md#--enable-fips-indicator-events
 [`--force-fips=strict`]: cli.md#--force-fips
@@ -2144,13 +2145,12 @@ use the [`performance.now()`][] timeline. `started - enqueued` is queue time;
 [`diagnostics_channel.tracingChannel()`]: #diagnostics_channeltracingchannelnameorchannels
 [`end` event]: #endevent
 [`error` event]: #errorevent
-[`locks.request()`]: worker_threads.md#locksrequestname-options-callback
+[`locks.request()`]: threads.md#locksrequestname-options-callback
 [`net.Server.listen()`]: net.md#serverlisten
 [`performance.now()`]: perf_hooks.md#performancenow
 [`process.execve()`]: process.md#processexecvefile-args-env
 [`start` event]: #startevent
 [`statement.close()`]: sqlite.md#statementclose
-[`worker_threads.locks`]: worker_threads.md#worker_threadslocks
 [context loss]: async_context.md#troubleshooting-context-loss
 [libuv thread pool]: https://docs.libuv.org/en/v1.x/threadpool.html
 [thenable object]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise#thenables

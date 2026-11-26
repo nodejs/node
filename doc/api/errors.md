@@ -3710,7 +3710,7 @@ The `Response` that has been passed to `WebAssembly.compileStreaming` or to
 ### `ERR_WORKER_HANDLE_NOT_TRANSFERABLE`
 
 An attempt was made to transfer a `net.Socket`, `net.Server` or
-`net.BoundSocket` to another thread via a `worker_threads` `postMessage()` call
+`net.BoundSocket` to another thread via a `postMessage()` call
 while it was not in a transferable state, for example because it had already
 started reading, had buffered data, or had already been adopted.
 
@@ -4834,14 +4834,14 @@ An error occurred trying to allocate memory. This should never happen.
 [`ERR_REQUIRE_ASYNC_MODULE`]: #err_require_async_module
 [`Error.isError`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error/isError
 [`EventEmitter`]: events.md#class-eventemitter
-[`MessagePort`]: worker_threads.md#class-messageport
+[`MessagePort`]: threads.md#class-messageport
 [`Object.getPrototypeOf`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/getPrototypeOf
 [`Object.setPrototypeOf`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/setPrototypeOf
 [`QuicError`]: quic.md#class-quicerror
 [`REPL`]: repl.md
 [`ServerResponse`]: http.md#class-httpserverresponse
 [`Temporal`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Temporal
-[`Worker`]: worker_threads.md#class-worker
+[`Worker`]: threads.md#class-worker
 [`Writable`]: stream.md#class-streamwritable
 [`ZipBuffer`]: zlib.md#class-zlibzipbuffer
 [`ZipFile`]: zlib.md#class-zlibzipfile
@@ -4885,8 +4885,8 @@ An error occurred trying to allocate memory. This should never happen.
 [`new URLSearchParams(iterable)`]: url.md#new-urlsearchparamsiterable
 [`node:sqlite`]: sqlite.md
 [`package.json`]: packages.md#nodejs-packagejson-field-definitions
-[`postMessage()`]: worker_threads.md#portpostmessagevalue-transferlist
-[`postMessageToThread()`]: worker_threads.md#worker_threadspostmessagetothreadthreadid-value-transferlist-timeout
+[`postMessage()`]: threads.md#portpostmessagevalue-transferlist
+[`postMessageToThread()`]: threads.md#postmessagetothreadthreadid-value-transferlist-timeout
 [`process.on('exit')`]: process.md#event-exit
 [`process.send()`]: process.md#processsendmessage-sendhandle-options-callback
 [`process.setUncaughtExceptionCaptureCallback()`]: process.md#processsetuncaughtexceptioncapturecallbackfn

@@ -801,14 +801,14 @@ Assuming that the task is adding two numbers, using a file named
 `task_processor.js` with the following content:
 
 ```mjs
-import { parentPort } from 'node:worker_threads';
+import { parentPort } from 'node:threads/worker';
 parentPort.on('message', (task) => {
   parentPort.postMessage(task.a + task.b);
 });
 ```
 
 ```cjs
-const { parentPort } = require('node:worker_threads');
+const { parentPort } = require('node:threads/worker');
 parentPort.on('message', (task) => {
   parentPort.postMessage(task.a + task.b);
 });
@@ -819,7 +819,7 @@ a Worker pool around it could use the following structure:
 ```mjs
 import { AsyncResource } from 'node:async_hooks';
 import { EventEmitter } from 'node:events';
-import { Worker } from 'node:worker_threads';
+import { Worker } from 'node:threads/worker';
 
 const kTaskInfo = Symbol('kTaskInfo');
 const kWorkerFreedEvent = Symbol('kWorkerFreedEvent');
@@ -907,7 +907,7 @@ export default class WorkerPool extends EventEmitter {
 const { AsyncResource } = require('node:async_hooks');
 const { EventEmitter } = require('node:events');
 const path = require('node:path');
-const { Worker } = require('node:worker_threads');
+const { Worker } = require('node:threads/worker');
 
 const kTaskInfo = Symbol('kTaskInfo');
 const kWorkerFreedEvent = Symbol('kWorkerFreedEvent');
@@ -1077,6 +1077,6 @@ const server = createServer((req, res) => {
 [`AsyncResource`]: #class-asyncresource
 [`EventEmitter`]: events.md#class-eventemitter
 [`Stream`]: stream.md#stream
-[`Worker`]: worker_threads.md#class-worker
+[`Worker`]: threads.md#class-worker
 [`asyncLocalStorage.withScope()`]: #asynclocalstoragewithscopestore
 [`util.promisify()`]: util.md#utilpromisifyoriginal

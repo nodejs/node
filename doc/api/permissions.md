@@ -61,7 +61,7 @@ The Permission Model has two operational modes:
 
 When starting Node.js with `--permission`,
 the ability to access the file system through the `fs` module, access the network,
-access environment variables, spawn processes, use `node:worker_threads`, use
+access environment variables, spawn processes, create worker threads, use
 native addons, use WASI, use FFI, and enable the runtime inspector will be
 restricted (the listener for SIGUSR1 won't be created).
 
@@ -484,7 +484,7 @@ easy to configure permissions as needed when using `npx`.
 There are constraints you need to know before using this system:
 
 * The model does not inherit to a worker thread. A default
-  `worker_threads.Worker` (no `execArgv` option) still receives the parent
+  `Worker` (no `execArgv` option) still receives the parent
   process CLI flags, including `--permission` and `--allow-*` if those were
   passed to the parent. Setting `execArgv` explicitly, including
   `execArgv: []`, replaces the inherited flags. The worker then does not keep

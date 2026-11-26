@@ -4724,8 +4724,8 @@ cases:
 [`Error`]: errors.md#class-error
 [`EventEmitter`]: events.md#class-eventemitter
 [`NODE_OPTIONS`]: cli.md#node_optionsoptions
-[`Worker`]: worker_threads.md#class-worker
-[`Worker` constructor]: worker_threads.md#new-workerfilename-options
+[`Worker`]: threads.md#class-worker
+[`Worker` constructor]: threads.md#new-workerfilename-options
 [`console.error()`]: console.md#consoleerrordata-args
 [`console.log()`]: console.md#consolelogdata-args
 [`domain`]: domain.md
@@ -4735,7 +4735,7 @@ cases:
 [`net.Server`]: net.md#class-netserver
 [`net.Socket`]: net.md#class-netsocket
 [`os.constants.dlopen`]: os.md#dlopen-constants
-[`postMessageToThread()`]: worker_threads.md#worker_threadspostmessagetothreadthreadid-value-transferlist-timeout
+[`postMessageToThread()`]: threads.md#postmessagetothreadthreadid-value-transferlist-timeout
 [`process.addUncaughtExceptionCaptureCallback()`]: #processadduncaughtexceptioncapturecallbackfn
 [`process.argv`]: #processargv
 [`process.config`]: #processconfig

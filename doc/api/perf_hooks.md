@@ -3477,7 +3477,7 @@ dns.promises.resolve('localhost');
 [User Timing]: https://www.w3.org/TR/user-timing/
 [Web Performance APIs]: https://w3c.github.io/perf-timing-primer/
 [Welch's t-test]: https://en.wikipedia.org/wiki/Welch%27s_t-test
-[Worker threads]: worker_threads.md#worker-threads
+[Worker threads]: threads.md#worker-threads
 [`'exit'`]: process.md#event-exit
 [`child_process.spawnSync()`]: child_process.md#child_processspawnsynccommand-args-options
 [`histogram.diff()`]: #histogramdiffother
