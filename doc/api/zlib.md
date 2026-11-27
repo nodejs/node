@@ -215,6 +215,16 @@ deallocation, this may lead to significant memory fragmentation.
 It is strongly recommended that the results of compression
 operations be cached to avoid duplication of effort.
 
+Because the asynchronous `zlib` APIs run on the internal threadpool, the
+input and output buffers are accessed by a worker thread through raw pointers
+for the duration of the operation. The underlying `ArrayBuffer` of a buffer
+passed to (or produced by) an asynchronous compress/decompress operation must
+not be detached (for example with `ArrayBuffer.prototype.transfer()`),
+transferred via a structured clone or `postMessage()`, or resized (with
+`ResizableArrayBuffer.prototype.resize()`) until the operation has completed.
+Doing so invalidates the memory the worker thread is reading or writing and
+causes the operation to fail with an error.
+
 ## Compressing HTTP requests and responses
 
 The `node:zlib` module can be used to implement support for the `gzip`, `deflate`,

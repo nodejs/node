@@ -52,6 +52,7 @@
 #include <cerrno>
 #include <cstdlib>
 #include <cstring>
+#include <memory>
 #include <optional>
 #include <utility>
 #include <vector>
@@ -547,6 +548,7 @@ class CompressionStream : public AsyncWrap,
     uint32_t in_off, in_len, out_off, out_len, flush;
     const char* in;
     char* out;
+    Local<Object> in_buf;
 
     CHECK_EQ(false, args[0]->IsUndefined() && "must provide flush value");
     if (!args[0]->Uint32Value(context).To(&flush)) return;
@@ -567,7 +569,7 @@ class CompressionStream : public AsyncWrap,
       in_off = 0;
     } else {
       CHECK(Buffer::HasInstance(args[1]));
-      Local<Object> in_buf = args[1].As<Object>();
+      in_buf = args[1].As<Object>();
       if (!args[2]->Uint32Value(context).To(&in_off)) return;
       if (!args[3]->Uint32Value(context).To(&in_len)) return;
 
@@ -588,6 +590,11 @@ class CompressionStream : public AsyncWrap,
 
     CompressionStream* ctx;
     ASSIGN_OR_RETURN_UNWRAP(&ctx, args.This());
+
+    if constexpr (async) {
+      ctx->SetAsyncWriteBuffers(
+          in_buf, in_off, in_len, out_buf, out_off, out_len, &in, &out);
+    }
 
     ctx->Write<async>(flush, in, in_len, out, out_len);
   }
@@ -625,6 +632,89 @@ class CompressionStream : public AsyncWrap,
     ScheduleWork();
   }
 
+  // The thread-pool worker operates on raw pointers into the JavaScript-owned
+  // backing stores of the input/output buffers. For an asynchronous write, pin
+  // those backing stores so that detaching or garbage-collecting the
+  // ArrayBuffers cannot free the memory while the work is in flight. A
+  // resizable ArrayBuffer can still have its pages decommitted by resize(), so
+  // such buffers are copied into memory owned by this object instead, and the
+  // output is copied back once the work completes. On entry, `in` and `out`
+  // point into the JS buffers (or `nullptr` for a pure flush); for resizable
+  // buffers they are redirected to the engine-owned copies.
+  void SetAsyncWriteBuffers(Local<Object> in_buf,
+                            uint32_t in_off,
+                            uint32_t in_len,
+                            Local<Object> out_buf,
+                            uint32_t out_off,
+                            uint32_t out_len,
+                            const char** in,
+                            char** out) {
+    ClearWriteState();
+
+    if (!in_buf.IsEmpty()) {
+      Local<v8::ArrayBufferView> in_view = in_buf.As<v8::ArrayBufferView>();
+      std::shared_ptr<v8::BackingStore> in_store =
+          in_view->Buffer()->GetBackingStore();
+      if (in_store->IsResizableByUserJavaScript()) {
+        input_copy_ = std::make_unique<char[]>(in_len);
+        memcpy(input_copy_.get(), Buffer::Data(in_buf) + in_off, in_len);
+        *in = input_copy_.get();
+      } else {
+        input_store_ = std::move(in_store);
+      }
+    }
+
+    Local<v8::ArrayBufferView> out_view = out_buf.As<v8::ArrayBufferView>();
+    std::shared_ptr<v8::BackingStore> out_store =
+        out_view->Buffer()->GetBackingStore();
+    if (out_store->IsResizableByUserJavaScript()) {
+      output_copy_ = std::make_unique<char[]>(out_len);
+      output_copy_len_ = out_len;
+      output_copy_out_off_ = out_off;
+      output_copy_view_.Reset(AsyncWrap::env()->isolate(), out_view);
+      *out = output_copy_.get();
+    } else {
+      output_store_ = std::move(out_store);
+    }
+  }
+
+  // Copy staged output (used for resizable output buffers) back into the
+  // JavaScript buffer. Only bytes that still fit are copied so that we never
+  // write to pages that have been decommitted by a resize() while the work was
+  // in flight.
+  void CopyBackOutput() {
+    if (output_copy_ == nullptr || output_copy_view_.IsEmpty()) return;
+
+    Local<v8::ArrayBufferView> out_view =
+        output_copy_view_.Get(AsyncWrap::env()->isolate());
+    Local<Object> out_obj = out_view.As<Object>();
+    const size_t length = Buffer::Length(out_obj);
+    if (output_copy_out_off_ >= length) return;
+
+    // `write_result_[0]` holds the remaining output space of the staged buffer;
+    // it can never exceed what we provided, but guard against any unexpected
+    // value to avoid a size_t underflow.
+    if (write_result_[0] >= output_copy_len_) return;
+
+    const size_t written = output_copy_len_ - write_result_[0];
+    const size_t to_copy = written < length - output_copy_out_off_
+                               ? written
+                               : length - output_copy_out_off_;
+    memcpy(Buffer::Data(out_obj) + output_copy_out_off_,
+           output_copy_.get(),
+           to_copy);
+  }
+
+  void ClearWriteState() {
+    input_store_.reset();
+    output_store_.reset();
+    input_copy_.reset();
+    output_copy_.reset();
+    output_copy_len_ = 0;
+    output_copy_out_off_ = 0;
+    output_copy_view_.Reset();
+  }
+
   void UpdateWriteResult() {
     ctx_.GetAfterWriteOffsets(&write_result_[1], &write_result_[0]);
   }
@@ -655,6 +745,7 @@ class CompressionStream : public AsyncWrap,
     write_in_progress_ = false;
 
     if (status == UV_ECANCELED) {
+      ClearWriteState();
       Close();
       return;
     }
@@ -665,10 +756,18 @@ class CompressionStream : public AsyncWrap,
     HandleScope handle_scope(env->isolate());
     Context::Scope context_scope(env->context());
 
-    if (!CheckError())
+    if (!CheckError()) {
+      ClearWriteState();
       return;
+    }
 
     UpdateWriteResult();
+
+    // Copy any staged output (resizable output buffers) back into the JS
+    // buffer, and release the backing-store pins, before running the callback
+    // (which may reschedule the next chunk of the same write).
+    CopyBackOutput();
+    ClearWriteState();
 
     // call the write() cb
     Local<Value> cb =
@@ -778,6 +877,19 @@ class CompressionStream : public AsyncWrap,
   bool closed_ = false;
   unsigned int refs_ = 0;
   uint32_t* write_result_ = nullptr;
+
+  // Backing-store pins and engine-owned copies for the input/output buffers of
+  // an asynchronous write. See SetAsyncWriteBuffers(). Holding a
+  // std::shared_ptr<v8::BackingStore> keeps the underlying memory alive even if
+  // the JS ArrayBuffer is detached or garbage-collected while the thread-pool
+  // worker reads/writes through a raw pointer.
+  std::shared_ptr<v8::BackingStore> input_store_;
+  std::shared_ptr<v8::BackingStore> output_store_;
+  std::unique_ptr<char[]> input_copy_;
+  std::unique_ptr<char[]> output_copy_;
+  size_t output_copy_len_ = 0;
+  uint32_t output_copy_out_off_ = 0;
+  v8::Global<v8::ArrayBufferView> output_copy_view_;
 
   CompressionContext ctx_;
 };
