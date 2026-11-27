@@ -316,6 +316,9 @@ void DTLSEndpoint::RemoveSession(const SocketAddress& addr) {
     if (it != sessions_per_host_.end() && --it->second == 0) {
       sessions_per_host_.erase(it);
     }
+  } else {
+    // Never announced, so never counted.
+    validating_.erase(addr);
   }
   state_->session_count = sessions_.size();
 
@@ -329,6 +332,13 @@ void DTLSEndpoint::CloseGracefully() {
   if (IsHandleClosing()) return;
 
   state_->closing = 1;
+
+  // Peers that never completed the cookie exchange get nothing: there is no
+  // association to close, and their address may be forged.
+  pending_.clear();
+  auto validating_copy = validating_;
+  validating_.clear();
+  for (auto& [addr, session] : validating_copy) session->Destroy();
 
   // Close all sessions gracefully (this may send close_notify).
   auto sessions_copy = sessions_;
@@ -360,6 +370,11 @@ void DTLSEndpoint::Destroy() {
   if (IsHandleClosing()) return;
 
   state_->destroyed = 1;
+
+  pending_.clear();
+  auto validating_copy = validating_;
+  validating_.clear();
+  for (auto& [addr, session] : validating_copy) session->Destroy();
 
   // Copy session list to avoid iterator invalidation.
   auto sessions_copy = sessions_;
@@ -402,6 +417,7 @@ void DTLSEndpoint::SetCallbacks(Local<Object> callbacks) {
       "onSessionHandshake",
       "onSessionMessage",
       "onSessionKeylog",
+      "onSessionTicket",
   };
 
   for (int i = 0; i < DTLS_CB_COUNT; i++) {
@@ -550,14 +566,39 @@ void DTLSEndpoint::ProcessDatagram(const uint8_t* data,
     return;
   }
 
-  // No existing session. If we're in server mode, try to accept.
-  if (listening_ && server_context_) {
-    AcceptConnection(data, len, remote);
+  // A session still waiting on its cookie takes the datagram the same way:
+  // the ClientHello it was handed may have been a retransmitted first one.
+  auto vit = validating_.find(remote);
+  if (vit != validating_.end()) {
+    // Held: Receive() can destroy the session, which erases this entry.
+    BaseObjectPtr<DTLSSession> session = vit->second;
+    session->Receive(data, len);
+    return;
   }
+
+  // No existing session. If we're in server mode, try to accept.
+  if (!listening_ || !server_context_) return;
+
+  auto pit = pending_.find(remote);
+  if (pit != pending_.end()) {
+    if (uv_hrtime() / 1000000 < pit->second->expires_at) {
+      DrivePendingHandshake(data, len, remote);
+      return;
+    }
+    // Expired: start over as though this peer had never been seen.
+    pending_.erase(pit);
+  }
+
+  AcceptConnection(data, len, remote);
 }
 
 bool DTLSEndpoint::HasCapacityFor(const SocketAddress& remote) const {
-  if (max_sessions_ != 0 && sessions_.size() >= max_sessions_) return false;
+  // A session waiting on its cookie becomes a real one the moment it is
+  // verified, without being asked again, so it holds a slot already.
+  if (max_sessions_ != 0 &&
+      sessions_.size() + validating_.size() >= max_sessions_) {
+    return false;
+  }
 
   if (max_sessions_per_host_ != 0) {
     auto it = sessions_per_host_.find(remote);
@@ -617,6 +658,11 @@ void DTLSEndpoint::AcceptConnection(const uint8_t* data,
   // retransmits and gets in once there is room.
   if (!HasCapacityFor(remote)) {
     DTLS_STAT_INCREMENT(DTLSEndpointStats, server_refused_count);
+    return;
+  }
+
+  if (server_context_->AllowsDTLS13()) {
+    AcceptPendingHandshake(data, len, remote);
     return;
   }
 
@@ -730,6 +776,168 @@ void DTLSEndpoint::AcceptConnection(const uint8_t* data,
 
   // Drive the handshake forward — produces ServerHello etc.
   session->Start();
+}
+
+bool DTLSEndpoint::MakeRoomForPendingHandshake() {
+  if (pending_.size() + validating_.size() < kMaxPendingHandshakes) {
+    return true;
+  }
+
+  const uint64_t now = uv_hrtime() / 1000000;
+  auto oldest = pending_.end();
+  for (auto it = pending_.begin(); it != pending_.end();) {
+    if (it->second->expires_at <= now) {
+      it = pending_.erase(it);
+      continue;
+    }
+    if (oldest == pending_.end() ||
+        it->second->expires_at < oldest->second->expires_at) {
+      oldest = it;
+    }
+    ++it;
+  }
+  if (pending_.size() + validating_.size() < kMaxPendingHandshakes) {
+    return true;
+  }
+
+  // Still full of live entries: a flood, or more genuine clients arriving
+  // at once than this allows for. Dropping the oldest means a flood can only
+  // push a real client out by outpacing its round trip, and that client
+  // retransmits and gets back in.
+  if (oldest == pending_.end()) return false;
+  pending_.erase(oldest);
+  return true;
+}
+
+void DTLSEndpoint::AcceptPendingHandshake(const uint8_t* data,
+                                          size_t len,
+                                          const SocketAddress& remote) {
+  if (!MakeRoomForPendingHandshake()) {
+    DTLS_STAT_INCREMENT(DTLSEndpointStats, server_busy_count);
+    return;
+  }
+
+  // As in AcceptConnection(): unauthenticated input, so OpenSSL failing on
+  // it is routine and what it queues is discarded.
+  ncrypto::MarkPopErrorOnReturn mark_pop_error_on_return;
+
+  auto pending = std::make_unique<PendingHandshake>();
+  pending->ssl.reset(SSL_new(server_context_->ssl_ctx()));
+  if (!pending->ssl) return;
+  SSL* ssl = pending->ssl.get();
+
+  // These become the session's enc_in_/enc_out_, so both have to preserve
+  // datagram boundaries -- see DTLSSession::Create().
+  auto in = ncrypto::BIOPointer::New(BIO_s_dgram_mem());
+  auto out = ncrypto::BIOPointer::New(BIO_s_dgram_mem());
+  if (!in || !out) return;
+  pending->enc_in = in.release();
+  pending->enc_out = out.release();
+  SSL_set_bio(ssl, pending->enc_in, pending->enc_out);
+
+  SSL_set_accept_state(ssl);
+  SSL_set_options(ssl, SSL_OP_COOKIE_EXCHANGE | SSL_OP_NO_QUERY_MTU);
+  SSL_set_mtu(ssl, mtu_);
+  server_context_->BindToSSL(ssl);
+  DTLSContext::SetPendingState(ssl, &pending->state);
+  pending->expires_at = uv_hrtime() / 1000000 + kValidationTimeoutMs;
+
+  pending_[remote] = std::move(pending);
+  DrivePendingHandshake(data, len, remote);
+}
+
+void DTLSEndpoint::DrivePendingHandshake(const uint8_t* data,
+                                         size_t len,
+                                         const SocketAddress& remote) {
+  auto it = pending_.find(remote);
+  if (it == pending_.end()) return;
+  PendingHandshake* pending = it->second.get();
+
+  ncrypto::MarkPopErrorOnReturn mark_pop_error_on_return;
+
+  if (BIO_write(pending->enc_in, data, len) <= 0) return;
+
+  // The cookie callbacks find the peer here: there is no session yet.
+  server_context_->set_cookie_peer(remote);
+  int ret = SSL_do_handshake(pending->ssl.get());
+  int err = ret <= 0 ? SSL_get_error(pending->ssl.get(), ret) : SSL_ERROR_NONE;
+
+  // Whatever OpenSSL produced -- the cookie flight, or a retransmission of
+  // it for a retransmitted first ClientHello -- goes out now. Nothing more
+  // will: no retransmit timer runs for a pending handshake, so everything
+  // sent to an address that has not been validated is a reply to a datagram
+  // that came from it, and smaller than that datagram.
+  MaybeStackBuffer<uint8_t, 1500> buf;
+  for (;;) {
+    size_t pending_len = BIO_pending(pending->enc_out);
+    if (pending_len == 0) break;
+    buf.AllocateSufficientStorage(pending_len);
+    int n = BIO_read(pending->enc_out, buf.out(), pending_len);
+    if (n <= 0) break;
+    SendTo(remote, buf.out(), n);
+  }
+
+  if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE) return;
+  if (err != SSL_ERROR_WANT_CLIENT_HELLO_CB) {
+    // A ClientHello OpenSSL would not accept, or -- which the cookie
+    // exchange rules out -- a handshake that finished without one.
+    pending_.erase(it);
+    return;
+  }
+
+  // Suspended at the ClientHello that should carry the cookie back. From
+  // here on the handshake runs through a DTLSSession, so that what follows
+  // cookie verification -- SNI, PSK, key derivation and its keylog lines --
+  // has a session to report to. The session stays unannounced, and
+  // invisible to JavaScript, until the cookie verifies.
+  std::unique_ptr<PendingHandshake> owned = std::move(it->second);
+  pending_.erase(it);
+  DTLSContext::SetPendingState(owned->ssl.get(), nullptr);
+
+  // The slot was free when the first ClientHello arrived; it may not be now.
+  if (!HasCapacityFor(remote)) {
+    DTLS_STAT_INCREMENT(DTLSEndpointStats, server_refused_count);
+    return;
+  }
+
+  HandleScope handle_scope(env()->isolate());
+  Context::Scope context_scope(env()->context());
+
+  auto session = DTLSSession::CreateFromSSL(env(),
+                                            this,
+                                            server_context_.get(),
+                                            std::move(owned->ssl),
+                                            owned->enc_in,
+                                            owned->enc_out,
+                                            remote);
+  if (!session) return;
+
+  session->AwaitAddressValidation();
+  validating_[remote] = session;
+
+  // Resumes the handshake at the suspended ClientHello. The session
+  // announces itself from inside if the cookie verifies, and destroys itself
+  // silently if it does not.
+  session->Start();
+}
+
+void DTLSEndpoint::AnnounceSession(DTLSSession* session_ptr) {
+  BaseObjectPtr<DTLSSession> session(session_ptr);
+  const SocketAddress remote = session->remote_address();
+
+  validating_.erase(remote);
+  sessions_[remote] = session;
+  sessions_per_host_[remote]++;
+  state_->session_count = sessions_.size();
+  DTLS_STAT_INCREMENT(DTLSEndpointStats, server_sessions);
+
+  uv_ref(reinterpret_cast<uv_handle_t*>(&handle_));
+
+  Local<Value> argv[] = {session->object()};
+  Local<Function> cb = GetCallback(DTLS_CB_SESSION_NEW);
+  if (!cb.IsEmpty()) {
+    MakeCallback(cb, 1, argv);
+  }
 }
 
 // --- JS binding methods ---
@@ -930,6 +1138,9 @@ void DTLSEndpoint::DoSetCallbacks(const FunctionCallbackInfo<Value>& args) {
 
 void DTLSEndpoint::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("sessions", sessions_.size());
+  tracker->TrackFieldWithSize("pending_handshakes",
+                              pending_.size() * sizeof(PendingHandshake));
+  tracker->TrackField("validating_sessions", validating_.size());
   tracker->TrackFieldWithSize("recv_buf", recv_buf_.size());
 }
 

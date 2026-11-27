@@ -13,6 +13,7 @@
 
 #include <openssl/ssl.h>
 
+#include <memory>
 #include <unordered_map>
 #include <vector>
 
@@ -39,8 +40,10 @@ struct DTLSEndpointStats {
 
 // DTLSEndpoint manages a single UDP socket and dispatches incoming
 // datagrams to the appropriate DTLSSession based on the remote address.
-// For server mode, it handles stateless cookie exchange via DTLSv1_listen()
-// before creating new sessions.
+// For server mode, it validates each new peer's address with a cookie
+// exchange before creating a session for it: statelessly via
+// DTLSv1_listen() when only DTLS 1.2 is enabled, and through a pending
+// handshake when DTLS 1.3 is (see AcceptPendingHandshake()).
 class DTLSEndpoint final : public HandleWrap {
  public:
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
@@ -78,6 +81,11 @@ class DTLSEndpoint final : public HandleWrap {
 
   // Remove a session from the endpoint (called on session close/destroy).
   void RemoveSession(const SocketAddress& addr);
+
+  // Enter a session promoted from a pending handshake into the session table
+  // and emit it to JavaScript. Called by the session once OpenSSL has
+  // verified the cookie its peer returned.
+  void AnnounceSession(DTLSSession* session);
 
   // Close the endpoint gracefully (close all sessions first).
   void CloseGracefully();
@@ -149,6 +157,43 @@ class DTLSEndpoint final : public HandleWrap {
                         size_t len,
                         const SocketAddress& remote);
 
+  // A server handshake that has not completed the cookie exchange. Bare: no
+  // DTLSSession and no JavaScript object, so a forged source address costs
+  // an SSL and nothing the garbage collector has to see.
+  //
+  // DTLSv1_listen() cannot be used once DTLS 1.3 is enabled. It only speaks
+  // HelloVerifyRequest, and quietly caps the handshake at DTLS 1.2 to make
+  // that work. Nor can the exchange be stateless the way DTLSv1_listen()
+  // makes it: a DTLS 1.3 ClientHello carrying a post-quantum key share does
+  // not fit in one datagram at the default MTU, and OpenSSL does not accept
+  // the second ClientHello (message_seq 1) on a fresh SSL. So the SSL is
+  // kept, with SSL_OP_COOKIE_EXCHANGE, and OpenSSL sends whichever of
+  // HelloVerifyRequest or HelloRetryRequest the negotiated version calls
+  // for, and retransmits it if the first ClientHello is retransmitted.
+  struct PendingHandshake {
+    ncrypto::SSLPointer ssl;
+    BIO* enc_in = nullptr;   // Owned by ssl.
+    BIO* enc_out = nullptr;  // Owned by ssl.
+    PendingHandshakeState state;
+    uint64_t expires_at = 0;  // Milliseconds, uv_hrtime() based.
+  };
+
+  // Start a pending handshake for |remote| with its first datagram.
+  void AcceptPendingHandshake(const uint8_t* data,
+                              size_t len,
+                              const SocketAddress& remote);
+
+  // Feed a datagram to |remote|'s pending handshake. Once it is suspended at
+  // the ClientHello carrying the cookie back, wrap it in an unannounced
+  // DTLSSession and hand that the rest of the handshake.
+  void DrivePendingHandshake(const uint8_t* data,
+                             size_t len,
+                             const SocketAddress& remote);
+
+  // Drop expired pending handshakes and, if the table is still full, the
+  // oldest one. True if there is room for another.
+  bool MakeRoomForPendingHandshake();
+
   uv_udp_t handle_;
 
   // Reusable receive buffer for uv_udp_recv (see OnAlloc). libuv delivers one
@@ -166,6 +211,14 @@ class DTLSEndpoint final : public HandleWrap {
   // stays proportional to the number of distinct peers, not to peers ever
   // seen.
   SocketAddress::IpMap<uint32_t> sessions_per_host_;
+
+  // Server handshakes still completing the cookie exchange.
+  SocketAddress::PeerMap<std::unique_ptr<PendingHandshake>> pending_;
+
+  // Sessions promoted from a pending handshake whose cookie has not been
+  // verified yet. Not in sessions_, not counted, and not known to
+  // JavaScript; moved over by AnnounceSession().
+  SocketAddress::PeerMap<BaseObjectPtr<DTLSSession>> validating_;
 
   // Server context (set when listening).
   BaseObjectPtr<DTLSContext> server_context_;

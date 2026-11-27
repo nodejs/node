@@ -132,6 +132,59 @@ void DTLSContext::BindToSSL(SSL* ssl) {
   SSL_set_ex_data(ssl, PSKContextIndex(), this);
 }
 
+static int PendingStateIndex() {
+  static const int index =
+      SSL_get_ex_new_index(0, nullptr, nullptr, nullptr, nullptr);
+  return index;
+}
+
+void DTLSContext::SetPendingState(SSL* ssl, PendingHandshakeState* state) {
+  SSL_set_ex_data(ssl, PendingStateIndex(), state);
+}
+
+PendingHandshakeState* DTLSContext::GetPendingState(SSL* ssl) {
+  return static_cast<PendingHandshakeState*>(
+      SSL_get_ex_data(ssl, PendingStateIndex()));
+}
+
+bool DTLSContext::AllowsDTLS13() const {
+  // 0 is "no upper bound", which for this build means DTLS 1.3. DTLS version
+  // numbers count down, so a numerically smaller one is newer.
+  int max = SSL_CTX_get_max_proto_version(ctx_.get());
+  return max == 0 || max <= DTLS1_3_VERSION;
+}
+
+bool DTLSContext::IsUnvalidatedPeer(SSL* ssl) {
+  // A pending handshake has no session yet. A session promoted from one has
+  // been handed its second ClientHello but may not have verified the cookie
+  // in it -- a retransmitted first ClientHello is let through too.
+  auto* session = static_cast<DTLSSession*>(SSL_get_app_data(ssl));
+  if (session == nullptr) return GetPendingState(ssl) != nullptr;
+  return !session->address_validated();
+}
+
+int DTLSContext::NewSessionCallback(SSL* ssl, SSL_SESSION* sess) {
+  auto* session = static_cast<DTLSSession*>(SSL_get_app_data(ssl));
+  if (session != nullptr) session->OnNewSessionTicket();
+  // Not taking the reference: the session is read back through
+  // SSL_get1_session() when JavaScript asks for it.
+  return 0;
+}
+
+int DTLSContext::ClientHelloCallback(SSL* ssl, int* al, void* arg) {
+  // Only a bare pending handshake is suspended, and only once it has sent
+  // its cookie: the first ClientHello has to run through to produce the
+  // HelloVerifyRequest or HelloRetryRequest. Once the endpoint has wrapped
+  // the SSL in a session, the resumed handshake comes straight back here and
+  // carries on.
+  PendingHandshakeState* pending = GetPendingState(ssl);
+  if (pending != nullptr && pending->cookie_sent &&
+      SSL_get_app_data(ssl) == nullptr) {
+    return SSL_CLIENT_HELLO_RETRY;
+  }
+  return SSL_CLIENT_HELLO_SUCCESS;
+}
+
 DTLSContext* DTLSContext::FromSSL(SSL* ssl) {
   return static_cast<DTLSContext*>(SSL_get_ex_data(ssl, PSKContextIndex()));
 }
@@ -162,6 +215,7 @@ Local<FunctionTemplate> DTLSContext::GetConstructorTemplate(Environment* env) {
     SetProtoMethod(isolate, tmpl, "setSNIContexts", SetSNIContexts);
     SetProtoMethod(isolate, tmpl, "setTicketKeys", SetTicketKeys);
     SetProtoMethod(isolate, tmpl, "setPSK", SetPSK);
+    SetProtoMethod(isolate, tmpl, "setProtocolVersions", SetProtocolVersions);
 
     env->set_dtls_context_constructor_template(tmpl);
   }
@@ -194,6 +248,7 @@ void DTLSContext::RegisterExternalReferences(
   registry->Register(SetSNIContexts);
   registry->Register(SetTicketKeys);
   registry->Register(SetPSK);
+  registry->Register(SetProtocolVersions);
 }
 
 // new DTLSContext(isServer)
@@ -262,7 +317,13 @@ void DTLSContext::New(const FunctionCallbackInfo<Value>& args) {
     // session SSLs built by CreateFromSSL() for peers that have *already*
     // completed the cookie exchange, which would leave them waiting for a
     // second one. DTLSv1_listen() sets the option on the individual SSL it is
-    // given (d1_lib.c:804), which is the correct scope.
+    // given (d1_lib.c:804), and the endpoint sets it on each pending
+    // handshake it creates, which is the correct scope.
+
+    // Inert except on a pending handshake; see ClientHelloCallback(). Set on
+    // every server context, not only the endpoint's, because the callback is
+    // read through the SSL's current SSL_CTX and SNI may have switched it.
+    SSL_CTX_set_client_hello_cb(ctx.get(), ClientHelloCallback, nullptr);
 
     // Enable session caching for session resumption.
     //
@@ -279,6 +340,8 @@ void DTLSContext::New(const FunctionCallbackInfo<Value>& args) {
     // Client session caching for resumption.
     SSL_CTX_set_session_cache_mode(
         ctx.get(), SSL_SESS_CACHE_CLIENT | SSL_SESS_CACHE_NO_INTERNAL);
+    // Called because SSL_SESS_CACHE_CLIENT is set, NO_INTERNAL or not.
+    SSL_CTX_sess_set_new_cb(ctx.get(), NewSessionCallback);
   }
 
   // NOTE: We do NOT call SSL_CTX_set_default_verify_paths() here.
@@ -375,6 +438,33 @@ void DTLSContext::AddCACert(const FunctionCallbackInfo<Value>& args) {
   if (crypto::AddCACertificates(env, ctx->ctx_.get(), bio) == 0) {
     return THROW_ERR_CRYPTO_OPERATION_FAILED(
         env, "No CA certificates found in PEM data");
+  }
+}
+
+// setProtocolVersions(min, max), each DTLS1_2_VERSION or DTLS1_3_VERSION.
+// JavaScript validates the names and their order; this only refuses values
+// that are not one of the two versions this supports.
+void DTLSContext::SetProtocolVersions(const FunctionCallbackInfo<Value>& args) {
+  DTLSContext* ctx;
+  ASSIGN_OR_RETURN_UNWRAP(&ctx, args.This());
+  Environment* env = ctx->env();
+
+  CHECK(args[0]->IsInt32());
+  CHECK(args[1]->IsInt32());
+  int min = args[0].As<Int32>()->Value();
+  int max = args[1].As<Int32>()->Value();
+  auto supported = [](int v) {
+    return v == DTLS1_2_VERSION || v == DTLS1_3_VERSION;
+  };
+  CHECK(supported(min));
+  CHECK(supported(max));
+
+  // Checked for the same reason the defaults are: a build that cannot do
+  // the version asked for would otherwise leave the bound wherever it was.
+  if (SSL_CTX_set_min_proto_version(ctx->ctx_.get(), min) != 1 ||
+      SSL_CTX_set_max_proto_version(ctx->ctx_.get(), max) != 1) {
+    return THROW_ERR_CRYPTO_OPERATION_FAILED(
+        env, "Failed to set the DTLS protocol version range");
   }
 }
 
@@ -582,6 +672,11 @@ int DTLSContext::SNISelectCallback(SSL* ssl, int* ad, void* arg) {
   // no JavaScript inside the handshake. The callback is reached only when it
   // has nothing to say.
   if (chosen == nullptr && !ctx->sni_callback_.IsEmpty()) {
+    // No JavaScript for a peer that has not completed the cookie exchange.
+    // Carry on with the context already in place rather than refusing:
+    // under DTLS 1.3 the first ClientHello is processed in full to produce
+    // the HelloRetryRequest, and the callback runs for the second one.
+    if (IsUnvalidatedPeer(ssl)) return SSL_TLSEXT_ERR_OK;
     chosen = ctx->SelectSNIContextFromCallback(ssl, servername);
   }
 
@@ -715,6 +810,15 @@ unsigned int DTLSContext::PSKServerCallback(SSL* ssl,
   }
 
   if (ctx->psk_callback_.IsEmpty()) return 0;
+
+  // Unlike the SNI callback, this one runs for a peer that has not completed
+  // the cookie exchange. A DTLS 1.3 first ClientHello carries its PSK offer
+  // and is processed in full to produce the HelloRetryRequest, and the answer
+  // has to be the same both times: whether a PSK is available steers the
+  // choice of cipher suite toward one whose hash matches it, the
+  // HelloRetryRequest cookie records that choice, and the second
+  // ClientHello's binder is checked against a transcript built with it. So
+  // under DTLS 1.3 the callback is asked once per ClientHello.
 
   Environment* env = ctx->env();
   HandleScope scope(env->isolate());
@@ -1008,16 +1112,28 @@ size_t CanonicalizeAddress(const sockaddr* sa, unsigned char* out) {
 // callbacks during DTLSv1_listen(), and every handshake fails with a
 // handshake_failure alert. Doing it would mean lifting the 32-byte random out
 // of the raw ClientHello, which CouldBeClientHello() already walks, and
-// stashing it next to current_cookie_peer_. During DTLSv1_listen() the peer
-// address comes from DTLSContext::current_cookie_peer_ (set synchronously
-// before the call); during the session handshake it comes from the
-// DTLSSession stored in SSL app_data.
+// stashing it next to current_cookie_peer_. During DTLSv1_listen() and
+// while a handshake is pending the peer address comes from
+// DTLSContext::current_cookie_peer_ (set synchronously before the call);
+// during the session handshake it comes from the DTLSSession stored in SSL
+// app_data.
+//
+// For DTLS 1.3 this is the application cookie OpenSSL embeds in, and
+// authenticates as part of, the HelloRetryRequest cookie: with no stateless
+// cookie callbacks installed it falls back to these.
 bool DTLSContext::ComputeCookie(SSL* ssl,
                                 uint64_t window,
                                 unsigned char* out,
                                 unsigned int* out_len) {
-  SSL_CTX* ctx = SSL_get_SSL_CTX(ssl);
-  DTLSContext* dtls_ctx = static_cast<DTLSContext*>(SSL_CTX_get_app_data(ctx));
+  // The context the SSL was created from, not SSL_get_SSL_CTX(): SNI can
+  // switch the latter while the first ClientHello is processed, and the
+  // cookie minted against one secret would then be checked against
+  // another. An SSL from DTLSv1_listen() is never bound, and never switched.
+  DTLSContext* dtls_ctx = FromSSL(ssl);
+  if (dtls_ctx == nullptr) {
+    dtls_ctx =
+        static_cast<DTLSContext*>(SSL_CTX_get_app_data(SSL_get_SSL_CTX(ssl)));
+  }
   CHECK_NOT_NULL(dtls_ctx);
 
   // Message = canonical peer address followed by the 8-byte window counter.
@@ -1059,7 +1175,11 @@ int DTLSContext::CookieGenerateCallback(SSL* ssl,
                                         unsigned char* cookie,
                                         unsigned int* cookie_len) {
   const uint64_t window = uv_hrtime() / kCookieWindowNs;
-  return ComputeCookie(ssl, window, cookie, cookie_len) ? 1 : 0;
+  if (!ComputeCookie(ssl, window, cookie, cookie_len)) return 0;
+  if (PendingHandshakeState* pending = GetPendingState(ssl)) {
+    pending->cookie_sent = true;
+  }
+  return 1;
 }
 
 int DTLSContext::CookieVerifyCallback(SSL* ssl,
@@ -1076,6 +1196,11 @@ int DTLSContext::CookieVerifyCallback(SSL* ssl,
     if (ComputeCookie(ssl, window - i, expected, &expected_len) &&
         cookie_len == expected_len &&
         CRYPTO_memcmp(cookie, expected, expected_len) == 0) {
+      // The peer has shown it receives at the address it sends from. A
+      // session promoted from a pending handshake waits on this before it
+      // is announced to JavaScript.
+      auto* session = static_cast<DTLSSession*>(SSL_get_app_data(ssl));
+      if (session != nullptr) session->OnAddressValidated();
       return 1;
     }
   }

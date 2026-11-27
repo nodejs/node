@@ -57,8 +57,10 @@ DTLS is designed for UDP transport and differs from TLS in several key ways:
   DTLS preserves datagram semantics.
 * One socket, many peers: A single UDP socket can serve multiple DTLS
   sessions. The `DTLSEndpoint` manages this multiplexing.
-* Cookie exchange: DTLS servers use a stateless cookie mechanism
-  (HelloVerifyRequest) to prevent denial-of-service amplification attacks.
+* Cookie exchange: DTLS servers validate a new peer's address with a cookie
+  (HelloVerifyRequest in DTLS 1.2, HelloRetryRequest in DTLS 1.3) before
+  committing to a handshake, to prevent denial-of-service amplification
+  attacks.
 * Retransmission: DTLS handles handshake retransmission internally since
   UDP does not guarantee delivery.
 
@@ -66,6 +68,10 @@ DTLS is designed for UDP transport and differs from TLS in several key ways:
 
 <!-- YAML
 added: v26.9.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/00000
+    description: Added the `minVersion` and `maxVersion` options.
 -->
 
 * `callback` {Function} Called for each new DTLS session accepted by the
@@ -89,6 +95,11 @@ added: v26.9.0
   * `host` {string} Address to bind to. **Default:** `'0.0.0.0'`.
   * `ca` {string|Buffer|string\[]|Buffer\[]} CA certificates in PEM format.
   * `ciphers` {string} OpenSSL cipher list string.
+  * `minVersion` {string} The oldest protocol version to accept, `'DTLSv1.2'`
+    or `'DTLSv1.3'`. **Default:** `'DTLSv1.2'`. See [Protocol versions][].
+  * `maxVersion` {string} The newest protocol version to offer, `'DTLSv1.2'`
+    or `'DTLSv1.3'`. **Default:** `'DTLSv1.2'`, or `minVersion` if that is
+    newer.
   * `alpn` {string\[]|Buffer} ALPN protocol names. Each name must be between
     1 and 255 bytes. A `Buffer` must already be in ALPN wire format: one
     length byte followed by that many bytes, repeated.
@@ -168,6 +179,10 @@ console.log('DTLS server listening on', endpoint.address);
 
 <!-- YAML
 added: v26.9.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/00000
+    description: Added the `minVersion` and `maxVersion` options.
 -->
 
 * `host` {string} Remote host to connect to, as an IPv4 or IPv6 literal.
@@ -209,6 +224,11 @@ added: v26.9.0
     1 and 255 bytes. A `Buffer` must already be in ALPN wire format: one
     length byte followed by that many bytes, repeated.
   * `srtp` {string} SRTP protection profile names.
+  * `minVersion` {string} The oldest protocol version to accept, `'DTLSv1.2'`
+    or `'DTLSv1.3'`. **Default:** `'DTLSv1.2'`. See [Protocol versions][].
+  * `maxVersion` {string} The newest protocol version to offer, `'DTLSv1.2'`
+    or `'DTLSv1.3'`. **Default:** `'DTLSv1.2'`, or `minVersion` if that is
+    newer.
   * `mtu` {number} Maximum size in bytes of a DTLS datagram. **Default:**
     `1200`.
   * `handshakeTimeout` {number} Milliseconds a handshake may take before it is
@@ -239,6 +259,10 @@ session.onmessage = (data) => {
 
 <!-- YAML
 added: v26.10.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/00000
+    description: Added the `minVersion` and `maxVersion` options.
 -->
 
 * `options` {Object}
@@ -250,6 +274,10 @@ added: v26.10.0
   * `ecdhCurve` {string} Named curve or curve list for ECDH.
   * `isServer` {boolean} Build a context for a server. **Default:** `false`.
   * `key` {string|Buffer} Private key in PEM format.
+  * `maxVersion` {string} Newest protocol version to offer. See
+    [Protocol versions][].
+  * `minVersion` {string} Oldest protocol version to accept. See
+    [Protocol versions][].
   * `passphrase` {string} Passphrase for `key`, if it is encrypted.
   * `rejectUnauthorized` {boolean} Verification behaviour, as for
     [`dtls.listen()`][] and [`dtls.connect()`][].
@@ -314,6 +342,43 @@ const s2 = connect('192.0.2.2', 5684, {
   servername: 'b.example.com',
 });
 ```
+
+## Protocol versions
+
+DTLS 1.2 ([RFC 6347][]) and DTLS 1.3 ([RFC 9147][]) are supported. DTLS 1.0 is
+not: it is deprecated by [RFC 8996][] and has no AEAD cipher suites. Each side
+offers the range from `minVersion` to `maxVersion`, and the newest version both
+allow is negotiated; with none in common the handshake fails with a
+`protocol_version` alert. Only DTLS 1.2 is enabled by default.
+
+```mjs
+import { connect, listen } from 'node:dtls';
+
+const endpoint = listen(onsession, {
+  cert, key, port: 5684, maxVersion: 'DTLSv1.3',
+});
+
+const session = connect('192.0.2.1', 5684, { ca, maxVersion: 'DTLSv1.3' });
+const { protocol } = await session.opened;   // 'DTLSv1.3'
+```
+
+What changes under DTLS 1.3:
+
+* A server validates the peer's address with a cookie in a
+  HelloRetryRequest rather than a HelloVerifyRequest; see
+  [Denial of service][].
+* The server issues resumption tickets after the handshake rather than during
+  it, so [`session.session`][] is `undefined` when `session.opened` settles.
+  Use [`session.onsessionticket`][]; see [Session resumption][].
+* A server rejects a client certificate after the client has finished its
+  side of the handshake, so the client's `session.opened` can resolve and the
+  session then fail with a `certificate_required` or similar alert.
+* A wrong pre-shared key is rejected at once with a `decrypt_error` alert,
+  rather than stalling; see [Pre-shared keys][].
+* [`session.send()`][] accepts at most 16383 bytes, and
+  [`session.exportKeyingMaterial()`][] at most 255 hash lengths.
+* The `ciphers` option applies to DTLS 1.2 cipher suites only. DTLS 1.3 uses
+  OpenSSL's default TLS 1.3 suites.
 
 ## Server Name Indication
 
@@ -407,6 +472,18 @@ failure.
 
 ## Denial of service
 
+A server does not commit to a handshake, or announce a session, until the peer
+has returned a cookie from the address it claims to be sending from. With only
+DTLS 1.2 enabled this is stateless: nothing is kept for a peer until its
+cookie comes back. With DTLS 1.3 enabled the server keeps a small pending
+handshake for each new peer while the exchange completes, because a DTLS 1.3
+ClientHello often spans several datagrams and the second ClientHello cannot be
+verified without it. Pending handshakes are not visible to JavaScript and do
+not count against `maxSessions`; at most 1024 are kept, the oldest giving way
+to a new one, and each expires after 10 seconds. Nothing is sent to a peer
+that has not completed the exchange except replies to datagrams it sent, each
+smaller than what it answers.
+
 Cookie exchange proves a peer can receive at its claimed address, but it does
 not limit how many sessions that peer may then establish, and each session
 holds a TLS state machine, two buffers and a timer. `maxSessions` bounds the
@@ -443,9 +520,9 @@ the handshake completes; it is not an idle timeout.
 
 A handshake can stall without either peer being at fault or aware.
 DTLS discards records it cannot authenticate rather than answering them
-(RFC 6347 section 4.1.2.1), so a mismatched pre-shared key or a cipher list
-with nothing in common produces silence rather than an alert. This timeout is
-what ends those.
+(RFC 6347 section 4.1.2.1), so under DTLS 1.2 a mismatched pre-shared key or a
+cipher list with nothing in common produces silence rather than an alert. This
+timeout is what ends those.
 
 ## Pre-shared keys
 
@@ -483,7 +560,10 @@ listen(onsession, {
 ```
 
 The callback runs during the handshake and must return synchronously, so it
-cannot consult a database. Where both are given, the map is checked first and
+cannot consult a database. Under DTLS 1.3 a server's callback is called for
+each ClientHello, so usually twice per handshake, and the first call comes
+before the client has completed the cookie exchange. It has to give the same
+answer both times. Where both are given, the map is checked first and
 the callback is only reached when the map has no answer -- a configuration
 using only the map never runs JavaScript inside the handshake.
 
@@ -518,6 +598,10 @@ listen(onsession, { port: 5684, psk, ciphers: 'PSK-AES128-CCM8@SECLEVEL=0' });
 ```
 
 ### Failure modes
+
+Under DTLS 1.3 a wrong key fails the handshake straight away with a
+`decrypt_error` alert, because the client proves it holds the key in its
+ClientHello. What follows describes DTLS 1.2.
 
 A wrong key does not produce an error. The identity only names the key, so the
 handshake proceeds and the two sides derive different secrets; the first
@@ -558,6 +642,19 @@ const second = connect('192.0.2.1', 5684, {
 });
 await second.opened;
 console.log(second.reused);          // True.
+```
+
+Under DTLS 1.3 the server sends its tickets once the handshake has completed,
+so there is nothing to resume with when `opened` settles. Set
+[`session.onsessionticket`][], which is called with each ticket as it arrives
+under either version:
+
+```mjs
+const first = connect('192.0.2.1', 5684, {
+  ca, servername: 'device.example', maxVersion: 'DTLSv1.3',
+});
+first.onsessionticket = (ticket) => saveForLater(ticket);
+await first.opened;
 ```
 
 A session that the server will not accept -- expired, or issued by a different
@@ -832,8 +929,9 @@ Represents a DTLS association with a single remote peer.
 ### `session.send(data)`
 
 * `data` {string|Buffer|TypedArray|DataView} The data to send. At most 16384
-  bytes. A view sends the bytes it covers, so an offset or a subarray is sent
-  as given rather than as the whole buffer behind it.
+  bytes, or 16383 under DTLS 1.3. A view sends the bytes it covers, so an
+  offset or a subarray is sent as given rather than as the whole buffer behind
+  it.
 * Returns: {number} The number of bytes written to the DTLS layer.
 
 Send application data to the peer. The data is encrypted by DTLS before
@@ -843,7 +941,10 @@ being sent over UDP. Can only be called after the handshake completes
 DTLS carries application data in a single record per datagram and does not
 fragment it, so `data` must fit in one record. Sending more throws
 `ERR_OUT_OF_RANGE`. This limit is independent of the `mtu` option: a record
-larger than the path MTU is still sent, and is fragmented by IP.
+larger than the path MTU is still sent, and is fragmented by IP. The DTLS 1.3
+limit is a byte lower than the protocol allows because OpenSSL misjudges the
+size of a full-length DTLS 1.3 record on receipt and ends the association
+with a `record_overflow` alert.
 
 Throws `ERR_INVALID_STATE` if the handshake has not completed, or if the
 session is closed or destroyed.
@@ -951,7 +1052,8 @@ added: v26.10.0
 -->
 
 * Returns: {Buffer|undefined} An opaque session for resuming this connection
-  later, or `undefined` on a server session or before the handshake completes.
+  later, or `undefined` on a server session, before the handshake completes,
+  or under DTLS 1.3 before the server's first ticket has arrived.
 
 Pass it as the `session` option to a later [`dtls.connect()`][]. It is bound to
 the host this connection authenticated against and is refused elsewhere; see
@@ -1058,6 +1160,10 @@ bound is not imposed by [RFC 5705][]; it exists so that a caller cannot request
 an arbitrarily large allocation, and is far above what any defined exporter
 needs (DTLS-SRTP uses 60 bytes).
 
+Under DTLS 1.3 the exporter is HKDF based and cannot produce more than 255
+times the cipher suite's hash length: 8160 bytes with a SHA-256 suite, 12240
+with SHA-384. A larger `length` throws `ERR_OUT_OF_RANGE`.
+
 ### Callback properties
 
 #### `session.onmessage`
@@ -1087,6 +1193,21 @@ Set to receive handshake completion notifications.
   * `line` {string}
 
 Set to receive TLS key log lines (for debugging with Wireshark).
+
+#### `session.onsessionticket`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {Function}
+  * `ticket` {Buffer} The same value [`session.session`][] returns.
+
+Set on a client session to be told each time it has a session that a later
+connection can resume. Under DTLS 1.2 that is once, as the handshake
+completes. Under DTLS 1.3 it is once for each ticket the server sends after
+the handshake, which by default is two. Set it before awaiting
+`session.opened`. Never called on a server session.
 
 ### `session[Symbol.asyncDispose]()`
 
@@ -1247,8 +1368,12 @@ The minimum allowed MTU is 256 bytes. The maximum is 65535.
 [Handshake timeout]: #handshake-timeout
 [Permission Model]: permissions.md#permission-model
 [Pre-shared keys]: #pre-shared-keys
+[Protocol versions]: #protocol-versions
 [RFC 5705]: https://www.rfc-editor.org/rfc/rfc5705
+[RFC 6347]: https://www.rfc-editor.org/rfc/rfc6347
 [RFC 7301]: https://www.rfc-editor.org/rfc/rfc7301
+[RFC 8996]: https://www.rfc-editor.org/rfc/rfc8996
+[RFC 9147]: https://www.rfc-editor.org/rfc/rfc9147
 [Server Name Indication]: #server-name-indication
 [Session resumption]: #session-resumption
 [`DTLSEndpoint`]: #class-dtlsendpoint
@@ -1262,6 +1387,8 @@ The minimum allowed MTU is 256 bytes. The maximum is 65535.
 [`session.authorizationError`]: #sessionauthorizationerror
 [`session.authorized`]: #sessionauthorized
 [`session.destroy()`]: #sessiondestroyerror
+[`session.exportKeyingMaterial()`]: #sessionexportkeyingmateriallength-label-context
+[`session.onsessionticket`]: #sessiononsessionticket
 [`session.peerX509Certificate`]: #sessionpeerx509certificate
 [`session.reused`]: #sessionreused
 [`session.send()`]: #sessionsenddata
