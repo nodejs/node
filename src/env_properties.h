@@ -470,8 +470,10 @@
   V(tlsa_record_template, v8::DictionaryTemplate)                              \
   V(tty_constructor_template, v8::FunctionTemplate)                            \
   V(txt_record_template, v8::DictionaryTemplate)                               \
+  V(urlpattern_constructor_template, v8::FunctionTemplate)                     \
   V(urlpatterncomponentresult_template, v8::DictionaryTemplate)                \
   V(urlpatterninit_template, v8::DictionaryTemplate)                           \
+  V(urlpatternlistresult_template, v8::DictionaryTemplate)                     \
   V(urlpatternresult_template, v8::DictionaryTemplate)                         \
   V(write_wrap_template, v8::FunctionTemplate)                                 \
   V(worker_cpu_profile_taker_template, v8::ObjectTemplate)                     \

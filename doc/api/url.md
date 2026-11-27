@@ -755,6 +755,8 @@ console.log(myPattern.test('https://nodejs.org/docs/latest/api/dns.html'));
 // Prints: true
 ```
 
+To find which of several patterns matches a URL, see [`URLPatternList`][].
+
 #### `new URLPattern()`
 
 Instantiate a new empty `URLPattern` object.
@@ -844,6 +846,175 @@ Returns a boolean indicating if the input matches the current pattern.
 const myPattern = new URLPattern('https://nodejs.org/docs/latest/api/*.html');
 console.log(myPattern.test('https://nodejs.org/docs/latest/api/dns.html'));
 // Prints: true
+```
+
+### Class: `URLPatternList`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.0 - Early development
+
+A `URLPatternList` matches a URL against an ordered list of {URLPattern}
+objects and reports the first pattern that matches. `URLPatternList` is
+not a standard API, and it is not yet clear whether it will become one.
+It implements the interface proposed in [whatwg/urlpattern#166][].
+
+The result is the same as calling [`urlPattern.exec()`][] on each pattern in
+list order and keeping the first result that is not `null`. A `URLPatternList`
+processes the input once per call instead of once per pattern, and uses an
+index of the patterns' pathnames to skip patterns that cannot match.
+
+```mjs
+import { URLPattern, URLPatternList } from 'node:url';
+
+const patterns = [
+  new URLPattern('https://example.com/'),
+  new URLPattern('https://example.com/about'),
+  new URLPattern('https://example.com/blog/:slug'),
+];
+const list = new URLPatternList(patterns);
+
+const result = list.exec('https://example.com/blog/hello');
+console.log(patterns.indexOf(result.pattern));
+// Prints: 2
+console.log(result.pathname.groups.slug);
+// Prints: hello
+
+console.log(list.test('https://example.com/contact'));
+// Prints: false
+```
+
+```cjs
+const { URLPattern, URLPatternList } = require('node:url');
+
+const patterns = [
+  new URLPattern('https://example.com/'),
+  new URLPattern('https://example.com/about'),
+  new URLPattern('https://example.com/blog/:slug'),
+];
+const list = new URLPatternList(patterns);
+
+const result = list.exec('https://example.com/blog/hello');
+console.log(patterns.indexOf(result.pattern));
+// Prints: 2
+console.log(result.pathname.groups.slug);
+// Prints: hello
+
+console.log(list.test('https://example.com/contact'));
+// Prints: false
+```
+
+To attach data such as a route handler to each pattern, keep it in a {Map}
+keyed by the `URLPattern` and look it up with `result.pattern`.
+
+#### `new URLPatternList(patterns)`
+
+* `patterns` {Iterable} The {URLPattern} objects to match against, in the order
+  in which they are matched.
+
+Creates a `URLPatternList` from the values of `patterns`, in iteration order.
+Later changes to `patterns` do not affect the list.
+
+The values must be `URLPattern` objects. Pattern strings, `URLPatternInit`
+objects, and options such as `ignoreCase` are not accepted; pass them to the
+{URLPattern} constructor instead. Each pattern keeps its own options, so a list
+can mix case-sensitive and case-insensitive patterns.
+
+A `TypeError` is thrown if `patterns` is not iterable, if one of its values is
+not a `URLPattern`, if it contains the same `URLPattern` object more than once,
+or if it is empty.
+
+#### `urlPatternList.exec([input[, baseURL]])`
+
+* `input` {string|Object} A URL string, or an object with the URL components
+  to match, as accepted by [`urlPattern.exec()`][]. **Default:** `{}`.
+* `baseURL` {string} A base URL string used to resolve `input` when it is a
+  relative URL string.
+* Returns: {Object|null}
+
+Matches `input` against the patterns in list order. Returns `null` if no pattern
+matches, which includes the case where `input` or `baseURL` is not a valid URL.
+Otherwise, returns the result of [`urlPattern.exec()`][] for the first pattern
+that matches, with an additional `pattern` property set to that `URLPattern`.
+
+A `TypeError` is thrown if `baseURL` is passed and `input` is not a string.
+
+The first pattern that matches wins, even if a later pattern is more specific:
+
+```mjs
+import { URLPattern, URLPatternList } from 'node:url';
+
+const me = new URLPattern({ pathname: '/users/me' });
+const user = new URLPattern({ pathname: '/users/:id' });
+
+console.log(new URLPatternList([user, me]).exec({ pathname: '/users/me' })
+  .pattern === user);
+// Prints: true
+console.log(new URLPatternList([me, user]).exec({ pathname: '/users/me' })
+  .pattern === me);
+// Prints: true
+```
+
+```cjs
+const { URLPattern, URLPatternList } = require('node:url');
+
+const me = new URLPattern({ pathname: '/users/me' });
+const user = new URLPattern({ pathname: '/users/:id' });
+
+console.log(new URLPatternList([user, me]).exec({ pathname: '/users/me' })
+  .pattern === user);
+// Prints: true
+console.log(new URLPatternList([me, user]).exec({ pathname: '/users/me' })
+  .pattern === me);
+// Prints: true
+```
+
+#### `urlPatternList.test([input[, baseURL]])`
+
+* `input` {string|Object} A URL string, or an object with the URL components
+  to match, as accepted by [`urlPattern.test()`][]. **Default:** `{}`.
+* `baseURL` {string} A base URL string used to resolve `input` when it is a
+  relative URL string.
+* Returns: {boolean}
+
+Returns `true` if any pattern in the list matches `input`, and `false`
+otherwise, which includes the case where `input` or `baseURL` is not a valid
+URL.
+
+A `TypeError` is thrown if `baseURL` is passed and `input` is not a string.
+
+```mjs
+import { URLPattern, URLPatternList } from 'node:url';
+
+const list = new URLPatternList([
+  new URLPattern({ pathname: '/about' }),
+  new URLPattern({ pathname: '/blog/:slug' }),
+]);
+
+console.log(list.test('https://example.com/blog/hello'));
+// Prints: true
+console.log(list.test('/about', 'https://example.com'));
+// Prints: true
+console.log(list.test({ pathname: '/contact' }));
+// Prints: false
+```
+
+```cjs
+const { URLPattern, URLPatternList } = require('node:url');
+
+const list = new URLPatternList([
+  new URLPattern({ pathname: '/about' }),
+  new URLPattern({ pathname: '/blog/:slug' }),
+]);
+
+console.log(list.test('https://example.com/blog/hello'));
+// Prints: true
+console.log(list.test('/about', 'https://example.com'));
+// Prints: true
+console.log(list.test({ pathname: '/contact' }));
+// Prints: false
 ```
 
 ### Class: `URLSearchParams`
@@ -2103,6 +2274,7 @@ console.log(myURL.origin);
 [`Error`]: errors.md#class-error
 [`JSON.stringify()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
 [`TypeError`]: errors.md#class-typeerror
+[`URLPatternList`]: #class-urlpatternlist
 [`URLSearchParams`]: #class-urlsearchparams
 [`array.toString()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/toString
 [`http.request()`]: http.md#httprequestoptions-callback
@@ -2118,6 +2290,8 @@ console.log(myURL.origin);
 [`url.search`]: #urlsearch
 [`url.toJSON()`]: #urltojson
 [`url.toString()`]: #urltostring
+[`urlPattern.exec()`]: #urlpatternexecinput-baseurl
+[`urlPattern.test()`]: #urlpatterntestinput-baseurl
 [`urlSearchParams.entries()`]: #urlsearchparamsentries
 [`urlSearchParamsSymbol.iterator()`]: #urlsearchparamssymboliterator
 [converted to a string]: https://tc39.es/ecma262/#sec-tostring
@@ -2126,3 +2300,4 @@ console.log(myURL.origin);
 [legacy `urlObject`]: #legacy-urlobject
 [percent-encoded]: #percent-encoding-in-urls
 [stable sorting algorithm]: https://en.wikipedia.org/wiki/Sorting_algorithm#Stability
+[whatwg/urlpattern#166]: https://github.com/whatwg/urlpattern/pull/166

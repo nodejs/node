@@ -10,7 +10,6 @@
 }:
 {
   inherit (pkgs)
-    ada
     brotli
     gtest
     libuv
@@ -23,6 +22,17 @@
     zlib
     zstd
     ;
+  # Vendored deps/ada is 4.1.1, which provides ada::url_pattern_list.
+  # TODO: remove this override once the pin we use includes ada 4.1.1.
+  ada = pkgs.ada.overrideAttrs (_old: {
+    version = "4.1.1";
+    src = pkgs.fetchFromGitHub {
+      owner = "ada-url";
+      repo = "ada";
+      tag = "v4.1.1";
+      hash = "sha256-Rwn8bKG6PEVUMCj0Oz6/BGFRH25IoyGf1iMWvGXm4r4=";
+    };
+  });
   abseil = pkgs.abseil-cpp;
   cares = pkgs.c-ares;
   hdr-histogram = pkgs.hdrhistogram_c;

@@ -1120,6 +1120,12 @@ class Environment final : public MemoryRetainer {
     return current_value;
   }
 
+  inline bool EmitURLPatternListWarning() {
+    bool current_value = emit_url_pattern_list_warning_;
+    emit_url_pattern_list_warning_ = false;
+    return current_value;
+  }
+
   // cb will be called as cb(env) on the next event loop iteration.
   // Unlike the JS setImmediate() function, nested SetImmediate() calls will
   // be run without returning control to the event loop, similar to nextTick().
@@ -1353,6 +1359,7 @@ class Environment final : public MemoryRetainer {
   bool trace_sync_io_ = false;
   bool emit_env_nonstring_warning_ = true;
   bool emit_err_name_warning_ = true;
+  bool emit_url_pattern_list_warning_ = true;
   bool source_maps_enabled_ = false;
 
   size_t async_callback_scope_depth_ = 0;
