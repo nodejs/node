@@ -583,9 +583,15 @@ exception.
 
 The default DTLS 1.2 cipher list excludes PSK, so giving `psk` without `ciphers`
 enables the PSK suites. DTLS 1.3 needs no special suites for PSK, but a key
-supplied by a callback or a map can only be used with a SHA-256 suite, which the
-defaults include. Supplying `ciphers` disables that and uses exactly what was
-asked for.
+supplied by a callback or a map can only be used with a SHA-256 suite, so a
+client given `psk` without `ciphers` offers only `TLS_AES_128_GCM_SHA256` and
+`TLS_CHACHA20_POLY1305_SHA256`. Supplying `ciphers` disables both and uses
+exactly what was asked for.
+
+A server that also has a certificate takes the client's order of DTLS 1.3
+suites. A client from another implementation that prefers a SHA-384 suite is
+therefore offered one in the HelloRetryRequest, and fails, since its key cannot
+be used with it; such a client has to put the SHA-256 suites first.
 
 A server keeps the certificate suites as well, since it may serve both kinds
 of client on one port. A client does not: a client that configured a
