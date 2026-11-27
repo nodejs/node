@@ -291,7 +291,8 @@ changes:
     [Server Name Indication][].
   * `psk` {Object|Function} Pre-shared keys. See [Pre-shared keys][].
   * `pskIdentityHint` {string} Identity hint to advertise, naming which key a
-    client should pick. Requires `psk`. Servers only.
+    client should pick. Requires `psk`. Servers only. DTLS 1.3 has no identity
+    hint, so it is only sent in a DTLS 1.2 handshake.
   * `srtp` {string} SRTP profile list.
   * `ticketKeys` {Buffer} Session ticket keys, for resuming sessions across
     endpoints and restarts. Servers only. See [Session resumption][].
@@ -371,14 +372,24 @@ What changes under DTLS 1.3:
 * A server validates the peer's address with a cookie in a
   HelloRetryRequest rather than a HelloVerifyRequest; see
   [Denial of service][].
+* The server chooses the cipher suite from the first ClientHello, before the
+  peer's address is validated, because the HelloRetryRequest commits to it.
+  A client the server refuses at that point, for want of a common cipher
+  suite or because it offered a pre-shared key identity the server does not
+  know, is sent an alert, but no session is created for it and the server's
+  application is told nothing.
 * The server issues resumption tickets after the handshake rather than during
   it, so [`session.session`][] is `undefined` when `session.opened` settles.
   Use [`session.onsessionticket`][]; see [Session resumption][].
-* A server rejects a client certificate after the client has finished its
-  side of the handshake, so the client's `session.opened` can resolve and the
-  session then fail with a `certificate_required` or similar alert.
+* A missing client certificate is refused with a `certificate_required`
+  alert rather than `handshake_failure`. The server sends it after the client
+  has finished its side of the handshake, but a DTLS 1.3 client waits for the
+  server to acknowledge that flight, so its `session.opened` still rejects.
 * A wrong pre-shared key is rejected at once with a `decrypt_error` alert,
-  rather than stalling; see [Pre-shared keys][].
+  rather than stalling; see [Pre-shared keys][]. There is no identity hint,
+  and a client's `psk` callback is called while `dtls.connect()` builds the
+  first ClientHello, so an error it throws is reported through
+  `session.opened` alone.
 * [`session.send()`][] accepts at most 16383 bytes, and
   [`session.exportKeyingMaterial()`][] at most 255 hash lengths.
 * DTLS 1.3 has its own cipher suites, named like TLS 1.3's. As in `node:tls`,
@@ -558,7 +569,9 @@ Either side may pass a function instead, for keys that are looked up or
 derived rather than known up front. A server's is called with the identity the
 client offered and returns the key, or nothing to refuse it. A client's is
 called with the server's identity hint, if it sent one, and returns
-`{ identity, key }`:
+`{ identity, key }`. A DTLS 1.3 client offers its key in its first message,
+before the server has said anything, so there the callback is called without
+a hint, once for each ClientHello it sends:
 
 ```mjs
 listen(onsession, {
