@@ -1911,12 +1911,13 @@ void Environment::CheckImmediate(uv_check_t* handle) {
     return;
 
   do {
-    MakeCallback(env->isolate(),
+    MakeCallback(env,
                  env->process_object(),
                  env->immediate_callback_function(),
                  0,
                  nullptr,
-                 {0, 0}).ToLocalChecked();
+                 {0, 0})
+        .ToLocalChecked();
   } while (env->immediate_info()->has_outstanding() && env->can_call_into_js());
 
   if (env->immediate_info()->ref_count() == 0)

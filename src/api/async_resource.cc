@@ -41,14 +41,16 @@ MaybeLocal<Value> AsyncResource::MakeCallback(Local<Function> callback,
                                               int argc,
                                               Local<Value>* argv) {
   auto isolate = env_->isolate();
+  // The resource already knows its Environment, so it is not looked up again
+  // from the creation context of the callback, which must belong to it.
   // As in Node-API: node::MakeCallback() would run it with no frame.
-  return InternalMakeCallback(isolate,
-                              get_resource(),
-                              callback,
-                              argc,
-                              argv,
-                              async_context_,
-                              context_frame_.Get(isolate));
+  return MakeCallbackInEnvironment(env_,
+                                   get_resource(),
+                                   callback,
+                                   argc,
+                                   argv,
+                                   async_context_,
+                                   context_frame_.Get(isolate));
 }
 
 MaybeLocal<Value> AsyncResource::MakeCallback(const char* method,
