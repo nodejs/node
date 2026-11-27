@@ -444,6 +444,7 @@ const errorTests = [
       /\.clear/,
       /\.exit/,
       /\.help/,
+      /\.history/,
       /\.load/,
       /\.save/,
       '',
