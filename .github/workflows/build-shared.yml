@@ -56,6 +56,8 @@ jobs:
       - uses: cachix/install-nix-action@382a9ed9481c7c1f94f68b72ef105b3417c73877  # v32.1.0
         with:
           extra_nix_config: sandbox = true
+          install_url: ${{ inputs.runner == 'macos-15-intel' && 'https://releases.nixos.org/nix/nix-2.35.6/install' || '' }}
+          install_sha256: ${{ inputs.runner == 'macos-15-intel' && '6f7bf206efb54cd4941fb274930dbc74fdfc16fcb06757ef261c8d7d69cfd60e' || '' }}
 
       - name: Build Cachix
         if: ${{ inputs.runner == 'macos-15-intel' }}
