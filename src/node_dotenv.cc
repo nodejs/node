@@ -1,7 +1,9 @@
 #include "node_dotenv.h"
+#include <algorithm>
 #include <unordered_set>
 #include "env-inl.h"
 #include "node_file.h"
+#include "node_options.h"
 #include "uv.h"
 
 namespace node {
@@ -22,17 +24,31 @@ std::vector<Dotenv::env_file_data> Dotenv::GetDataFromArgs(
     const std::vector<std::string>& args) {
   const std::string_view optional_env_file_flag = "--env-file-if-exists";
 
-  const auto find_match = [](const std::string& arg) {
-    return arg == "--" || arg == "--env-file" ||
-           arg.starts_with("--env-file=") || arg == "--env-file-if-exists" ||
+  const auto is_env_file_flag = [](const std::string& arg) {
+    return arg == "--env-file" || arg.starts_with("--env-file=") ||
+           arg == "--env-file-if-exists" ||
            arg.starts_with("--env-file-if-exists=");
+  };
+  const auto find_match = [&](const std::string& arg) {
+    return arg == "--" || is_env_file_flag(arg);
   };
 
   std::vector<Dotenv::env_file_data> env_files;
-  // This will be an iterator, pointing to args.end() if no matches are found
-  auto matched_arg = std::ranges::find_if(args, find_match);
+  // Only pay for the extra parse when an env file flag might be present.
+  if (args.empty() ||
+      std::none_of(args.begin(), args.end(), is_env_file_flag)) {
+    return env_files;
+  }
 
-  while (matched_arg != args.end()) {
+  // Only the options of Node.js itself are considered. The script and its
+  // arguments are left alone.
+  const auto options_begin = args.begin() + 1;
+  const auto options_end =
+      args.begin() + options_parser::GetNodeOptionsEnd(args);
+  // This will be an iterator, pointing to options_end if no matches are found
+  auto matched_arg = std::find_if(options_begin, options_end, find_match);
+
+  while (matched_arg != options_end) {
     if (*matched_arg == "--") {
       return env_files;
     }
@@ -51,7 +67,7 @@ std::vector<Dotenv::env_file_data> Dotenv::GetDataFromArgs(
       // `--env-file path`
       auto file_path = std::next(matched_arg);
 
-      if (file_path == args.end()) {
+      if (file_path == options_end) {
         return env_files;
       }
 
@@ -60,7 +76,7 @@ std::vector<Dotenv::env_file_data> Dotenv::GetDataFromArgs(
       env_files.push_back(env_file_data);
     }
 
-    matched_arg = std::find_if(++matched_arg, args.end(), find_match);
+    matched_arg = std::find_if(++matched_arg, options_end, find_match);
   }
 
   return env_files;

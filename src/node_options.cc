@@ -655,6 +655,27 @@ void Parse(
     args, exec_args, v8_args, options, required_env_settings, errors);
 }
 
+size_t GetNodeOptionsEnd(const StringVector& args) {
+  // The bare config file flags take no value. Spell them out the way the
+  // config file reader does before the real parse, otherwise the parser would
+  // consume the next argument as the path.
+  StringVector remaining;
+  remaining.reserve(args.size());
+  for (const std::string& arg : args) {
+    remaining.push_back(IsBareConfigFileFlag(arg) ? DefaultConfigFileArg()
+                                                  : arg);
+  }
+
+  // Any errors are reported by the real parse later on.
+  PerProcessOptions options;
+  StringVector v8_args;
+  StringVector errors;
+  Parse(&remaining, nullptr, &v8_args, &options, kDisallowedInEnvvar, &errors);
+
+  // `remaining` is left with the program name and the unparsed arguments.
+  return args.size() - remaining.size() + 1;
+}
+
 // XXX: If you add an option here, please also add it to doc/node.1 and
 // doc/api/cli.md
 // TODO(addaleax): Make that unnecessary.
