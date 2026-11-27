@@ -37,7 +37,7 @@ const clientSession = await connect(serverEndpoint.address, {
 await clientSession.opened;
 
 // Send data on a stream. The server will reset it.
-const stream = await clientSession.createBidirectionalStream();
+const stream = clientSession.createBidirectionalStream();
 stream.setBody(new Uint8Array(4096));
 
 // The stream will error due to the server's reset.

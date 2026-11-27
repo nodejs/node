@@ -50,7 +50,7 @@ await clientSession.opened;
 let opened = 0;
 
 // First stream opens immediately (within the limit).
-const s1 = await clientSession.createBidirectionalStream({
+const s1 = clientSession.createBidirectionalStream({
   body: encoder.encode('stream 1'),
 });
 
@@ -59,26 +59,19 @@ s1.opened.then(() => {
   opened++;
 });
 
-let s2;
-await assert.rejects(
-  async () => {
-    // Second stream should not open, but throw.
-    s2 = await clientSession.createBidirectionalStream({
-      body: encoder.encode('stream 2a'),
-      waitUntilAvailable: false,
-    });
-    // eslint-disable-next-line node-core/must-call-assert
-    s2.opened.then(() => {
-      opened++;
-    });
-  },
+// Second stream should not open, but throw.
+assert.throws(
+  () => clientSession.createBidirectionalStream({
+    body: encoder.encode('stream 2a'),
+    waitUntilAvailable: false,
+  }),
   {
     name: 'Error',
     message: 'No new stream available within flow control',
   },
 );
 // Ok try again a second second stream, that patiently waits
-s2 = await clientSession.createBidirectionalStream({
+const s2 = clientSession.createBidirectionalStream({
   body: encoder.encode('stream 2b')
 });
 // eslint-disable-next-line node-core/must-call-assert
@@ -89,7 +82,7 @@ s2.opened.then(() => {
 
 // Third stream is created but queued as pending because the
 // server only allows 1 concurrent bidi stream.
-const s3 = await clientSession.createBidirectionalStream({
+const s3 = clientSession.createBidirectionalStream({
   body: encoder.encode('stream 3'),
 });
 
@@ -98,6 +91,8 @@ const s3 = await clientSession.createBidirectionalStream({
 // more stream credits.
 assert.strictEqual(s2.pending, true);
 assert.strictEqual(s3.pending, true);
+
+await s1.opened;
 assert.strictEqual(opened, 1);
 
 await dump(s1);
@@ -117,7 +112,7 @@ await s2.closed;
 
 await sleep(10); // We wait a bit, as we do not have a callback exposed to js
 // fourth stream should open immediately and not throw
-const s4 = await clientSession.createBidirectionalStream({
+const s4 = clientSession.createBidirectionalStream({
   body: encoder.encode('stream 4'),
   waitUntilAvailable: false
 });

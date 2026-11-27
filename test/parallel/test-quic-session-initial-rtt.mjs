@@ -39,7 +39,7 @@ const clientSession = await connect(serverEndpoint.address, {
 });
 await clientSession.opened;
 
-const stream = await clientSession.createBidirectionalStream({
+const stream = clientSession.createBidirectionalStream({
   body: payload,
 });
 

@@ -196,6 +196,10 @@ void PerProcessOptions::CheckProcessTimeoutOptions(
       errors->push_back(
           "--report-on-process-timeout must be used with --process-timeout");
     }
+    if (process_timeout_worker_stacks) {
+      errors->push_back("--process-timeout-worker-stacks must be used with "
+                        "--process-timeout");
+    }
     return;
   }
 
@@ -1823,6 +1827,10 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             "print why the process is still running and exit with code 124 "
             "if it has not exited after the given duration (e.g. 30s)",
             &PerProcessOptions::process_timeout);
+  AddOption("--process-timeout-worker-stacks",
+            "also print the JavaScript stacks of Worker threads when "
+            "--process-timeout expires",
+            BOOL_FIELD(process_timeout_worker_stacks));
 
   Insert(iop, &PerProcessOptions::get_per_isolate_options);
 

@@ -40,7 +40,7 @@ typedef int mode_t;
 namespace node {
 
 using v8::Array;
-using v8::ArrayBuffer;
+using v8::ArrayBufferBase;
 using v8::CFunction;
 using v8::Context;
 using v8::Float64Array;
@@ -100,7 +100,7 @@ static void Chdir(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
-inline Local<ArrayBuffer> get_fields_array_buffer(
+inline Local<ArrayBufferBase> get_fields_array_buffer(
     const FunctionCallbackInfo<Value>& args,
     size_t index,
     size_t array_length) {
@@ -108,7 +108,7 @@ inline Local<ArrayBuffer> get_fields_array_buffer(
   Local<Float64Array> arr = args[index].As<Float64Array>();
   CHECK_EQ(arr->Length(), array_length);
   CHECK_EQ(arr->ByteOffset(), 0);
-  return arr->Buffer();
+  return arr->GetBuffer();
 }
 
 // CPUUsage use libuv's uv_getrusage() this-process resource usage accessor,
@@ -126,7 +126,7 @@ static void CPUUsage(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowUVException(err, "uv_getrusage");
 
   // Get the double array pointer from the Float64Array argument.
-  Local<ArrayBuffer> ab = get_fields_array_buffer(args, 0, 2);
+  Local<ArrayBufferBase> ab = get_fields_array_buffer(args, 0, 2);
   double* fields = static_cast<double*>(ab->Data());
 
   // Set the Float64Array elements to be user / system values in microseconds.
@@ -149,7 +149,7 @@ static void ThreadCPUUsage(const FunctionCallbackInfo<Value>& args) {
   if (err) return env->ThrowUVException(err, "uv_getrusage_thread");
 
   // Get the double array pointer from the Float64Array argument.
-  Local<ArrayBuffer> ab = get_fields_array_buffer(args, 0, 2);
+  Local<ArrayBufferBase> ab = get_fields_array_buffer(args, 0, 2);
   double* fields = static_cast<double*>(ab->Data());
 
   // Set the Float64Array elements to be user / system values in microseconds.
@@ -231,7 +231,7 @@ static void MemoryUsage(const FunctionCallbackInfo<Value>& args) {
       env->isolate_data()->node_allocator();
 
   // Get the double array pointer from the Float64Array argument.
-  Local<ArrayBuffer> ab = get_fields_array_buffer(args, 0, 5);
+  Local<ArrayBufferBase> ab = get_fields_array_buffer(args, 0, 5);
   double* fields = static_cast<double*>(ab->Data());
 
   size_t rss;
@@ -370,7 +370,7 @@ static void ResourceUsage(const FunctionCallbackInfo<Value>& args) {
   if (err)
     return env->ThrowUVException(err, "uv_getrusage");
 
-  Local<ArrayBuffer> ab = get_fields_array_buffer(args, 0, 16);
+  Local<ArrayBufferBase> ab = get_fields_array_buffer(args, 0, 16);
   double* fields = static_cast<double*>(ab->Data());
 
   fields[0] = MICROS_PER_SEC * rusage.ru_utime.tv_sec + rusage.ru_utime.tv_usec;

@@ -337,7 +337,12 @@ void JSValueToSQLiteResult(Isolate* isolate,
   } else if (value->IsArrayBufferView() || value->IsArrayBuffer() ||
              value->IsSharedArrayBuffer()) {
     ArrayBufferViewContents<uint8_t> buf(value);
-    sqlite3_result_blob64(ctx, buf.data(), buf.length(), SQLITE_TRANSIENT);
+    if (buf.length() == 0) {
+      // Empty buffers may lack a data pointer, which SQLite treats as NULL.
+      sqlite3_result_zeroblob(ctx, 0);
+    } else {
+      sqlite3_result_blob64(ctx, buf.data(), buf.length(), SQLITE_TRANSIENT);
+    }
   } else if (value->IsBigInt()) {
     bool lossless;
     int64_t as_int = value.As<BigInt>()->Int64Value(&lossless);
@@ -368,6 +373,8 @@ inline void THROW_ERR_SQLITE_ERROR(Isolate* isolate, Database* db) {
       return;
     }
   }
+
+  if (db->ThrowIfPermissionDenied()) return;
 
   Local<Object> e;
   if (CreateSQLiteError(isolate, db->Connection()).ToLocal(&e)) {
@@ -620,6 +627,7 @@ class BackupJob : public ThreadPoolWork {
                      std::string source_db,
                      std::string destination_name,
                      std::string dest_db,
+                     std::shared_ptr<SQLitePermissionVFS> permission_vfs,
                      int pages,
                      Local<Function> progressFunc)
       : ThreadPoolWork(env, ThreadPoolWorkType::kSQLiteBackup),
@@ -628,7 +636,8 @@ class BackupJob : public ThreadPoolWork {
         pages_(pages),
         source_db_(std::move(source_db)),
         destination_name_(std::move(destination_name)),
-        dest_db_(std::move(dest_db)) {
+        dest_db_(std::move(dest_db)),
+        permission_vfs_(std::move(permission_vfs)) {
     resolver_.Reset(env->isolate(), resolver);
     progressFunc_.Reset(env->isolate(), progressFunc);
   }
@@ -640,13 +649,16 @@ class BackupJob : public ThreadPoolWork {
     backup_status_ = sqlite3_open_v2(
         destination_name_.c_str(),
         &dest_raw,
-        SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_URI,
-        nullptr);
+        SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE |
+            (permission_vfs_ == nullptr ? SQLITE_OPEN_URI : 0),
+        permission_vfs_ == nullptr ? nullptr : permission_vfs_->name().c_str());
     dest_.reset(dest_raw);
     Local<Promise::Resolver> resolver =
         Local<Promise::Resolver>::New(env()->isolate(), resolver_);
     if (backup_status_ != SQLITE_OK) {
-      Settle(resolver, CreateSQLiteError(isolate, dest_.get()), {});
+      Settle(resolver,
+             PermissionErrorOr(CreateSQLiteError(isolate, dest_.get())),
+             {});
       return;
     }
 
@@ -677,7 +689,9 @@ class BackupJob : public ThreadPoolWork {
 
     if (!(backup_status_ == SQLITE_OK || backup_status_ == SQLITE_DONE ||
           backup_status_ == SQLITE_BUSY || backup_status_ == SQLITE_LOCKED)) {
-      Settle(resolver, CreateSQLiteError(isolate, backup_status_), {});
+      Settle(resolver,
+             PermissionErrorOr(CreateSQLiteError(isolate, backup_status_)),
+             {});
       return;
     }
 
@@ -744,9 +758,21 @@ class BackupJob : public ThreadPoolWork {
       backup_status_ = sqlite3_errcode(dest_.get());
       dest_.reset();
     }
+
+    permission_vfs_.reset();
   }
 
  private:
+  MaybeLocal<Value> PermissionErrorOr(MaybeLocal<Object> sqlite_error) {
+    if (permission_vfs_ != nullptr) {
+      if (auto denied = permission_vfs_->TakeDenied(backup_status_)) {
+        return permission::CreateAccessDeniedError(
+            env(), denied->scope, denied->path);
+      }
+    }
+    return sqlite_error;
+  }
+
   // The single exit point of a backup. Rejects with `error` if it is set,
   // otherwise resolves with `value` if it is set. Neither being set means an
   // exception is already pending. Deletes the job.
@@ -776,6 +802,7 @@ class BackupJob : public ThreadPoolWork {
   std::string source_db_;
   std::string destination_name_;
   std::string dest_db_;
+  std::shared_ptr<SQLitePermissionVFS> permission_vfs_;
 };
 
 UserDefinedFunction::UserDefinedFunction(Environment* env,
@@ -1271,6 +1298,7 @@ int VirtualTableModule::xOpen(sqlite3_vtab* pVTab,
   cursor->hidden_values.assign(vtab->module->num_columns_, nullptr);
   cursor->rowid = 0;
   cursor->done = true;
+  cursor->closing = false;
   *ppCursor = &cursor->base;
   return SQLITE_OK;
 }
@@ -1278,6 +1306,15 @@ int VirtualTableModule::xOpen(sqlite3_vtab* pVTab,
 int VirtualTableModule::xClose(sqlite3_vtab_cursor* pCursor) {
   NodeVTabCursor* cursor = reinterpret_cast<NodeVTabCursor*>(pCursor);
   VirtualTableModule* mod = cursor->module;
+
+  // sqlite3_reset() from the iterator's return() can halt this VM again
+  // before the cursor slot is cleared, so xClose would run twice and free
+  // the cursor twice. The stepping guard rejects that re-entry; ignore a
+  // second close here as well.
+  if (cursor->closing) {
+    return SQLITE_OK;
+  }
+  cursor->closing = true;
 
   // Close the iterator so generator `finally` blocks still run when SQLite
   // stops stepping early, as it does for LIMIT or a `break` out of a for...of
@@ -1615,10 +1652,45 @@ void Database::MemoryInfo(MemoryTracker* tracker) const {
       "open_config", sizeof(open_config_), "DatabaseOpenConfiguration");
 }
 
+bool Database::ThrowIfPermissionDenied() {
+  if (permission_vfs_ == nullptr) return false;
+  auto denied = permission_vfs_->TakeDenied(sqlite3_errcode(connection_.get()));
+  if (!denied) return false;
+  permission::Permission::ThrowAccessDenied(env(), denied->scope, denied->path);
+  return true;
+}
+
 bool Database::Open() {
   if (IsOpen()) {
     THROW_ERR_INVALID_STATE(env(), "database is already open");
     return false;
+  }
+
+  // An anonymous temporary database has no path for the VFS to check.
+  if (open_config_.location().empty()) {
+    THROW_IF_INSUFFICIENT_PERMISSIONS(
+        env(), permission::PermissionScope::kFileSystemRead, "", false);
+    if (!open_config_.get_read_only()) {
+      THROW_IF_INSUFFICIENT_PERMISSIONS(
+          env(), permission::PermissionScope::kFileSystemWrite, "", false);
+    }
+  }
+
+  if (env()->permission()->enabled()) {
+    // Connections of the same Environment share one permission VFS.
+    BindingData* binding =
+        env()->principal_realm()->GetBindingData<BindingData>();
+    if (binding != nullptr) permission_vfs_ = binding->permission_vfs.lock();
+    if (permission_vfs_ == nullptr) {
+      permission_vfs_ = std::make_shared<SQLitePermissionVFS>(env());
+      if (!permission_vfs_->Register()) {
+        THROW_ERR_SQLITE_ERROR(env()->isolate(),
+                               "Unable to register the SQLite permission VFS");
+        permission_vfs_.reset();
+        return false;
+      }
+      if (binding != nullptr) binding->permission_vfs = permission_vfs_;
+    }
   }
 
   // sqlite3_open_v2() assigns a database handle even when it fails. Such a
@@ -1630,19 +1702,23 @@ bool Database::Open() {
   auto reset_connection_on_failure = OnScopeLeave([&]() {
     if (!opened) {
       connection_.reset();
+      permission_vfs_.reset();
     }
   });
 
   // TODO(cjihrig): Support additional flags.
-  int default_flags = SQLITE_OPEN_URI;
+  // TODO(araujogui): Support URI filenames with the permission model. A URI
+  // could select another VFS, bypassing the permission VFS.
+  int default_flags = permission_vfs_ == nullptr ? SQLITE_OPEN_URI : 0;
   int flags = open_config_.get_read_only()
                   ? SQLITE_OPEN_READONLY
                   : SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE;
   sqlite3* raw_conn = nullptr;
-  int r = sqlite3_open_v2(open_config_.location().c_str(),
-                          &raw_conn,
-                          flags | default_flags,
-                          nullptr);
+  int r = sqlite3_open_v2(
+      open_config_.location().c_str(),
+      &raw_conn,
+      flags | default_flags,
+      permission_vfs_ == nullptr ? nullptr : permission_vfs_->name().c_str());
   connection_.reset(raw_conn);
   CHECK_ERROR_OR_THROW(env()->isolate(), this, r, SQLITE_OK, false);
 
@@ -1739,11 +1815,18 @@ void Database::FinalizeBackups() {
 }
 
 void Database::FinalizeStatements() {
-  for (auto stmt : statements_) {
+  // Finalizing a statement can run JavaScript: closing a virtual-table cursor
+  // calls the generator's return(). That code can prepare another statement,
+  // which inserts into this set. Erase each statement first and keep going
+  // until the set is empty, so a statement created from that JavaScript is
+  // finalized before the connection is released. Holding an iterator across
+  // the insertion would also be undefined for std::unordered_set.
+  while (!statements_.empty()) {
+    auto it = statements_.begin();
+    Statement* stmt = *it;
+    statements_.erase(it);
     stmt->Finalize();
   }
-
-  statements_.clear();
 }
 
 void Database::TrackStatement(Statement* statement) {
@@ -1869,19 +1952,32 @@ std::optional<std::string> ValidateDatabasePath(Environment* env,
   constexpr auto has_null_bytes = [](std::string_view str) {
     return str.find('\0') != std::string_view::npos;
   };
+  // Without SQLITE_OPEN_URI, SQLite would open a file named "file:...".
+  const auto reject_uri = [&](std::string value) -> std::optional<std::string> {
+    if (env->permission()->enabled() && value.starts_with("file:")) {
+      THROW_ERR_INVALID_ARG_VALUE(
+          env->isolate(),
+          "The \"%s\" argument must not be a URL or SQLite URI filename when "
+          "the permission model is enabled.",
+          field_name);
+      return std::nullopt;
+    }
+    return value;
+  };
   if (path->IsString()) {
     Utf8Value location(env->isolate(), path.As<String>());
     if (!has_null_bytes(location.ToStringView())) {
-      return location.ToString();
+      return reject_uri(location.ToString());
     }
   } else if (path->IsUint8Array()) {
     Local<Uint8Array> buffer = path.As<Uint8Array>();
     size_t byteOffset = buffer->ByteOffset();
     size_t byteLength = buffer->ByteLength();
     auto data =
-        static_cast<const uint8_t*>(buffer->Buffer()->Data()) + byteOffset;
+        static_cast<const uint8_t*>(buffer->GetBuffer()->Data()) + byteOffset;
     if (std::find(data, data + byteLength, 0) == data + byteLength) {
-      return std::string(reinterpret_cast<const char*>(data), byteLength);
+      return reject_uri(
+          std::string(reinterpret_cast<const char*>(data), byteLength));
     }
   } else if (path->IsObject()) {  // When is URL
     auto url = path.As<Object>();
@@ -1901,7 +1997,7 @@ std::optional<std::string> ValidateDatabasePath(Environment* env,
           return std::nullopt;
         }
 
-        return location_value.ToString();
+        return reject_uri(location_value.ToString());
       }
     }
   }
@@ -2108,6 +2204,7 @@ void Database::Close(const FunctionCallbackInfo<Value>& args) {
   int r = sqlite3_close_v2(db->connection_.get());
   CHECK_ERROR_OR_THROW(env->isolate(), db, r, SQLITE_OK, void());
   db->connection_.release();
+  db->permission_vfs_.reset();
   // Backups can defer SQLite destruction until after the connection is closed.
   db->user_defined_functions_.clear();
 }
@@ -2951,6 +3048,7 @@ void Backup(const FunctionCallbackInfo<Value>& args) {
                                  std::move(source_db),
                                  dest_path.value(),
                                  std::move(dest_db),
+                                 db->PermissionVFS(),
                                  rate,
                                  progressFunc);
   db->AddBackup(job);
@@ -3237,9 +3335,8 @@ void Database::SetAuthorizer(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = env->isolate();
 
   if (args[0]->IsNull()) {
-    // Clear the authorizer
-    sqlite3_set_authorizer(db->connection_.get(), nullptr, nullptr);
     db->object()->SetInternalField(kAuthorizerCallback, Null(isolate));
+    sqlite3_set_authorizer(db->connection_.get(), nullptr, nullptr);
     return;
   }
 
@@ -3354,6 +3451,16 @@ int Database::TraceCallback(unsigned int type,
   // that is the path SQLite takes during environment teardown.
   if (db->AreTraceEventsSuppressed() || ch == nullptr ||
       !ch->HasSubscribers()) {
+    return 0;
+  }
+
+  // The profile callback also runs when a statement fails and when it is
+  // reset, both of which can happen while a JavaScript exception is already
+  // pending: a throwing SQL function, or a row value that cannot be converted.
+  // Publishing here would enter V8 with that exception still set. Debug
+  // builds then abort in Invoke, and release builds drop the user's error or
+  // replace it with an empty ERR_SQLITE_ERROR.
+  if (!env->can_call_into_js() || env->isolate()->HasPendingException()) {
     return 0;
   }
 
@@ -3632,11 +3739,16 @@ bool Statement::BindValue(const Local<Value>& value, const int index) {
   } else if (value->IsArrayBufferView() || value->IsArrayBuffer() ||
              value->IsSharedArrayBuffer()) {
     ArrayBufferViewContents<uint8_t> buf(value);
-    r = sqlite3_bind_blob64(statement_.get(),
-                            index,
-                            buf.data(),
-                            static_cast<sqlite3_uint64>(buf.length()),
-                            SQLITE_TRANSIENT);
+    if (buf.length() == 0) {
+      // Empty buffers may lack a data pointer, which SQLite treats as NULL.
+      r = sqlite3_bind_zeroblob(statement_.get(), index, 0);
+    } else {
+      r = sqlite3_bind_blob64(statement_.get(),
+                              index,
+                              buf.data(),
+                              static_cast<sqlite3_uint64>(buf.length()),
+                              SQLITE_TRANSIENT);
+    }
   } else if (value->IsBoolean()) {
     r = sqlite3_bind_int(statement_.get(), index, value->IsTrue() ? 1 : 0);
   } else if (value->IsBigInt()) {
@@ -4142,6 +4254,15 @@ void Statement::ExpandedSQLGetter(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(result);
 }
 
+void Statement::ColumnCountGetter(const FunctionCallbackInfo<Value>& args) {
+  Statement* stmt;
+  ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
+  Environment* env = Environment::GetCurrent(args);
+  THROW_AND_RETURN_ON_BAD_STATE(
+      env, stmt->IsFinalized(), "statement has been finalized");
+  args.GetReturnValue().Set(sqlite3_column_count(stmt->statement_.get()));
+}
+
 void Statement::Stat(const FunctionCallbackInfo<Value>& args) {
   Statement* stmt;
   ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
@@ -4356,6 +4477,10 @@ bool SQLTagStore::ResetAndBindStatement(
     Statement* stmt,
     const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = env->isolate();
+  // sqlite3_reset() closes an open virtual-table cursor, and xClose runs the
+  // generator's return() in JavaScript. Hold the stepping guard so a nested
+  // reset of this same statement fails instead of freeing that cursor twice.
+  SteppingStatementGuard stepping(stmt->db_.get(), stmt->statement_.get());
   int r = stmt->ResetStatement();
   CHECK_ERROR_OR_THROW(isolate, stmt->db_.get(), r, SQLITE_OK, false);
 
@@ -4455,6 +4580,11 @@ void SQLTagStore::All(const FunctionCallbackInfo<Value>& args) {
     return;
   }
   Environment* env = Environment::GetCurrent(args);
+
+  // PrepareForExecution() holds the guard for its own reset, but this one
+  // also spans the reset below, which runs on the error path and can close
+  // a virtual-table cursor as well.
+  SteppingStatementGuard stepping(stmt->db_.get(), stmt->statement_.get());
 
   Isolate* isolate = env->isolate();
   bool needs_reset = true;
@@ -4597,6 +4727,10 @@ Local<FunctionTemplate> Statement::GetConstructorTemplate(Environment* env) {
                             tmpl,
                             FIXED_ONE_BYTE_STRING(isolate, "expandedSQL"),
                             Statement::ExpandedSQLGetter);
+    SetSideEffectFreeGetter(isolate,
+                            tmpl,
+                            FIXED_ONE_BYTE_STRING(isolate, "columnCount"),
+                            Statement::ColumnCountGetter);
     SetProtoMethodNoSideEffect(isolate, tmpl, "stat", Statement::Stat);
     SetProtoMethod(isolate, tmpl, "resetStats", Statement::ResetStats);
     SetProtoMethod(isolate,
@@ -4774,6 +4908,11 @@ void StatementIterator::Return(const FunctionCallbackInfo<Value>& args) {
     // is invoked by the language during abrupt completion (e.g. a `throw`
     // inside a `for...of` body), and throwing on a deferred SQLite error
     // would discard the caller's already-pending exception.
+    // sqlite3_reset() closes an open virtual-table cursor and runs its
+    // generator's return() in JavaScript. The guard makes a nested reset of
+    // this same statement fail instead of freeing that cursor twice.
+    SteppingStatementGuard stepping(iter->stmt_->db_.get(),
+                                    iter->stmt_->statement_.get());
     sqlite3_reset(iter->stmt_->statement_.get());
   }
   iter->done_ = true;

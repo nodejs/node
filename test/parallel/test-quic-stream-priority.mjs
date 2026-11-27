@@ -37,7 +37,7 @@ const streamClosedPromises = [];
 // Test 1: Priority getter returns null for non-HTTP/3 sessions.
 //         setPriority throws because the session doesn't support priority.
 {
-  const stream = await clientSession.createBidirectionalStream();
+  const stream = clientSession.createBidirectionalStream();
   streamClosedPromises.push(stream.closed);
   assert.strictEqual(stream.priority, null);
 
@@ -49,27 +49,27 @@ const streamClosedPromises = [];
 
 // Test 2: Validation of createStream priority/incremental options
 {
-  await assert.rejects(
-    clientSession.createBidirectionalStream({ priority: 'urgent' }),
+  assert.throws(
+    () => clientSession.createBidirectionalStream({ priority: 'urgent' }),
     { code: 'ERR_INVALID_ARG_VALUE' },
   );
-  await assert.rejects(
-    clientSession.createBidirectionalStream({ priority: 42 }),
+  assert.throws(
+    () => clientSession.createBidirectionalStream({ priority: 42 }),
     { code: 'ERR_INVALID_ARG_VALUE' },
   );
-  await assert.rejects(
-    clientSession.createBidirectionalStream({ incremental: 'yes' }),
+  assert.throws(
+    () => clientSession.createBidirectionalStream({ incremental: 'yes' }),
     { code: 'ERR_INVALID_ARG_TYPE' },
   );
-  await assert.rejects(
-    clientSession.createBidirectionalStream({ incremental: 1 }),
+  assert.throws(
+    () => clientSession.createBidirectionalStream({ incremental: 1 }),
     { code: 'ERR_INVALID_ARG_TYPE' },
   );
 }
 
 // Test 3: setPriority throws on non-H3 sessions regardless of arguments
 {
-  const stream = await clientSession.createBidirectionalStream();
+  const stream = clientSession.createBidirectionalStream();
   streamClosedPromises.push(stream.closed);
 
   assert.throws(

@@ -20,6 +20,17 @@
 
 #define ZSTD_LDM_DEFAULT_WINDOW_LOG ZSTD_WINDOWLOG_LIMIT_DEFAULT
 
+typedef struct {
+    U64 rolling;
+    U64 stopMask;
+} ldmRollingHashState_t;
+
+void ZSTD_ldm_gear_reset(ldmRollingHashState_t* state,
+                        BYTE const* data, size_t minMatchLength);
+size_t ZSTD_ldm_gear_feed(ldmRollingHashState_t* state,
+                         BYTE const* data, size_t size,
+                         size_t* splits, unsigned* numSplits);
+
 void ZSTD_ldm_fillHashTable(
             ldmState_t* state, const BYTE* ip,
             const BYTE* iend, ldmParams_t const* params);

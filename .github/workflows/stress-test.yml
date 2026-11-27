@@ -52,7 +52,9 @@ jobs:
       # test lib-only or test-only deflaking changes. This should be able to pick up cache from
       # test-linux.yml and test-macos.yml running on the main branch.
       SCCACHE_GHA_ENABLED: 'true'
+      SCCACHE_GHA_RW_MODE: READ_ONLY
       SCCACHE_IDLE_TIMEOUT: '0'
+      CARGO_BUILD_RUSTC_WRAPPER: sccache
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
@@ -78,7 +80,7 @@ jobs:
       - name: Set up sccache
         uses: Mozilla-Actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba  # v0.0.11
         with:
-          version: v0.17.0
+          version: v0.19.0
       # This is needed due to https://github.com/nodejs/build/issues/3878
       - name: Cleanup
         if: runner.os == 'macOS'

@@ -20,6 +20,7 @@ namespace node {
 
 using v8::Array;
 using v8::ArrayBuffer;
+using v8::ArrayBufferBase;
 using v8::ArrayBufferView;
 using v8::BackingStore;
 using v8::BackingStoreInitializationMode;
@@ -278,7 +279,10 @@ namespace {
 // QUIC API.
 // Returns nullptr on zero length or allocation failure.
 std::unique_ptr<DataQueue::Entry> CreateEntryFromBuffer(
-    Environment* env, Local<ArrayBuffer> buffer, size_t offset, size_t length) {
+    Environment* env,
+    Local<ArrayBufferBase> buffer,
+    size_t offset,
+    size_t length) {
   if (length == 0) return nullptr;
   JS_TRY_ALLOCATE_BACKING_OR_RETURN(env, copy, length, nullptr);
   memcpy(copy->Data(),
@@ -329,7 +333,8 @@ Maybe<std::shared_ptr<DataQueue>> Stream::GetDataQueueFromSource(
     auto offset = view->ByteOffset();
     auto length = view->ByteLength();
     if (length > 0) {
-      auto entry = CreateEntryFromBuffer(env, view->Buffer(), offset, length);
+      auto entry =
+          CreateEntryFromBuffer(env, view->GetBuffer(), offset, length);
       if (!entry) {
         return Nothing<std::shared_ptr<DataQueue>>();
       }
@@ -1368,8 +1373,8 @@ void Stream::WriteStreamData(const FunctionCallbackInfo<Value>& args) {
     auto view = value.As<Uint8Array>();
     auto length = view->ByteLength();
     if (length == 0) return true;
-    auto entry =
-        CreateEntryFromBuffer(env, view->Buffer(), view->ByteOffset(), length);
+    auto entry = CreateEntryFromBuffer(
+        env, view->GetBuffer(), view->ByteOffset(), length);
     if (!entry) {
       return false;
     }

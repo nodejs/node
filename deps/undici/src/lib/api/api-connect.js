@@ -4,7 +4,7 @@ const assert = require('node:assert')
 const { AsyncResource } = require('node:async_hooks')
 const { InvalidArgumentError, SocketError } = require('../core/errors')
 const util = require('../core/util')
-const { addSignal, removeSignal } = require('./abort-signal')
+const { addSignal, removeSignal, dispatchWithSignal } = require('./abort-signal')
 
 class ConnectHandler extends AsyncResource {
   constructor (opts, callback) {
@@ -99,7 +99,11 @@ function connect (opts, callback) {
   try {
     const connectHandler = new ConnectHandler(opts, callback)
     const connectOptions = { ...opts, method: 'CONNECT' }
-    this.dispatch(connectOptions, connectHandler)
+    if (opts.signal == null) {
+      this.dispatch(connectOptions, connectHandler)
+    } else {
+      dispatchWithSignal(this, connectOptions, connectHandler)
+    }
   } catch (err) {
     if (typeof callback !== 'function') {
       throw err

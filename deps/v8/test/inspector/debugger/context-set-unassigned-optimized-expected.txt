@@ -1,0 +1,9 @@
+Tests that Debugger.evaluateOnCallFrame and Debugger.setVariableValue on kNotAssigned context slots deoptimize optimized closures.
+evalScope.read before: 1
+evalScope.read after evaluateOnCallFrame: 100
+evalScope.read re-optimized: 100
+evalScope.read after second evaluateOnCallFrame: 200
+setVarScope.read before: 2
+readScriptConst before: 10
+setVarScope.read after setVariableValue: 300
+readScriptConst after setVariableValue: 400

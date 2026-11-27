@@ -7417,8 +7417,8 @@ bool Heap::GcSafeInstructionStreamContains(
 
 std::optional<Tagged<InstructionStream>>
 Heap::GcSafeTryFindInstructionStreamForInnerPointer(Address inner_pointer) {
-  std::optional<Address> start =
-      ThreadIsolation::StartOfJitAllocationAt(inner_pointer);
+  std::optional<Address> start = ThreadIsolation::StartOfJitAllocationAt(
+      inner_pointer, ThreadIsolation::JitAllocationType::kInstructionStream);
   if (start.has_value()) {
     return UncheckedCast<InstructionStream>(HeapObject::FromAddress(*start));
   }

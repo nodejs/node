@@ -169,6 +169,7 @@ const server = tls.createServer({
   // Offering only this group makes the server answer a TLS 1.3 client, whose
   // first key share is for a different curve, with a HelloRetryRequest.
   ecdhCurve: 'P-521',
+  allowRenegotiation: true,
 }, (socket) => {
   socket.on('error', () => {});
   socket.resume();

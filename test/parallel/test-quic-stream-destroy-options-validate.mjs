@@ -21,7 +21,7 @@ const serverEndpoint = await listen(mustCall(() => true));
 const clientSession = await connect(serverEndpoint.address);
 await clientSession.opened;
 
-const stream = await clientSession.createBidirectionalStream();
+const stream = clientSession.createBidirectionalStream();
 
 stream.onerror = mustNotCall(
   'stream.onerror must not fire when destroy() throws on bad options');

@@ -163,6 +163,8 @@ extern macro WasmBuiltinsAssembler::LoadContextFromWasmOrJsFrame():
 extern macro WasmBuiltinsAssembler::StringToFloat64(String): float64;
 
 extern macro WasmBuiltinsAssembler::InSharedSpace(HeapObject): bool;
+extern macro WasmBuiltinsAssembler::LoadWasmRefFromSlot(
+    HeapObject|TaggedZeroPattern, intptr): Object;
 
 extern macro SwitchToTheCentralStackIfNeeded(): RawPtr;
 extern macro SwitchFromTheCentralStack(RawPtr): void;

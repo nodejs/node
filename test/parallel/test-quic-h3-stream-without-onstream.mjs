@@ -66,7 +66,7 @@ function failOnConsumerWarning(warning) {
   await clientSession.opened;
 
   const headersReceived = Promise.withResolvers();
-  const stream = await clientSession.createBidirectionalStream({
+  const stream = clientSession.createBidirectionalStream({
     headers: {
       ':method': 'GET',
       ':path': '/test',
@@ -122,7 +122,7 @@ function failOnConsumerWarning(warning) {
   });
   await clientSession.opened;
 
-  const stream = await clientSession.createUnidirectionalStream();
+  const stream = clientSession.createUnidirectionalStream();
   stream.writer.writeSync('x');
 
   await warned.promise;
@@ -155,7 +155,7 @@ const kNonConsumerCallbacks = ['oninfo', 'ontrailers', 'onwanttrailers'];
     verifyPeer: 'manual',
   });
   await bootSession.opened;
-  const probeStream = await bootSession.createBidirectionalStream();
+  const probeStream = bootSession.createBidirectionalStream();
   probeStream.onerror = () => {};
   const candidates = Object.getOwnPropertyNames(Object.getPrototypeOf(probeStream))
     .filter((name) => name.startsWith('on'));
@@ -182,7 +182,7 @@ const kNonConsumerCallbacks = ['oninfo', 'ontrailers', 'onwanttrailers'];
     verifyPeer: 'manual',
   });
   await clientSession.opened;
-  const stream = await clientSession.createBidirectionalStream({
+  const stream = clientSession.createBidirectionalStream({
     headers: {
       ':method': 'GET',
       ':path': '/test',
@@ -228,7 +228,7 @@ for (const callbackName of kNonConsumerCallbacks) {
   });
   await clientSession.opened;
 
-  const stream = await clientSession.createBidirectionalStream({
+  const stream = clientSession.createBidirectionalStream({
     headers: {
       ':method': 'GET',
       ':path': '/test',

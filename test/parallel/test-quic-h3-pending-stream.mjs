@@ -53,7 +53,7 @@ const decoder = new TextDecoder();
 
   // Create the stream BEFORE awaiting opened. The stream is pending
   // until the handshake completes and the QUIC stream can be opened.
-  const stream = await clientSession.createBidirectionalStream({
+  const stream = clientSession.createBidirectionalStream({
     headers: {
       ':method': 'GET',
       ':path': '/pending',

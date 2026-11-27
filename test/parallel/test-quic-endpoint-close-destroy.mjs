@@ -65,7 +65,7 @@ const encoder = new TextEncoder();
   await clientSession.opened;
 
   // Send some data so the server session has work to do.
-  const stream = await clientSession.createBidirectionalStream({
+  const stream = clientSession.createBidirectionalStream({
     body: encoder.encode('test'),
   });
 

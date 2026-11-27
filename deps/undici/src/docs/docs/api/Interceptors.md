@@ -204,9 +204,6 @@ and `x-compress`, is left untouched, matching `fetch()`. As required by
 [RFC 9659](https://www.rfc-editor.org/rfc/rfc9659.html), a `zstd` frame that
 requires a window size larger than 8 MB fails to decode.
 
-> **Experimental:** This interceptor is experimental and subject to change.
-> A one-time `ExperimentalWarning` is emitted on first use.
-
 **Parameters**
 
 * `opts` {Object} (optional)
@@ -359,12 +356,25 @@ backing store.
 
 **Returns:** {Dispatcher.DispatcherComposeInterceptor}
 
+> **Ordering:** the `cache` interceptor must be composed **after** the
+> `redirect` interceptor. When `cache` is composed before `redirect`, the cache
+> handler is wrapped above the redirect handler, so it never observes the
+> redirect history and its cross-origin / credential-bearing redirect guards are
+> silently disabled, which lets an attacker-controlled or cross-principal
+> redirect response be stored under the trusted origin's cache key and replayed
+> to unrelated callers (GHSA-75VM-9G8F-99J4, GHSA-MQG3-3V4R-CM32,
+> GHSA-4W7W-5XRC-9H26, GHSA-7XG3-FPHP-28HG). `compose()` throws an
+> `InvalidArgumentError` for this unsafe order. The `deduplicate` interceptor
+> participates in the same redirect-history contract and may be placed before or
+> after `redirect`, as long as `cache` follows `redirect`.
+
 **Example**
 
 ```js
 import { Agent, interceptors, cacheStores } from 'undici'
 
 const agent = new Agent().compose(
+  interceptors.redirect({ maxRedirections: 5 }),
   interceptors.cache({ store: new cacheStores.MemoryCacheStore() })
 )
 ```

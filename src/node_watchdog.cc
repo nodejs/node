@@ -21,6 +21,8 @@
 
 #include <algorithm>
 #include <cstdlib>
+#include <map>
+#include <memory>
 #include <string>
 #include <unordered_set>
 #include <utility>
@@ -250,22 +252,12 @@ class ResourceList {
   std::vector<Entry> entries_;
 };
 
-// Describes what the main thread was doing and what keeps the event loop
-// alive. This must not call into JavaScript, as it may run from a V8 interrupt.
-std::string FormatProcessTimeoutDiagnostics(Environment* env) {
-  Isolate* isolate = env->isolate();
+// Describes what keeps the event loop of `env` alive. `whose` is "the" for the
+// main thread and "its" for a Worker thread. This must not call into
+// JavaScript, as it may run from a V8 interrupt, and must run on the thread
+// that owns `env`.
+std::string FormatResources(Environment* env, const char* whose) {
   std::string result;
-
-  Local<StackTrace> stack;
-  if (GetCurrentStackTrace(isolate, static_cast<int>(env->stack_trace_limit()))
-          .ToLocal(&stack) &&
-      stack->GetFrameCount() > 0) {
-    result += "Main thread was executing JavaScript:\n";
-    result += FormatJavaScriptStack(isolate, stack);
-  } else {
-    result += "Main thread was not executing JavaScript.\n";
-  }
-
   ResourceList resources;
 
   for (ReqWrapBase* req_wrap : *env->req_wrap_queue()) {
@@ -340,10 +332,144 @@ std::string FormatProcessTimeoutDiagnostics(Environment* env) {
       &walk_data);
 
   if (resources.empty()) {
-    result += "No resources keeping the event loop alive were found.\n";
+    result += SPrintF("No resources keeping %s event loop alive were found.\n",
+                      whose);
   } else {
-    result += "Resources keeping the event loop alive:\n";
+    result += SPrintF("Resources keeping %s event loop alive:\n", whose);
     result += resources.ToString();
+  }
+  return result;
+}
+
+// Describes what the main thread was doing and what keeps the event loop
+// alive. This must not call into JavaScript, as it may run from a V8 interrupt.
+std::string FormatProcessTimeoutDiagnostics(Environment* env) {
+  Isolate* isolate = env->isolate();
+  std::string result;
+
+  Local<StackTrace> stack;
+  if (GetCurrentStackTrace(isolate, static_cast<int>(env->stack_trace_limit()))
+          .ToLocal(&stack) &&
+      stack->GetFrameCount() > 0) {
+    result += "Main thread was executing JavaScript:\n";
+    result += FormatJavaScriptStack(isolate, stack);
+  } else {
+    result += "Main thread was not executing JavaScript.\n";
+  }
+  return result + FormatResources(env, "the");
+}
+
+// What the Worker threads were doing, keyed by thread id so that they are
+// printed in the order in which the Workers were created. Shared with the
+// interrupt callbacks, which can outlive FormatWorkerStacks() if a Worker
+// thread does not respond in time.
+struct WorkerStacks {
+  struct Entry {
+    std::string name;
+    // 0 for Workers created by the main thread.
+    uint64_t parent_thread_id = 0;
+    bool responded = false;
+    // Empty if the Worker thread was not executing JavaScript.
+    std::string stack;
+    // What keeps the Worker thread's event loop alive.
+    std::string resources;
+  };
+
+  Mutex mutex;
+  ConditionVariable notify;
+  std::map<uint64_t, Entry> entries;
+  size_t pending = 0;
+};
+
+// Asks the Workers of `env`, and through them their own Workers, for their
+// JavaScript stacks and the resources keeping their event loops alive. This
+// does not wait for the answers.
+void RequestWorkerStacks(Environment* env,
+                         const std::shared_ptr<WorkerStacks>& shared,
+                         uint64_t parent_thread_id) {
+  env->ForEachWorker([&](worker::Worker* worker) {
+    if (worker->is_stopped()) return;
+    const uint64_t thread_id = worker->thread_id();
+    {
+      Mutex::ScopedLock lock(shared->mutex);
+      WorkerStacks::Entry& entry = shared->entries[thread_id];
+      entry.name = worker->name();
+      entry.parent_thread_id = parent_thread_id;
+      shared->pending++;
+    }
+    const bool requested =
+        worker->RequestInterrupt([shared, thread_id](Environment* worker_env) {
+          Isolate* isolate = worker_env->isolate();
+          HandleScope handle_scope(isolate);
+          std::string stack;
+          std::string resources;
+          {
+            Isolate::DisallowJavascriptExecutionScope disallow_js(
+                isolate,
+                Isolate::DisallowJavascriptExecutionScope::CRASH_ON_FAILURE);
+            Local<StackTrace> trace;
+            if (GetCurrentStackTrace(
+                    isolate, static_cast<int>(worker_env->stack_trace_limit()))
+                    .ToLocal(&trace)) {
+              stack = FormatJavaScriptStack(isolate, trace);
+            }
+            resources = FormatResources(worker_env, "its");
+          }
+          // Request the stacks of nested Workers before this one counts as
+          // done, so that the main thread waits for them as well.
+          RequestWorkerStacks(worker_env, shared, thread_id);
+
+          Mutex::ScopedLock lock(shared->mutex);
+          WorkerStacks::Entry& entry = shared->entries[thread_id];
+          entry.responded = true;
+          entry.stack = std::move(stack);
+          entry.resources = std::move(resources);
+          shared->pending--;
+          shared->notify.Signal(lock);
+        });
+    if (!requested) {
+      // The Worker thread has already stopped.
+      Mutex::ScopedLock lock(shared->mutex);
+      shared->entries.erase(thread_id);
+      shared->pending--;
+    }
+  });
+}
+
+// Describes what the Worker threads were doing and what keeps their event loops
+// alive, for --process-timeout-worker-stacks. Worker threads that are blocked,
+// e.g. in a synchronous native call, cannot respond, so they are waited for
+// only briefly.
+std::string FormatWorkerStacks(Environment* env) {
+  auto shared = std::make_shared<WorkerStacks>();
+  RequestWorkerStacks(env, shared, 0);
+
+  const uint64_t deadline =
+      uv_hrtime() + kProcessTimeoutResponseGraceMs * kNanosecondsPerMillisecond;
+  Mutex::ScopedLock lock(shared->mutex);
+  while (shared->pending > 0) {
+    const uint64_t now = uv_hrtime();
+    if (now >= deadline) break;
+    shared->notify.TimedWait(lock, deadline - now);
+  }
+
+  std::string result;
+  for (const auto& [thread_id, entry] : shared->entries) {
+    result += SPrintF("Worker thread %d", thread_id);
+    if (!entry.name.empty()) result += SPrintF(" (name '%s')", entry.name);
+    if (entry.parent_thread_id != 0) {
+      result +=
+          SPrintF(", created by Worker thread %d,", entry.parent_thread_id);
+    }
+    if (!entry.responded) {
+      result += SPrintF(" did not respond within %dms.\n",
+                        kProcessTimeoutResponseGraceMs);
+    } else if (entry.stack.empty()) {
+      result += " was not executing JavaScript.\n";
+    } else {
+      result += " was executing JavaScript:\n" + entry.stack;
+    }
+    result += entry.resources;
   }
   return result;
 }
@@ -364,8 +490,14 @@ struct ProcessTimeoutWatchdog::State {
     kDisarmed,
   };
 
-  State(uint64_t deadline, std::string duration, bool report)
-      : deadline(deadline), duration(std::move(duration)), report(report) {
+  State(uint64_t deadline,
+        std::string duration,
+        bool report,
+        bool worker_stacks)
+      : deadline(deadline),
+        duration(std::move(duration)),
+        report(report),
+        worker_stacks(worker_stacks) {
     CHECK_EQ(uv_mutex_init(&mutex), 0);
     CHECK_EQ(uv_cond_init(&cond), 0);
   }
@@ -397,6 +529,8 @@ struct ProcessTimeoutWatchdog::State {
   const std::string duration;
   // --report-on-process-timeout
   const bool report;
+  // --process-timeout-worker-stacks
+  const bool worker_stacks;
 };
 
 bool ProcessTimeoutWatchdog::IsEnabled() {
@@ -410,11 +544,13 @@ std::unique_ptr<ProcessTimeoutWatchdog> ProcessTimeoutWatchdog::MaybeStart(
   uint64_t timeout_ms;
   std::string duration;
   bool report;
+  bool worker_stacks;
   {
     Mutex::ScopedLock lock(per_process::cli_options_mutex);
     timeout_ms = per_process::cli_options->process_timeout_ms;
     duration = per_process::cli_options->process_timeout;
     report = per_process::cli_options->report_on_process_timeout;
+    worker_stacks = per_process::cli_options->process_timeout_worker_stacks;
   }
   if (timeout_ms == 0) return nullptr;
 
@@ -424,7 +560,8 @@ std::unique_ptr<ProcessTimeoutWatchdog> ProcessTimeoutWatchdog::MaybeStart(
 
   const uint64_t deadline =
       per_process::node_start_time + timeout_ms * kNanosecondsPerMillisecond;
-  auto state = std::make_shared<State>(deadline, std::move(duration), report);
+  auto state = std::make_shared<State>(
+      deadline, std::move(duration), report, worker_stacks);
   return std::unique_ptr<ProcessTimeoutWatchdog>(
       new ProcessTimeoutWatchdog(env, std::move(state)));
 }
@@ -566,6 +703,9 @@ void ProcessTimeoutWatchdog::OnTimeout(Environment* env,
             "%s%s",
             FormatProcessTimeoutHeader(state->duration),
             FormatProcessTimeoutDiagnostics(env));
+    if (state->worker_stacks) {
+      FPrintF(stderr, "%s", FormatWorkerStacks(env));
+    }
     fflush(stderr);
 
     if (state->report) {

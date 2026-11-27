@@ -120,8 +120,27 @@ InternalCallbackScope::InternalCallbackScope(
     prior_context_frame_.Reset(isolate, prior_context_frame);
   }
 
-  env->async_hooks()->push_async_context(
-      async_context_.async_id, async_context_.trigger_async_id, object);
+  AsyncHooks* hooks = env->async_hooks();
+  if (hooks->fields()[AsyncHooks::kTotals] == 0 &&
+      hooks->fields()[AsyncHooks::kUsesExecutionAsyncResource] == 0)
+      [[likely]] {
+    // Nobody can see the id stack: swap the ids in place, they are all that
+    // executionAsyncId() and triggerAsyncId() read.
+    AliasedFloat64Array& ids = hooks->async_id_fields();
+    prior_async_id_ = ids[AsyncHooks::kExecutionAsyncId];
+    prior_trigger_async_id_ = ids[AsyncHooks::kTriggerAsyncId];
+    ids[AsyncHooks::kExecutionAsyncId] = async_context_.async_id;
+    ids[AsyncHooks::kTriggerAsyncId] = async_context_.trigger_async_id;
+    lazy_depth_ = hooks->fields()[AsyncHooks::kStackLength];
+    lazy_resource_ = object;
+    lazy_prev_ = hooks->lazy_top_;
+    hooks->lazy_top_ = this;
+    hooks->fields()[AsyncHooks::kLazyScopes] += 1;
+    lazy_ids_ = true;
+  } else {
+    hooks->push_async_context(
+        async_context_.async_id, async_context_.trigger_async_id, object);
+  }
 
   pushed_ids_ = true;
 
@@ -130,6 +149,13 @@ InternalCallbackScope::InternalCallbackScope(
     // an exception occurs.
     AsyncWrap::EmitBefore(env, asyncContext.async_id);
   }
+}
+
+Local<Object> InternalCallbackScope::lazy_resource(Isolate* isolate) const {
+  if (std::holds_alternative<Local<Object>*>(lazy_resource_)) {
+    return *std::get<Local<Object>*>(lazy_resource_);
+  }
+  return std::get<Global<Object>*>(lazy_resource_)->Get(isolate);
 }
 
 InternalCallbackScope::~InternalCallbackScope() {
@@ -162,7 +188,20 @@ void InternalCallbackScope::Close() {
   }
 
   if (pushed_ids_) {
-    env_->async_hooks()->pop_async_context(async_context_.async_id);
+    AsyncHooks* hooks = env_->async_hooks();
+    if (lazy_ids_) {
+      // clear_async_id_stack() may have dropped the chain already.
+      if (hooks->lazy_top_ == this) {
+        hooks->CheckLazyClose(async_context_.async_id, lazy_depth_);
+        hooks->lazy_top_ = lazy_prev_;
+        hooks->fields()[AsyncHooks::kLazyScopes] -= 1;
+      }
+      AliasedFloat64Array& ids = hooks->async_id_fields();
+      ids[AsyncHooks::kExecutionAsyncId] = prior_async_id_;
+      ids[AsyncHooks::kTriggerAsyncId] = prior_trigger_async_id_;
+    } else {
+      hooks->pop_async_context(async_context_.async_id);
+    }
 
     async_context_frame::set(env_, prior_context_frame_.Get(isolate));
   }
@@ -350,6 +389,29 @@ MaybeLocal<Value> InternalMakeCallback(Isolate* isolate,
   }
   Environment* env = Environment::GetCurrent(context);
   CHECK_NOT_NULL(env);
+  return MakeCallbackInEnvironment(
+      env, recv, callback, argc, argv, asyncContext, context_frame);
+}
+
+MaybeLocal<Value> MakeCallback(Environment* env,
+                               Local<Object> recv,
+                               Local<Function> callback,
+                               int argc,
+                               Local<Value> argv[],
+                               async_context asyncContext) {
+  CHECK_NOT_NULL(env);
+  return MakeCallbackInEnvironment(
+      env, recv, callback, argc, argv, asyncContext, Undefined(env->isolate()));
+}
+
+MaybeLocal<Value> MakeCallbackInEnvironment(Environment* env,
+                                            Local<Object> recv,
+                                            const Local<Function> callback,
+                                            int argc,
+                                            Local<Value> argv[],
+                                            async_context asyncContext,
+                                            Local<Value> context_frame) {
+  Isolate* isolate = env->isolate();
   // Entering the context changes nothing when it is already the entered and
   // the current one, which is the common case for addons.
   Local<Context> env_context = env->context();

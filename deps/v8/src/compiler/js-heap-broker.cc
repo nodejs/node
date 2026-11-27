@@ -676,9 +676,11 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForGlobalAccess(
     OptionalObjectRef contents = context.get(broker, context_slot_index);
     if (contents.has_value()) CHECK(!contents->IsTdzHole());
 
-    return *zone()->New<GlobalAccessFeedback>(
-        context, context_slot_index,
-        FeedbackNexus::ImmutabilityBit::decode(number), nexus.kind());
+    // Lexical script-context const slots can be mutated via the debugger.
+    bool immutable = FeedbackNexus::ImmutabilityBit::decode(number) &&
+                     !isolate()->is_context_slot_not_assigned_unreliable();
+    return *zone()->New<GlobalAccessFeedback>(context, context_slot_index,
+                                              immutable, nexus.kind());
   }
 
   CHECK(IsPropertyCell(*feedback_value));

@@ -21,13 +21,17 @@
 /*-*************************************
 *  Dependencies
 ***************************************/
-/* qsort_r is an extension. */
-#if defined(__linux) || defined(__linux__) || defined(linux) || defined(__gnu_linux__) || \
-    defined(__CYGWIN__) || defined(__MSYS__)
-#if !defined(_GNU_SOURCE) && !defined(__ANDROID__) /* NDK doesn't ship qsort_r(). */
-#define _GNU_SOURCE
+/* qsort_r is an extension.
+ *
+ * Android NDK does not ship qsort_r().
+ */
+#if (defined(__linux__) && !defined(__ANDROID__)) || defined(__CYGWIN__) || defined(__MSYS__)
+# ifndef _GNU_SOURCE
+#   define _GNU_SOURCE
+# endif
 #endif
-#endif
+
+#define __STDC_WANT_LIB_EXT1__ 1 /* request C11 Annex K, which includes qsort_s() */
 
 #include <stdio.h>  /* fprintf */
 #include <stdlib.h> /* malloc, free, qsort_r */
@@ -39,6 +43,7 @@
 #  define ZDICT_STATIC_LINKING_ONLY
 #endif
 
+#include "../common/debug.h" /* DEBUG_STATIC_ASSERT */
 #include "../common/mem.h" /* read */
 #include "../common/pool.h" /* POOL_ctx */
 #include "../common/threading.h" /* ZSTD_pthread_mutex_t */
@@ -60,40 +65,58 @@
 #define COVER_MAX_SAMPLES_SIZE (sizeof(size_t) == 8 ? ((unsigned)-1) : ((unsigned)1 GB))
 #define COVER_DEFAULT_SPLITPOINT 1.0
 
+/**
+ * Select the qsort() variant used by cover
+ */
+#define ZDICT_QSORT_MIN 0
+#define ZDICT_QSORT_C90 ZDICT_QSORT_MIN
+#define ZDICT_QSORT_GNU 1
+#define ZDICT_QSORT_APPLE 2
+#define ZDICT_QSORT_MSVC 3
+#define ZDICT_QSORT_C11 ZDICT_QSORT_MAX
+#define ZDICT_QSORT_MAX 4
+
+#ifndef ZDICT_QSORT
+# if defined(__APPLE__)
+#   define ZDICT_QSORT ZDICT_QSORT_APPLE /* uses qsort_r() with a different order for parameters */
+# elif (defined(__linux__) && !defined(__ANDROID__)) || defined(__CYGWIN__) || defined(__MSYS__)
+#   define ZDICT_QSORT ZDICT_QSORT_GNU /* uses qsort_r() */
+# elif defined(_WIN32) && defined(_MSC_VER)
+#   define ZDICT_QSORT ZDICT_QSORT_MSVC /* uses qsort_s() with a different order for parameters */
+# elif defined(STDC_LIB_EXT1) && (STDC_LIB_EXT1 > 0) /* C11 Annex K */
+#   define ZDICT_QSORT ZDICT_QSORT_C11 /* uses qsort_s() */
+# else
+#   define ZDICT_QSORT ZDICT_QSORT_C90 /* uses standard qsort() which is not re-entrant (requires global variable) */
+# endif
+#endif
+
+
 /*-*************************************
 *  Console display
+*
+* Captures the `displayLevel` variable in the local scope.
 ***************************************/
-#ifndef LOCALDISPLAYLEVEL
-static int g_displayLevel = 0;
-#endif
 #undef  DISPLAY
 #define DISPLAY(...)                                                           \
   {                                                                            \
     fprintf(stderr, __VA_ARGS__);                                              \
     fflush(stderr);                                                            \
   }
-#undef  LOCALDISPLAYLEVEL
-#define LOCALDISPLAYLEVEL(displayLevel, l, ...)                                \
+#undef  DISPLAYLEVEL
+#define DISPLAYLEVEL(l, ...)                                                   \
   if (displayLevel >= l) {                                                     \
     DISPLAY(__VA_ARGS__);                                                      \
   } /* 0 : no display;   1: errors;   2: default;  3: details;  4: debug */
-#undef  DISPLAYLEVEL
-#define DISPLAYLEVEL(l, ...) LOCALDISPLAYLEVEL(g_displayLevel, l, __VA_ARGS__)
 
-#ifndef LOCALDISPLAYUPDATE
-static const clock_t g_refreshRate = CLOCKS_PER_SEC * 15 / 100;
-static clock_t g_time = 0;
-#endif
-#undef  LOCALDISPLAYUPDATE
-#define LOCALDISPLAYUPDATE(displayLevel, l, ...)                               \
+#undef  DISPLAYUPDATE
+#define DISPLAYUPDATE(lastUpdateTime, l, ...)                                  \
   if (displayLevel >= l) {                                                     \
-    if ((clock() - g_time > g_refreshRate) || (displayLevel >= 4)) {           \
-      g_time = clock();                                                        \
+    const clock_t refreshRate = CLOCKS_PER_SEC * 15 / 100;                     \
+    if ((clock() - lastUpdateTime > refreshRate) || (displayLevel >= 4)) {     \
+      lastUpdateTime = clock();                                                \
       DISPLAY(__VA_ARGS__);                                                    \
     }                                                                          \
   }
-#undef  DISPLAYUPDATE
-#define DISPLAYUPDATE(l, ...) LOCALDISPLAYUPDATE(g_displayLevel, l, __VA_ARGS__)
 
 /*-*************************************
 * Hash table
@@ -188,7 +211,7 @@ static U32 *COVER_map_at(COVER_map_t *map, U32 key) {
  */
 static void COVER_map_remove(COVER_map_t *map, U32 key) {
   U32 i = COVER_map_index(map, key);
-  COVER_map_pair_t *del = &map->data[i];
+  COVER_map_pair_t* del = &map->data[i];
   U32 shift = 1;
   if (del->value == MAP_EMPTY_VALUE) {
     return;
@@ -239,10 +262,11 @@ typedef struct {
   U32 *freqs;
   U32 *dmerAt;
   unsigned d;
+  int displayLevel;
 } COVER_ctx_t;
 
-#if !defined(_GNU_SOURCE) && !defined(__APPLE__) && !defined(_MSC_VER)
-/* C90 only offers qsort() that needs a global context. */
+#if ZDICT_QSORT == ZDICT_QSORT_C90
+/* Use global context for non-reentrant sort functions */
 static COVER_ctx_t *g_coverCtx = NULL;
 #endif
 
@@ -286,34 +310,38 @@ static int COVER_cmp8(COVER_ctx_t *ctx, const void *lp, const void *rp) {
 }
 
 /**
- * Same as COVER_cmp() except ties are broken by pointer value
+ * Same as COVER_cmp() except ties are broken by the position each element holds
  */
-#if (defined(_WIN32) && defined(_MSC_VER)) || defined(__APPLE__)
+#if (ZDICT_QSORT == ZDICT_QSORT_MSVC) || (ZDICT_QSORT == ZDICT_QSORT_APPLE)
 static int WIN_CDECL COVER_strict_cmp(void* g_coverCtx, const void* lp, const void* rp) {
-#elif defined(_GNU_SOURCE)
+#elif (ZDICT_QSORT == ZDICT_QSORT_GNU) || (ZDICT_QSORT == ZDICT_QSORT_C11)
 static int COVER_strict_cmp(const void *lp, const void *rp, void *g_coverCtx) {
 #else /* C90 fallback.*/
 static int COVER_strict_cmp(const void *lp, const void *rp) {
 #endif
   int result = COVER_cmp((COVER_ctx_t*)g_coverCtx, lp, rp);
   if (result == 0) {
-    result = lp < rp ? -1 : 1;
+    U32 const lpos = *(const U32 *)lp;
+    U32 const rpos = *(const U32 *)rp;
+    result = (lpos < rpos) ? -1 : (lpos > rpos) ? 1 : 0;
   }
   return result;
 }
 /**
  * Faster version for d <= 8.
  */
-#if (defined(_WIN32) && defined(_MSC_VER)) || defined(__APPLE__)
+#if (ZDICT_QSORT == ZDICT_QSORT_MSVC) || (ZDICT_QSORT == ZDICT_QSORT_APPLE)
 static int WIN_CDECL COVER_strict_cmp8(void* g_coverCtx, const void* lp, const void* rp) {
-#elif defined(_GNU_SOURCE)
+#elif (ZDICT_QSORT == ZDICT_QSORT_GNU) || (ZDICT_QSORT == ZDICT_QSORT_C11)
 static int COVER_strict_cmp8(const void *lp, const void *rp, void *g_coverCtx) {
 #else /* C90 fallback.*/
 static int COVER_strict_cmp8(const void *lp, const void *rp) {
 #endif
   int result = COVER_cmp8((COVER_ctx_t*)g_coverCtx, lp, rp);
   if (result == 0) {
-    result = lp < rp ? -1 : 1;
+    U32 const lpos = *(const U32 *)lp;
+    U32 const rpos = *(const U32 *)rp;
+    result = (lpos < rpos) ? -1 : (lpos > rpos) ? 1 : 0;
   }
   return result;
 }
@@ -323,26 +351,28 @@ static int COVER_strict_cmp8(const void *lp, const void *rp) {
  * Hopefully when C11 become the norm, we will be able
  * to clean it up.
  */
-static void stableSort(COVER_ctx_t *ctx) {
-#if defined(__APPLE__)
+static void stableSort(COVER_ctx_t *ctx)
+{
+    DEBUG_STATIC_ASSERT(ZDICT_QSORT_MIN <= ZDICT_QSORT && ZDICT_QSORT <= ZDICT_QSORT_MAX);
+#if (ZDICT_QSORT == ZDICT_QSORT_APPLE)
     qsort_r(ctx->suffix, ctx->suffixSize, sizeof(U32),
             ctx,
             (ctx->d <= 8 ? &COVER_strict_cmp8 : &COVER_strict_cmp));
-#elif defined(_GNU_SOURCE)
+#elif (ZDICT_QSORT == ZDICT_QSORT_GNU)
     qsort_r(ctx->suffix, ctx->suffixSize, sizeof(U32),
             (ctx->d <= 8 ? &COVER_strict_cmp8 : &COVER_strict_cmp),
             ctx);
-#elif defined(_WIN32) && defined(_MSC_VER)
+#elif (ZDICT_QSORT == ZDICT_QSORT_MSVC)
     qsort_s(ctx->suffix, ctx->suffixSize, sizeof(U32),
             (ctx->d <= 8 ? &COVER_strict_cmp8 : &COVER_strict_cmp),
             ctx);
-#elif defined(__OpenBSD__)
-    g_coverCtx = ctx;
-    mergesort(ctx->suffix, ctx->suffixSize, sizeof(U32),
-          (ctx->d <= 8 ? &COVER_strict_cmp8 : &COVER_strict_cmp));
+#elif (ZDICT_QSORT == ZDICT_QSORT_C11)
+    qsort_s(ctx->suffix, ctx->suffixSize, sizeof(U32),
+            (ctx->d <= 8 ? &COVER_strict_cmp8 : &COVER_strict_cmp),
+            ctx);
 #else /* C90 fallback.*/
     g_coverCtx = ctx;
-    /* TODO(cavalcanti): implement a reentrant qsort() when is not available. */
+    /* TODO(cavalcanti): implement a reentrant qsort() when _r is not available. */
     qsort(ctx->suffix, ctx->suffixSize, sizeof(U32),
           (ctx->d <= 8 ? &COVER_strict_cmp8 : &COVER_strict_cmp));
 #endif
@@ -601,7 +631,7 @@ static void COVER_ctx_destroy(COVER_ctx_t *ctx) {
  */
 static size_t COVER_ctx_init(COVER_ctx_t *ctx, const void *samplesBuffer,
                           const size_t *samplesSizes, unsigned nbSamples,
-                          unsigned d, double splitPoint)
+                          unsigned d, double splitPoint, int displayLevel)
 {
   const BYTE *const samples = (const BYTE *)samplesBuffer;
   const size_t totalSamplesSize = COVER_sum(samplesSizes, nbSamples);
@@ -610,11 +640,23 @@ static size_t COVER_ctx_init(COVER_ctx_t *ctx, const void *samplesBuffer,
   const unsigned nbTestSamples = splitPoint < 1.0 ? nbSamples - nbTrainSamples : nbSamples;
   const size_t trainingSamplesSize = splitPoint < 1.0 ? COVER_sum(samplesSizes, nbTrainSamples) : totalSamplesSize;
   const size_t testSamplesSize = splitPoint < 1.0 ? COVER_sum(samplesSizes + nbTrainSamples, nbTestSamples) : totalSamplesSize;
+  const size_t readLength = MAX(d, sizeof(U64));
+  ctx->displayLevel = displayLevel;
   /* Checks */
-  if (totalSamplesSize < MAX(d, sizeof(U64)) ||
+  if (totalSamplesSize < readLength ||
       totalSamplesSize >= (size_t)COVER_MAX_SAMPLES_SIZE) {
     DISPLAYLEVEL(1, "Total samples size is too large (%u MB), maximum size is %u MB\n",
                  (unsigned)(totalSamplesSize>>20), (COVER_MAX_SAMPLES_SIZE >> 20));
+    return ERROR(srcSize_wrong);
+  }
+  /* The training set must be large enough for the partial suffix array, whose
+   * size is `trainingSamplesSize - MAX(d, sizeof(U64)) + 1`. When splitPoint
+   * < 1.0 the training set is a subset of the corpus, so it can be smaller
+   * than the total even after the check above. Guard against the size_t
+   * subtraction underflowing into a huge allocation. */
+  if (trainingSamplesSize < MAX(d, sizeof(U64))) {
+    DISPLAYLEVEL(1, "Training samples size is too small (%u), minimum size is %u\n",
+                 (unsigned)trainingSamplesSize, (unsigned)MAX(d, sizeof(U64)));
     return ERROR(srcSize_wrong);
   }
   /* Check if there are at least 5 training samples */
@@ -639,7 +681,7 @@ static size_t COVER_ctx_init(COVER_ctx_t *ctx, const void *samplesBuffer,
   ctx->nbTrainSamples = nbTrainSamples;
   ctx->nbTestSamples = nbTestSamples;
   /* Partial suffix array */
-  ctx->suffixSize = trainingSamplesSize - MAX(d, sizeof(U64)) + 1;
+  ctx->suffixSize = trainingSamplesSize - readLength + 1;
   ctx->suffix = (U32 *)malloc(ctx->suffixSize * sizeof(U32));
   /* Maps index to the dmerID */
   ctx->dmerAt = (U32 *)malloc(ctx->suffixSize * sizeof(U32));
@@ -665,7 +707,7 @@ static size_t COVER_ctx_init(COVER_ctx_t *ctx, const void *samplesBuffer,
   {
     /* suffix is a partial suffix array.
      * It only sorts suffixes by their first parameters.d bytes.
-     * The sort is stable, so each dmer group is sorted by position in input.
+     * Ties are broken by position, so each group is sorted by input position.
      */
     U32 i;
     for (i = 0; i < ctx->suffixSize; ++i) {
@@ -694,14 +736,14 @@ void COVER_warnOnSmallCorpus(size_t maxDictSize, size_t nbDmers, int displayLeve
   if (ratio >= 10) {
       return;
   }
-  LOCALDISPLAYLEVEL(displayLevel, 1,
-                    "WARNING: The maximum dictionary size %u is too large "
-                    "compared to the source size %u! "
-                    "size(source)/size(dictionary) = %f, but it should be >= "
-                    "10! This may lead to a subpar dictionary! We recommend "
-                    "training on sources at least 10x, and preferably 100x "
-                    "the size of the dictionary! \n", (U32)maxDictSize,
-                    (U32)nbDmers, ratio);
+  DISPLAYLEVEL(1,
+               "WARNING: The maximum dictionary size %u is too large "
+               "compared to the source size %u! "
+               "size(source)/size(dictionary) = %f, but it should be >= "
+               "10! This may lead to a subpar dictionary! We recommend "
+               "training on sources at least 10x, and preferably 100x "
+               "the size of the dictionary! \n", (U32)maxDictSize,
+               (U32)nbDmers, ratio);
 }
 
 COVER_epoch_info_t COVER_computeEpochs(U32 maxDictSize,
@@ -736,6 +778,8 @@ static size_t COVER_buildDictionary(const COVER_ctx_t *ctx, U32 *freqs,
   const size_t maxZeroScoreRun = MAX(10, MIN(100, epochs.num >> 3));
   size_t zeroScoreRun = 0;
   size_t epoch;
+  clock_t lastUpdateTime = 0;
+  const int displayLevel = ctx->displayLevel;
   DISPLAYLEVEL(2, "Breaking content into %u epochs of size %u\n",
                 (U32)epochs.num, (U32)epochs.size);
   /* Loop through the epochs until there are no more segments or the dictionary
@@ -769,6 +813,7 @@ static size_t COVER_buildDictionary(const COVER_ctx_t *ctx, U32 *freqs,
     tail -= segmentSize;
     memcpy(dict + tail, ctx->samples + segment.begin, segmentSize);
     DISPLAYUPDATE(
+        lastUpdateTime,
         2, "\r%u%%       ",
         (unsigned)(((dictBufferCapacity - tail) * 100) / dictBufferCapacity));
   }
@@ -784,9 +829,8 @@ ZDICTLIB_STATIC_API size_t ZDICT_trainFromBuffer_cover(
   BYTE* const dict = (BYTE*)dictBuffer;
   COVER_ctx_t ctx;
   COVER_map_t activeDmers;
+  const int displayLevel = (int)parameters.zParams.notificationLevel;
   parameters.splitPoint = 1.0;
-  /* Initialize global data */
-  g_displayLevel = (int)parameters.zParams.notificationLevel;
   /* Checks */
   if (!COVER_checkParameters(parameters, dictBufferCapacity)) {
     DISPLAYLEVEL(1, "Cover parameters incorrect\n");
@@ -804,12 +848,12 @@ ZDICTLIB_STATIC_API size_t ZDICT_trainFromBuffer_cover(
   /* Initialize context and activeDmers */
   {
     size_t const initVal = COVER_ctx_init(&ctx, samplesBuffer, samplesSizes, nbSamples,
-                      parameters.d, parameters.splitPoint);
+                      parameters.d, parameters.splitPoint, displayLevel);
     if (ZSTD_isError(initVal)) {
       return initVal;
     }
   }
-  COVER_warnOnSmallCorpus(dictBufferCapacity, ctx.suffixSize, g_displayLevel);
+  COVER_warnOnSmallCorpus(dictBufferCapacity, ctx.suffixSize, displayLevel);
   if (!COVER_map_init(&activeDmers, parameters.k - parameters.d + 1)) {
     DISPLAYLEVEL(1, "Failed to allocate dmer map: out of memory\n");
     COVER_ctx_destroy(&ctx);
@@ -1023,6 +1067,8 @@ COVER_dictSelection_t COVER_selectDict(BYTE* customDictContent, size_t dictBuffe
 
   size_t largestDict = 0;
   size_t largestCompressed = 0;
+  size_t candidateContentSize = 0;
+  size_t candidateDict = 0;
   BYTE* customDictContentEnd = customDictContent + dictContentSize;
 
   BYTE* largestDictbuffer = (BYTE*)malloc(dictBufferCapacity);
@@ -1037,20 +1083,20 @@ COVER_dictSelection_t COVER_selectDict(BYTE* customDictContent, size_t dictBuffe
 
   /* Initial dictionary size and compressed size */
   memcpy(largestDictbuffer, customDictContent, dictContentSize);
-  dictContentSize = ZDICT_finalizeDictionary(
+  largestDict = ZDICT_finalizeDictionary(
     largestDictbuffer, dictBufferCapacity, customDictContent, dictContentSize,
     samplesBuffer, samplesSizes, nbFinalizeSamples, params.zParams);
 
-  if (ZDICT_isError(dictContentSize)) {
+  if (ZDICT_isError(largestDict)) {
     free(largestDictbuffer);
     free(candidateDictBuffer);
-    return COVER_dictSelectionError(dictContentSize);
+    return COVER_dictSelectionError(largestDict);
   }
 
   totalCompressedSize = COVER_checkTotalCompressedSize(params, samplesSizes,
                                                        samplesBuffer, offsets,
                                                        nbCheckSamples, nbSamples,
-                                                       largestDictbuffer, dictContentSize);
+                                                       largestDictbuffer, largestDict);
 
   if (ZSTD_isError(totalCompressedSize)) {
     free(largestDictbuffer);
@@ -1060,31 +1106,29 @@ COVER_dictSelection_t COVER_selectDict(BYTE* customDictContent, size_t dictBuffe
 
   if (params.shrinkDict == 0) {
     free(candidateDictBuffer);
-    return setDictSelection(largestDictbuffer, dictContentSize, totalCompressedSize);
+    return setDictSelection(largestDictbuffer, largestDict, totalCompressedSize);
   }
 
-  largestDict = dictContentSize;
   largestCompressed = totalCompressedSize;
-  dictContentSize = ZDICT_DICTSIZE_MIN;
+  candidateContentSize = ZDICT_DICTSIZE_MIN;
 
-  /* Largest dict is initially at least ZDICT_DICTSIZE_MIN */
-  while (dictContentSize < largestDict) {
+  while (candidateContentSize < dictContentSize) {
     memcpy(candidateDictBuffer, largestDictbuffer, largestDict);
-    dictContentSize = ZDICT_finalizeDictionary(
-      candidateDictBuffer, dictBufferCapacity, customDictContentEnd - dictContentSize, dictContentSize,
+    candidateDict = ZDICT_finalizeDictionary(
+      candidateDictBuffer, dictBufferCapacity, customDictContentEnd - candidateContentSize, candidateContentSize,
       samplesBuffer, samplesSizes, nbFinalizeSamples, params.zParams);
 
-    if (ZDICT_isError(dictContentSize)) {
+    if (ZDICT_isError(candidateDict)) {
       free(largestDictbuffer);
       free(candidateDictBuffer);
-      return COVER_dictSelectionError(dictContentSize);
+      return COVER_dictSelectionError(candidateDict);
 
     }
 
     totalCompressedSize = COVER_checkTotalCompressedSize(params, samplesSizes,
                                                          samplesBuffer, offsets,
                                                          nbCheckSamples, nbSamples,
-                                                         candidateDictBuffer, dictContentSize);
+                                                         candidateDictBuffer, candidateDict);
 
     if (ZSTD_isError(totalCompressedSize)) {
       free(largestDictbuffer);
@@ -1094,14 +1138,13 @@ COVER_dictSelection_t COVER_selectDict(BYTE* customDictContent, size_t dictBuffe
 
     if ((double)totalCompressedSize <= (double)largestCompressed * regressionTolerance) {
       free(largestDictbuffer);
-      return setDictSelection( candidateDictBuffer, dictContentSize, totalCompressedSize );
+      return setDictSelection( candidateDictBuffer, candidateDict, totalCompressedSize );
     }
-    dictContentSize *= 2;
+    candidateContentSize *= 2;
   }
-  dictContentSize = largestDict;
   totalCompressedSize = largestCompressed;
   free(candidateDictBuffer);
-  return setDictSelection( largestDictbuffer, dictContentSize, totalCompressedSize );
+  return setDictSelection( largestDictbuffer, largestDict, totalCompressedSize );
 }
 
 /**
@@ -1132,6 +1175,7 @@ static void COVER_tryParameters(void *opaque)
   BYTE* const dict = (BYTE*)malloc(dictBufferCapacity);
   COVER_dictSelection_t selection = COVER_dictSelectionError(ERROR(GENERIC));
   U32* const freqs = (U32*)malloc(ctx->suffixSize * sizeof(U32));
+  const int displayLevel = ctx->displayLevel;
   if (!COVER_map_init(&activeDmers, parameters.k - parameters.d + 1)) {
     DISPLAYLEVEL(1, "Failed to allocate dmer map: out of memory\n");
     goto _cleanup;
@@ -1183,21 +1227,22 @@ ZDICTLIB_STATIC_API size_t ZDICT_optimizeTrainFromBuffer_cover(
       (1 + (kMaxD - kMinD) / 2) * (1 + (kMaxK - kMinK) / kStepSize);
   const unsigned shrinkDict = 0;
   /* Local variables */
-  const int displayLevel = parameters->zParams.notificationLevel;
+  int displayLevel = (int)parameters->zParams.notificationLevel;
   unsigned iteration = 1;
   unsigned d;
   unsigned k;
   COVER_best_t best;
   POOL_ctx *pool = NULL;
   int warned = 0;
+  clock_t lastUpdateTime = 0;
 
   /* Checks */
   if (splitPoint <= 0 || splitPoint > 1) {
-    LOCALDISPLAYLEVEL(displayLevel, 1, "Incorrect parameters\n");
+    DISPLAYLEVEL(1, "Incorrect parameters\n");
     return ERROR(parameter_outOfBound);
   }
   if (kMinK < kMaxD || kMaxK < kMinK) {
-    LOCALDISPLAYLEVEL(displayLevel, 1, "Incorrect parameters\n");
+    DISPLAYLEVEL(1, "Incorrect parameters\n");
     return ERROR(parameter_outOfBound);
   }
   if (nbSamples == 0) {
@@ -1217,19 +1262,19 @@ ZDICTLIB_STATIC_API size_t ZDICT_optimizeTrainFromBuffer_cover(
   }
   /* Initialization */
   COVER_best_init(&best);
-  /* Turn down global display level to clean up display at level 2 and below */
-  g_displayLevel = displayLevel == 0 ? 0 : displayLevel - 1;
   /* Loop through d first because each new value needs a new context */
-  LOCALDISPLAYLEVEL(displayLevel, 2, "Trying %u different sets of parameters\n",
+  DISPLAYLEVEL(2, "Trying %u different sets of parameters\n",
                     kIterations);
   for (d = kMinD; d <= kMaxD; d += 2) {
     /* Initialize the context for this value of d */
     COVER_ctx_t ctx;
-    LOCALDISPLAYLEVEL(displayLevel, 3, "d=%u\n", d);
+    DISPLAYLEVEL(3, "d=%u\n", d);
     {
-      const size_t initVal = COVER_ctx_init(&ctx, samplesBuffer, samplesSizes, nbSamples, d, splitPoint);
+      /* Turn down global display level to clean up display at level 2 and below */
+      const int childDisplayLevel = (displayLevel == 0) ? 0 : displayLevel - 1;
+      const size_t initVal = COVER_ctx_init(&ctx, samplesBuffer, samplesSizes, nbSamples, d, splitPoint, childDisplayLevel);
       if (ZSTD_isError(initVal)) {
-        LOCALDISPLAYLEVEL(displayLevel, 1, "Failed to initialize context\n");
+        DISPLAYLEVEL(1, "Failed to initialize context\n");
         COVER_best_destroy(&best);
         POOL_free(pool);
         return initVal;
@@ -1244,9 +1289,9 @@ ZDICTLIB_STATIC_API size_t ZDICT_optimizeTrainFromBuffer_cover(
       /* Prepare the arguments */
       COVER_tryParameters_data_t *data = (COVER_tryParameters_data_t *)malloc(
           sizeof(COVER_tryParameters_data_t));
-      LOCALDISPLAYLEVEL(displayLevel, 3, "k=%u\n", k);
+      DISPLAYLEVEL(3, "k=%u\n", k);
       if (!data) {
-        LOCALDISPLAYLEVEL(displayLevel, 1, "Failed to allocate parameters\n");
+        DISPLAYLEVEL(1, "Failed to allocate parameters\n");
         COVER_best_destroy(&best);
         COVER_ctx_destroy(&ctx);
         POOL_free(pool);
@@ -1261,7 +1306,7 @@ ZDICTLIB_STATIC_API size_t ZDICT_optimizeTrainFromBuffer_cover(
       data->parameters.splitPoint = splitPoint;
       data->parameters.steps = kSteps;
       data->parameters.shrinkDict = shrinkDict;
-      data->parameters.zParams.notificationLevel = g_displayLevel;
+      data->parameters.zParams.notificationLevel = (unsigned)ctx.displayLevel;
       /* Check the parameters */
       if (!COVER_checkParameters(data->parameters, dictBufferCapacity)) {
         DISPLAYLEVEL(1, "Cover parameters incorrect\n");
@@ -1276,14 +1321,14 @@ ZDICTLIB_STATIC_API size_t ZDICT_optimizeTrainFromBuffer_cover(
         COVER_tryParameters(data);
       }
       /* Print status */
-      LOCALDISPLAYUPDATE(displayLevel, 2, "\r%u%%       ",
-                         (unsigned)((iteration * 100) / kIterations));
+      DISPLAYUPDATE(lastUpdateTime, 2, "\r%u%%       ",
+                    (unsigned)((iteration * 100) / kIterations));
       ++iteration;
     }
     COVER_best_wait(&best);
     COVER_ctx_destroy(&ctx);
   }
-  LOCALDISPLAYLEVEL(displayLevel, 2, "\r%79s\r", "");
+  DISPLAYLEVEL(2, "\r%79s\r", "");
   /* Fill the output buffer and parameters with output of the best parameters */
   {
     const size_t dictSize = best.dictSize;

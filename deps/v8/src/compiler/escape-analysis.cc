@@ -4,6 +4,7 @@
 
 #include "src/compiler/escape-analysis.h"
 
+#include "src/base/numerics/checked_math.h"
 #include "src/codegen/tick-counter.h"
 #include "src/compiler/frame-states.h"
 #include "src/compiler/node-matchers.h"
@@ -560,8 +561,12 @@ Maybe<int> OffsetOfElementAt(ElementAccess const& access, int index) {
 
   DCHECK_GE(index, 0);
   DCHECK_GE(ElementSizeLog2Of(representation), kTaggedSizeLog2);
-  return Just(access.header_size +
-              (index << ElementSizeLog2Of(representation)));
+  base::CheckedNumeric<int> byte_index = base::CheckedNumeric<int>(index)
+                                         << ElementSizeLog2Of(representation);
+  base::CheckedNumeric<int> offset = byte_index + access.header_size;
+  int result;
+  if (!offset.AssignIfValid(&result)) return Nothing<int>();
+  return Just(result);
 }
 
 Maybe<int> OffsetOfElementsAccess(const Operator* op, Node* index_node) {
@@ -571,8 +576,11 @@ Maybe<int> OffsetOfElementsAccess(const Operator* op, Node* index_node) {
   if (!index_type.Is(Type::OrderedNumber())) return Nothing<int>();
   double max = index_type.Max();
   double min = index_type.Min();
+  if (min < 0 || min != max || !base::IsValueInRangeForNumericType<int>(min)) {
+    return Nothing<int>();
+  }
   int index = static_cast<int>(min);
-  if (index < 0 || index != min || index != max) return Nothing<int>();
+  if (index != min) return Nothing<int>();
   return OffsetOfElementAt(ElementAccessOf(op), index);
 }
 

@@ -69,7 +69,7 @@ async function main({ mode, n }) {
       alpn: 'h3',
       ...resume,
     });
-    const stream = await session.createBidirectionalStream({
+    const stream = session.createBidirectionalStream({
       headers: request,
       onheaders,
     });
@@ -121,7 +121,7 @@ async function main({ mode, n }) {
       alpn: 'h3',
       ...resume,
     });
-    const stream = await session.createBidirectionalStream({
+    const stream = session.createBidirectionalStream({
       headers: request,
       onheaders,
     });

@@ -50,12 +50,10 @@ const clientSession = await connect(serverEndpoint.address);
 await clientSession.opened;
 
 // Open all streams concurrently.
-const clientStreams = await Promise.all(
-  messages.map((msg) =>
-    clientSession.createBidirectionalStream({
-      body: encoder.encode(msg),
-    }),
-  ),
+const clientStreams = messages.map((msg) =>
+  clientSession.createBidirectionalStream({
+    body: encoder.encode(msg),
+  }),
 );
 
 await Promise.all([done.promise, ...clientStreams.map((s) => s.closed)]);

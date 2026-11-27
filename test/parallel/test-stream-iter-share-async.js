@@ -507,6 +507,57 @@ async function testShareConsumerConcurrentNextCalls() {
   assert.strictEqual(dec.decode(r2.value[0]), 'second');
 }
 
+// A sync source is read as the consumers pull, including values that are
+// normalized asynchronously, and its errors reach every consumer after the
+// data before them.
+async function testShareSyncSource() {
+  const reason = new Error('sync source boom');
+  function* source() {
+    yield [Uint8Array.of(1)];
+    yield Promise.resolve(Uint8Array.of(2));
+    yield 'c';
+    yield [Uint8Array.of(4)];
+    throw reason;
+  }
+  const shared = share(source());
+  const consumers = [shared.pull(), shared.pull()];
+  const read = async (consumer) => {
+    const values = [];
+    try {
+      for await (const batch of consumer) values.push(...batch.map((c) => c[0]));
+    } catch (error) {
+      values.push(error);
+    }
+    return values;
+  };
+  const results = await Promise.all(consumers.map(read));
+  for (const values of results) {
+    assert.deepStrictEqual(values, [1, 2, 99, 4, reason]);
+  }
+
+  // Concurrent next() calls get the batches in order.
+  function* numbers() {
+    for (let i = 0; i < 4; i++) yield [Uint8Array.of(i)];
+  }
+  const it = share(numbers()).pull()[Symbol.asyncIterator]();
+  const all = await Promise.all([it.next(), it.next(), it.next(), it.next(),
+                                 it.next()]);
+  assert.deepStrictEqual(all.map((r) => (r.done ? 'done' : r.value[0][0])),
+                         [0, 1, 2, 3, 'done']);
+
+  // 'strict' backpressure rejects a consumer that would exceed the budget
+  // when another one lags.
+  function* big() {
+    for (let i = 0; i < 4; i++) yield [new Uint8Array(8)];
+  }
+  const strict = share(big(), { budget: 16 });
+  const fast = strict.pull()[Symbol.asyncIterator]();
+  strict.pull();
+  await fast.next();
+  await fast.next();
+  await assert.rejects(fast.next(), { code: 'ERR_OUT_OF_RANGE' });
+}
+
 // share() accepts string source directly (normalized via from())
 async function testShareStringSource() {
   const shared = share('hello-share');
@@ -516,6 +567,7 @@ async function testShareStringSource() {
 
 Promise.all([
   testBasicShare(),
+  testShareSyncSource(),
   testShareMultipleConsumers(),
   testShareConsumerCount(),
   testShareCancel(),

@@ -129,7 +129,7 @@ TEST_F(LiveRangeUnitTest, InvalidConstruction) {
 
 TEST_F(LiveRangeUnitTest, SplitInvalidStart) {
   TopLevelLiveRange* range = TestRangeBuilder(zone()).Build(0, 1);
-  V8_ASSERT_DEBUG_DEATH(Split(range, 0), ".*");
+  ASSERT_DEATH_IF_SUPPORTED(Split(range, 0), ".*");
 }
 
 TEST_F(LiveRangeUnitTest, DISABLE_IN_RELEASE(InvalidSplitEnd)) {

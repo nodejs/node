@@ -523,6 +523,9 @@ void ConverterObject::Decode(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
+  // Reset the converter state on errors.
+  converter->set_bom_seen(false);
+  converter->reset();
   node::THROW_ERR_ENCODING_INVALID_ENCODED_DATA(
       env->isolate(),
       "The encoded data was not valid for encoding %s",

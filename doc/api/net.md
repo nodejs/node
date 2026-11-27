@@ -1602,6 +1602,10 @@ If the socket is `ref`ed calling `ref` again will have no effect.
 
 <!-- YAML
 added: v0.5.10
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/67402
+    description: The peer path is now reported for Unix domain sockets.
 -->
 
 * Type: {string}
@@ -1609,6 +1613,14 @@ added: v0.5.10
 The string representation of the remote IP address. For example,
 `'74.125.127.100'` or `'2001:4860:a005::68'`. Value may be `undefined` if
 the socket is destroyed (for example, if the client disconnected).
+
+For a [Unix domain socket][IPC], this is the path the peer is bound to: the
+listening path on the connecting side, and on the accepting side the path of a
+client that was bound before connecting (see [`BoundSocket`][]). It is
+`undefined` if the peer is not bound to a path, which is the case for most
+clients. [`socket.remoteFamily`][] and [`socket.remotePort`][] are always
+`undefined` for these connections, as is `socket.remoteAddress` for a Windows
+named pipe.
 
 ### `socket.remoteFamily`
 
@@ -2680,6 +2692,8 @@ console.log('listening on', server.address().port);
 [`socket.end()`]: #socketenddata-encoding-callback
 [`socket.localAddress`]: #socketlocaladdress
 [`socket.pause()`]: #socketpause
+[`socket.remoteFamily`]: #socketremotefamily
+[`socket.remotePort`]: #socketremoteport
 [`socket.resume()`]: #socketresume
 [`socket.setEncoding()`]: #socketsetencodingencoding
 [`socket.setKeepAlive()`]: #socketsetkeepalive

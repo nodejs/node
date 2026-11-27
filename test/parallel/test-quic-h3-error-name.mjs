@@ -48,7 +48,7 @@ async function receiveCloseError(closeOptions) {
   );
   await clientSession.opened;
 
-  const stream = await clientSession.createBidirectionalStream({
+  const stream = clientSession.createBidirectionalStream({
     headers: {
       ':method': 'GET',
       ':path': '/',

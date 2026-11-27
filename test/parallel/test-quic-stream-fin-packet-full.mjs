@@ -41,7 +41,7 @@ await clientSession.opened;
 const closed = clientSession.closed.then(() => 'closed', () => 'closed');
 
 for (let size = kMinSize; size <= kMaxSize; size++) {
-  const stream = await clientSession.createUnidirectionalStream();
+  const stream = clientSession.createUnidirectionalStream();
   stream.setBody(new Uint8Array(size));
   const result = await Promise.race([next.promise.then(() => 'ok'), closed]);
   assert.strictEqual(result, 'ok',

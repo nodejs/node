@@ -9,8 +9,6 @@ TAP version 13
       failureType: 'testTimeoutFailure'
       error: 'test timed out after 100ms'
       code: 'ERR_TEST_FAILURE'
-      stack: |-
-        async Promise.all (index 0)
       ...
     # Subtest: should timeout after 5ms
     not ok 2 - should timeout after 5ms

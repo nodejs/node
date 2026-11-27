@@ -15,6 +15,7 @@ namespace node {
 namespace encoding_binding {
 
 using v8::ArrayBuffer;
+using v8::ArrayBufferBase;
 using v8::BackingStore;
 using v8::BackingStoreInitializationMode;
 using v8::BackingStoreOnFailureMode;
@@ -197,7 +198,7 @@ void BindingData::EncodeInto(const FunctionCallbackInfo<Value>& args) {
   Local<String> source = args[0].As<String>();
 
   Local<Uint8Array> dest = args[1].As<Uint8Array>();
-  Local<ArrayBuffer> buf = dest->Buffer();
+  Local<ArrayBufferBase> buf = dest->GetBuffer();
 
   // Handle detached buffers - return {read: 0, written: 0}
   if (buf->Data() == nullptr) {
@@ -425,7 +426,7 @@ void BindingData::DecodeUTF8(const FunctionCallbackInfo<Value>& args) {
 
   if (args[0]->IsArrayBufferView()) {
     Local<v8::ArrayBufferView> view = args[0].As<v8::ArrayBufferView>();
-    isShared = view->Buffer()->IsSharedArrayBuffer();
+    isShared = view->GetBuffer()->IsSharedArrayBuffer();
   }
 
   ArrayBufferViewContents<char> buffer(args[0]);

@@ -5,6 +5,7 @@ const { AsyncResource } = require('node:async_hooks')
 const { Readable } = require('./readable')
 const { InvalidArgumentError, RequestAbortedError } = require('../core/errors')
 const util = require('../core/util')
+const { dispatchWithSignal } = require('./abort-signal')
 
 function noop () {}
 
@@ -37,6 +38,11 @@ class RequestHandler extends AsyncResource {
         throw new InvalidArgumentError('invalid onInfo callback')
       }
 
+      // Reject before dispatching: onRequestStart only runs once a connection is established.
+      if (signal?.aborted) {
+        throw signal.reason ?? new RequestAbortedError()
+      }
+
       super('UNDICI_REQUEST')
     } catch (err) {
       if (util.isStream(body)) {
@@ -60,9 +66,7 @@ class RequestHandler extends AsyncResource {
     this.reason = null
     this.removeAbortListener = null
 
-    if (signal?.aborted) {
-      this.reason = signal.reason ?? new RequestAbortedError()
-    } else if (signal) {
+    if (signal) {
       this.removeAbortListener = util.addAbortListener(signal, () => {
         this.reason = signal.reason ?? new RequestAbortedError()
         if (this.res) {
@@ -103,7 +107,7 @@ class RequestHandler extends AsyncResource {
 
     if (statusCode < 200) {
       if (this.onInfo) {
-        this.onInfo({ statusCode, headers: responseHeaderData })
+        this.runInAsyncScope(this.onInfo, null, { statusCode, headers: responseHeaderData })
       }
       return
     }
@@ -230,7 +234,11 @@ function request (opts, callback) {
   try {
     const handler = new RequestHandler(opts, callback)
 
-    this.dispatch(opts, handler)
+    if (opts.signal == null) {
+      this.dispatch(opts, handler)
+    } else {
+      dispatchWithSignal(this, opts, handler)
+    }
   } catch (err) {
     if (typeof callback !== 'function') {
       throw err

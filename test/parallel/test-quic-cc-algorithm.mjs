@@ -36,7 +36,7 @@ for (const cc of ['reno', 'cubic', 'bbr']) {
   const clientSession = await connect(serverEndpoint.address, { cc });
   await clientSession.opened;
 
-  const stream = await clientSession.createBidirectionalStream({
+  const stream = clientSession.createBidirectionalStream({
     body: encoder.encode('congestion control test'),
   });
 

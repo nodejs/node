@@ -122,7 +122,7 @@ const alpn = ['quic-test'];
     sessionTicket: ticket,
   });
 
-  await client2.createUnidirectionalStream({
+  client2.createUnidirectionalStream({
     body: 'hello from 0-RTT',
   });
 

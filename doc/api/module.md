@@ -1271,7 +1271,7 @@ This function enables or disables the [Source Map v3][Source Map] support for
 stack traces.
 
 It provides same features as launching Node.js process with commandline options
-`--enable-source-maps`, with additional options to alter the support for files
+`--enable-source-maps`, with additional options to enable the support for files
 in `node_modules` or generated codes.
 
 Only source maps in JavaScript files that are loaded after source maps has been

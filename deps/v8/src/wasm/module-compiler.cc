@@ -2834,6 +2834,26 @@ void AsyncCompileJob::DoSync(Args&&... args) {
 }
 
 template <typename Step, typename... Args>
+void AsyncCompileJob::DoImmediatelyOrDefer(Args&&... args) {
+  NextStep<Step>(std::forward<Args>(args)...);
+  Isolate* isolate = isolate_specific_info_.isolate_;
+  DCHECK_EQ(isolate, Isolate::Current());
+  // We cannot unconditionally spawn a non-nestable foreground task here
+  // because Node.js relies on synchronous completion of
+  // WasmModuleCompilation::Finish (e.g. in DeserializeWasmModule). Only defer
+  // to a non-nestable foreground task when inside an API interrupt or when
+  // JavaScript execution is disallowed (such as Blink's ScriptForbiddenScope
+  // during BFCache freeze, see crbug.com/580857997).
+  if (!isolate->is_executing_api_interrupt() &&
+      isolate->is_javascript_execution_allowed()) {
+    std::unique_ptr<CompileStep> step = std::move(step_);
+    step->Run(this, true);
+  } else {
+    StartForegroundTask();
+  }
+}
+
+template <typename Step, typename... Args>
 void AsyncCompileJob::DoAsync(Args&&... args) {
   NextStep<Step>(std::forward<Args>(args)...);
   StartBackgroundTask();
@@ -2975,21 +2995,38 @@ class AsyncCompileJob::PrepareNativeModule : public CompileStep {
 //==========================================================================
 class AsyncCompileJob::FinishCompilation : public CompileStep {
  public:
-  explicit FinishCompilation(std::shared_ptr<NativeModule> final_native_module)
-      : final_native_module_(std::move(final_native_module)) {}
+  explicit FinishCompilation(
+      std::shared_ptr<NativeModule> final_native_module,
+      IndirectHandle<WasmModuleObject> deserialized_module_object = {})
+      : final_native_module_(std::move(final_native_module)),
+        deserialized_module_object_(deserialized_module_object) {}
+
+  ~FinishCompilation() override {
+    GlobalHandles::Destroy(deserialized_module_object_.location());
+  }
 
  private:
   void RunInForeground(AsyncCompileJob* job) override {
     TRACE_COMPILE("(3) Compilation finished\n");
-    DCHECK_EQ(job->isolate_specific_info_.isolate_, Isolate::Current());
+    Isolate* isolate = job->isolate_specific_info_.isolate_;
+    DCHECK_EQ(isolate, Isolate::Current());
+    DirectHandle<WasmModuleObject> deserialized_module_object;
+    if (!deserialized_module_object_.is_null()) {
+      deserialized_module_object =
+          direct_handle(*deserialized_module_object_, isolate);
+      GlobalHandles::Destroy(deserialized_module_object_.location());
+      deserialized_module_object_ = {};
+    }
     // Then finalize and publish the generated module.
     // This invalidates the {AsyncCompileJob}.
-    bool cache_hit = final_native_module_ != job->new_native_module_;
-    std::move(*job).FinishCompile(std::move(final_native_module_), {},
-                                  cache_hit);
+    bool cache_hit = deserialized_module_object.is_null() &&
+                     final_native_module_ != job->new_native_module_;
+    std::move(*job).FinishCompile(std::move(final_native_module_),
+                                  deserialized_module_object, cache_hit);
   }
 
   std::shared_ptr<NativeModule> final_native_module_;
+  IndirectHandle<WasmModuleObject> deserialized_module_object_;
 };
 
 //==========================================================================
@@ -3264,9 +3301,7 @@ void AsyncStreamingProcessor::OnFinishedStream(
                                                   job_->compile_imports_);
       owns_cache_entry_ = false;
     }
-    // Calling {Failed} will invalidate the {AsyncCompileJob} and delete {this}.
-    HandleScope handle_scope(isolate);
-    std::move(*job_).Failed();
+    job_->DoImmediatelyOrDefer<AsyncCompileJob::Fail>();
     return;
   }
 
@@ -3298,13 +3333,6 @@ void AsyncStreamingProcessor::OnFinishedStream(
         false /* functions_are_validated_ */, code_size_estimate);
     return;
   }
-
-  // We have to open a HandleScope and prepare the Context for
-  // CreateNativeModule, PrepareRuntimeObjects and FinishCompile as this is a
-  // callback from the embedder.
-  HandleScope scope(isolate);
-  SaveAndSwitchContext saved_context(
-      isolate, *job_->isolate_specific_info_.native_context_);
 
   // Record the size of the wire bytes and the number of functions. In
   // synchronous and asynchronous (non-streaming) compilation, this happens in
@@ -3351,19 +3379,16 @@ void AsyncStreamingProcessor::OnFinishedStream(
     final_native_module = GetWasmEngine()->UpdateNativeModuleCache(
         failed, job_->new_native_module_, isolate);
     owns_cache_entry_ = false;
-    cache_hit = final_native_module != job_->new_native_module_;
-    // We finally call {Failed} or {FinishCompile}, which will invalidate the
-    // {AsyncCompileJob} and delete {this}.
     if (failed) {
       SetCrashKey("CompilationState failed");
-      std::move(*job_).Failed();
+      job_->DoImmediatelyOrDefer<AsyncCompileJob::Fail>();
       return;
     }
   }
 
   if (needs_finish) {
-    std::move(*job_).FinishCompile(std::move(final_native_module), {},
-                                   cache_hit);
+    job_->DoImmediatelyOrDefer<AsyncCompileJob::FinishCompilation>(
+        std::move(final_native_module));
   }
 }
 
@@ -3388,8 +3413,8 @@ bool AsyncStreamingProcessor::Deserialize(
     base::UniqueArray<const uint8_t>& wire_bytes) {
   TRACE_EVENT("v8.wasm", "wasm.Deserialize");
   Isolate* isolate = job_->isolate_specific_info_.isolate_;
-  // DeserializeNativeModule and FinishCompile assume that they are executed in
-  // a HandleScope, and that a context is set on the isolate.
+  // DeserializeNativeModule assumes that it is executed in a HandleScope, and
+  // that a context is set on the isolate.
   HandleScope scope(isolate);
   SaveAndSwitchContext saved_context(
       isolate, *job_->isolate_specific_info_.native_context_);
@@ -3408,10 +3433,11 @@ bool AsyncStreamingProcessor::Deserialize(
   CppGCManaged<NativeModule>::Ptr deserialized_native_module =
       module_object->native_module();
   job_->wire_bytes_ = ModuleWireBytes(deserialized_native_module->wire_bytes());
-  // Calling {FinishCompile} deletes the {AsyncCompileJob} and {this}.
-  std::move(*job_).FinishCompile(
-      std::move(deserialized_native_module).as_shared_ptr(), module_object,
-      false);
+  IndirectHandle<WasmModuleObject> global_module_object =
+      isolate->global_handles()->Create(*module_object);
+  job_->DoImmediatelyOrDefer<AsyncCompileJob::FinishCompilation>(
+      std::move(deserialized_native_module).as_shared_ptr(),
+      global_module_object);
   return true;
 }
 

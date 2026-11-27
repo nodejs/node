@@ -90,7 +90,7 @@ ZSTD_GEN_RECORD_FINGERPRINT(11, 9)
 ZSTD_GEN_RECORD_FINGERPRINT(43, 8)
 
 
-static U64 abs64(S64 s64) { return (U64)((s64 < 0) ? -s64 : s64); }
+static U64 ZSTD_abs64(S64 s64) { return (U64)((s64 < 0) ? -s64 : s64); }
 
 static U64 fpDistance(const Fingerprint* fp1, const Fingerprint* fp2, unsigned hashLog)
 {
@@ -99,7 +99,7 @@ static U64 fpDistance(const Fingerprint* fp1, const Fingerprint* fp2, unsigned h
     assert(hashLog <= HASHLOG_MAX);
     for (n = 0; n < ((size_t)1 << hashLog); n++) {
         distance +=
-            abs64((S64)fp1->events[n] * (S64)fp2->nbEvents - (S64)fp2->events[n] * (S64)fp1->nbEvents);
+            ZSTD_abs64((S64)fp1->events[n] * (S64)fp2->nbEvents - (S64)fp2->events[n] * (S64)fp1->nbEvents);
     }
     return distance;
 }
@@ -219,7 +219,7 @@ static size_t ZSTD_splitBlock_fromBorders(const void* blockStart, size_t blockSi
     {   U64 const distFromBegin = fpDistance(&fpstats->pastEvents, middleEvents, 8);
         U64 const distFromEnd = fpDistance(&fpstats->newEvents, middleEvents, 8);
         U64 const minDistance = SEGMENT_SIZE * SEGMENT_SIZE / 3;
-        if (abs64((S64)distFromBegin - (S64)distFromEnd) < minDistance)
+        if (ZSTD_abs64((S64)distFromBegin - (S64)distFromEnd) < minDistance)
             return 64 KB;
         return (distFromBegin > distFromEnd) ? 32 KB : 96 KB;
     }

@@ -185,7 +185,7 @@ ContextifyContext::ContextifyContext(Environment* env,
   DCHECK_NULL(v8_context->GetAlignedPointerFromEmbedderData(
       ContextEmbedderIndex::kContextifyContext,
       EmbedderDataTag::kPerContextData));
-  v8_context->SetAlignedPointerInEmbedderData(
+  v8_context->SetAlignedPointerInEmbedderDataV2(
       ContextEmbedderIndex::kContextifyContext,
       this,
       EmbedderDataTag::kPerContextData);
@@ -292,21 +292,21 @@ ContextifyContext* ContextifyContext::New(Local<Context> v8_context,
   // to the ContextifyContext wrapper which in turn internally references
   // the context from its constructor.
   if (sandbox_obj.IsEmpty()) {
-    v8_context->SetEmbedderData(ContextEmbedderIndex::kSandboxObject,
-                                v8::Undefined(env->isolate()));
+    v8_context->SetEmbedderDataV3(ContextEmbedderIndex::kSandboxObject,
+                                  v8::Undefined(env->isolate()));
   } else {
-    v8_context->SetEmbedderData(ContextEmbedderIndex::kSandboxObject,
-                                sandbox_obj);
+    v8_context->SetEmbedderDataV3(ContextEmbedderIndex::kSandboxObject,
+                                  sandbox_obj);
   }
 
   // Delegate the code generation validation to
   // node::ModifyCodeGenerationFromStrings.
   v8_context->AllowCodeGenerationFromStrings(false);
-  v8_context->SetEmbedderData(
+  v8_context->SetEmbedderDataV3(
       ContextEmbedderIndex::kAllowCodeGenerationFromStrings,
       options->allow_code_gen_strings);
-  v8_context->SetEmbedderData(ContextEmbedderIndex::kAllowWasmCodeGeneration,
-                              options->allow_code_gen_wasm);
+  v8_context->SetEmbedderDataV3(ContextEmbedderIndex::kAllowWasmCodeGeneration,
+                                options->allow_code_gen_wasm);
 
   Utf8Value name_val(env->isolate(), options->name);
   ContextInfo info(name_val.ToString());
@@ -1014,8 +1014,7 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
 
   ContextifyScript* contextify_script = New(env, args.This());
 
-  if (*TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(
-          TRACING_CATEGORY_NODE2(vm, script)) != 0) {
+  if (TRACE_EVENT_CATEGORY_ENABLED(TRACING_CATEGORY_NODE2(vm, script))) {
     Utf8Value fn(isolate, filename);
     TRACE_EVENT_BEGIN1(TRACING_CATEGORY_NODE2(vm, script),
                        "ContextifyScript::New",
@@ -1025,7 +1024,7 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
 
   ScriptCompiler::CachedData* cached_data = nullptr;
   if (!cached_data_buf.IsEmpty()) {
-    uint8_t* data = static_cast<uint8_t*>(cached_data_buf->Buffer()->Data());
+    uint8_t* data = static_cast<uint8_t*>(cached_data_buf->GetBuffer()->Data());
     cached_data = new ScriptCompiler::CachedData(
         data + cached_data_buf->ByteOffset(), cached_data_buf->ByteLength());
   }
@@ -1436,7 +1435,7 @@ void ContextifyFunction::CompileFunction(
   // Read cache from cached data buffer
   ScriptCompiler::CachedData* cached_data = nullptr;
   if (!cached_data_buf.IsEmpty()) {
-    uint8_t* data = static_cast<uint8_t*>(cached_data_buf->Buffer()->Data());
+    uint8_t* data = static_cast<uint8_t*>(cached_data_buf->GetBuffer()->Data());
     cached_data = new ScriptCompiler::CachedData(
       data + cached_data_buf->ByteOffset(), cached_data_buf->ByteLength());
   }

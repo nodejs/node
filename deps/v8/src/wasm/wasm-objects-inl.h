@@ -1175,7 +1175,8 @@ void WasmSuspenderObject::set_reject(Tagged<UnionOf<JSObject, Undefined>> value,
 
 wasm::ValueType WasmTableObject::type(const wasm::WasmModule* module) {
   wasm::ValueType type = unsafe_type();
-  SBXCHECK(!type.has_index() || module->has_type(type.ref_index()));
+  SBXCHECK(!type.has_index() ||
+           (module != nullptr && module->has_type(type.ref_index())));
   return type;
 }
 
@@ -1195,7 +1196,7 @@ wasm::ValueType WasmTableObject::unsafe_type() {
   // technically sandbox violations, we should still try to avoid them to keep
   // fuzzers happy. This SBXCHECK accomplishes that.
   wasm::ValueType type = wasm::ValueType::FromRawBitField(raw_type());
-  SBXCHECK(type.is_valid());
+  SBXCHECK(type.is_valid() && type.is_ref());
   return type;
 }
 

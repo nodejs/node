@@ -6,6 +6,7 @@
 #include "base_object.h"
 #include "lru_cache-inl.h"
 #include "node_mem.h"
+#include "node_sqlite_vfs.h"
 #include "sqlite3.h"
 #include "util.h"
 
@@ -13,6 +14,7 @@
 #include <array>
 #include <list>
 #include <map>
+#include <memory>
 #include <optional>
 #include <string_view>
 #include <unordered_set>
@@ -212,6 +214,7 @@ class BindingData : public BaseObject {
   SET_SELF_SIZE(BindingData)
 
   std::unordered_set<Database*> open_databases;
+  std::weak_ptr<SQLitePermissionVFS> permission_vfs;
 
   static void CreatePerContextProperties(v8::Local<v8::Object> target,
                                          v8::Local<v8::Value> unused,
@@ -290,6 +293,11 @@ class Database : public BaseObject {
   }
   sqlite3* Connection();
   void SetLimit(int sqlite_limit_id, int value);
+  std::shared_ptr<SQLitePermissionVFS> PermissionVFS() const {
+    return permission_vfs_;
+  }
+  // Throws the permission error if the permission VFS caused the last failure.
+  bool ThrowIfPermissionDenied();
 
   // In some situations, such as when using custom functions, it is possible
   // that SQLite reports an error while JavaScript already has a pending
@@ -356,6 +364,7 @@ class Database : public BaseObject {
   int authorizer_depth_ = 0;
   int trace_suppression_depth_ = 0;
   std::vector<sqlite3_stmt*> stepping_statements_;
+  std::shared_ptr<SQLitePermissionVFS> permission_vfs_;
 
   // SQLite owns these scalar and aggregate/window function registrations. Its
   // destroy callbacks untrack replaced functions and failed registrations.
@@ -395,6 +404,8 @@ class Statement : public BaseObject {
   static void Columns(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SourceSQLGetter(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void ExpandedSQLGetter(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ColumnCountGetter(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Stat(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void ResetStats(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -685,6 +696,9 @@ struct NodeVTabCursor {
   std::vector<sqlite3_value*> hidden_values;
   sqlite3_int64 rowid;
   bool done;
+  // Set while xClose is running. A nested sqlite3_reset() can otherwise call
+  // xClose on this same cursor again and free it twice.
+  bool closing = false;
 };
 
 class VirtualTableModule {

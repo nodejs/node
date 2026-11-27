@@ -85,7 +85,7 @@ const clientHeadersReceived = Promise.withResolvers();
 
 // Send a GET request. With body omitted, the terminal flag is set
 // automatically (END_STREAM on the HEADERS frame).
-const stream = await clientSession.createBidirectionalStream({
+const stream = clientSession.createBidirectionalStream({
   headers: {
     ':method': 'GET',
     ':path': '/index.html',

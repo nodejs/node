@@ -84,6 +84,7 @@ jobs:
       CXX: ${{ (github.base_ref == 'main' || github.ref_name == 'main') && 'sccache' || '' }} g++
       SCCACHE_GHA_ENABLED: ${{ github.base_ref == 'main' || github.ref_name == 'main' }}
       SCCACHE_IDLE_TIMEOUT: '0'
+      CARGO_BUILD_RUSTC_WRAPPER: ${{ (github.base_ref == 'main' || github.ref_name == 'main') && 'sccache' || '' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
@@ -104,7 +105,7 @@ jobs:
         if: github.base_ref == 'main' || github.ref_name == 'main'
         uses: Mozilla-Actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba  # v0.0.11
         with:
-          version: v0.17.0
+          version: v0.19.0
       # The `npm ci` for this step fails a lot as part of the Test step. Run it
       # now so that we don't have to wait 2 hours for the Build step to pass
       # first before that failure happens. (And if there's something about

@@ -40,7 +40,7 @@ const dataLength = 8192;
   const clientSession = await connect(serverEndpoint.address);
   await clientSession.opened;
 
-  const stream = await clientSession.createBidirectionalStream();
+  const stream = clientSession.createBidirectionalStream();
   stream.setBody(new Uint8Array(dataLength));
   await dump(stream);
   await Promise.all([stream.closed, serverDone.promise, clientSession.closed]);
@@ -68,7 +68,7 @@ const dataLength = 8192;
   const clientSession = await connect(serverEndpoint.address);
   await clientSession.opened;
 
-  const stream = await clientSession.createBidirectionalStream();
+  const stream = clientSession.createBidirectionalStream();
   stream.setBody(new Uint8Array(dataLength));
   await dump(stream);
   await Promise.all([stream.closed, serverDone.promise, clientSession.closed]);

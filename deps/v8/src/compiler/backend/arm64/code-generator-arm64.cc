@@ -1979,7 +1979,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_SHIFT(Ror, 32);
       break;
     case kArm64Mov32:
-      __ Mov(i.OutputRegister32(), i.InputRegister32(0));
+      if (instr->InputAt(0)->IsRegister()) {
+        __ Mov(i.OutputRegister32(), i.InputRegister32(0));
+      } else {
+        __ Ldr(i.OutputRegister32(), i.ToMemOperand(instr->InputAt(0), masm()));
+      }
       break;
     case kArm64Sxtb32:
       __ Sxtb(i.OutputRegister32(), i.InputRegister32(0));
@@ -2566,8 +2570,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ DecompressTaggedSigned(i.OutputRegister(), i.MemoryOperand());
       break;
     case kArm64LdrDecompressTagged:
-      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
-      __ DecompressTagged(i.OutputRegister(), i.MemoryOperand());
+      if (AddressingModeField::decode(instr->opcode()) != kMode_None) {
+        RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+        __ DecompressTagged(i.OutputRegister(), i.MemoryOperand());
+      } else if (instr->InputAt(0)->IsRegister()) {
+        __ DecompressTagged(i.OutputRegister(), i.InputRegister(0));
+      } else {
+        __ DecompressTagged(i.OutputRegister(),
+                            i.ToMemOperand(instr->InputAt(0), masm()));
+      }
       break;
     case kArm64LdrDecompressProtected:
       RecordTrapInfoIfNeeded(zone(), this, opcode, instr, __ pc_offset());

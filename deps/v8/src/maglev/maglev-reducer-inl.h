@@ -740,6 +740,10 @@ MaybeAssignedFlag MaglevReducer<BaseT>::GetContextMaybeAssigned(
   }
   int var_index = index - header_length;
   *mode = scope_info.ContextLocalMode(var_index);
+  // The debugger may have mutated a kNotAssigned context slot at runtime.
+  if (broker()->isolate()->is_context_slot_not_assigned_unreliable()) {
+    return kMaybeAssigned;
+  }
   return scope_info.ContextLocalMaybeAssignedFlag(var_index);
 }
 

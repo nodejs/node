@@ -1,7 +1,7 @@
 'use strict'
 const assert = require('node:assert')
 
-const { kRetryHandlerDefaultRetry } = require('../core/symbols')
+const { kRetryHandlerDefaultRetry, kQueuedAbort } = require('../core/symbols')
 const { RequestRetryError, RequestAbortedError } = require('../core/errors')
 const {
   hasSafeIterator,
@@ -98,6 +98,11 @@ class RetryController {
 }
 
 class RetryHandler {
+  // Takes the retry that waits for a connection out of its queue.
+  #queuedCancel = null
+  // Whether retries are dispatched with a hook that sets #queuedCancel.
+  #tracksQueuedRetry = false
+
   constructor (opts, { dispatch, handler }) {
     const { retryOptions, ...dispatchOpts } = opts
     const {
@@ -561,6 +566,18 @@ class RetryHandler {
       }
     }
 
+    if (!this.#tracksQueuedRetry) {
+      // The consumer's controller still targets the earlier attempt, so an
+      // abort would not reach a retry that waits for a connection. Keep the
+      // function that takes it out of its queue; the caller's hook still runs.
+      this.#tracksQueuedRetry = true
+      const onQueued = this.opts[kQueuedAbort]
+      this.opts[kQueuedAbort] = (cancel) => {
+        this.#queuedCancel = cancel
+        onQueued?.(cancel)
+      }
+    }
+
     try {
       this.retryCountCheckpoint = this.retryCount
       this.dispatch(this.opts, this)
@@ -622,6 +639,15 @@ class RetryHandler {
   }
 
   #onAbort (reason) {
+    // A retry that waits for a connection is taken out of its queue: its
+    // dispatcher fails it with an aborted controller, so onResponseError passes
+    // the abort on instead of retrying. Once the retry started, this does nothing.
+    const cancel = this.#queuedCancel
+    if (cancel !== null) {
+      this.#queuedCancel = null
+      cancel(reason ?? new RequestAbortedError())
+    }
+
     // A consumer abort lands on the controller proxy. If the retry policy is
     // still deciding (typically holding a backoff timer), cancel the wait and
     // surface the abort immediately instead of letting the request hang until

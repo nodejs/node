@@ -832,6 +832,7 @@ StringReplaceGlobalRegExpWithEmptyString(
   int delta = allocated_string_size - string_size;
 
   answer->set_length(position);
+  answer->ClearPadding();
   if (delta == 0) return *answer;
 
   Address end_of_string = answer->address() + string_size;

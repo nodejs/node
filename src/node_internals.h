@@ -190,9 +190,9 @@ v8::MaybeLocal<v8::Object> New(Environment* env,
 v8::MaybeLocal<v8::Object> New(Environment* env,
                                char* data,
                                size_t length);
-// Creates a Buffer instance over an existing ArrayBuffer.
+// Creates a Buffer instance over an existing ArrayBuffer or SharedArrayBuffer.
 v8::MaybeLocal<v8::Uint8Array> New(Environment* env,
-                                   v8::Local<v8::ArrayBuffer> ab,
+                                   v8::Local<v8::ArrayBufferBase> ab,
                                    size_t byte_offset,
                                    size_t length);
 // Construct a Buffer from a MaybeStackBuffer (and also its subclasses like
@@ -241,6 +241,16 @@ v8::MaybeLocal<v8::Value> InternalMakeCallback(
     async_context asyncContext,
     v8::Local<v8::Value> context_frame);
 
+// The same, for a caller that already knows the Environment of `callback`.
+v8::MaybeLocal<v8::Value> MakeCallbackInEnvironment(
+    Environment* env,
+    v8::Local<v8::Object> recv,
+    const v8::Local<v8::Function> callback,
+    int argc,
+    v8::Local<v8::Value> argv[],
+    async_context asyncContext,
+    v8::Local<v8::Value> context_frame);
+
 v8::MaybeLocal<v8::Value> MakeSyncCallback(v8::Isolate* isolate,
                                            v8::Local<v8::Object> recv,
                                            v8::Local<v8::Function> callback,
@@ -281,6 +291,10 @@ class InternalCallbackScope {
   inline bool Failed() const { return failed_; }
   inline void MarkAsFailed() { failed_ = true; }
 
+  // For executionAsyncResource() inside a scope that skipped the id stack.
+  inline uint32_t lazy_depth() const { return lazy_depth_; }
+  v8::Local<v8::Object> lazy_resource(v8::Isolate* isolate) const;
+
  private:
   Environment* env_;
   async_context async_context_;
@@ -290,6 +304,12 @@ class InternalCallbackScope {
   bool failed_ = false;
   bool pushed_ids_ = false;
   bool closed_ = false;
+  bool lazy_ids_ = false;
+  uint32_t lazy_depth_ = 0;
+  double prior_async_id_ = 0;
+  double prior_trigger_async_id_ = 0;
+  InternalCallbackScope* lazy_prev_ = nullptr;
+  std::variant<v8::Local<v8::Object>*, v8::Global<v8::Object>*> lazy_resource_;
   v8::Global<v8::Value> prior_context_frame_;
   std::optional<v8::Isolate::AllowJavascriptExecutionScope> allow_js_;
 };

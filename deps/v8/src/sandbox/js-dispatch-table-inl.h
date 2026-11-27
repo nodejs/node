@@ -12,6 +12,7 @@
 
 #include "src/builtins/builtins-inl.h"
 #include "src/common/code-memory-access-inl.h"
+#include "src/common/synchronization-point-support.h"
 #include "src/execution/isolate.h"
 #include "src/objects/objects-inl.h"
 #include "src/sandbox/external-entity-table-inl.h"
@@ -27,6 +28,7 @@ namespace internal {
 void JSDispatchEntry::MakeJSDispatchEntry(Address object, Address entrypoint,
                                           uint16_t parameter_count,
                                           bool mark_as_alive) {
+  DCHECK(IsFreelistEntry());
   DCHECK_NE(entrypoint, kNullAddress);
   DCHECK_EQ(object & kHeapObjectTag, 0);
 #if V8_TARGET_ARCH_X64 && V8_SUPPORT_LA57
@@ -46,29 +48,51 @@ void JSDispatchEntry::MakeJSDispatchEntry(Address object, Address entrypoint,
   Address payload = ((object - kObjectPointerOffset) << kObjectPointerShift) |
                     (parameter_count & kParameterCountMask);
 #endif  // !(V8_TARGET_ARCH_X64 && V8_SUPPORT_LA57)
-#ifdef V8_TARGET_ARCH_32_BIT
-  parameter_count_.store(parameter_count, std::memory_order_relaxed);
-  next_free_entry_.store(0, std::memory_order_relaxed);
-#endif  // V8_TARGET_ARCH_32_BIT
   DCHECK(!(payload & kMarkingBit));
   if (mark_as_alive) payload |= kMarkingBit;
-  entrypoint_.store(entrypoint, std::memory_order_relaxed);
+  // Updates to code_object_/encoded_word_ must use release stores (paired with
+  // acquire loads in GetCodePointer()) so that background threads (such as
+  // concurrent marking) that read the Code pointer do not observe an
+  // uninitialized Code object on the heap.
+  //
+  // In addition, the parameter count (in encoded_word_ on 64-bit, or
+  // parameter_count_ on 32-bit) must be written before the release store to
+  // entrypoint_ (on 64-bit) / next_free_entry_ (on 32-bit) transitions the
+  // entry out of the freelist state. Because that final store uses release
+  // ordering (paired with the acquire load in
+  // IsFreelistOrUninitializedEntry()), preceding stores to the parameter count
+  // (even when relaxed) cannot be reordered past it, preventing concurrent
+  // readers in GetParameterCount() from observing a non-free entry with a stale
+  // parameter count.
 #if V8_TARGET_ARCH_X64 && V8_SUPPORT_LA57
   encoded_word_.store(payload, std::memory_order_relaxed);
   code_object_.store(object | kHeapObjectTag, std::memory_order_release);
 #else
   encoded_word_.store(payload, std::memory_order_release);
 #endif  // V8_TARGET_ARCH_X64 && V8_SUPPORT_LA57
-  DCHECK(!IsFreelistEntry());
+#ifdef V8_TARGET_ARCH_32_BIT
+  parameter_count_.store(parameter_count, std::memory_order_relaxed);
+#endif  // V8_TARGET_ARCH_32_BIT
+  SYNCHRONIZATION_POINT_TEST_ONLY("JSDispatchEntryMake");
+#ifdef V8_TARGET_ARCH_32_BIT
+  entrypoint_.store(entrypoint, std::memory_order_relaxed);
+  next_free_entry_.store(0, std::memory_order_release);
+#else
+  entrypoint_.store(entrypoint, std::memory_order_release);
+#endif  // V8_TARGET_ARCH_32_BIT
+  DCHECK(!IsFreelistOrUninitializedEntry());
 }
 
 Address JSDispatchEntry::GetEntrypoint() const {
-  DCHECK(!IsFreelistEntry());
+  DCHECK(!IsFreelistOrUninitializedEntry());
   return entrypoint_.load(std::memory_order_relaxed);
 }
 
 Address JSDispatchEntry::GetCodePointer() const {
-  DCHECK(!IsFreelistEntry());
+  DCHECK(!IsFreelistOrUninitializedEntry());
+  // Use acquire loads (paired with release stores in MakeJSDispatchEntry() and
+  // SetCodeAndEntrypointPointer()) to ensure the target Code object's fields on
+  // the heap are visible before dereferencing the returned pointer.
 #if V8_TARGET_ARCH_X64 && V8_SUPPORT_LA57
   return code_object_.load(std::memory_order_acquire);
 #else
@@ -95,11 +119,11 @@ Tagged<Code> JSDispatchEntry::GetCode() const {
 }
 
 uint16_t JSDispatchEntry::GetParameterCount() const {
-  // Loading a pointer out of a freed entry will always result in an invalid
-  // pointer (e.g. upper bits set or nullptr). However, here we're just loading
-  // an integer (the parameter count), so we probably want to make sure that
-  // we're not getting that from a freed entry.
-  CHECK(!IsFreelistEntry());
+  // Loading a pointer out of a freed or uninitialized entry will always result
+  // in an invalid pointer (e.g. upper bits set or nullptr). However, here we're
+  // just loading an integer (the parameter count), so we must ensure that we're
+  // not getting that from a freed or uninitialized (zero-filled) entry.
+  CHECK(!IsFreelistOrUninitializedEntry());
 #ifdef V8_TARGET_ARCH_32_BIT
   return parameter_count_.load(std::memory_order_relaxed);
 #else
@@ -247,6 +271,9 @@ void JSDispatchEntry::SetCodeAndEntrypointPointer(Address new_object,
                                                   Address new_entrypoint,
                                                   Isolate* isolate) {
   DCHECK_NE(new_entrypoint, kNullAddress);
+  // Updates to code_object_/encoded_word_ must use release stores (paired with
+  // acquire loads in GetCodePointer()) so that background threads that read the
+  // new Code pointer do not observe an uninitialized Code object on the heap.
 #if V8_TARGET_ARCH_X64 && V8_SUPPORT_LA57
   DCHECK(Internals::HasHeapObjectTag(new_object));
   entrypoint_.store(new_entrypoint, std::memory_order_relaxed);
@@ -277,7 +304,7 @@ void JSDispatchEntry::SetCodeAndEntrypointPointer(Address new_object,
     }
   }
 #endif  // !(V8_TARGET_ARCH_X64 && V8_SUPPORT_LA57)
-  DCHECK(!IsFreelistEntry());
+  DCHECK(!IsFreelistOrUninitializedEntry());
 }
 
 void JSDispatchEntry::SetEntrypointPointer(Address new_entrypoint) {
@@ -288,16 +315,33 @@ void JSDispatchEntry::SetEntrypointPointer(Address new_entrypoint) {
 void JSDispatchEntry::MakeFreelistEntry(uint32_t next_entry_index) {
 #ifdef V8_TARGET_ARCH_64_BIT
   Address payload = kFreeEntryTag | next_entry_index;
-  entrypoint_.store(payload, std::memory_order_relaxed);
+  entrypoint_.store(payload, std::memory_order_release);
 #else
   // Store index + 1 such that we can use 0 for non-free entries.
-  next_free_entry_.store(next_entry_index + 1, std::memory_order_relaxed);
+  next_free_entry_.store(next_entry_index + 1, std::memory_order_release);
   entrypoint_.store(kNullAddress, std::memory_order_relaxed);
 #endif
 #if V8_TARGET_ARCH_X64 && V8_SUPPORT_LA57
   code_object_.store(kNullAddress, std::memory_order_relaxed);
 #endif  // V8_TARGET_ARCH_X64 && V8_SUPPORT_LA57
-  encoded_word_.store(kNullAddress, std::memory_order_relaxed);
+  // Set the parameter count to 0xffff (kMaxUInt16 / kParameterCountMask) rather
+  // than 0 (kDontAdaptArgumentsSentinel) while keeping the marking bit and code
+  // pointer bits zeroed. Since 0xffff exceeds Code::kMaxArguments, a freelist
+  // entry never holds a valid parameter count. This prevents two issues:
+  // 1. Concurrent sweeping in GetParameterCount(): if an entry is swept while a
+  //    background compiler thread is between the
+  //    IsFreelistOrUninitializedEntry() check and the parameter count load in
+  //    GetParameterCount(), or if the relaxed store below is reordered before
+  //    the entrypoint_ store on weak memory models, the reader observes 0xffff
+  //    rather than 0.
+  // 2. Direct parameter count loads in generated code (such as
+  //    LoadParameterCountFromJSDispatchTable), which load the 16-bit parameter
+  //    count directly without checking IsFreelistEntry(), will never match an
+  //    expected parameter count of 0 on a freed entry.
+#ifdef V8_TARGET_ARCH_32_BIT
+  parameter_count_.store(kMaxUInt16, std::memory_order_relaxed);
+#endif
+  encoded_word_.store(kParameterCountMask, std::memory_order_relaxed);
   DCHECK(IsFreelistEntry());
 }
 
@@ -314,10 +358,20 @@ bool JSDispatchEntry::IsFreelistEntry(Address entrypoint) const {
 
 bool JSDispatchEntry::IsFreelistEntry() const {
 #ifdef V8_TARGET_ARCH_64_BIT
-  auto entrypoint = entrypoint_.load(std::memory_order_relaxed);
+  auto entrypoint = entrypoint_.load(std::memory_order_acquire);
   return IsFreelistEntry(entrypoint);
 #else
-  return next_free_entry_.load(std::memory_order_relaxed) != 0;
+  return next_free_entry_.load(std::memory_order_acquire) != 0;
+#endif
+}
+
+bool JSDispatchEntry::IsFreelistOrUninitializedEntry() const {
+#ifdef V8_TARGET_ARCH_64_BIT
+  auto entrypoint = entrypoint_.load(std::memory_order_acquire);
+  return entrypoint == kNullAddress || IsFreelistEntry(entrypoint);
+#else
+  return next_free_entry_.load(std::memory_order_acquire) != 0 ||
+         entrypoint_.load(std::memory_order_acquire) == kNullAddress;
 #endif
 }
 

@@ -456,6 +456,7 @@ class PerProcessOptions : public Options {
   DEFINE_BOOL_FIELD(disable_wasm_trap_handler) = false;
   DEFINE_BOOL_FIELD(report_on_fatalerror) = false;
   DEFINE_BOOL_FIELD(report_on_process_timeout) = false;
+  DEFINE_BOOL_FIELD(process_timeout_worker_stacks) = false;
   DEFINE_BOOL_FIELD(report_compact) = false;
   DEFINE_BOOL_FIELD(trace_sigint) = false;
   // Tracks whether `--run` was passed, since an empty `run` is ambiguous

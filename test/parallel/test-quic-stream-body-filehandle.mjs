@@ -45,7 +45,7 @@ writeFileSync(testFile, testContent);
   await clientSession.opened;
 
   const fh = await open(testFile, 'r');
-  const stream = await clientSession.createBidirectionalStream({
+  const stream = clientSession.createBidirectionalStream({
     body: fh,
   });
 
@@ -76,7 +76,7 @@ writeFileSync(testFile, testContent);
   await clientSession.opened;
 
   const fh = await open(testFile, 'r');
-  const stream = await clientSession.createBidirectionalStream();
+  const stream = clientSession.createBidirectionalStream();
   stream.setBody(fh);
 
   const response = await bytes(stream);
@@ -104,13 +104,13 @@ writeFileSync(testFile, testContent);
   const fh = await open(testFile, 'r');
 
   // First use locks the FileHandle.
-  const stream1 = await clientSession.createBidirectionalStream({
+  const stream1 = clientSession.createBidirectionalStream({
     body: fh,
   });
 
-  // Second use should reject because it's locked.
-  await assert.rejects(
-    clientSession.createBidirectionalStream({ body: fh }),
+  // Second use should throw because it's locked.
+  assert.throws(
+    () => clientSession.createBidirectionalStream({ body: fh }),
     { code: 'ERR_INVALID_STATE' },
   );
 

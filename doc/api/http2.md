@@ -1823,7 +1823,7 @@ provide additional methods such as `http2stream.pushStream()` and
 <!-- YAML
 added: v8.4.0
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.2.0
     pr-url: https://github.com/nodejs/node/pull/67470
     description: Added the `callback` argument.
 -->
@@ -4914,7 +4914,7 @@ const server = http2.createServer((req, res) => {
 #### `response.setHeaders(headers)`
 
 <!-- YAML
-added: REPLACEME
+added: v27.0.0-alpha.0.2.0
 -->
 
 * `headers` {Headers|Map}
@@ -5108,7 +5108,7 @@ buffer. Returns `false` if all or part of the data was queued in user memory.
 <!-- YAML
 added: v8.4.0
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.2.0
     pr-url: https://github.com/nodejs/node/pull/67470
     description: Added the `callback` argument.
 -->
@@ -5127,7 +5127,7 @@ should be sent. See the [`'checkContinue'`][] event on `Http2Server` and
 <!-- YAML
 added: v18.11.0
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.2.0
     pr-url: https://github.com/nodejs/node/pull/67470
     description: Added the `callback` argument.
 -->
@@ -5167,7 +5167,7 @@ added:
   - v26.2.0
   - v24.18.0
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.2.0
     pr-url: https://github.com/nodejs/node/pull/67470
     description: Added the `callback` argument.
 -->
@@ -5187,8 +5187,8 @@ Sends an arbitrary HTTP 1xx informational response, equivalent in HTTP/2 to a
 multiple times before the final response. After the final response headers
 have been sent, this method is a no-op and returns `false`.
 
-This is the generic equivalent of [`response.writeContinue()`][] and
-[`response.writeEarlyHints()`][].
+This is the generic equivalent of [`response.writeContinue()`][],
+[`response.writeProcessing()`][] and [`response.writeEarlyHints()`][].
 
 ```js
 response.writeInformation(110, { 'X-Progress': '50%' });
@@ -5259,6 +5259,20 @@ const server = http2.createServer((req, res) => {
 
 Attempting to set a header field name or value that contains invalid characters
 will result in a [`TypeError`][] being thrown.
+
+#### `response.writeProcessing([callback])`
+
+<!-- YAML
+added: v27.0.0-alpha.0.2.0
+-->
+
+* `callback` {Function} Optional, called once the informational headers
+  have been written to the socket, or with an error if they could not be
+  written. It is not called if nothing is sent.
+  * `err` {Error|null}
+
+Sends a status `102 Processing` to the client, indicating that the request
+has been received and is still being processed.
 
 ## Collecting HTTP/2 performance metrics
 
@@ -5410,6 +5424,7 @@ you need to implement any fall-back behavior yourself.
 [`response.writeContinue()`]: #responsewritecontinuecallback
 [`response.writeEarlyHints()`]: #responsewriteearlyhintshints-callback
 [`response.writeHead()`]: #responsewriteheadstatuscode-statusmessage-headers
+[`response.writeProcessing()`]: #responsewriteprocessingcallback
 [`server.close()`]: #serverclosecallback
 [`server.maxHeadersCount`]: http.md#servermaxheaderscount
 [`tls.Server.close()`]: tls.md#serverclosecallback

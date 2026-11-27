@@ -33,6 +33,7 @@ tmpdir.refresh();
   assert.throws(() => {
     process.report.writeReport('./secret.txt');
   }, common.expectsError({
+    message: 'Access to this API has been restricted. Use --allow-fs-write to manage permissions.',
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemWrite',
     resource: './secret.txt',
@@ -43,6 +44,7 @@ tmpdir.refresh();
   assert.throws(() => {
     process.report.writeReport();
   }, common.expectsError({
+    message: 'Access to this API has been restricted. Use --allow-fs-write to manage permissions.',
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemWrite',
     resource: process.cwd(),
@@ -96,6 +98,7 @@ spawnSyncAndExitWithoutError(
       assert.throws(() => {
         process.report.writeReport('report.json');
       }, {
+        message: 'Access to this API has been restricted. Use --allow-fs-write to manage permissions.',
         code: 'ERR_ACCESS_DENIED',
         permission: 'FileSystemWrite',
         resource: ${JSON.stringify(deniedFile)},
@@ -128,6 +131,7 @@ spawnSyncAndExitWithoutError(
       assert.throws(() => {
         process.report.writeReport();
       }, {
+        message: 'Access to this API has been restricted. Use --allow-fs-write to manage permissions.',
         code: 'ERR_ACCESS_DENIED',
         permission: 'FileSystemWrite',
         resource: ${JSON.stringify(deniedFile)},

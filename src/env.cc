@@ -172,12 +172,25 @@ void AsyncHooks::push_async_context(
   }
 }
 
+void AsyncHooks::CheckLazyClose(double async_id, uint32_t depth) {
+  if (fields_[kCheck] > 0 && (async_id_fields_[kExecutionAsyncId] != async_id ||
+                              fields_[kStackLength] != depth)) [[unlikely]] {
+    FailWithCorruptedAsyncStack(async_id);
+  }
+}
+
 // Remember to keep this code aligned with popAsyncContext() in JS.
 bool AsyncHooks::pop_async_context(double async_id) {
   // In case of an exception then this may have already been reset, if the
   // stack was multiple MakeCallback()'s deep.
-  if (fields_[kStackLength] == 0) [[unlikely]]
+  if (fields_[kStackLength] == 0) [[unlikely]] {
+    // A scope that skipped the stack still has its id checked.
+    if (fields_[kLazyScopes] > 0 && fields_[kCheck] > 0 &&
+        async_id_fields_[kExecutionAsyncId] != async_id) {
+      FailWithCorruptedAsyncStack(async_id);
+    }
     return false;
+  }
 
   // Ask for the async_id to be restored as a check that the stack
   // hasn't been corrupted.
@@ -235,6 +248,8 @@ void AsyncHooks::clear_async_id_stack() {
   async_id_fields_[kExecutionAsyncId] = 0;
   async_id_fields_[kTriggerAsyncId] = 0;
   fields_[kStackLength] = 0;
+  lazy_top_ = nullptr;
+  fields_[kLazyScopes] = 0;
 }
 
 void AsyncHooks::InstallPromiseHooks(Local<Context> ctx) {
@@ -728,14 +743,14 @@ void TrackingTraceStateObserver::UpdateTraceCategoryState() {
 void Environment::AssignToContext(Local<v8::Context> context,
                                   Realm* realm,
                                   const ContextInfo& info) {
-  context->SetAlignedPointerInEmbedderData(ContextEmbedderIndex::kEnvironment,
-                                           this,
-                                           EmbedderDataTag::kPerContextData);
-  context->SetAlignedPointerInEmbedderData(
+  context->SetAlignedPointerInEmbedderDataV2(ContextEmbedderIndex::kEnvironment,
+                                             this,
+                                             EmbedderDataTag::kPerContextData);
+  context->SetAlignedPointerInEmbedderDataV2(
       ContextEmbedderIndex::kRealm, realm, EmbedderDataTag::kPerContextData);
 
   // ContextifyContexts will update this to a pointer to the native object.
-  context->SetAlignedPointerInEmbedderData(
+  context->SetAlignedPointerInEmbedderDataV2(
       ContextEmbedderIndex::kContextifyContext,
       nullptr,
       EmbedderDataTag::kPerContextData);
@@ -753,13 +768,15 @@ void Environment::AssignToContext(Local<v8::Context> context,
 
 void Environment::UnassignFromContext(Local<v8::Context> context) {
   if (!context.IsEmpty()) {
-    context->SetAlignedPointerInEmbedderData(ContextEmbedderIndex::kEnvironment,
-                                             nullptr,
-                                             EmbedderDataTag::kPerContextData);
-    context->SetAlignedPointerInEmbedderData(ContextEmbedderIndex::kRealm,
-                                             nullptr,
-                                             EmbedderDataTag::kPerContextData);
-    context->SetAlignedPointerInEmbedderData(
+    context->SetAlignedPointerInEmbedderDataV2(
+        ContextEmbedderIndex::kEnvironment,
+        nullptr,
+        EmbedderDataTag::kPerContextData);
+    context->SetAlignedPointerInEmbedderDataV2(
+        ContextEmbedderIndex::kRealm,
+        nullptr,
+        EmbedderDataTag::kPerContextData);
+    context->SetAlignedPointerInEmbedderDataV2(
         ContextEmbedderIndex::kContextifyContext,
         nullptr,
         EmbedderDataTag::kPerContextData);
@@ -2656,8 +2673,8 @@ size_t Environment::HeapProfileNearHeapLimitCallback(
 
   Debug(env, DebugCategory::DIAGNOSTICS, "Writing %s...\n", *name);
 
-  std::ostringstream out;
-  if (!node::SerializeHeapProfile(env->isolate(), out)) {
+  std::string profile;
+  if (!node::SerializeHeapProfile(env->isolate(), profile)) {
     Debug(env,
           DebugCategory::DIAGNOSTICS,
           "No sampling heap profile active; uninstalling callback.\n");
@@ -2665,7 +2682,6 @@ size_t Environment::HeapProfileNearHeapLimitCallback(
     return new_limit;
   }
 
-  std::string profile = std::move(out).str();
   uv_buf_t buffer = uv_buf_init(profile.data(), profile.size());
   const int err = WriteFileSync(filename.c_str(), buffer);
   if (err != 0) {

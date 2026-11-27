@@ -213,6 +213,11 @@ class AsyncCompileJob {
             typename... Args>
   void DoSync(Args&&... args);
 
+  // Switches to the compilation step {Step} and executes it immediately if
+  // allowed on the current stack, or starts a foreground task otherwise.
+  template <typename Step, typename... Args>
+  void DoImmediatelyOrDefer(Args&&... args);
+
   // Switches to the compilation step {Step} and starts a background task to
   // execute it.
   template <typename Step, typename... Args>

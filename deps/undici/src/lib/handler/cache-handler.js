@@ -412,7 +412,7 @@ class CacheHandler {
         deleteCachedValue(this.#store, this.#cacheKey)
       }
 
-      // Don't have anything to tell us this response is cachable and we're not
+      // Don't have anything to tell us this response is cacheable and we're not
       //  caching by default
       return downstreamOnHeaders()
     }

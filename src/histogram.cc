@@ -1291,11 +1291,10 @@ constexpr uint64_t kEwmaThreshold = 4;
 Histogram::MeanCIResult Histogram::MeanCI(double confidence) const {
   RwLock::ScopedReadLock lock(mutex_);
   int64_t count = histogram_->total_count;
+  double nan = std::numeric_limits<double>::quiet_NaN();
+  if (count == 0) return {nan, nan, nan};
   double mean = hdr_mean(histogram_.get());
-  if (count < 2) {
-    double nan = std::numeric_limits<double>::quiet_NaN();
-    return {mean, nan, nan};
-  }
+  if (count < 2) return {mean, nan, nan};
 
   double stddev = hdr_stddev(histogram_.get());
   if (stddev == 0.0) return {mean, mean, mean};
@@ -3122,7 +3121,7 @@ void HistogramImpl::GetQrde(const FunctionCallbackInfo<Value>& args) {
   Local<Float64Array> input = args[0].As<Float64Array>();
   CHECK_GE(input->Length(), 2);
   CHECK_LE(input->Length(), 1001);
-  auto backing = input->Buffer()->GetBackingStore();
+  auto backing = input->GetBuffer()->GetBackingStore();
   const double* data = reinterpret_cast<const double*>(
       static_cast<const char*>(backing->Data()) + input->ByteOffset());
   std::vector<double> probabilities(data, data + input->Length());
@@ -3206,7 +3205,7 @@ void HistogramImpl::DoImport(const FunctionCallbackInfo<Value>& args) {
     return;
   }
   Local<Uint8Array> input = args[0].As<Uint8Array>();
-  auto backing = input->Buffer()->GetBackingStore();
+  auto backing = input->GetBuffer()->GetBackingStore();
   const uint8_t* data =
       static_cast<const uint8_t*>(backing->Data()) + input->ByteOffset();
   size_t len = input->ByteLength();
@@ -3279,7 +3278,7 @@ void HistogramImpl::GetPercentilesAt(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[1]->IsFloat64Array());
   Local<Float64Array> input = args[1].As<Float64Array>();
   size_t length = input->Length();
-  auto backing = input->Buffer()->GetBackingStore();
+  auto backing = input->GetBuffer()->GetBackingStore();
   double* percentiles = reinterpret_cast<double*>(
       static_cast<char*>(backing->Data()) + input->ByteOffset());
 

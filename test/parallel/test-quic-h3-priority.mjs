@@ -57,7 +57,7 @@ const decoder = new TextDecoder();
   await clientSession.opened;
 
   // Priority set at creation time via options.
-  const stream1 = await clientSession.createBidirectionalStream({
+  const stream1 = clientSession.createBidirectionalStream({
     headers: {
       ':method': 'GET',
       ':path': '/high',
@@ -75,7 +75,7 @@ const decoder = new TextDecoder();
   assert.deepStrictEqual(stream1.priority, { level: 'high', incremental: false });
 
   // Priority 'low' + incremental at creation.
-  const stream2 = await clientSession.createBidirectionalStream({
+  const stream2 = clientSession.createBidirectionalStream({
     headers: {
       ':method': 'GET',
       ':path': '/low-inc',
@@ -91,7 +91,7 @@ const decoder = new TextDecoder();
   assert.deepStrictEqual(stream2.priority, { level: 'low', incremental: true });
 
   // Default priority at creation.
-  const stream3 = await clientSession.createBidirectionalStream({
+  const stream3 = clientSession.createBidirectionalStream({
     headers: {
       ':method': 'GET',
       ':path': '/default',
@@ -105,7 +105,7 @@ const decoder = new TextDecoder();
   assert.deepStrictEqual(stream3.priority, { level: 'default', incremental: false });
 
   // setPriority after creation.
-  const stream4 = await clientSession.createBidirectionalStream({
+  const stream4 = clientSession.createBidirectionalStream({
     headers: {
       ':method': 'GET',
       ':path': '/changed',
@@ -206,7 +206,7 @@ const decoder = new TextDecoder();
   // because the stream handle is needed. But the PRIORITY_UPDATE
   // travels on the control stream which nghttp3 processes before
   // bidi stream data, so the ordering is guaranteed.
-  const stream = await clientSession.createBidirectionalStream({
+  const stream = clientSession.createBidirectionalStream({
     headers: {
       ':method': 'POST',
       ':path': '/pri-update',

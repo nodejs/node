@@ -5,6 +5,9 @@
 <!-- YAML
 added: v22.5.0
 changes:
+  - version: v27.0.0-alpha.0.2.0
+    pr-url: https://github.com/nodejs/node/pull/67654
+    description: SQLite is now stable.
   - version:
      - v25.7.0
      - v24.15.0
@@ -17,7 +20,7 @@ changes:
     description: SQLite is no longer behind `--experimental-sqlite` but still experimental.
 -->
 
-> Stability: 1.2 - Release candidate.
+> Stability: 2 - Stable
 
 <!-- source_link=lib/sqlite.js -->
 
@@ -215,7 +218,9 @@ changes:
 * `path` {string | Buffer | URL} The path of the database. A SQLite database can be
   stored in a file or completely [in memory][]. To use a file-backed database,
   the path should be a file path. To use an in-memory database, the path
-  should be the special name `':memory:'`.
+  should be the special name `':memory:'`. When the [Permission Model][] is
+  enabled, {URL} objects and [URI filenames][] (paths starting with `file:`)
+  are not supported and an exception is thrown.
 * `options` {Object} Configuration options for the database connection. The
   following options are supported:
   * `open` {boolean} If `true`, the database is opened by the constructor. When
@@ -1321,6 +1326,19 @@ aggregate function, or a [`'sqlite.db.query'`][] subscriber. Idle statements
 on the same connection can be finalized from such a callback. This method is a
 wrapper around [`sqlite3_finalize()`][].
 
+### `statement.columnCount`
+
+<!-- YAML
+added: v27.0.0-alpha.0.2.0
+-->
+
+* Type: {number} The number of columns in the result set returned by the
+  prepared statement.
+
+This property is `0` for statements that do not return data, such as `INSERT`,
+`UPDATE`, and `DELETE` statements without a `RETURNING` clause. This property
+is a wrapper around [`sqlite3_column_count()`][].
+
 ### `statement.columns()`
 
 <!-- YAML
@@ -1840,7 +1858,8 @@ changes:
 
 * `sourceDb` {Database} The database to backup. The source database must be open.
 * `path` {string | Buffer | URL} The path where the backup will be created. If the file already exists,
-  the contents will be overwritten.
+  the contents will be overwritten. When the [Permission Model][] is enabled, {URL} objects and
+  [URI filenames][] (paths starting with `file:`) are not supported and an exception is thrown.
 * `options` {Object} Optional configuration for the backup. The
   following properties are supported:
   * `source` {string} Name of the source database. This can be `'main'` (the default primary database) or any other
@@ -2144,9 +2163,11 @@ callback function to indicate what type of operation is being authorized.
 [Constants Passed To The Conflict Handler]: https://www.sqlite.org/session/c_changeset_conflict.html
 [Constants Returned From The Conflict Handler]: https://www.sqlite.org/session/c_changeset_abort.html
 [Limit Constants]: https://www.sqlite.org/c3ref/c_limit_attached.html
+[Permission Model]: permissions.md#permission-model
 [Run-Time Limits]: https://www.sqlite.org/c3ref/limit.html
 [SQL injection]: https://en.wikipedia.org/wiki/SQL_injection
 [Type conversion between JavaScript and SQLite]: #type-conversion-between-javascript-and-sqlite
+[URI filenames]: https://www.sqlite.org/uri.html
 [Writing numbers and BigInts]: #writing-numbers-and-bigints
 [`'sqlite.db.query'`]: diagnostics_channel.md#event-sqlitedbquery
 [`ATTACH DATABASE`]: https://www.sqlite.org/lang_attach.html
@@ -2169,6 +2190,7 @@ callback function to indicate what type of operation is being authorized.
 [`sqlite3_backup_step()`]: https://www.sqlite.org/c3ref/backup_finish.html#sqlite3backupstep
 [`sqlite3_changes64()`]: https://www.sqlite.org/c3ref/changes.html
 [`sqlite3_close_v2()`]: https://www.sqlite.org/c3ref/close.html
+[`sqlite3_column_count()`]: https://www.sqlite.org/c3ref/column_count.html
 [`sqlite3_column_database_name()`]: https://www.sqlite.org/c3ref/column_database_name.html
 [`sqlite3_column_decltype()`]: https://www.sqlite.org/c3ref/column_decltype.html
 [`sqlite3_column_name()`]: https://www.sqlite.org/c3ref/column_name.html

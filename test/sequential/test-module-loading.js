@@ -29,7 +29,7 @@ const path = require('path');
 
 const backslash = /\\/g;
 
-process.on('warning', common.mustCall());
+process.on('warning', common.mustNotCall());
 
 console.error('load test-module-loading.js');
 
@@ -107,14 +107,16 @@ assert.strictEqual(require('../fixtures/packages/index').ok, 'ok');
 assert.strictEqual(require('../fixtures/packages/main').ok, 'ok');
 assert.strictEqual(require('../fixtures/packages/main-index').ok, 'ok');
 
-common.expectWarning(
-  'DeprecationWarning',
-  "Invalid 'main' field in '" +
-  path.toNamespacedPath(require.resolve('../fixtures/packages/missing-main/package.json')) +
-  "' of 'doesnotexist.js'. Please either fix that or report it to the" +
-  ' module author',
-  'DEP0128');
-assert.strictEqual(require('../fixtures/packages/missing-main').ok, 'ok');
+// A package.json with an invalid "main" entry must not fall back to index.js.
+assert.throws(
+  () => require('../fixtures/packages/missing-main'),
+  {
+    code: 'MODULE_NOT_FOUND',
+    message: /packages[/\\]missing-main[/\\]doesnotexist\.js'\. Please.+package\.json.+valid "main"/,
+    path: /fixtures[/\\]packages[/\\]missing-main[/\\]package\.json/,
+    requestPath: /^\.\.[/\\]fixtures[/\\]packages[/\\]missing-main$/,
+  }
+);
 
 assert.throws(
   () => require('../fixtures/packages/missing-main-no-index'),
@@ -299,7 +301,6 @@ assert.throws(
     'fixtures/packages/index/index.js': {},
     'fixtures/packages/main/package-main-module.js': {},
     'fixtures/packages/main-index/package-main-module/index.js': {},
-    'fixtures/packages/missing-main/index.js': {},
     'fixtures/cycles/root.js': {
       'fixtures/cycles/folder/foo.js': {},
     },

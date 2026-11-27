@@ -45,7 +45,7 @@ await clientSession.opened;
       controller.close();
     },
   });
-  const stream = await clientSession.createBidirectionalStream();
+  const stream = clientSession.createBidirectionalStream();
   stream.setBody(rs);
   await dump(stream);
   await stream.closed;
@@ -54,7 +54,7 @@ await clientSession.opened;
 // Node.js stream.Readable as body source.
 {
   const readable = Readable.from([encoder.encode(message)]);
-  const stream = await clientSession.createBidirectionalStream();
+  const stream = clientSession.createBidirectionalStream();
   stream.setBody(readable);
   await dump(stream);
   await stream.closed;

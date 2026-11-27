@@ -4,7 +4,7 @@ const assert = require('node:assert')
 const { AsyncResource } = require('node:async_hooks')
 const { InvalidArgumentError, InvalidReturnValueError } = require('../core/errors')
 const util = require('../core/util')
-const { addSignal, removeSignal } = require('./abort-signal')
+const { addSignal, removeSignal, dispatchWithSignal } = require('./abort-signal')
 
 function noop () {}
 
@@ -257,7 +257,11 @@ function stream (opts, factory, callback) {
   try {
     const handler = new StreamHandler(opts, factory, callback)
 
-    this.dispatch(opts, handler)
+    if (opts.signal == null) {
+      this.dispatch(opts, handler)
+    } else {
+      dispatchWithSignal(this, opts, handler)
+    }
   } catch (err) {
     if (typeof callback !== 'function') {
       throw err

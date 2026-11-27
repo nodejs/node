@@ -73,7 +73,7 @@ const info = await clientSession.opened;
 assert.strictEqual(info.protocol, 'h3');
 
 for (let i = 0; i < kRequests; i++) {
-  const stream = await clientSession.createBidirectionalStream({
+  const stream = clientSession.createBidirectionalStream({
     headers: {
       ':method': 'GET',
       ':path': `/${i}`,

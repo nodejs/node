@@ -74,7 +74,7 @@ assert.strictEqual(info1.earlyDataAccepted, false);
 await Promise.all([gotTicket.promise, gotToken.promise]);
 
 // Send data to verify the connection works.
-const s1 = await cs1.createBidirectionalStream({
+const s1 = cs1.createBidirectionalStream({
   body: encoder.encode('first'),
 });
 await dump(s1);
@@ -90,7 +90,7 @@ const cs2 = await connect(serverEndpoint.address, {
 });
 
 // Send data BEFORE the handshake completes — true 0-RTT.
-const s2 = await cs2.createBidirectionalStream();
+const s2 = cs2.createBidirectionalStream();
 await s2.writer.write(encoder.encode('early data'));
 
 // Now wait for handshake completion.

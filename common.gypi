@@ -96,6 +96,8 @@
     'v8_enable_sandbox%': 0,
     'v8_enable_v8_checks%': 0,
     'v8_use_perfetto%': 0,
+    # Must be greater than NODE_CONTEXT_TAG in src/node_context_data.h.
+    'v8_embedder_data_array_size%': 40,
     'tsan%': 0,
 
     ##### end V8 defaults #####
@@ -235,7 +237,8 @@
             # frames otherwise, even with --call-graph dwarf.
             'cflags': [ '-fno-omit-frame-pointer' ],
           }],
-          ['OS=="linux" or OS=="openharmony"', {
+          # PGO settings are specific to Node, not addons built with node-gyp.
+          ['(OS=="linux" or OS=="openharmony") and configuring_node', {
             'conditions': [
               ['enable_pgo_generate=="true"', {
                 'cflags': ['<(pgo_generate)'],
@@ -247,7 +250,7 @@
               },],
             ],
           },],
-          ['OS=="mac"', {
+          ['OS=="mac" and configuring_node', {
             'conditions': [
               ['enable_pgo_generate=="true"', {
                 'xcode_settings': {
@@ -312,7 +315,7 @@
               },],
             ],
             'target_conditions': [
-              ['_toolset=="target"', {
+              ['_toolset=="target" and <(configuring_node)', {
                 'conditions': [
                   ['enable_pgo_generate=="true"', {
                     'msvs_settings': {
@@ -568,6 +571,11 @@
       }],
       ['v8_use_perfetto == 1', {
         'defines': ['V8_USE_PERFETTO',],
+      }],
+      ['v8_embedder_data_array_size != 0', {
+        'defines': [
+          'V8_EMBEDDER_DATA_ARRAY_SIZE=<(v8_embedder_data_array_size)',
+        ],
       }],
       ['v8_enable_map_packing == 1', {
         'defines': ['V8_MAP_PACKING',],

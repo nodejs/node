@@ -118,7 +118,7 @@ const transportParams = { maxIdleTimeout: 1 };
   });
   await clientSession.opened;
 
-  const stream = await clientSession.createBidirectionalStream();
+  const stream = clientSession.createBidirectionalStream();
 
   const testError = new Error('cascade reentrant destroy test');
 
@@ -160,7 +160,7 @@ const transportParams = { maxIdleTimeout: 1 };
   });
   await clientSession.opened;
 
-  const stream = await clientSession.createBidirectionalStream();
+  const stream = clientSession.createBidirectionalStream();
 
   const testError = new Error('stream reentrant destroy test');
 

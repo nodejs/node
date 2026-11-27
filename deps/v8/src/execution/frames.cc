@@ -472,7 +472,8 @@ std::optional<bool> IsInterpreterFramePc(Isolate* isolate, Address pc,
       return false;
     }
     std::optional<Address> istream_address =
-        ThreadIsolation::TryLookupStartOfJitAllocationAt(pc);
+        ThreadIsolation::TryLookupStartOfJitAllocationAt(
+            pc, ThreadIsolation::JitAllocationType::kInstructionStream);
     if (!istream_address.has_value()) {
       return {};
     }
@@ -1697,6 +1698,44 @@ void VisitSpillSlots(Isolate* isolate, RootVisitor* v,
   }
 }
 
+#ifdef V8_ENABLE_WEBASSEMBLY
+void VisitWasmParameterSlot(RootVisitor* v, FullObjectSlot param_slot) {
+  DisallowGarbageCollection no_gc;
+#if defined(V8_COMPRESS_POINTERS) && defined(V8_ENABLE_SANDBOX)
+  // Incoming Wasm parameter slots on the stack (or spilled by
+  // WasmLiftoffSetupFrame / GenericWasmToJSWrapper before parameter processing)
+  // may contain arbitrary upper 32 bits if an attacker redirected an indirect
+  // call or passed an untagged value. Unconditionally treat the lower 32 bits
+  // as a compressed tagged value and write back the sanitized 64-bit value.
+  Tagged_t compressed_value = static_cast<Tagged_t>(*param_slot.location());
+  if (HAS_SMI_TAG(compressed_value)) {
+    *param_slot.location() = static_cast<Address>(compressed_value);
+    return;
+  }
+  Address decompressed =
+      V8HeapCompressionScheme::DecompressTagged(compressed_value);
+  FullObjectSlot local_slot(&decompressed);
+  {
+    DisableGCMole no_gcmole;
+    v->VisitRootPointer(Root::kStackRoots, nullptr, local_slot);
+  }
+  *param_slot.location() = decompressed;
+#else
+  {
+    DisableGCMole no_gcmole;
+    v->VisitRootPointer(Root::kStackRoots, nullptr, param_slot);
+  }
+#endif
+}
+
+void VisitWasmParameterSlots(RootVisitor* v, FullObjectSlot start,
+                             FullObjectSlot end) {
+  for (FullObjectSlot slot = start; slot < end; ++slot) {
+    VisitWasmParameterSlot(v, slot);
+  }
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 SafepointEntry& GetSafepointEntryFromCodeCache(
     Isolate* isolate, Address inner_pointer,
     InnerPointerToCodeCache::Entry* entry) {
@@ -1962,8 +2001,7 @@ void WasmFrame::Iterate(RootVisitor* v) const {
     FullObjectSlot tagged_parameter_limit =
         tagged_parameter_base + wasm_code->num_tagged_parameter_slots();
 
-    v->VisitRootPointers(Root::kStackRoots, nullptr, tagged_parameter_base,
-                         tagged_parameter_limit);
+    VisitWasmParameterSlots(v, tagged_parameter_base, tagged_parameter_limit);
   }
 
   // Visit the instance object.
@@ -2044,7 +2082,7 @@ void TypedFrame::IterateParamsOfGenericWasmToJSWrapper(RootVisitor* v) const {
       FullObjectSlot param_start(fp() +
                                  param_start_offset * kSystemPointerSize);
       FullObjectSlot tagged_slot = param_start + slot_offset;
-      VisitSpillSlot(isolate(), v, tagged_slot);
+      VisitWasmParameterSlot(v, tagged_slot);
     } else {
       // Caller frame slots have negative indices and start at -1. Flip it
       // back to a positive offset (to be added to the frame's FP to find the
@@ -2071,7 +2109,7 @@ void TypedFrame::IterateParamsOfGenericWasmToJSWrapper(RootVisitor* v) const {
       FullObjectSlot param_start(fp() +
                                  param_start_offset * kSystemPointerSize);
       FullObjectSlot tagged_slot = param_start + slot_offset;
-      VisitSpillSlot(isolate(), v, tagged_slot);
+      VisitWasmParameterSlot(v, tagged_slot);
     }
   }
 }
@@ -4112,7 +4150,7 @@ void WasmLiftoffSetupFrame::Iterate(RootVisitor* v) const {
         fp() + WasmLiftoffSetupFrameConstants::kParameterSpillsOffset
                    [num_int_params_in_registers + i]);
 
-    v->VisitRootPointer(Root::kStackRoots, "register parameter", spill_slot);
+    VisitWasmParameterSlot(v, spill_slot);
   }
 
   // Next we scan the slots of stack parameters.
@@ -4131,8 +4169,7 @@ void WasmLiftoffSetupFrame::Iterate(RootVisitor* v) const {
     FullObjectSlot tagged_parameter_limit =
         tagged_parameter_base + num_tagged_stack_slots;
 
-    v->VisitRootPointers(Root::kStackRoots, "stack parameter",
-                         tagged_parameter_base, tagged_parameter_limit);
+    VisitWasmParameterSlots(v, tagged_parameter_base, tagged_parameter_limit);
   }
 }
 #endif  // V8_ENABLE_WEBASSEMBLY

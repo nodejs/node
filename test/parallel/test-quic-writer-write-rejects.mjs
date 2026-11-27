@@ -29,7 +29,7 @@ const clientSession = await connect(serverEndpoint.address);
 await clientSession.opened;
 
 // Use a small budget to trigger backpressure easily.
-const stream = await clientSession.createBidirectionalStream({
+const stream = clientSession.createBidirectionalStream({
   budget: 1024,
 });
 const w = stream.writer;

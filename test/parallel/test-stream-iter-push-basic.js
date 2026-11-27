@@ -3,7 +3,7 @@
 
 const common = require('../common');
 const assert = require('assert');
-const { push, text } = require('stream/iter');
+const { from, push, text } = require('stream/iter');
 
 async function testBasicWriteRead() {
   const { writer, readable } = push();
@@ -174,6 +174,21 @@ async function testInvalidBackpressure() {
   }
 }
 
+async function testReturnValue() {
+  // return(value) resolves with `value`, read directly or through from().
+  for (const getIterator of [
+    (readable) => readable[Symbol.asyncIterator](),
+    (readable) => from(readable)[Symbol.asyncIterator](),
+  ]) {
+    const { writer, readable } = push();
+    const iterator = getIterator(readable);
+    const result = await iterator.return('value');
+    assert.strictEqual(result.done, true);
+    assert.strictEqual(result.value, 'value');
+    assert.strictEqual(writer.canWrite, null);
+  }
+}
+
 Promise.all([
   testBasicWriteRead(),
   testMultipleWrites(),
@@ -187,4 +202,5 @@ Promise.all([
   testConsumerBreakWriteSyncReturnsFalse(),
   testPushWithTransforms(),
   testInvalidBackpressure(),
+  testReturnValue(),
 ]).then(common.mustCall());

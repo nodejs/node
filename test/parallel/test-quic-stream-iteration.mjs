@@ -68,7 +68,7 @@ await clientSession.opened;
 
 // Send three streams sequentially.
 for (let i = 0; i < totalStreams; i++) {
-  const stream = await clientSession.createBidirectionalStream({
+  const stream = clientSession.createBidirectionalStream({
     body: encoder.encode(message),
   });
   await dump(stream);

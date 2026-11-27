@@ -5,7 +5,7 @@
 
 #include "node_concepts.h"
 
-#include <iomanip>
+#include <charconv>
 #include <limits>
 #include <ostream>
 #include <string>
@@ -26,31 +26,44 @@ std::string Reindent(const std::string& str, int indentation);
 // JSON compiler definitions.
 class JSONWriter {
  public:
-  JSONWriter(std::ostream& out, bool compact)
-    : out_(out), compact_(compact) {}
+  JSONWriter(std::ostream& out, bool compact) : out_(&out), compact_(compact) {}
+  JSONWriter(std::string& out, bool compact)
+      : string_out_(&out), compact_(compact) {}
 
  private:
+  inline void write(char ch) {
+    if (string_out_ != nullptr)
+      *string_out_ += ch;
+    else
+      *out_ << ch;
+  }
+  inline void write(std::string_view str) {
+    if (string_out_ != nullptr)
+      string_out_->append(str);
+    else
+      *out_ << str;
+  }
   inline void indent() { indent_ += 2; }
   inline void deindent() { indent_ -= 2; }
   inline void advance() {
     if (compact_) return;
-    for (int i = 0; i < indent_; i++) out_ << ' ';
+    for (int i = 0; i < indent_; i++) write(' ');
   }
   inline void write_one_space() {
     if (compact_) return;
-    out_ << ' ';
+    write(' ');
   }
   inline void write_new_line() {
     if (compact_) return;
-    out_ << '\n';
+    write('\n');
   }
 
  public:
   inline void json_start() {
-    if (state_ == kAfterValue) out_ << ',';
+    if (state_ == kAfterValue) write(',');
     write_new_line();
     advance();
-    out_ << '{';
+    write('{');
     indent();
     state_ = kObjectStart;
   }
@@ -59,31 +72,31 @@ class JSONWriter {
     write_new_line();
     deindent();
     advance();
-    out_ << '}';
+    write('}');
     state_ = kAfterValue;
   }
   template <typename T>
   inline void json_objectstart(T key) {
-    if (state_ == kAfterValue) out_ << ',';
+    if (state_ == kAfterValue) write(',');
     write_new_line();
     advance();
     write_string(key);
-    out_ << ':';
+    write(':');
     write_one_space();
-    out_ << '{';
+    write('{');
     indent();
     state_ = kObjectStart;
   }
 
   template <typename T>
   inline void json_arraystart(T key) {
-    if (state_ == kAfterValue) out_ << ',';
+    if (state_ == kAfterValue) write(',');
     write_new_line();
     advance();
     write_string(key);
-    out_ << ':';
+    write(':');
     write_one_space();
-    out_ << '[';
+    write('[');
     indent();
     state_ = kObjectStart;
   }
@@ -91,10 +104,10 @@ class JSONWriter {
     write_new_line();
     deindent();
     advance();
-    out_ << '}';
+    write('}');
     if (indent_ == 0) {
       // Top-level object is complete, so end the line.
-      out_ << '\n';
+      write('\n');
     }
     state_ = kAfterValue;
   }
@@ -103,16 +116,16 @@ class JSONWriter {
     write_new_line();
     deindent();
     advance();
-    out_ << ']';
+    write(']');
     state_ = kAfterValue;
   }
   template <typename T, typename U>
   inline void json_keyvalue(const T& key, const U& value) {
-    if (state_ == kAfterValue) out_ << ',';
+    if (state_ == kAfterValue) write(',');
     write_new_line();
     advance();
     write_string(key);
-    out_ << ':';
+    write(':');
     write_one_space();
     write_value(value);
     state_ = kAfterValue;
@@ -120,7 +133,7 @@ class JSONWriter {
 
   template <typename U>
   inline void json_element(const U& value) {
-    if (state_ == kAfterValue) out_ << ',';
+    if (state_ == kAfterValue) write(',');
     write_new_line();
     advance();
     write_value(value);
@@ -136,30 +149,53 @@ class JSONWriter {
  private:
   template <NumericValue T>
   inline void write_value(T number) {
-    if constexpr (std::is_same<T, bool>::value)
-      out_ << (number ? "true" : "false");
-    else
-      out_ << number;
+    if constexpr (std::is_same_v<T, bool>) {
+      write(number ? "true" : "false");
+    } else if constexpr (std::is_same_v<T, char> ||
+                         std::is_same_v<T, signed char> ||
+                         std::is_same_v<T, unsigned char>) {
+      write(static_cast<char>(number));
+    } else {
+      if (out_ != nullptr) {
+        *out_ << number;
+        return;
+      }
+      // Enough for any integer, or a floating-point value with six digits
+      // and an exponent. Match the default ostream precision.
+      char buffer[128];
+      std::to_chars_result result;
+      if constexpr (std::is_floating_point_v<T>) {
+        result = std::to_chars(buffer,
+                               buffer + sizeof(buffer),
+                               number,
+                               std::chars_format::general,
+                               6);
+      } else {
+        result = std::to_chars(buffer, buffer + sizeof(buffer), number);
+      }
+      string_out_->append(buffer, result.ptr);
+    }
   }
 
-  inline void write_value(Null null) { out_ << "null"; }
+  inline void write_value(Null null) { write("null"); }
   inline void write_value(std::string_view str) { write_string(str); }
 
   inline void write_value(const ForeignJSON& json) {
-    out_ << Reindent(json.as_string, indent_);
+    write(Reindent(json.as_string, indent_));
   }
 
   inline void write_string(std::string_view str) {
-    out_ << '"';
+    write('"');
     if (NeedsJsonEscape(str))  // only create temporary std::string if necessary
-      out_ << EscapeJsonChars(str);
+      write(EscapeJsonChars(str));
     else
-      out_ << str;
-    out_ << '"';
+      write(str);
+    write('"');
   }
 
   enum JSONState { kObjectStart, kAfterValue };
-  std::ostream& out_;
+  std::ostream* out_ = nullptr;
+  std::string* string_out_ = nullptr;
   bool compact_;
   int indent_ = 0;
   int state_ = kObjectStart;

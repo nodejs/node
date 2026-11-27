@@ -234,4 +234,38 @@ suite('sqlite.db.query diagnostics channel', () => {
       { __proto__: null, x: 1 },
     ]);
   });
+
+  it('does not replace an exception that is already pending', (t) => {
+    using db = new Database(':memory:');
+    let calls = 0;
+    const handler = () => {
+      calls++;
+    };
+    dc.subscribe('sqlite.db.query', handler);
+    t.after(() => dc.unsubscribe('sqlite.db.query', handler));
+
+    db.function('boom', () => {
+      throw new Error('boom');
+    });
+    assert.throws(() => db.prepare('SELECT boom()').get(), {
+      message: 'boom',
+    });
+
+    db.exec('CREATE TABLE t (a INTEGER)');
+    db.exec('INSERT INTO t VALUES (9223372036854775807)');
+    assert.throws(() => db.prepare('SELECT a FROM t').get(), {
+      code: 'ERR_OUT_OF_RANGE',
+    });
+    assert.throws(() => db.prepare('SELECT a FROM t').all(), {
+      code: 'ERR_OUT_OF_RANGE',
+    });
+
+    // A query that does not throw is still published.
+    const before = calls;
+    assert.deepStrictEqual(db.prepare('SELECT 1 AS x').get(), {
+      __proto__: null,
+      x: 1,
+    });
+    assert.ok(calls > before);
+  });
 });

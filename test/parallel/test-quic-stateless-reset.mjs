@@ -52,7 +52,7 @@ const encoder = new TextEncoder();
   await clientSession.opened;
 
   // First exchange: complete round-trip to confirm 1-RTT.
-  const stream1 = await clientSession.createBidirectionalStream({
+  const stream1 = clientSession.createBidirectionalStream({
     body: encoder.encode('hello'),
   });
   await dump(stream1);
@@ -65,7 +65,7 @@ const encoder = new TextEncoder();
   // to the server. The server endpoint doesn't recognize the DCID
   // and should send a stateless reset.
   // eslint-disable-next-line no-unused-vars
-  const stream2 = await clientSession.createBidirectionalStream({
+  const stream2 = clientSession.createBidirectionalStream({
     body: encoder.encode('after destroy'),
   });
 
@@ -111,7 +111,7 @@ const encoder = new TextEncoder();
   });
   await clientSession.opened;
 
-  const stream1 = await clientSession.createBidirectionalStream({
+  const stream1 = clientSession.createBidirectionalStream({
     body: encoder.encode('hello'),
   });
   await dump(stream1);
@@ -122,7 +122,7 @@ const encoder = new TextEncoder();
   // Send a packet after the server session is destroyed. The server
   // endpoint silently drops the packet (stateless reset disabled).
   // eslint-disable-next-line no-unused-vars
-  const stream2 = await clientSession.createBidirectionalStream({
+  const stream2 = clientSession.createBidirectionalStream({
     body: encoder.encode('after destroy'),
   });
 
@@ -176,14 +176,14 @@ const encoder = new TextEncoder();
   await client1.opened;
 
   // Send data so the server onstream fires and destroys the session.
-  await client1.createBidirectionalStream({
+  client1.createBidirectionalStream({
     body: encoder.encode('session1'),
   });
   await serverDestroyed1.promise;
 
   // Send a packet to trigger stateless reset.
   // eslint-disable-next-line no-unused-vars
-  const s1b = await client1.createBidirectionalStream({
+  const s1b = client1.createBidirectionalStream({
     body: encoder.encode('after destroy 1'),
   });
   await assert.rejects(client1.closed, { code: 'ERR_QUIC_TRANSPORT_ERROR' });
@@ -204,7 +204,7 @@ const encoder = new TextEncoder();
   await client2.opened;
 
   // Send data so the server onstream fires and destroys the session.
-  await client2.createBidirectionalStream({
+  client2.createBidirectionalStream({
     body: encoder.encode('session2'),
   });
   await serverDestroyed2.promise;
@@ -212,7 +212,7 @@ const encoder = new TextEncoder();
   // Send a packet — the server would normally send a stateless reset,
   // but the global rate limit (burst of 1) is already exhausted.
   // eslint-disable-next-line no-unused-vars
-  const s2b = await client2.createBidirectionalStream({
+  const s2b = client2.createBidirectionalStream({
     body: encoder.encode('after destroy 2'),
   });
 

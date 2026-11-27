@@ -37,7 +37,7 @@ const clientSession = await connect(serverEndpoint.address);
 await clientSession.opened;
 
 let blockedCount = 0;
-const stream = await clientSession.createBidirectionalStream();
+const stream = clientSession.createBidirectionalStream();
 
 // The actual number of blocks can vary on a range of factors. We're
 // only validating that blocking occurs at least once.

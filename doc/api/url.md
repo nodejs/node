@@ -1517,7 +1517,7 @@ added:
   - v15.7.0
   - v14.18.0
 changes:
-  - version: REPLACEME
+  - version: v27.0.0-alpha.0.2.0
     pr-url: https://github.com/nodejs/node/pull/67454
     description: The own enumerable properties of the `url` argument are now
                  only carried over when `url` is a WHATWG `URL` instance created

@@ -79,7 +79,7 @@ const serverEndpoint = await listen(mustCall((serverSession) => {
 const clientSession = await connect(serverEndpoint.address);
 await clientSession.opened;
 
-const stream = await clientSession.createBidirectionalStream();
+const stream = clientSession.createBidirectionalStream();
 // The sender must actually hit the window, otherwise the consumer was not
 // slow relative to the sender and the ceiling below proves nothing.
 stream.onblocked = mustCallAtLeast(1);

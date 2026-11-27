@@ -120,3 +120,38 @@ suite('Statement with ArrayBuffer and SharedArrayBuffer', () => {
     });
   }
 });
+
+suite('Statement with empty buffers', () => {
+  const emptyBuffers = [
+    ['ArrayBuffer', () => new ArrayBuffer(0)],
+    ['SharedArrayBuffer', () => new SharedArrayBuffer(0)],
+    ['Uint8Array', () => new Uint8Array()],
+    ['Uint8Array on empty ArrayBuffer', () => new Uint8Array(new ArrayBuffer(0))],
+    ['DataView on empty ArrayBuffer', () => new DataView(new ArrayBuffer(0))],
+  ];
+
+  for (const [displayName, createBuffer] of emptyBuffers) {
+    test(`${displayName} binds as an empty blob, not NULL`, (t) => {
+      using db = new Database(':memory:');
+      db.exec('CREATE TABLE test (data BLOB NOT NULL)');
+      const buffer = createBuffer();
+      // Anonymous binding
+      {
+        using stmt = db.prepare('SELECT typeof(?) AS type');
+        t.assert.strictEqual(stmt.get(buffer).type, 'blob');
+      }
+      // Named binding (object)
+      {
+        using stmt = db.prepare('SELECT typeof($data) AS type');
+        t.assert.strictEqual(stmt.get({ '$data': buffer }).type, 'blob');
+      }
+      // Insert into a NOT NULL column and read it back
+      {
+        using insert = db.prepare('INSERT INTO test VALUES (?)');
+        insert.run(buffer);
+        using select = db.prepare('SELECT data FROM test');
+        t.assert.deepStrictEqual(select.get().data, new Uint8Array());
+      }
+    });
+  }
+});

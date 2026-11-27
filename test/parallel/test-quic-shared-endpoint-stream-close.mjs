@@ -57,7 +57,7 @@ const client1 = await connect(serverEndpoint.address, {
 });
 await client1.opened;
 
-const s1 = await client1.createBidirectionalStream({
+const s1 = client1.createBidirectionalStream({
   body: encoder.encode('session1'),
 });
 await dump(s1);
@@ -67,7 +67,7 @@ await serverDone1.promise;
 
 // Trigger the stateless reset.
 // eslint-disable-next-line no-unused-vars
-const s1b = await client1.createBidirectionalStream({
+const s1b = client1.createBidirectionalStream({
   body: encoder.encode('trigger'),
 });
 await assert.rejects(client1.closed, { code: 'ERR_QUIC_TRANSPORT_ERROR' });
@@ -82,7 +82,7 @@ const client2 = await connect(serverEndpoint.address, {
 });
 await client2.opened;
 
-const s2 = await client2.createBidirectionalStream({
+const s2 = client2.createBidirectionalStream({
   body: encoder.encode('session2'),
 });
 await dump(s2);

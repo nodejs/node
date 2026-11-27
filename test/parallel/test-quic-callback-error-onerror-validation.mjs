@@ -41,7 +41,7 @@ const clientSession = await connect(serverEndpoint.address);
 await clientSession.opened;
 
 // Client-side stream onerror validation.
-const stream = await clientSession.createBidirectionalStream({
+const stream = clientSession.createBidirectionalStream({
   body: new TextEncoder().encode('x'),
 });
 

@@ -180,16 +180,26 @@ endif
 with-code-cache test-code-cache:
 	$(warning '$@' target is a noop)
 
-out/Makefile: config.gypi common.gypi node.gyp \
+# config.status writes out/Makefile together with config.gypi, but make may
+# still see out/Makefile as stale right after that. Rerun it only when
+# out/Makefile is missing (as after `make clean`) or not newer. Shells with
+# whole-second -nt then rerun on a tie instead of leaving it stale.
+out/Makefile: config.gypi
+	@if [ "$@" -nt "$<" ]; then :; \
+	elif [ -x config.status ]; then \
+		export PATH="$(NO_BIN_OVERRIDE_PATH)" && ./config.status; \
+	else \
+		echo Missing or stale $@, please run ./configure; \
+		exit 1; \
+	fi
+
+# node_version.h is listed because the N-API version is taken from there
+# and included in config.gypi
+config.gypi: configure configure.py src/node_version.h common.gypi node.gyp \
 	deps/*/*.gyp \
 	tools/v8_gypfiles/toolchain.gypi \
 	tools/v8_gypfiles/features.gypi \
 	tools/v8_gypfiles/inspector.gypi tools/v8_gypfiles/v8.gyp
-	$(PYTHON) tools/gyp_node.py -f make -Dpython=$(PYTHON)
-
-# node_version.h is listed because the N-API version is taken from there
-# and included in config.gypi
-config.gypi: configure configure.py src/node_version.h
 	@if [ -x config.status ]; then \
 		export PATH="$(NO_BIN_OVERRIDE_PATH)" && ./config.status; \
 	else \
@@ -868,6 +878,14 @@ tools/doc/node_modules: tools/doc/package.json
 
 RAWVER=$(shell $(PYTHON) tools/getnodeversion.py)
 VERSION=v$(RAWVER)
+
+.PHONY: sbom
+sbom: config.gypi ## Write a CycloneDX SBOM to out/Release/node-<process.version>-sbom.json (or SBOM_OUTPUT).
+	$(PYTHON) tools/sbom/generate_sbom.py $(if $(SBOM_OUTPUT),--output $(SBOM_OUTPUT))
+
+.PHONY: test-sbom
+test-sbom: ## Validate the SBOM written by `make sbom`.
+	$(PYTHON) tools/sbom/generate_sbom.py --validate $(if $(SBOM_OUTPUT),--output $(SBOM_OUTPUT))
 
 .PHONY: doc-only
 .NOTPARALLEL: doc-only

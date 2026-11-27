@@ -38,16 +38,24 @@ for (const value of [
   });
 }
 
-spawnSyncAndExit(process.execPath, ['--report-on-process-timeout', '-e', ''], {
-  status: 9,
-  signal: null,
-  trim: true,
-  stderr: `${process.execPath}: --report-on-process-timeout must be used with ` +
-          '--process-timeout',
-});
+for (const option of [
+  '--report-on-process-timeout',
+  '--process-timeout-worker-stacks',
+]) {
+  spawnSyncAndExit(process.execPath, [option, '-e', ''], {
+    status: 9,
+    signal: null,
+    trim: true,
+    stderr: `${process.execPath}: ${option} must be used with --process-timeout`,
+  });
+}
 
 if (!process.config.variables.node_without_node_options) {
-  for (const option of ['--process-timeout=1s', '--report-on-process-timeout']) {
+  for (const option of [
+    '--process-timeout=1s',
+    '--report-on-process-timeout',
+    '--process-timeout-worker-stacks',
+  ]) {
     spawnSyncAndExit(process.execPath, ['-e', ''], {
       env: { ...process.env, NODE_OPTIONS: option },
     }, {

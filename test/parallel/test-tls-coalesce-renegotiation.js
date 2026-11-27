@@ -21,6 +21,7 @@ const server = tls.createServer({
   key: fixtures.readKey('agent1-key.pem'),
   cert: fixtures.readKey('agent1-cert.pem'),
   maxVersion: 'TLSv1.2',
+  allowRenegotiation: true,
 }, common.mustCall((socket) => {
   socket.on('data', common.mustCall((data) => {
     assert.deepStrictEqual(data, payload);
@@ -71,6 +72,7 @@ server.listen(0, common.mustCall(() => {
       ca: fixtures.readKey('ca1-cert.pem'),
       servername: 'agent1',
       maxVersion: 'TLSv1.2',
+      allowRenegotiation: true,
     }, common.mustCall(() => {
       holding = true;
       client.write(payload, common.mustCall(() => {

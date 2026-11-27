@@ -79,7 +79,7 @@ const decoder = new TextDecoder();
   await clientSession.opened;
 
   // Datagrams work alongside H3 request/response.
-  const stream = await clientSession.createBidirectionalStream({
+  const stream = clientSession.createBidirectionalStream({
     headers: {
       ':method': 'GET',
       ':path': '/with-datagram',
@@ -143,7 +143,7 @@ const decoder = new TextDecoder();
   });
   await clientSession.opened;
 
-  const stream = await clientSession.createBidirectionalStream({
+  const stream = clientSession.createBidirectionalStream({
     headers: {
       ':method': 'GET',
       ':path': '/no-datagram',

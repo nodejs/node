@@ -58,7 +58,7 @@ async function makeServer(onheadersHandler, extraOpts = {}) {
   });
   await c.opened;
 
-  const s = await c.createBidirectionalStream({
+  const s = c.createBidirectionalStream({
     headers: {
       ':method': 'GET',
       ':path': '/',
@@ -98,7 +98,7 @@ async function makeServer(onheadersHandler, extraOpts = {}) {
   });
   await c.opened;
 
-  const s = await c.createBidirectionalStream({
+  const s = c.createBidirectionalStream({
     headers: {
       ':method': 'GET',
       ':path': '/',
@@ -143,7 +143,7 @@ async function makeServer(onheadersHandler, extraOpts = {}) {
   });
   await c.opened;
 
-  const s = await c.createBidirectionalStream({
+  const s = c.createBidirectionalStream({
     headers: {
       ':method': 'GET',
       ':path': '/',
@@ -198,7 +198,7 @@ async function makeServer(onheadersHandler, extraOpts = {}) {
   });
   await clientSession.opened;
 
-  const stream = await clientSession.createBidirectionalStream({
+  const stream = clientSession.createBidirectionalStream({
     headers: {
       ':method': 'GET',
       ':path': '/',
@@ -257,7 +257,7 @@ async function makeServer(onheadersHandler, extraOpts = {}) {
   });
   await clientSession.opened;
 
-  const stream = await clientSession.createBidirectionalStream({
+  const stream = clientSession.createBidirectionalStream({
     headers: {
       ':method': 'GET',
       ':path': '/',

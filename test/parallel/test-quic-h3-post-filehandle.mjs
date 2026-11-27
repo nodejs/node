@@ -67,7 +67,7 @@ writeFileSync(testFile, testContent);
   const clientHeadersReceived = Promise.withResolvers();
 
   const fh = await open(testFile, 'r');
-  const stream = await clientSession.createBidirectionalStream({
+  const stream = clientSession.createBidirectionalStream({
     headers: {
       ':method': 'POST',
       ':path': '/upload',

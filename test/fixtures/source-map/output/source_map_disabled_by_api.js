@@ -9,7 +9,7 @@ Error.stackTraceLimit = 5;
 assert.deepStrictEqual(Module.getSourceMapsSupport(), {
   __proto__: null,
   enabled: true,
-  nodeModules: true,
+  nodeModules: false,
   generatedCode: true,
 });
 Module.setSourceMapsSupport(false);

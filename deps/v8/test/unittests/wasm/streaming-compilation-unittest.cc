@@ -104,6 +104,7 @@ class MockPlatform final : public v8::Platform {
   }
 
   void ExecuteTasks() { task_runner_->ExecuteTasks(); }
+  void ExecuteNestedTasks() { task_runner_->ExecuteNestedTasks(); }
 
  private:
   class MockTaskRunner final : public TaskRunner {
@@ -116,7 +117,8 @@ class MockPlatform final : public v8::Platform {
 
     void PostNonNestableTaskImpl(std::unique_ptr<Task> task,
                                  const SourceLocation& location) override {
-      PostTask(std::move(task));
+      base::MutexGuard lock_scope(&tasks_lock_);
+      non_nestable_tasks_.push(std::move(task));
     }
 
     void PostDelayedTaskImpl(std::unique_ptr<Task> task,
@@ -145,12 +147,25 @@ class MockPlatform final : public v8::Platform {
 
     // The test must call this repeatedly if delayed tasks were posted, until
     // all such tasks have been executed.
-    void ExecuteTasks() {
+    void ExecuteTasks() { ExecuteTasksImpl(/* include_non_nestable */ true); }
+
+    void ExecuteNestedTasks() {
+      ExecuteTasksImpl(/* include_non_nestable */ false);
+    }
+
+   private:
+    void ExecuteTasksImpl(bool include_non_nestable) {
       std::queue<std::unique_ptr<v8::Task>> tasks;
       while (true) {
         {
           base::MutexGuard lock_scope(&tasks_lock_);
           tasks.swap(tasks_);
+          if (include_non_nestable) {
+            while (!non_nestable_tasks_.empty()) {
+              tasks.push(std::move(non_nestable_tasks_.front()));
+              non_nestable_tasks_.pop();
+            }
+          }
           // Move all delayed tasks which are ready for execution to {tasks_}.
           base::TimeTicks now = base::TimeTicks::Now();
           for (auto it = delayed_tasks_.begin(), end = delayed_tasks_.end();
@@ -174,10 +189,10 @@ class MockPlatform final : public v8::Platform {
       }
     }
 
-   private:
     base::Mutex tasks_lock_;
     // We do not execute tasks concurrently, so we only need one list of tasks.
     std::queue<std::unique_ptr<v8::Task>> tasks_;
+    std::queue<std::unique_ptr<v8::Task>> non_nestable_tasks_;
     std::list<std::pair<std::unique_ptr<v8::Task>, base::TimeTicks>>
         delayed_tasks_;
   };
@@ -2139,6 +2154,169 @@ STREAM_TEST(StreamingErrorCrashKeyReused) {
   }
 
   isolate->SetCrashKeyStringCallbacks(nullptr, nullptr);
+}
+
+// Regression test for crbug.com/580857997: finishing a stream (success,
+// decoding/validation failure, baseline compilation failure, or
+// deserialization) must schedule a non-nestable foreground task rather than
+// completing synchronously inside an API interrupt.
+STREAM_TEST(FinishStreamInApiInterruptIsDeferred) {
+  FlagScope<bool> no_cache(&v8_flags.wasm_native_module_cache, false);
+  Zone zone(reinterpret_cast<i::Isolate*>(isolate)->allocator(), ZONE_NAME);
+  ZoneBuffer valid_bytes = GetValidModuleBytes(&zone);
+  ZoneBuffer cached_bytes =
+      GetValidCompiledModuleBytes(isolate, &zone, valid_bytes);
+  ZoneBuffer invalid_bytes = GetModuleWithInvalidSection(&zone);
+  ZoneBuffer invalid_code_bytes(&zone);
+  {
+    TestSignatures sigs;
+    WasmModuleBuilder builder(&zone);
+    builder.AddFunction(sigs.v_v())->EmitCode({kExprI32Add, kExprEnd});
+    builder.WriteTo(&invalid_code_bytes);
+  }
+
+  StreamTester success_tester(isolate);
+  // Pre-compile the functions so FinishStream() is the last finisher.
+  success_tester.OnBytesReceived(valid_bytes.begin(), valid_bytes.size());
+  success_tester.RunCompilerTasks();
+  CHECK(success_tester.IsPromisePending());
+
+  StreamTester compile_error_tester(isolate);
+  {
+    // Disable lazy compilation so the invalid function body fails in
+    // CompilationState rather than ValidateFunctionsStreamingJob.
+    FlagScope<bool> eager_compile(&v8_flags.wasm_lazy_compilation, false);
+    compile_error_tester.OnBytesReceived(invalid_code_bytes.begin(),
+                                         invalid_code_bytes.size());
+    compile_error_tester.RunCompilerTasks();
+    CHECK(compile_error_tester.IsPromisePending());
+  }
+
+  StreamTester error_tester(isolate);
+  StreamTester cached_tester(isolate);
+  cached_tester.SetHasCompiledModuleBytes();
+
+  struct InterruptData {
+    MockPlatform* platform;
+    ZoneBuffer* valid_bytes;
+    ZoneBuffer* cached_bytes;
+    ZoneBuffer* invalid_bytes;
+    StreamTester* success_tester;
+    StreamTester* compile_error_tester;
+    StreamTester* error_tester;
+    StreamTester* cached_tester;
+    bool interrupt_ran = false;
+  } data{platform,        &valid_bytes,          &cached_bytes, &invalid_bytes,
+         &success_tester, &compile_error_tester, &error_tester, &cached_tester};
+
+  isolate->RequestInterrupt(
+      [](v8::Isolate* isolate, void* raw_data) {
+        i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+        CHECK(i_isolate->is_executing_api_interrupt());
+        auto* d = static_cast<InterruptData*>(raw_data);
+
+        d->success_tester->FinishStream();
+        CHECK(d->success_tester->IsPromisePending());
+
+        d->compile_error_tester->FinishStream();
+        CHECK(d->compile_error_tester->IsPromisePending());
+
+        d->error_tester->OnBytesReceived(d->invalid_bytes->begin(),
+                                         d->invalid_bytes->size());
+        d->error_tester->FinishStream();
+        CHECK(d->error_tester->IsPromisePending());
+
+        d->cached_tester->OnBytesReceived(d->valid_bytes->begin(),
+                                          d->valid_bytes->size());
+        d->cached_tester->FinishStreamWithCachedModuleBytes(
+            base::VectorOf(*d->cached_bytes));
+        // Aborting after FinishStreamWithCachedModuleBytes must be a no-op even
+        // while the FinishCompilation task is still pending.
+        d->cached_tester->stream()->Abort();
+        CHECK(d->cached_tester->IsPromisePending());
+
+        // Pumping nestable tasks inside the interrupt must not execute the
+        // non-nestable foreground completion tasks.
+        d->platform->ExecuteNestedTasks();
+        CHECK(d->success_tester->IsPromisePending());
+        CHECK(d->compile_error_tester->IsPromisePending());
+        CHECK(d->error_tester->IsPromisePending());
+        CHECK(d->cached_tester->IsPromisePending());
+
+        d->interrupt_ran = true;
+      },
+      &data);
+
+  reinterpret_cast<i::Isolate*>(isolate)->stack_guard()->HandleInterrupts();
+  CHECK(data.interrupt_ran);
+  CHECK(success_tester.IsPromisePending());
+  CHECK(compile_error_tester.IsPromisePending());
+  CHECK(error_tester.IsPromisePending());
+  CHECK(cached_tester.IsPromisePending());
+
+  success_tester.RunCompilerTasks();
+  CHECK(success_tester.IsPromiseFulfilled());
+  CHECK(compile_error_tester.IsPromiseRejected());
+  CHECK(error_tester.IsPromiseRejected());
+  CHECK(cached_tester.IsPromiseFulfilled());
+
+  // Also verify deferral when JavaScript execution is disallowed outside an API
+  // interrupt (e.g. Blink's ScriptForbiddenScope during BFCache freeze).
+  StreamTester no_js_success_tester(isolate);
+  no_js_success_tester.OnBytesReceived(valid_bytes.begin(), valid_bytes.size());
+  no_js_success_tester.RunCompilerTasks();
+  CHECK(no_js_success_tester.IsPromisePending());
+
+  StreamTester no_js_cached_tester(isolate);
+  no_js_cached_tester.SetHasCompiledModuleBytes();
+  no_js_cached_tester.OnBytesReceived(valid_bytes.begin(), valid_bytes.size());
+
+  {
+    v8::Isolate::DisallowJavascriptExecutionScope no_js(
+        isolate,
+        v8::Isolate::DisallowJavascriptExecutionScope::THROW_ON_FAILURE);
+    no_js_success_tester.FinishStream();
+    CHECK(no_js_success_tester.IsPromisePending());
+    no_js_cached_tester.FinishStreamWithCachedModuleBytes(
+        base::VectorOf(cached_bytes));
+    CHECK(no_js_cached_tester.IsPromisePending());
+  }
+
+  no_js_success_tester.RunCompilerTasks();
+  CHECK(no_js_success_tester.IsPromiseFulfilled());
+  CHECK(no_js_cached_tester.IsPromiseFulfilled());
+}
+
+STREAM_TEST(TestDestroyDuringDeserializationFinish) {
+  FlagScope<bool> no_cache(&v8_flags.wasm_native_module_cache, false);
+  Zone zone(reinterpret_cast<i::Isolate*>(isolate)->allocator(), ZONE_NAME);
+  ZoneBuffer wire_bytes = GetValidModuleBytes(&zone);
+  ZoneBuffer module_bytes =
+      GetValidCompiledModuleBytes(isolate, &zone, wire_bytes);
+
+  auto compilation = std::make_unique<v8::WasmModuleCompilation>();
+  compilation->SetHasCompiledModuleBytes();
+  compilation->OnBytesReceived(wire_bytes.begin(), wire_bytes.size());
+  bool resolved = false;
+  compilation->Finish(
+      isolate,
+      [&](WasmStreaming::ModuleCachingInterface& caching_interface) {
+        CHECK(caching_interface.SetCachedCompiledModuleBytes(
+            base::VectorOf(module_bytes)));
+        // Allocate and fill a buffer of sizeof(StreamingDecoder) after
+        // {FinishCompile} has dropped {AsyncCompileJob::stream_} and
+        // {resolution_callback} has destroyed {compilation}.
+        auto overwrite = std::make_unique<uint8_t[]>(sizeof(StreamingDecoder));
+        std::memset(overwrite.get(), 0xaa, sizeof(StreamingDecoder));
+      },
+      [&](std::variant<Local<v8::WasmModuleObject>, Local<v8::Value>>
+              module_or_error) {
+        CHECK(std::holds_alternative<Local<v8::WasmModuleObject>>(
+            module_or_error));
+        resolved = true;
+        compilation.reset();
+      });
+  CHECK(resolved);
 }
 
 #undef STREAM_TEST

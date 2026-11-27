@@ -67,6 +67,7 @@ const removeAllListeners = util.removeAllListeners
 const kIdleSocketValidation = Symbol('kIdleSocketValidation')
 const kIdleSocketValidationTimeout = Symbol('kIdleSocketValidationTimeout')
 const kSocketUsed = Symbol('kSocketUsed')
+const kIdleSince = Symbol('kIdleSince')
 const kTypeOfService = Symbol('kTypeOfService')
 
 let extractBody
@@ -1108,6 +1109,19 @@ function scheduleIdleSocketValidation (client, socket) {
 }
 
 /**
+ * kIdleSince is recorded when the keep-alive timer is armed, so this never
+ * expires a socket before that timer is due.
+ * @param {import('net').Socket} socket
+ * @returns {boolean}
+ */
+function isIdleSocketExpired (socket) {
+  const parser = socket[kParser]
+  return parser.timeoutType === TIMEOUT_KEEP_ALIVE &&
+    parser.timeoutValue > 0 &&
+    performance.now() - socket[kIdleSince] >= parser.timeoutValue
+}
+
+/**
  * @param {import('./client.js')} client
  */
 function resumeH1 (client) {
@@ -1122,6 +1136,15 @@ function resumeH1 (client) {
     } else if (socket[kNoRef] && socket.ref) {
       socket.ref()
       socket[kNoRef] = false
+    }
+
+    // The keep-alive timer cannot fire while the event loop is blocked, and a
+    // request dispatched from the poll phase passes the idle socket validation
+    // below before that timer or a FIN received during the block is processed.
+    // Check the clock so that an expired socket is not reused.
+    if (client[kRunning] === 0 && client[kPending] > 0 && isIdleSocketExpired(socket)) {
+      util.destroy(socket, new InformationalError('socket idle timeout'))
+      return
     }
 
     if (client[kRunning] === 0 && client[kPending] > 0 && socket[kSocketUsed]) {
@@ -1152,6 +1175,7 @@ function resumeH1 (client) {
 
     if (client[kSize] === 0) {
       if (socket[kParser].timeoutType !== TIMEOUT_KEEP_ALIVE) {
+        socket[kIdleSince] = performance.now()
         socket[kParser].setTimeout(client[kKeepAliveTimeoutValue], TIMEOUT_KEEP_ALIVE)
       }
     } else if (client[kRunning] > 0 && socket[kParser].statusCode < 200) {

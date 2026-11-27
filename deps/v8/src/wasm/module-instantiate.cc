@@ -1855,10 +1855,6 @@ bool InstanceBuilder::ProcessImportedTable(int import_index, int table_index,
       table_object->has_trusted_data()
           ? table_object->trusted_data(isolate_)->module()
           : nullptr;
-  // The security-relevant aspect of this DCHECK is covered by the SBXCHECK_EQ
-  // below.
-  DCHECK_IMPLIES(table_object->unsafe_type().has_index(),
-                 table_type_module != nullptr);
 
   // We need to check type equivalence (rather than subtyping) because tables
   // are mutable: we cannot allow the importing module to write supertyped

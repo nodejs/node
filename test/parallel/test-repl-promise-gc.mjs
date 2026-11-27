@@ -11,7 +11,7 @@ const { output, replServer, run } = startNewREPLServer({
 
 // The promise is not retained by user code. Force a collection while the REPL
 // is awaiting it to verify that the inspector keeps it alive until settlement.
-await run(`new Promise((resolve) => setImmediate(() => {
+await run(`await new Promise((resolve) => setImmediate(() => {
   globalThis.gc();
   resolve(42);
 }))\n`);

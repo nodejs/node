@@ -9,6 +9,7 @@ describe('sourcemaps output', { concurrency: !process.env.TEST_PARALLEL }, () =>
     { name: 'source-map/output/source_map_assert_ok_no_source_map.cjs' },
     { name: 'source-map/output/source_map_disabled_by_api.js' },
     { name: 'source-map/output/source_map_disabled_by_process_api.js' },
+    { name: 'source-map/output/source_map_enable_source_maps_defaults.js' },
     { name: 'source-map/output/source_map_enabled_by_api.js' },
     { name: 'source-map/output/source_map_enabled_by_api_node_modules.js' },
     { name: 'source-map/output/source_map_enabled_by_process_api.js' },

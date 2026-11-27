@@ -63,7 +63,7 @@ await clientSession.opened;
 // Open a stream FIRST to establish bidirectional traffic.
 // This ensures ACKs flow back from the server, keeping the
 // congestion window open for subsequent datagram sends.
-const stream = await clientSession.createBidirectionalStream({
+const stream = clientSession.createBidirectionalStream({
   body: new TextEncoder().encode('hello'),
 });
 

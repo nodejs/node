@@ -41,7 +41,7 @@ async function* generateChunks() {
   }
 }
 
-const stream = await clientSession.createBidirectionalStream();
+const stream = clientSession.createBidirectionalStream();
 stream.setBody(generateChunks());
 
 await dump(stream);

@@ -35,7 +35,11 @@ unsigned HIST_isError(size_t code);  /**< tells if a return value is an error co
 
 /* --- advanced histogram functions --- */
 
+#if defined(__ARM_FEATURE_SVE2)
+#define HIST_WKSP_SIZE_U32 0
+#else
 #define HIST_WKSP_SIZE_U32 1024
+#endif
 #define HIST_WKSP_SIZE    (HIST_WKSP_SIZE_U32 * sizeof(unsigned))
 /** HIST_count_wksp() :
  *  Same as HIST_count(), but using an externally provided scratch buffer.

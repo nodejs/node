@@ -557,7 +557,7 @@ This flag cannot be combined with `--test`, `--watch`, `--watch-path`,
 ### `--bench-gc=mode`
 
 <!-- YAML
-added: REPLACEME
+added: v27.0.0-alpha.0.2.0
 -->
 
 > Stability: 1 - Experimental
@@ -1273,6 +1273,9 @@ is permitted.
 <!-- YAML
 added: v12.12.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/67627
+    description: Source maps in `node_modules` are skipped by default.
   - version:
       - v15.11.0
       - v14.18.0
@@ -1286,6 +1289,9 @@ When using a transpiler, such as TypeScript, stack traces thrown by an
 application reference the transpiled code, not the original source position.
 `--enable-source-maps` enables caching of Source Maps and makes a best
 effort to report stack traces relative to the original source file.
+
+Source maps of files in `node_modules` are skipped. Use
+[`module.setSourceMapsSupport()`][] to enable source maps for them.
 
 Overriding `Error.prepareStackTrace` may prevent `--enable-source-maps` from
 modifying the stack trace. Call and return the results of the original
@@ -2364,7 +2370,7 @@ changes:
     description: SQLite is unflagged but still experimental.
 -->
 
-Disable the experimental [`node:sqlite`][] module.
+Disable the [`node:sqlite`][] module.
 
 ### `--no-experimental-vfs`
 
@@ -2716,13 +2722,59 @@ changes:
 
 Identical to `-e` but prints the result.
 
+### `--process-timeout-worker-stacks`
+
+<!-- YAML
+added: v27.0.0-alpha.0.2.0
+-->
+
+> Stability: 1.1 - Active development
+
+When [`--process-timeout`][] expires, also prints what each [`Worker`][] thread,
+including Workers created by other Workers, was doing and which resources were
+keeping its event loop alive to stderr, after the summary for the main thread:
+
+```console
+$ node --process-timeout=5s --process-timeout-worker-stacks app.js
+(node:25418) Process timed out after 5s (--process-timeout). Exiting with code 124.
+Main thread was not executing JavaScript.
+Resources keeping the event loop alive:
+    Worker (thread 2, name 'WorkerThread')
+    Worker (thread 1, name 'compute')
+Worker thread 1 (name 'compute') was executing JavaScript:
+    at spin (/home/user/compute.js:3:3)
+    at /home/user/compute.js:6:1
+    at node:internal/modules/cjs/loader:1989:14
+    at node:internal/modules/cjs/loader:2129:10
+    at node:internal/modules/cjs/loader:1711:32
+    at node:internal/modules/cjs/loader:1501:12
+    at wrapModuleLoad (node:internal/modules/cjs/loader:261:19)
+    at executeUserEntryPoint (node:internal/modules/run_main:166:5)
+    at node:internal/main/worker_thread:247:26
+    at [nodejs.internal.kHybridDispatch] (node:internal/event_target:876:20)
+No resources keeping its event loop alive were found.
+Worker thread 2 (name 'WorkerThread') was not executing JavaScript.
+Resources keeping its event loop alive:
+    Timeout (next due in 28ms)
+```
+
+Worker threads that do not respond within two seconds, for example because
+they are blocked in a synchronous operation such as
+[`child_process.execSync()`][], are listed without a stack trace or
+resources. Requires
+[`--process-timeout`][].
+
 ### `--process-timeout=duration`
 
 <!-- YAML
 added: v26.11.0
+changes:
+  - version: v27.0.0-alpha.0.2.0
+    pr-url: https://github.com/nodejs/node/pull/67506
+    description: The flag is no longer experimental.
 -->
 
-> Stability: 1.1 - Active development
+> Stability: 2 - Stable
 
 Exits the process with code `124` if it is still running after `duration`,
 measured from the start of the process. `duration` is a positive integer
@@ -2742,7 +2794,9 @@ Resources keeping the event loop alive:
 ```
 
 If the main thread was executing JavaScript, its stack trace is printed instead.
-Use [`--report-on-process-timeout`][] to also generate a [diagnostic report][].
+Use [`--process-timeout-worker-stacks`][] to also print the stack traces of
+Worker threads, and [`--report-on-process-timeout`][] to also generate a
+[diagnostic report][].
 
 The process exits without emitting the `'beforeExit'` and `'exit'` events, as
 the JavaScript code may be what keeps the process running. Code coverage and
@@ -2900,9 +2954,13 @@ error.
 
 <!-- YAML
 added: v26.11.0
+changes:
+  - version: v27.0.0-alpha.0.2.0
+    pr-url: https://github.com/nodejs/node/pull/67506
+    description: The flag is no longer experimental.
 -->
 
-> Stability: 1.1 - Active development
+> Stability: 2 - Stable
 
 Enables the report to be generated when [`--process-timeout`][] expires, in
 addition to the summary printed to stderr. Useful to inspect the JavaScript
@@ -4967,6 +5025,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`--openssl-config`]: #--openssl-configfile
 [`--preserve-symlinks`]: #--preserve-symlinks
 [`--print`]: #-p---print-script
+[`--process-timeout-worker-stacks`]: #--process-timeout-worker-stacks
 [`--process-timeout`]: #--process-timeoutduration
 [`--redirect-warnings`]: #--redirect-warningsfile
 [`--report-on-process-timeout`]: #--report-on-process-timeout
@@ -4987,6 +5046,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`NO_COLOR`]: https://no-color.org
 [`RealFSProvider`]: vfs.md#class-realfsprovider
 [`Web Storage`]: https://developer.mozilla.org/en-US/docs/Web/API/Web_Storage_API
+[`Worker`]: worker_threads.md#class-worker
 [`YoungGenerationSizeFromSemiSpaceSize`]: https://chromium.googlesource.com/v8/v8.git/+/refs/tags/10.3.129/src/heap/heap.cc#328
 [`ZipProvider`]: vfs.md#class-zipprovider
 [`child_process.execSync()`]: child_process.md#child_processexecsynccommand-options
@@ -4997,6 +5057,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`dnsPromises.lookup()`]: dns.md#dnspromiseslookuphostname-options
 [`import.meta.url`]: esm.md#importmetaurl
 [`inspector.open()`]: inspector.md#inspectoropenport-host-wait
+[`module.setSourceMapsSupport()`]: module.md#modulesetsourcemapssupportenabled-options
 [`net.getDefaultAutoSelectFamilyAttemptTimeout()`]: net.md#netgetdefaultautoselectfamilyattempttimeout
 [`node:ffi`]: ffi.md
 [`node:sqlite`]: sqlite.md

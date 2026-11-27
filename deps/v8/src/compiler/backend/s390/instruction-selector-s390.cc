@@ -3404,6 +3404,11 @@ InstructionSelector::AlignmentRequirements() {
       FullUnalignedAccessSupport();
 }
 
+void InstructionSelector::EmitDecompressTaggedParam(
+    OpIndex node, InstructionOperand temp_op) {
+  UNREACHABLE();
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

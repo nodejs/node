@@ -49,7 +49,7 @@ ZSTD_compressSubBlock_literal(const HUF_CElt* hufTable,
     size_t const lhSize = 3 + (litSize >= (1 KB - header)) + (litSize >= (16 KB - header));
     BYTE* const ostart = (BYTE*)dst;
     BYTE* const oend = ostart + dstSize;
-    BYTE* op = ostart + lhSize;
+    BYTE* op = ostart;
     U32 const singleStream = lhSize == 3;
     SymbolEncodingType_e hType = writeEntropy ? hufMetadata->hType : set_repeat;
     size_t cLitSize = 0;
@@ -62,13 +62,18 @@ ZSTD_compressSubBlock_literal(const HUF_CElt* hufTable,
       return ZSTD_noCompressLiterals(dst, dstSize, literals, litSize);
     } else if (hufMetadata->hType == set_rle) {
       DEBUGLOG(5, "ZSTD_compressSubBlock_literal using rle literal");
+      RETURN_ERROR_IF(dstSize < 4, dstSize_tooSmall, "");
       return ZSTD_compressRleLiteralsBlock(dst, dstSize, literals, litSize);
     }
 
     assert(litSize > 0);
     assert(hufMetadata->hType == set_compressed || hufMetadata->hType == set_repeat);
 
+    RETURN_ERROR_IF(dstSize < lhSize, dstSize_tooSmall, "");
+    op += lhSize;
     if (writeEntropy && hufMetadata->hType == set_compressed) {
+        RETURN_ERROR_IF(hufMetadata->hufDesSize > (size_t)(oend-op),
+                        dstSize_tooSmall, "");
         ZSTD_memcpy(op, hufMetadata->hufDesBuffer, hufMetadata->hufDesSize);
         op += hufMetadata->hufDesSize;
         cLitSize += hufMetadata->hufDesSize;
@@ -78,12 +83,12 @@ ZSTD_compressSubBlock_literal(const HUF_CElt* hufTable,
     {   int const flags = bmi2 ? HUF_flags_bmi2 : 0;
         const size_t cSize = singleStream ? HUF_compress1X_usingCTable(op, (size_t)(oend-op), literals, litSize, hufTable, flags)
                                           : HUF_compress4X_usingCTable(op, (size_t)(oend-op), literals, litSize, hufTable, flags);
-        op += cSize;
-        cLitSize += cSize;
         if (cSize == 0 || ERR_isError(cSize)) {
             DEBUGLOG(5, "Failed to write entropy tables %s", ZSTD_getErrorName(cSize));
             return 0;
         }
+        op += cSize;
+        cLitSize += cSize;
         /* If we expand and we aren't writing a header then emit uncompressed */
         if (!writeEntropy && cLitSize >= litSize) {
             DEBUGLOG(5, "ZSTD_compressSubBlock_literal using raw literal because uncompressible");
@@ -200,6 +205,8 @@ ZSTD_compressSubBlock_sequences(const ZSTD_fseCTables_t* fseTables,
         const U32 Offtype = fseMetadata->ofType;
         const U32 MLtype = fseMetadata->mlType;
         DEBUGLOG(5, "ZSTD_compressSubBlock_sequences (fseTablesSize=%zu)", fseMetadata->fseTablesSize);
+        RETURN_ERROR_IF(fseMetadata->fseTablesSize > (size_t)(oend-op),
+                        dstSize_tooSmall, "");
         *seqHead = (BYTE)((LLtype<<6) + (Offtype<<4) + (MLtype<<2));
         ZSTD_memcpy(op, fseMetadata->fseTablesBuffer, fseMetadata->fseTablesSize);
         op += fseMetadata->fseTablesSize;
@@ -274,9 +281,11 @@ static size_t ZSTD_compressSubBlock(const ZSTD_entropyCTables_t* entropy,
 {
     BYTE* const ostart = (BYTE*)dst;
     BYTE* const oend = ostart + dstCapacity;
-    BYTE* op = ostart + ZSTD_blockHeaderSize;
+    BYTE* op = ostart;
     DEBUGLOG(5, "ZSTD_compressSubBlock (litSize=%zu, nbSeq=%zu, writeLitEntropy=%d, writeSeqEntropy=%d, lastBlock=%d)",
                 litSize, nbSeq, writeLitEntropy, writeSeqEntropy, lastBlock);
+    RETURN_ERROR_IF(dstCapacity < ZSTD_blockHeaderSize, dstSize_tooSmall, "");
+    op += ZSTD_blockHeaderSize;
     {   size_t cLitSize = ZSTD_compressSubBlock_literal((const HUF_CElt*)entropy->huf.CTable,
                                                         &entropyMetadata->hufMetadata, literals, litSize,
                                                         op, (size_t)(oend-op),
@@ -683,6 +692,6 @@ size_t ZSTD_compressSuperBlock(ZSTD_CCtx* zc,
             &zc->appliedParams,
             dst, dstCapacity,
             src, srcSize,
-            zc->bmi2, lastBlock,
+            ZSTD_CCtx_get_bmi2(zc), lastBlock,
             zc->tmpWorkspace, zc->tmpWkspSize /* statically allocated in resetCCtx */);
 }

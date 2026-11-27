@@ -4189,20 +4189,17 @@ MaglevGraphBuilder::TryFoldLoadDictPrototypeConstant(
   if (!constant.has_value()) return {};
 
   for (compiler::MapRef map : access_info.lookup_start_object_maps()) {
-    DirectHandle<Map> map_handle = map.object();
     // Non-JSReceivers that passed AccessInfoFactory::ComputePropertyAccessInfo
     // must have different lookup start map.
-    if (!IsJSReceiverMap(*map_handle)) {
+    if (!map.IsJSReceiverMap()) {
       // Perform the implicit ToObject for primitives here.
       // Implemented according to ES6 section 7.3.2 GetV (V, P).
-      Tagged<JSFunction> constructor =
-          Map::GetConstructorFunction(
-              *map_handle, *broker()->target_native_context().object())
-              .value();
-      // {constructor.initial_map()} is loaded/stored with acquire-release
-      // semantics for constructors.
-      map = MakeRefAssumeMemoryFence(broker(), constructor->initial_map());
-      DCHECK(IsJSObjectMap(*map.object()));
+      compiler::OptionalJSFunctionRef constructor =
+          broker()->target_native_context().GetConstructorFunction(broker(),
+                                                                   map);
+      if (!constructor.has_value()) return {};
+      map = constructor->initial_map(broker());
+      DCHECK(map.IsJSObjectMap());
     }
     broker()->dependencies()->DependOnConstantInDictionaryPrototypeChain(
         map, access_info.name(), constant.value(), PropertyKind::kData);
@@ -5641,11 +5638,8 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildElementAccessOnJSArrayOrJSObject(
     ValueNode* object, ValueNode* index_object,
     const compiler::ElementAccessInfo& access_info,
     compiler::KeyedAccessMode const& keyed_mode) {
+  DCHECK(!access_info.is_proxy_on_prototype());
   if (!IsFastElementsKind(access_info.elements_kind())) {
-    return {};
-  }
-  if (access_info.is_proxy_on_prototype()) {
-    // TODO(jkummerow): Implement support.
     return {};
   }
   switch (keyed_mode.access_mode()) {
@@ -5708,6 +5702,13 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildElementAccess(
                                                      &access_infos) ||
       access_infos.empty()) {
     return {};
+  }
+
+  for (const compiler::ElementAccessInfo& access_info : access_infos) {
+    if (access_info.is_proxy_on_prototype()) {
+      // TODO(jkummerow): Implement support.
+      return {};
+    }
   }
 
   // TODO(leszeks): This is copied without changes from TurboFan's native

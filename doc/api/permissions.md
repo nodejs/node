@@ -123,6 +123,8 @@ API call to drop permissions at runtime. This operation is **irreversible**.
 
 When called without a reference, the entire scope is dropped. When called
 with a reference, only the permission for that specific resource is revoked.
+The reference must not be an empty string or an empty `Uint8Array`; otherwise
+an `ERR_INVALID_ARG_VALUE` error is thrown.
 Dropping a permission only affects future access checks. It does not close or
 revoke access to resources that are already open, such as file descriptors,
 network sockets, child processes, or worker threads. Applications are
@@ -515,6 +517,9 @@ There are constraints you need to know before using this system:
   than vulnerabilities. Please report them through the regular issue tracker.
 * Run-Time Loadable Extensions cannot be loaded when the Permission Model is
   enabled, affecting the sqlite module.
+* SQLite [URI filenames][] are disabled when the Permission Model is enabled.
+  The `node:sqlite` module rejects {URL} objects and paths starting with
+  `file:`, and `ATTACH DATABASE` treats such names as plain file paths.
 * Using existing file descriptors via the `node:fs` module bypasses the
   Permission Model.
 
@@ -551,6 +556,7 @@ Developers relying on --permission to sandbox untrusted code should be aware tha
   been granted contain relative symbolic links.
 
 [Security Policy]: https://github.com/nodejs/node/blob/main/SECURITY.md
+[URI filenames]: https://www.sqlite.org/uri.html
 [`--allow-addons`]: cli.md#--allow-addons
 [`--allow-child-process`]: cli.md#--allow-child-process
 [`--allow-env`]: cli.md#--allow-env

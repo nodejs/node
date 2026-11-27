@@ -62,10 +62,10 @@ function assertCannotRenegotiate(socket) {
 
 // A server that does not allow renegotiation refuses the client's attempt, and
 // the attempt leaves the server's side of the connection as it was.
-function testServerRefuses({ disableRenegotiation }) {
+function testServerRefuses({ allowRenegotiation, disableRenegotiation }) {
   const server = tls.createServer({
     ...serverOptions,
-    allowRenegotiation: false,
+    allowRenegotiation,
   }, common.mustCall((socket) => {
     socket.setTimeout(idleTimeout);
     // Has no effect: the attempt is refused without an error on this side.
@@ -81,7 +81,7 @@ function testServerRefuses({ disableRenegotiation }) {
   }));
 
   server.listen(0, common.mustCall(() => {
-    connect(server, {}, common.mustCall((client) => {
+    connect(server, { allowRenegotiation: true }, common.mustCall((client) => {
       client.on('error', common.mustCall((err) => {
         assert.strictEqual(err.code, 'ERR_SSL_NO_RENEGOTIATION');
         client.destroy();
@@ -93,8 +93,11 @@ function testServerRefuses({ disableRenegotiation }) {
 }
 
 // A client that does not allow renegotiation refuses the server's request.
-function testClientRefuses() {
-  const server = tls.createServer(serverOptions, common.mustCall((socket) => {
+function testClientRefuses({ allowRenegotiation }) {
+  const server = tls.createServer({
+    ...serverOptions,
+    allowRenegotiation: true,
+  }, common.mustCall((socket) => {
     socket.on('error', common.mustCall((err) => {
       assert.strictEqual(err.code, 'ERR_SSL_NO_RENEGOTIATION');
       socket.destroy();
@@ -104,7 +107,7 @@ function testClientRefuses() {
   }));
 
   server.listen(0, common.mustCall(() => {
-    connect(server, { allowRenegotiation: false }, common.mustCall((client) => {
+    connect(server, { allowRenegotiation }, common.mustCall((client) => {
       client.setTimeout(idleTimeout);
       assertCannotRenegotiate(client);
       client.on('secure', common.mustNotCall('renegotiation completed'));
@@ -133,7 +136,10 @@ function testAllowed() {
   }));
 }
 
-testServerRefuses({ disableRenegotiation: false });
-testServerRefuses({ disableRenegotiation: true });
-testClientRefuses();
+// Renegotiation is refused unless allowRenegotiation is true.
+for (const allowRenegotiation of [undefined, false]) {
+  testServerRefuses({ allowRenegotiation, disableRenegotiation: false });
+  testServerRefuses({ allowRenegotiation, disableRenegotiation: true });
+  testClientRefuses({ allowRenegotiation });
+}
 testAllowed();

@@ -39,7 +39,7 @@ for (let i = 0; i < numClients; i++) {
     const cs = await connect(serverEndpoint.address, { reuseEndpoint: false });
     await cs.opened;
     const message = `client ${i}`;
-    const stream = await cs.createBidirectionalStream({
+    const stream = cs.createBidirectionalStream({
       body: encoder.encode(message),
     });
     const received = await bytes(stream);

@@ -3145,7 +3145,9 @@ void JSCallReducer::Finalize() {
       Reduction const reduction = Reduce(node);
       if (reduction.Changed()) {
         Node* replacement = reduction.replacement();
-        if (replacement != node) {
+        if (replacement == node) {
+          Revisit(node);
+        } else {
           Replace(node, replacement, max_id);
         }
       }

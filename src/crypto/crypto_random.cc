@@ -33,7 +33,7 @@ namespace crypto {
 namespace {
 bool IsImmutableBufferSource(Local<Value> buffer) {
   if (buffer->IsArrayBufferView()) {
-    return buffer.As<ArrayBufferView>()->Buffer()->IsImmutable();
+    return buffer.As<ArrayBufferView>()->GetBuffer()->IsImmutable();
   }
   return buffer->IsArrayBuffer() && buffer.As<ArrayBuffer>()->IsImmutable();
 }

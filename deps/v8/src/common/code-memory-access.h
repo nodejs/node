@@ -197,15 +197,17 @@ class V8_EXPORT ThreadIsolation {
   // Try to lookup the start of a jit allocation from inside a signal handler,
   // returning std::nullopt if a required lock is already held.
   static std::optional<Address> TryLookupStartOfJitAllocationAt(
-      Address inner_pointer);
-  static std::optional<Address> StartOfJitAllocationAt(Address inner_pointer);
+      Address inner_pointer, JitAllocationType type);
+  static std::optional<Address> StartOfJitAllocationAt(Address inner_pointer,
+                                                       JitAllocationType type);
 
   // Write-protect a given range of memory. Address and size need to be page
   // aligned.
   V8_NODISCARD static bool WriteProtectMemory(
       Address addr, size_t size, PageAllocator::Permission page_permissions);
 
-  static void RegisterJitAllocationForTesting(Address obj, size_t size);
+  static void RegisterJitAllocationForTesting(Address obj, size_t size,
+                                              JitAllocationType type);
   static void UnregisterJitAllocationForTesting(Address addr, size_t size);
 
 #if V8_HAS_PKU_JIT_WRITE_PROTECT
@@ -285,7 +287,7 @@ class V8_EXPORT ThreadIsolation {
     void UnregisterRange(base::Address addr, size_t size);
 
     std::optional<base::Address> StartOfAllocationAt(
-        base::Address inner_pointer);
+        base::Address inner_pointer, JitAllocationType type);
     std::pair<base::Address, JitAllocation&> AllocationContaining(
         base::Address addr);
     base::Address EndOfLastAllocation();

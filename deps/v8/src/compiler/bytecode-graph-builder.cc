@@ -1733,9 +1733,13 @@ void BytecodeGraphBuilder::VisitLdaContextSlot() {
 }
 
 void BytecodeGraphBuilder::VisitLdaImmutableContextSlot() {
+  // LdaImmutableContextSlot is emitted for kNotAssigned context slots, which
+  // the debugger may still mutate at runtime.
+  bool immutable =
+      !broker()->isolate()->is_context_slot_not_assigned_unreliable();
   const Operator* op = javascript()->LoadContextNoCell(
       bytecode_iterator().GetUnsignedImmediateOperand(2),
-      bytecode_iterator().GetContextSlotOperand(1), true);
+      bytecode_iterator().GetContextSlotOperand(1), immutable);
   Node* node = NewNode(op);
   Node* context =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
@@ -1758,8 +1762,12 @@ void BytecodeGraphBuilder::VisitLdaCurrentContextSlot() {
 }
 
 void BytecodeGraphBuilder::VisitLdaImmutableCurrentContextSlot() {
+  // LdaImmutableCurrentContextSlot is emitted for kNotAssigned context slots,
+  // which the debugger may still mutate at runtime.
+  bool immutable =
+      !broker()->isolate()->is_context_slot_not_assigned_unreliable();
   const Operator* op = javascript()->LoadContextNoCell(
-      0, bytecode_iterator().GetContextSlotOperand(0), true);
+      0, bytecode_iterator().GetContextSlotOperand(0), immutable);
   Node* node = NewNode(op);
   environment()->BindAccumulator(node);
 }

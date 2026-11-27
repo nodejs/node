@@ -38,7 +38,7 @@ const { bytes } = await import('stream/iter');
   await clientSession.opened;
 
   // Double-nested promise: Promise<Promise<string>>
-  const stream = await clientSession.createBidirectionalStream();
+  const stream = clientSession.createBidirectionalStream();
   stream.setBody(
     Promise.resolve(Promise.resolve('nested promise')),
   );

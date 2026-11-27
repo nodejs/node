@@ -47,6 +47,8 @@ const kHandler = Symbol('handler')
 const kController = Symbol('controller')
 const kResume = Symbol('resume')
 
+function noop () {}
+
 class RequestController {
   #paused = false
   #reason = null
@@ -463,10 +465,24 @@ class Request {
     }
   }
 
+  // Fails a request that was aborted before it reached a connection. The
+  // handler gets an aborted controller, so wrappers such as RetryHandler can
+  // tell a caller abort apart from a retryable connection failure.
+  onQueuedAbort (reason) {
+    this[kController] = createAbortedController(reason)
+    return this.onResponseError(reason)
+  }
+
   addHeader (key, value) {
     processHeader(this, key, value)
     return this
   }
+}
+
+function createAbortedController (reason) {
+  const controller = new RequestController(noop)
+  controller.abort(reason)
+  return controller
 }
 
 function processHeader (request, key, val) {
@@ -580,3 +596,4 @@ function isUndiciFormData (body) {
 }
 
 module.exports = Request
+module.exports.createAbortedController = createAbortedController

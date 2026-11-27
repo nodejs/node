@@ -86,7 +86,7 @@ await clientSession.opened;
 const clientHeadersReceived = Promise.withResolvers();
 const clientTrailersReceived = Promise.withResolvers();
 
-const stream = await clientSession.createBidirectionalStream({
+const stream = clientSession.createBidirectionalStream({
   headers: {
     ':method': 'GET',
     ':path': '/with-trailers',

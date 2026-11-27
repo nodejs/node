@@ -137,7 +137,9 @@ added: v1.0.0
       positive integer. **Default:** `524288`.
     * `pingInterval` {number} The time interval, in milliseconds, between HTTP/2
       PING frames. Set to `0` to disable PING frames. Applies only to HTTP/2
-      connections and emits a `ping` event on the client. **Default:** `60e3`.
+      connections and emits a `ping` event on the client. A connection whose
+      PING is still unacknowledged when the next one is due is closed, and new
+      requests go to a new connection. **Default:** `60e3`.
     * `settings` {object} `SETTINGS` frame options. For full reference, take a
       look to [HTTP/2#Settings Object](https://nodejs.org/api/http2.html#settings-object)
   * `webSocket` {Object} (optional) WebSocket-specific configuration.
@@ -217,7 +219,7 @@ import { Client, buildConnector } from 'undici'
 const connector = buildConnector({ rejectUnauthorized: false })
 const client = new Client('https://localhost:3000', {
   connect (opts, cb) {
-    connector(opts, (err, socket) => {
+    return connector(opts, (err, socket) => {
       if (err) {
         cb(err)
       } else {

@@ -69,7 +69,7 @@ v8::Local<v8::Value> RoundTrip(v8::Local<v8::Context> context,
   EXPECT_EQ(payload_length, buf->ByteLength() - 4);
 
   v8::Local<v8::Value> payload = v8::Uint8Array::New(
-      buf->Buffer(), buf->ByteOffset() + 4, buf->ByteLength() - 4);
+      buf->GetBuffer(), buf->ByteOffset() + 4, buf->ByteLength() - 4);
   return deserialize->Call(context, v8::Undefined(isolate), 1, &payload)
       .ToLocalChecked();
 }

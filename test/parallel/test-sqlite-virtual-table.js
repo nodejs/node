@@ -3,8 +3,10 @@
 const { skipIfSQLiteMissing, mustCallAtLeast } = require('../common');
 skipIfSQLiteMissing();
 const assert = require('node:assert');
+const { join } = require('node:path');
 const { Database } = require('node:sqlite');
 const { suite, test } = require('node:test');
+const tmpdir = require('../common/tmpdir');
 
 suite('Database.prototype.createModule()', () => {
   suite('input validation', () => {
@@ -984,6 +986,220 @@ suite('Database.prototype.createModule()', () => {
       assert.strictEqual(r1.value, 1);
       assert.strictEqual(r2.value, 2);
       assert.strictEqual(callCount, 2);
+    });
+  });
+
+  suite('statements prepared while a cursor is closing', () => {
+    test('finalizes statements prepared from a generator finally', () => {
+      tmpdir.refresh();
+      const filename = join(tmpdir.path, 'vtab-close.db');
+      const db = new Database(filename);
+      db.exec('CREATE TABLE log (m TEXT)');
+      let late;
+      db.createModule('gen', {
+        columns: [{ name: 'v', type: 'INTEGER' }],
+        *rows() {
+          try {
+            yield [1];
+            yield [2];
+          } finally {
+            db.prepare("INSERT INTO log VALUES ('closed')").run();
+            late = db.prepare('SELECT COUNT(*) AS c FROM log');
+          }
+        },
+      });
+
+      const it = db.prepare('SELECT v FROM gen').iterate();
+      assert.strictEqual(it.next().value.v, 1);
+      db.close();
+
+      assert.strictEqual(db.isOpen, false);
+      assert.throws(() => late.get(), {
+        code: 'ERR_INVALID_STATE',
+        message: 'statement has been finalized',
+      });
+      assert.throws(() => late.run(), {
+        code: 'ERR_INVALID_STATE',
+        message: 'statement has been finalized',
+      });
+
+      const check = new Database(filename);
+      assert.strictEqual(
+        check.prepare('SELECT COUNT(*) AS c FROM log').get().c,
+        1,
+      );
+      check.close();
+    });
+
+    test('finalizes statements already open when prepare() reenters', () => {
+      const db = new Database(':memory:');
+      const earlier = db.prepare('SELECT 1 AS n');
+      const prepared = [];
+      db.createModule('gen', {
+        columns: [{ name: 'v', type: 'INTEGER' }],
+        *rows() {
+          try {
+            yield [1];
+          } finally {
+            for (let i = 0; i < 32; i++) {
+              prepared.push(db.prepare(`SELECT ${i} AS n`));
+            }
+          }
+        },
+      });
+
+      db.prepare('SELECT v FROM gen').iterate().next();
+      db.close();
+
+      assert.throws(() => earlier.get(), { code: 'ERR_INVALID_STATE' });
+      for (const stmt of prepared) {
+        assert.throws(() => stmt.get(), { code: 'ERR_INVALID_STATE' });
+      }
+    });
+
+    test('finalizes a statement prepared while deserialize() drops it', () => {
+      const source = new Database(':memory:');
+      source.exec('CREATE TABLE t (a INTEGER)');
+      source.exec('INSERT INTO t VALUES (123)');
+      const serialized = source.serialize();
+      source.close();
+
+      const db = new Database(':memory:');
+      db.exec('CREATE TABLE t (a INTEGER)');
+      db.exec('INSERT INTO t VALUES (7)');
+      let late;
+      db.createModule('gen', {
+        columns: [{ name: 'v', type: 'INTEGER' }],
+        *rows() {
+          try {
+            yield [1];
+          } finally {
+            late = db.prepare('SELECT a FROM t');
+          }
+        },
+      });
+      db.prepare('SELECT v FROM gen').iterate().next();
+      db.deserialize(serialized);
+
+      assert.strictEqual(db.isOpen, true);
+      assert.throws(() => late.get(), {
+        code: 'ERR_INVALID_STATE',
+        message: 'statement has been finalized',
+      });
+      assert.strictEqual(db.prepare('SELECT a FROM t').get().a, 123);
+      db.close();
+    });
+  });
+
+  suite('re-entrant reset of a virtual table cursor', () => {
+    // xClose runs the generator's return(). Resetting that same statement
+    // from `finally` must fail instead of closing the cursor twice.
+    function moduleWithFinally(db, name, onFinally) {
+      db.createModule(name, {
+        columns: [{ name: 'v', type: 'INTEGER' }],
+        *rows() {
+          try {
+            yield [1];
+            yield [2];
+          } finally {
+            onFinally();
+          }
+        },
+      });
+    }
+
+    test('iterator.return() from finally throws instead of crashing', () => {
+      const db = new Database(':memory:');
+      let it;
+      let caught;
+      moduleWithFinally(db, 'gen_return', () => {
+        try {
+          it.return();
+        } catch (err) {
+          caught = err;
+        }
+      });
+      it = db.prepare('SELECT v FROM gen_return').iterate();
+      assert.strictEqual(it.next().value.v, 1);
+      assert.strictEqual(it.return().done, true);
+      assert.strictEqual(caught.code, 'ERR_INVALID_STATE');
+      assert.strictEqual(
+        caught.message,
+        'statement is already being executed',
+      );
+      db.close();
+    });
+
+    test('statement.get() from finally throws instead of crashing', () => {
+      const db = new Database(':memory:');
+      let stmt;
+      let caught;
+      moduleWithFinally(db, 'gen_get', () => {
+        try {
+          stmt.get();
+        } catch (err) {
+          caught = err;
+        }
+      });
+      stmt = db.prepare('SELECT v FROM gen_get');
+      const it = stmt.iterate();
+      assert.strictEqual(it.next().value.v, 1);
+      assert.strictEqual(it.return().done, true);
+      assert.strictEqual(caught.code, 'ERR_INVALID_STATE');
+      assert.strictEqual(
+        caught.message,
+        'statement is already being executed',
+      );
+      db.close();
+    });
+
+    test('tagged get() from finally throws instead of crashing', () => {
+      const db = new Database(':memory:');
+      const sql = db.createTagStore();
+      let caught;
+      moduleWithFinally(db, 'gen_tag', () => {
+        try {
+          sql.get`SELECT v FROM gen_tag`; // eslint-disable-line no-unused-expressions
+        } catch (err) {
+          caught = err;
+        }
+      });
+      const it = sql.iterate`SELECT v FROM gen_tag`;
+      assert.strictEqual(it.next().value.v, 1);
+      assert.strictEqual(sql.get`SELECT v FROM gen_tag`.v, 1);
+      assert.strictEqual(caught.code, 'ERR_INVALID_STATE');
+      assert.strictEqual(
+        caught.message,
+        'statement is already being executed',
+      );
+      db.close();
+    });
+
+    test('for...of break that queries again throws instead of crashing', () => {
+      const db = new Database(':memory:');
+      let stmt;
+      let caught;
+      moduleWithFinally(db, 'gen_break', () => {
+        try {
+          stmt.get();
+        } catch (err) {
+          caught = err;
+        }
+      });
+      stmt = db.prepare('SELECT v FROM gen_break');
+      let seen = 0;
+      for (const row of stmt.iterate()) {
+        assert.strictEqual(row.v, 1);
+        seen++;
+        break;
+      }
+      assert.strictEqual(seen, 1);
+      assert.strictEqual(caught.code, 'ERR_INVALID_STATE');
+      assert.strictEqual(
+        caught.message,
+        'statement is already being executed',
+      );
+      db.close();
     });
   });
 });
