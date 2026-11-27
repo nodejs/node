@@ -1849,14 +1849,14 @@ inspect.defaultOptions.maxArrayLength = null;
 console.log(arr); // logs the full array
 ```
 
-## `util.isDeepStrictEqual(val1, val2[, options])`
+## `util.isDeepStrictEqual(val1, val2[, skipPrototype])`
 
 <!-- YAML
 added: v9.0.0
 changes:
   - version: v24.9.0
     pr-url: https://github.com/nodejs/node/pull/59762
-    description: Added `options` parameter to allow skipping prototype comparison.
+    description: Added `skipPrototype` parameter to allow skipping prototype comparison.
 -->
 
 * `val1` {any}
