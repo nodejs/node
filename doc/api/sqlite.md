@@ -5,6 +5,9 @@
 <!-- YAML
 added: v22.5.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/67698
+    description: No longer disableable with the `--no-experimental-sqlite` CLI flag.
   - version: v27.0.0-alpha.0.2.0
     pr-url: https://github.com/nodejs/node/pull/67654
     description: SQLite is now stable.
@@ -38,6 +41,9 @@ const sqlite = require('node:sqlite');
 This module is only available under the `node:` scheme. SQL trace events can
 be observed via the [`diagnostics_channel`][] module. See
 [`'sqlite.db.query'`][] for details.
+
+When Node.js is built without SQLite support, loading this module throws
+[`ERR_NO_SQLITE`][].
 
 The following example shows the basic usage of the `node:sqlite` module to open
 an in-memory database, write data to the database, and then read the data back.
@@ -2172,6 +2178,7 @@ callback function to indicate what type of operation is being authorized.
 [`'sqlite.db.query'`]: diagnostics_channel.md#event-sqlitedbquery
 [`ATTACH DATABASE`]: https://www.sqlite.org/lang_attach.html
 [`ERR_INVALID_STATE`]: errors.md#err_invalid_state
+[`ERR_NO_SQLITE`]: errors.md#err_no_sqlite
 [`PRAGMA foreign_keys`]: https://www.sqlite.org/pragma.html#pragma_foreign_keys
 [`SQLITE_DBCONFIG_DEFENSIVE`]: https://www.sqlite.org/c3ref/c_dbconfig_defensive.html#sqlitedbconfigdefensive
 [`SQLITE_DETERMINISTIC`]: https://www.sqlite.org/c3ref/c_deterministic.html

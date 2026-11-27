@@ -16,22 +16,31 @@ suite('accessing the node:sqlite module', () => {
     });
   });
 
-  test('can be disabled with --no-experimental-sqlite flag', async (t) => {
-    const {
-      stdout,
-      stderr,
-      code,
-      signal,
-    } = await spawnPromisified(process.execPath, [
-      '--no-experimental-sqlite',
-      '-e',
-      'require("node:sqlite")',
+  test('can be accessed with the no-op --experimental-sqlite flag', async (t) => {
+    const result = await spawnPromisified(process.execPath, [
+      '--experimental-sqlite',
+      '-p',
+      'typeof require("node:sqlite").Database',
     ]);
 
-    t.assert.strictEqual(stdout, '');
-    t.assert.match(stderr, /No such built-in module: node:sqlite/);
-    t.assert.notStrictEqual(code, 0);
+    t.assert.deepStrictEqual(result, {
+      code: 0,
+      signal: null,
+      stderr: '',
+      stdout: 'function\n',
+    });
+  });
+
+  test('cannot be disabled with --no-experimental-sqlite', async (t) => {
+    const { code, signal, stderr } = await spawnPromisified(process.execPath, [
+      '--no-experimental-sqlite',
+      '-e',
+      '',
+    ]);
+
+    t.assert.strictEqual(code, 9);
     t.assert.strictEqual(signal, null);
+    t.assert.match(stderr, /--no-experimental-sqlite is an invalid negation/);
   });
 });
 
