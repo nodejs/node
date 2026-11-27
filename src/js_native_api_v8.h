@@ -94,8 +94,12 @@ struct napi_env__ {
     CHECK_EQ(open_handle_scopes, open_handle_scopes_before);
     CHECK_EQ(open_callback_scopes, open_callback_scopes_before);
     if (!last_exception.IsEmpty()) {
-      handle_exception(this, last_exception.Get(this->isolate));
+      // Clear the exception before handling it: handle_exception may run
+      // JavaScript (e.g. an 'uncaughtException' listener) that calls back into
+      // the module, which must not see this exception as still pending.
+      v8::Local<v8::Value> exception = last_exception.Get(this->isolate);
       last_exception.Reset();
+      handle_exception(this, exception);
     }
   }
 
