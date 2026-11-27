@@ -256,6 +256,8 @@ When using the Permission Model, the process will not be able to access
 network by default.
 Attempts to do so will throw an \fBERR_ACCESS_DENIED\fR unless the
 user explicitly passes the \fB--allow-net\fR flag when starting Node.js.
+This includes Unix domain sockets and Windows named pipes. Their paths are not
+checked against \fB--allow-fs-read\fR or \fB--allow-fs-write\fR.
 Example:
 .Bd -literal
 const http = require('node:http');
