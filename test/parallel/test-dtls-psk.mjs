@@ -343,23 +343,29 @@ for (const [versions, hint, calls] of [
 
 // Under DTLS 1.3 the server's callback is first asked about the ClientHello
 // that precedes the cookie exchange, and a throw there fails a handshake
-// that has no session yet. The client is refused, the process is not taken
-// down, and the endpoint goes on serving.
+// that has no session yet. The error is reported on the endpoint instead,
+// as thrown; the client is refused, the process is not taken down, and the
+// endpoint goes on serving.
 {
   process.on('uncaughtException', mustNotCall());
 
-  const endpoint = listen(() => {}, {
+  const thrown = new Error('from the psk callback');
+  // Called once, for the connection that works.
+  const endpoint = listen(mustCall(), {
     psk: (identity) => {
-      if (identity === 'throws') throw new Error('from the psk callback');
+      if (identity === 'throws') throw thrown;
       return KEY;
     },
     host: HOST, port: 0, ...V13,
   });
+  const reported = Promise.withResolvers();
+  endpoint.onerror = mustCall((err) => reported.resolve(err));
 
   const failing = open(endpoint, {
     psk: { identity: 'throws', key: KEY }, ...V13,
   });
   await assert.rejects(failing.opened, { name: 'Error' });
+  assert.strictEqual(await reported.promise, thrown);
 
   const working = open(endpoint, {
     psk: { identity: 'device-42', key: KEY }, ...V13,

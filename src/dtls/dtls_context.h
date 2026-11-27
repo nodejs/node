@@ -29,6 +29,10 @@ struct PendingHandshakeState {
   // HelloRetryRequest for DTLS 1.3) has been generated. The next
   // ClientHello is the one expected to carry the cookie back.
   bool cookie_sent = false;
+  // An exception thrown by a callback while this handshake was being driven.
+  // There is no session to report it to, so the endpoint reports it once
+  // OpenSSL has returned.
+  v8::Global<v8::Value> error;
 };
 
 // DTLSContext wraps an SSL_CTX configured for DTLS.

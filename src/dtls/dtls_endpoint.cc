@@ -877,13 +877,38 @@ void DTLSEndpoint::DrivePendingHandshake(const uint8_t* data,
     SendTo(remote, buf.out(), n);
   }
 
-  if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE) return;
-  if (err != SSL_ERROR_WANT_CLIENT_HELLO_CB) {
+  // A callback that threw while OpenSSL processed this datagram -- the
+  // server's psk callback is the one that runs this early -- is reported on
+  // the endpoint, now that OpenSSL has returned and running JavaScript is
+  // safe. It is reported whether or not the handshake goes on: a throw is
+  // treated as declining, and a server with a certificate can continue
+  // without a PSK.
+  v8::Global<Value> error = std::move(pending->state.error);
+
+  bool keep = err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE ||
+              err == SSL_ERROR_WANT_CLIENT_HELLO_CB;
+  if (!keep) {
     // A ClientHello OpenSSL would not accept, or -- which the cookie
     // exchange rules out -- a handshake that finished without one.
     pending_.erase(it);
-    return;
   }
+
+  if (!error.IsEmpty()) {
+    HandleScope handle_scope(env()->isolate());
+    Context::Scope context_scope(env()->context());
+    Local<Value> argv[] = {error.Get(env()->isolate())};
+    error.Reset();
+    // Held across the callback, which may close or destroy the endpoint.
+    BaseObjectPtr<DTLSEndpoint> strong(this);
+    Local<Function> cb = GetCallback(DTLS_CB_ENDPOINT_ERROR);
+    if (!cb.IsEmpty()) MakeCallback(cb, 1, argv);
+    // The callback may have closed the endpoint, taking the pending
+    // handshake with it.
+    it = pending_.find(remote);
+    if (it == pending_.end() || it->second.get() != pending) return;
+  }
+
+  if (err != SSL_ERROR_WANT_CLIENT_HELLO_CB) return;
 
   // Suspended at the ClientHello that should carry the cookie back. From
   // here on the handshake runs through a DTLSSession, so that what follows

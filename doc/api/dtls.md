@@ -378,8 +378,9 @@ What changes under DTLS 1.3:
   peer's address is validated, because the HelloRetryRequest commits to it.
   A client the server refuses at that point, for want of a common cipher
   suite or because it offered a pre-shared key identity the server does not
-  know, is sent an alert, but no session is created for it and the server's
-  application is told nothing.
+  know, is sent an alert, but no session is created for it. An exception
+  thrown by the server's `psk` callback at that point is reported on
+  [`endpoint.onerror`][].
 * The server issues resumption tickets after the handshake rather than during
   it, so [`session.session`][] is `undefined` when `session.opened` settles.
   Use [`session.onsessionticket`][]; see [Session resumption][].
@@ -830,6 +831,28 @@ Immediately destroys the endpoint without sending `close_notify` alerts.
 ### `endpoint[Symbol.asyncDispose]()`
 
 Equivalent to calling `endpoint.close()`.
+
+### `endpoint.onerror`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {Function}
+  * `error` {Error}
+
+Set to receive errors that belong to the endpoint rather than to any one
+session. Neither closes the endpoint. They are:
+
+* A failure reported by the UDP socket while receiving.
+* An exception thrown by the server's `psk` callback for a DTLS 1.3 client
+  whose address has not yet been validated. The callback is first asked
+  about the client's opening ClientHello, before there is a session to
+  report to, so the exception is passed here, as thrown, and the client is
+  refused. A peer that has not proven its address can cause this once for
+  each ClientHello it sends, so the handler should be cheap.
+
+Without a handler these errors are discarded.
 
 ## Class: `DTLSEndpoint.Stats`
 
@@ -1413,6 +1436,7 @@ The minimum allowed MTU is 256 bytes. The maximum is 65535.
 [`dtls.connect()`]: #dtlsconnecthost-port-options
 [`dtls.createSecureContext()`]: #dtlscreatesecurecontextoptions
 [`dtls.listen()`]: #dtlslistencallback-options
+[`endpoint.onerror`]: #endpointonerror
 [`endpointStats.serverRefusedCount`]: #endpointstatsserverrefusedcount
 [`handshakeTimeout`]: #handshake-timeout
 [`session.authorizationError`]: #sessionauthorizationerror

@@ -805,8 +805,18 @@ void DTLSContext::ReportCallbackError(SSL* ssl, TryCatch* try_catch) {
   // entered with an exception still pending.
   try_catch->Reset();
 
-  if (session != nullptr && !exception.IsEmpty()) {
+  if (exception.IsEmpty()) return;
+  if (session != nullptr) {
     session->SetPendingError(exception);
+    return;
+  }
+  // A DTLS 1.3 first ClientHello is processed before the peer's address has
+  // been validated, by a pending handshake with no session behind it. Keep
+  // the first exception for the endpoint to report.
+  PendingHandshakeState* pending = GetPendingState(ssl);
+  DTLSContext* ctx = FromSSL(ssl);
+  if (pending != nullptr && ctx != nullptr && pending->error.IsEmpty()) {
+    pending->error.Reset(ctx->env()->isolate(), exception);
   }
 }
 
