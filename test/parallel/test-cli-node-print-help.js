@@ -40,6 +40,20 @@ function validateNodePrintHelp() {
 
   cliHelpOptions.forEach(testForSubstring);
 
+  // The usage section lists every top-level run mode.
+  const usage = stripVTControlCharacters(stdOut.slice(0, stdOut.indexOf('\n\n')));
+  const usageLines = usage.split('\n').map((line) => line.replace(/^(?:Usage:)?\s+/, ''));
+  assert.deepStrictEqual(usageLines, [
+    'node [options] [ script.js ] [arguments]',
+    'node [options] -e "script" [arguments]',
+    'node [options] -p "script" [arguments]',
+    'node inspect [options] [ script.js | host:port ] [arguments]',
+    'node --run [ script ] [-- arguments]',
+    'node --watch [options] script.js [arguments]',
+    'node --test [options] [ patterns... ]',
+    'node --bench --experimental-bench [options] patterns...',
+  ]);
+
   // Environment variables are listed at the start of a line in their own
   // section. Matching on line starts avoids false positives from option help
   // text that mentions them (e.g. --icu-data-dir mentions NODE_ICU_DATA).

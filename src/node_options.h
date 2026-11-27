@@ -535,6 +535,32 @@ inline const std::string NamespaceEnumToString(OptionNamespaces ns) {
   }
 }
 
+// Sections of the `node --help` output, in the order they are printed. Every
+// option is assigned to one of these by the AddOption() call that defines it.
+// kGeneral must stay first: print_help.js places `-` and `--` in section 0.
+#define OPTION_HELP_SECTION_LIST(V)                                            \
+  V(kGeneral, "General")                                                       \
+  V(kModules, "Modules")                                                       \
+  V(kBuiltinApis, "Built-in APIs")                                             \
+  V(kWatch, "Watch mode")                                                      \
+  V(kTestRunner, "Test runner")                                                \
+  V(kBenchRunner, "Benchmark runner")                                          \
+  V(kDebugging, "Debugging and inspector")                                     \
+  V(kDiagnostics, "Diagnostics and profiling")                                 \
+  V(kErrors, "Errors and warnings")                                            \
+  V(kPermissions, "Permissions")                                               \
+  V(kSecurity, "Security hardening")                                           \
+  V(kNetworking, "Networking")                                                 \
+  V(kTlsCrypto, "TLS and crypto")                                              \
+  V(kSnapshots, "Snapshots and single executables")                            \
+  V(kV8, "V8 and memory")
+
+enum class HelpSection {
+#define V(name, _) name,
+  OPTION_HELP_SECTION_LIST(V)
+#undef V
+};
+
 inline constexpr auto AllNamespaces() {
   return std::array{
 #define V(name, _) OptionNamespaces::name,
@@ -563,6 +589,7 @@ class OptionsParser {
   void AddOption(
       const char* name,
       const char* help_text,
+      HelpSection help_section,
       bool (*getter)(Options*),
       void (*setter)(Options*, bool),
       OptionEnvvarSettings env_setting = kDisallowedInEnvvar,
@@ -570,6 +597,7 @@ class OptionsParser {
       OptionNamespaces namespace_id = OptionNamespaces::kNoNamespace);
   void AddOption(const char* name,
                  const char* help_text,
+                 HelpSection help_section,
                  uint64_t Options::*field,
                  OptionEnvvarSettings env_setting = kDisallowedInEnvvar,
                  OptionNamespaces namespace_id = OptionNamespaces::kNoNamespace,
@@ -577,36 +605,42 @@ class OptionsParser {
   void AddOption(
       const char* name,
       const char* help_text,
+      HelpSection help_section,
       int64_t Options::*field,
       OptionEnvvarSettings env_setting = kDisallowedInEnvvar,
       OptionNamespaces namespace_id = OptionNamespaces::kNoNamespace);
   void AddOption(
       const char* name,
       const char* help_text,
+      HelpSection help_section,
       std::string Options::*field,
       OptionEnvvarSettings env_setting = kDisallowedInEnvvar,
       OptionNamespaces namespace_id = OptionNamespaces::kNoNamespace);
   void AddOption(
       const char* name,
       const char* help_text,
+      HelpSection help_section,
       std::vector<std::string> Options::*field,
       OptionEnvvarSettings env_setting = kDisallowedInEnvvar,
       OptionNamespaces namespace_id = OptionNamespaces::kNoNamespace);
   void AddOption(
       const char* name,
       const char* help_text,
+      HelpSection help_section,
       HostPort Options::*field,
       OptionEnvvarSettings env_setting = kDisallowedInEnvvar,
       OptionNamespaces namespace_id = OptionNamespaces::kNoNamespace);
   void AddOption(
       const char* name,
       const char* help_text,
+      HelpSection help_section,
       NoOp no_op_tag,
       OptionEnvvarSettings env_setting = kDisallowedInEnvvar,
       OptionNamespaces namespace_id = OptionNamespaces::kNoNamespace);
   void AddOption(
       const char* name,
       const char* help_text,
+      HelpSection help_section,
       V8Option v8_option_tag,
       OptionEnvvarSettings env_setting = kDisallowedInEnvvar,
       OptionNamespaces namespace_id = OptionNamespaces::kNoNamespace);
@@ -732,11 +766,13 @@ class OptionsParser {
   // - The information of whether it may occur in an env var or not.
   // - A default value (if applicable).
   // - A namespace ID (optional) to allow for namespacing of options.
+  // - The section of the --help output that the option is listed in.
   struct OptionInfo {
     OptionType type;
     std::shared_ptr<BaseOptionField> field;
     OptionEnvvarSettings env_setting;
     std::string help_text;
+    HelpSection help_section;
     bool default_is_true = false;
     std::string namespace_id;
     bool strict = false;
