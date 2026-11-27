@@ -961,6 +961,14 @@ void TLSWrap::ClearOut() {
     }
 
     if (!emit()) return;
+
+    // JS may have called ReadStop() while handling the data we just emitted,
+    // e.g. the HTTP server pausing a pipelined request under backpressure.
+    // Keep the remaining records in the SSL buffer until ReadStart().
+    if (flags_.reading_stopped) {
+      Debug(this, "Returning from ClearOut(), reading stopped");
+      return;
+    }
   }
 
   // We need to check whether an error occurred or the connection was
@@ -1128,13 +1136,22 @@ bool TLSWrap::IsClosing() {
 
 int TLSWrap::ReadStart() {
   Debug(this, "ReadStart()");
+  flags_.reading_stopped = false;
+  int err = 0;
   if (underlying_stream() != nullptr && !flags_.eof)
-    return underlying_stream()->ReadStart();
-  return 0;
+    err = underlying_stream()->ReadStart();
+  // ClearOut() stops emitting after ReadStop(), so encrypted records may
+  // still be waiting in enc_in_. Nothing else delivers them if no more data
+  // arrives from the network, so cycle now. This runs after the underlying
+  // stream is started, because the emitted data can make JS pause and resume
+  // the stream again.
+  if (ssl_ && BIO_pending(enc_in_) > 0) Cycle();
+  return err;
 }
 
 int TLSWrap::ReadStop() {
   Debug(this, "ReadStop()");
+  flags_.reading_stopped = true;
   return underlying_stream() != nullptr ? underlying_stream()->ReadStop() : 0;
 }
 
