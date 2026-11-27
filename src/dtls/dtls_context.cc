@@ -206,6 +206,7 @@ Local<FunctionTemplate> DTLSContext::GetConstructorTemplate(Environment* env) {
     SetProtoMethod(isolate, tmpl, "setKey", SetKey);
     SetProtoMethod(isolate, tmpl, "addCACert", AddCACert);
     SetProtoMethod(isolate, tmpl, "setCiphers", SetCiphers);
+    SetProtoMethod(isolate, tmpl, "setCipherSuites", SetCipherSuites);
     SetProtoMethod(isolate, tmpl, "setALPN", SetALPN);
     SetProtoMethod(isolate, tmpl, "setSRTP", SetSRTP);
     SetProtoMethod(isolate, tmpl, "setVerifyMode", SetVerifyMode);
@@ -239,6 +240,7 @@ void DTLSContext::RegisterExternalReferences(
   registry->Register(SetKey);
   registry->Register(AddCACert);
   registry->Register(SetCiphers);
+  registry->Register(SetCipherSuites);
   registry->Register(SetALPN);
   registry->Register(SetSRTP);
   registry->Register(SetVerifyMode);
@@ -481,6 +483,21 @@ void DTLSContext::SetCiphers(const FunctionCallbackInfo<Value>& args) {
   if (SSL_CTX_set_cipher_list(ctx->ctx_.get(), *ciphers) != 1) {
     return THROW_ERR_CRYPTO_OPERATION_FAILED(env,
                                              "SSL_CTX_set_cipher_list failed");
+  }
+}
+
+// DTLS 1.3 cipher suites, which OpenSSL configures apart from the cipher list
+// used by DTLS 1.2 and earlier: SSL_CTX_set_cipher_list() does not touch them.
+void DTLSContext::SetCipherSuites(const FunctionCallbackInfo<Value>& args) {
+  DTLSContext* ctx;
+  ASSIGN_OR_RETURN_UNWRAP(&ctx, args.This());
+  Environment* env = ctx->env();
+
+  CHECK(args[0]->IsString());
+  Utf8Value suites(env->isolate(), args[0]);
+  if (SSL_CTX_set_ciphersuites(ctx->ctx_.get(), *suites) != 1) {
+    return THROW_ERR_CRYPTO_OPERATION_FAILED(env,
+                                             "SSL_CTX_set_ciphersuites failed");
   }
 }
 

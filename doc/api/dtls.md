@@ -94,7 +94,9 @@ changes:
   * `port` {number} Port to bind to. **Required.**
   * `host` {string} Address to bind to. **Default:** `'0.0.0.0'`.
   * `ca` {string|Buffer|string\[]|Buffer\[]} CA certificates in PEM format.
-  * `ciphers` {string} OpenSSL cipher list string.
+  * `ciphers` {string} OpenSSL cipher list string. Names beginning `TLS_`
+    select DTLS 1.3 cipher suites; the rest select DTLS 1.2 cipher suites.
+    See [Protocol versions][].
   * `minVersion` {string} The oldest protocol version to accept, `'DTLSv1.2'`
     or `'DTLSv1.3'`. **Default:** `'DTLSv1.2'`. See [Protocol versions][].
   * `maxVersion` {string} The newest protocol version to offer, `'DTLSv1.2'`
@@ -270,7 +272,9 @@ changes:
   * `ca` {string|Buffer|Array} CA certificates in PEM format. When omitted,
     the bundled default certificate authorities are used.
   * `cert` {string|Buffer} Certificate in PEM format.
-  * `ciphers` {string} OpenSSL cipher suite list.
+  * `ciphers` {string} OpenSSL cipher list string. Names beginning `TLS_`
+    select DTLS 1.3 cipher suites; the rest select DTLS 1.2 cipher suites.
+    See [Protocol versions][].
   * `ecdhCurve` {string} Named curve or curve list for ECDH.
   * `isServer` {boolean} Build a context for a server. **Default:** `false`.
   * `key` {string|Buffer} Private key in PEM format.
@@ -377,8 +381,12 @@ What changes under DTLS 1.3:
   rather than stalling; see [Pre-shared keys][].
 * [`session.send()`][] accepts at most 16383 bytes, and
   [`session.exportKeyingMaterial()`][] at most 255 hash lengths.
-* The `ciphers` option applies to DTLS 1.2 cipher suites only. DTLS 1.3 uses
-  OpenSSL's default TLS 1.3 suites.
+* DTLS 1.3 has its own cipher suites, named like TLS 1.3's. As in `node:tls`,
+  the names in `ciphers` that begin `TLS_` configure them and the rest
+  configure DTLS 1.2. A string without any `TLS_` names leaves the default
+  DTLS 1.3 suites in place, so it does not restrict a DTLS 1.3 handshake. One
+  with only `TLS_` names raises `minVersion` to `'DTLSv1.3'`, since DTLS 1.2
+  would have nothing to negotiate, and throws if DTLS 1.3 is not enabled.
 
 ## Server Name Indication
 
@@ -573,9 +581,11 @@ exception.
 
 ### Cipher suites
 
-The default cipher list excludes PSK, so giving `psk` without `ciphers`
-enables the PSK suites. Supplying `ciphers` disables that and uses exactly
-what was asked for.
+The default DTLS 1.2 cipher list excludes PSK, so giving `psk` without `ciphers`
+enables the PSK suites. DTLS 1.3 needs no special suites for PSK, but a key
+supplied by a callback or a map can only be used with a SHA-256 suite, which the
+defaults include. Supplying `ciphers` disables that and uses exactly what was
+asked for.
 
 A server keeps the certificate suites as well, since it may serve both kinds
 of client on one port. A client does not: a client that configured a

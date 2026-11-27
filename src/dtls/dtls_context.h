@@ -86,6 +86,7 @@ class DTLSContext final : public BaseObject {
   static void SetKey(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void AddCACert(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetCiphers(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetCipherSuites(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetALPN(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetSRTP(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetVerifyMode(const v8::FunctionCallbackInfo<v8::Value>& args);
