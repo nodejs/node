@@ -5295,11 +5295,15 @@ std::optional<uint32_t> SSLPointer::verifyPeerCertificate() const {
   const SSL_CIPHER* curr_cipher = SSL_get_current_cipher(get());
   const SSL_SESSION* sess = SSL_get_session(get());
   // Allow no-cert for PSK authentication in TLS1.2 and lower.
-  // In TLS1.3 check that session was reused because TLS1.3 PSK
+  // In (D)TLS1.3 check that session was reused because (D)TLS1.3 PSK
   // looks like session resumption.
+  const int version = SSL_SESSION_get_protocol_version(sess);
+  bool is_13 = version == TLS1_3_VERSION;
+#ifdef DTLS1_3_VERSION
+  is_13 = is_13 || version == DTLS1_3_VERSION;
+#endif
   if (SSL_CIPHER_get_auth_nid(curr_cipher) == NID_auth_psk ||
-      (SSL_SESSION_get_protocol_version(sess) == TLS1_3_VERSION &&
-       SSL_session_reused(get()))) {
+      (is_13 && SSL_session_reused(get()))) {
     return X509_V_OK;
   }
 
