@@ -602,7 +602,7 @@
         ],
       }],
       ['OS=="linux" and clang==1', {
-        'libraries': ['-latomic'],
+        'libraries': ['<!@(clang++ -print-file-name=libatomic.a)'],
       }],
     ],
   },
