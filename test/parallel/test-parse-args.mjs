@@ -336,6 +336,24 @@ test('unknown option -r in short option group -bar', () => {
   });
 });
 
+test("strict: '-' inside short option group -a-b is an unknown option", () => {
+  const args = ['-a-b'];
+  const options = { a: { type: 'boolean' }, b: { type: 'boolean' } };
+  assert.throws(() => { parseArgs({ args, options }); }, {
+    code: 'ERR_PARSE_ARGS_UNKNOWN_OPTION',
+    message: /Unknown option '-'/,
+  });
+});
+
+test("strict: trailing '-' in short option group -a- is an unknown option", () => {
+  const args = ['-a-'];
+  const options = { a: { type: 'boolean' } };
+  assert.throws(() => { parseArgs({ args, options }); }, {
+    code: 'ERR_PARSE_ARGS_UNKNOWN_OPTION',
+    message: /Unknown option '-'/,
+  });
+});
+
 test('unknown option with explicit value', () => {
   const args = ['--foo', '--bar=baz'];
   const options = { foo: { type: 'boolean' } };
@@ -745,6 +763,26 @@ test('tokens: strict:true complex option group with value after space', () => {
     { kind: 'positional', index: 2, value: 'pos' },
   ];
   const { tokens } = parseArgs({ strict: true, allowPositionals: true, args, options, tokens: true });
+  assert.deepStrictEqual(tokens, expectedTokens);
+});
+
+test("tokens: '-' inside short option group is not an option terminator", () => {
+  // Also positional to check index correct afterwards.
+  const args = ['-a-b', 'pos'];
+  const options = {
+    alpha: { short: 'a', type: 'boolean' },
+    beta: { short: 'b', type: 'boolean' },
+  };
+  const expectedTokens = [
+    { kind: 'option', name: 'alpha', rawName: '-a',
+      index: 0, value: undefined, inlineValue: undefined },
+    { kind: 'option', name: '-', rawName: '-',
+      index: 0, value: undefined, inlineValue: undefined },
+    { kind: 'option', name: 'beta', rawName: '-b',
+      index: 0, value: undefined, inlineValue: undefined },
+    { kind: 'positional', index: 1, value: 'pos' },
+  ];
+  const { tokens } = parseArgs({ strict: false, allowPositionals: true, args, options, tokens: true });
   assert.deepStrictEqual(tokens, expectedTokens);
 });
 
