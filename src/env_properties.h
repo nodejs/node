@@ -425,6 +425,7 @@
   V(free_list_statistics_template, v8::DictionaryTemplate)                     \
   V(fsreqpromise_constructor_template, v8::ObjectTemplate)                     \
   V(handle_wrap_ctor_template, v8::FunctionTemplate)                           \
+  V(heap_profile_sample_template, v8::DictionaryTemplate)                      \
   V(heap_statistics_template, v8::DictionaryTemplate)                          \
   V(v8_heap_statistics_template, v8::DictionaryTemplate)                       \
   V(histogram_ctor_template, v8::FunctionTemplate)                             \

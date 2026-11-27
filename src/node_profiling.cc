@@ -1,5 +1,6 @@
 #include "node_profiling.h"
 
+#include "env-inl.h"
 #include "json_utils.h"
 #include "util-inl.h"
 
@@ -95,16 +96,21 @@ MaybeLocal<Array> HeapProfileSamplesToV8Value(
     Isolate* isolate,
     Local<Context> context,
     const std::vector<AllocationProfile::Sample>& samples) {
-  static constexpr std::string_view names[] = {
-      "size",
-      "objectSize",
-      "objectCount",
-      "nodeId",
-      "ordinal",
-      "isLive",
-      "sampleInterval",
-  };
-  auto tmpl = DictionaryTemplate::New(isolate, names);
+  Environment* env = Environment::GetCurrent(context);
+  auto tmpl = env->heap_profile_sample_template();
+  if (tmpl.IsEmpty()) {
+    static constexpr std::string_view names[] = {
+        "size",
+        "objectSize",
+        "objectCount",
+        "nodeId",
+        "ordinal",
+        "isLive",
+        "sampleInterval",
+    };
+    tmpl = DictionaryTemplate::New(isolate, names);
+    env->set_heap_profile_sample_template(tmpl);
+  }
   LocalVector<Value> result(isolate);
   result.reserve(samples.size());
   for (const auto& sample : samples) {
