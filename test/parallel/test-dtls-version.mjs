@@ -71,9 +71,16 @@ for (const [server, client, expected] of [
 await assert.rejects(negotiate(V12, V13), /unsupported protocol/);
 await assert.rejects(negotiate(V13, V12), /protocol version/);
 
-// The default is DTLS 1.2 on both sides.
-assert.strictEqual(await negotiate({}, BOTH), 'DTLSv1.2');
-assert.strictEqual(await negotiate(BOTH, {}), 'DTLSv1.2');
+// The default is DTLS 1.2 through 1.3 on both sides.
+assert.strictEqual(await negotiate({}, {}), 'DTLSv1.3');
+assert.strictEqual(await negotiate({}, V12), 'DTLSv1.2');
+assert.strictEqual(await negotiate(V12, {}), 'DTLSv1.2');
+assert.strictEqual(await negotiate({}, V13), 'DTLSv1.3');
+assert.strictEqual(await negotiate(V13, {}), 'DTLSv1.3');
+
+// Lowering only the ceiling is enough to stay on DTLS 1.2.
+assert.strictEqual(await negotiate({ maxVersion: 'DTLSv1.2' }, {}),
+                   'DTLSv1.2');
 
 // A secure context carries the range.
 {
@@ -108,7 +115,7 @@ assert.throws(
   () => createSecureContext({ minVersion: 'DTLSv1.3', maxVersion: 'DTLSv1.2' }),
   { code: 'ERR_INVALID_ARG_VALUE', message: /must not be newer/ });
 
-// Raising only the floor raises the default ceiling with it.
+// Raising only the floor is enough to require DTLS 1.3.
 assert.strictEqual(await negotiate({ minVersion: 'DTLSv1.3' }, BOTH),
                    'DTLSv1.3');
 await assert.rejects(negotiate({ minVersion: 'DTLSv1.3' }, V12),

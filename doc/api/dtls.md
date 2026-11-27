@@ -71,7 +71,8 @@ added: v26.9.0
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/00000
-    description: Added the `minVersion` and `maxVersion` options.
+    description: Added DTLS 1.3, enabled by default, and the `minVersion`
+                 and `maxVersion` options.
 -->
 
 * `callback` {Function} Called for each new DTLS session accepted by the
@@ -100,8 +101,7 @@ changes:
   * `minVersion` {string} The oldest protocol version to accept, `'DTLSv1.2'`
     or `'DTLSv1.3'`. **Default:** `'DTLSv1.2'`. See [Protocol versions][].
   * `maxVersion` {string} The newest protocol version to offer, `'DTLSv1.2'`
-    or `'DTLSv1.3'`. **Default:** `'DTLSv1.2'`, or `minVersion` if that is
-    newer.
+    or `'DTLSv1.3'`. **Default:** `'DTLSv1.3'`.
   * `alpn` {string\[]|Buffer} ALPN protocol names. Each name must be between
     1 and 255 bytes. A `Buffer` must already be in ALPN wire format: one
     length byte followed by that many bytes, repeated.
@@ -184,7 +184,8 @@ added: v26.9.0
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/00000
-    description: Added the `minVersion` and `maxVersion` options.
+    description: Added DTLS 1.3, enabled by default, and the `minVersion`
+                 and `maxVersion` options.
 -->
 
 * `host` {string} Remote host to connect to, as an IPv4 or IPv6 literal.
@@ -229,8 +230,7 @@ changes:
   * `minVersion` {string} The oldest protocol version to accept, `'DTLSv1.2'`
     or `'DTLSv1.3'`. **Default:** `'DTLSv1.2'`. See [Protocol versions][].
   * `maxVersion` {string} The newest protocol version to offer, `'DTLSv1.2'`
-    or `'DTLSv1.3'`. **Default:** `'DTLSv1.2'`, or `minVersion` if that is
-    newer.
+    or `'DTLSv1.3'`. **Default:** `'DTLSv1.3'`.
   * `mtu` {number} Maximum size in bytes of a DTLS datagram. **Default:**
     `1200`.
   * `handshakeTimeout` {number} Milliseconds a handshake may take before it is
@@ -264,7 +264,8 @@ added: v26.10.0
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/00000
-    description: Added the `minVersion` and `maxVersion` options.
+    description: Added DTLS 1.3, enabled by default, and the `minVersion`
+                 and `maxVersion` options.
 -->
 
 * `options` {Object}
@@ -354,17 +355,18 @@ DTLS 1.2 ([RFC 6347][]) and DTLS 1.3 ([RFC 9147][]) are supported. DTLS 1.0 is
 not: it is deprecated by [RFC 8996][] and has no AEAD cipher suites. Each side
 offers the range from `minVersion` to `maxVersion`, and the newest version both
 allow is negotiated; with none in common the handshake fails with a
-`protocol_version` alert. Only DTLS 1.2 is enabled by default.
+`protocol_version` alert. Both versions are enabled by default.
 
 ```mjs
 import { connect, listen } from 'node:dtls';
 
-const endpoint = listen(onsession, {
-  cert, key, port: 5684, maxVersion: 'DTLSv1.3',
-});
+const endpoint = listen(onsession, { cert, key, port: 5684 });
 
-const session = connect('192.0.2.1', 5684, { ca, maxVersion: 'DTLSv1.3' });
+const session = connect('192.0.2.1', 5684, { ca });
 const { protocol } = await session.opened;   // 'DTLSv1.3'
+
+// A peer that only speaks DTLS 1.2 is still served; to offer only that:
+const legacy = connect('192.0.2.2', 5684, { ca, maxVersion: 'DTLSv1.2' });
 ```
 
 What changes under DTLS 1.3:
