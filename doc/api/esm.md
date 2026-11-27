@@ -708,9 +708,20 @@ imported from the same path.
 
 ## Text modules
 
-> Stability: 1.0 - Early development
+<!-- YAML
+added:
+  - v26.5.0
+  - v24.19.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/67778
+    description: Text modules no longer require the `--experimental-import-text`
+                 flag.
+-->
 
-Text modules are available behind the `--experimental-import-text` flag.
+> Stability: 1.2 - Release candidate
+
+Text modules can be disabled with the [`--no-experimental-import-text`][] flag.
 
 Text files can be referenced by `import`:
 
@@ -1341,6 +1352,7 @@ resolution for ESM specifiers.
 [`"type"`]: packages.md#type
 [`--experimental-package-map`]: cli.md#--experimental-package-mappath
 [`--input-type`]: cli.md#--input-typetype
+[`--no-experimental-import-text`]: cli.md#--no-experimental-import-text
 [`data:` URLs]: https://developer.mozilla.org/en-US/docs/Web/URI/Reference/Schemes/data
 [`export`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/export
 [`import()`]: #import-expressions

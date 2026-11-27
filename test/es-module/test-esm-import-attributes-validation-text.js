@@ -1,4 +1,4 @@
-// Flags: --expose-internals --experimental-import-text
+// Flags: --expose-internals
 'use strict';
 require('../common');
 

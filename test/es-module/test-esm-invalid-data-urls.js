@@ -4,15 +4,16 @@ const assert = require('assert');
 
 (async () => {
   await assert.rejects(import('data:text/plain,export default0'), {
-    code: 'ERR_UNKNOWN_MODULE_FORMAT',
+    code: 'ERR_IMPORT_ATTRIBUTE_MISSING',
     message:
-      'Unknown module format: text/plain for URL data:text/plain,' +
-      'export default0',
+      'Module "data:text/plain,export default0" needs an import attribute ' +
+      'of "type: text"',
   });
   await assert.rejects(import('data:text/plain;base64,'), {
-    code: 'ERR_UNKNOWN_MODULE_FORMAT',
+    code: 'ERR_IMPORT_ATTRIBUTE_MISSING',
     message:
-      'Unknown module format: text/plain for URL data:text/plain;base64,',
+      'Module "data:text/plain;base64," needs an import attribute of ' +
+      '"type: text"',
   });
   await assert.rejects(import('data:text/css,.error { color: red; }'), {
     code: 'ERR_UNKNOWN_MODULE_FORMAT',

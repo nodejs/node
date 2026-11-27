@@ -1516,19 +1516,6 @@ passing a second `parentURL` argument for contextual resolution.
 
 Previously gated the entire `import.meta.resolve` feature.
 
-### `--experimental-import-text`
-
-<!-- YAML
-added:
-  - v26.5.0
-  - v24.19.0
--->
-
-> Stability: 1.0 - Early development
-
-Enable experimental support for importing modules with
-`with { type: 'text' }`.
-
 ### `--experimental-inspector-network-resource`
 
 <!-- YAML
@@ -2332,6 +2319,20 @@ added: v21.2.0
 > Stability: 1 - Experimental
 
 Disable exposition of [Navigator API][] on the global scope.
+
+### `--no-experimental-import-text`
+
+<!-- YAML
+added:
+  - v26.5.0
+  - v24.19.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/67778
+    description: Text imports are unflagged but still experimental.
+-->
+
+Disable importing modules with `with { type: 'text' }`.
 
 ### `--no-experimental-require-module`
 
@@ -4369,7 +4370,6 @@ one is included in the list below.
 * `--experimental-dtls`
 * `--experimental-eventsource`
 * `--experimental-import-meta-resolve`
-* `--experimental-import-text`
 * `--experimental-json-modules`
 * `--experimental-modules`
 * `--experimental-package-map`
@@ -4414,6 +4414,7 @@ one is included in the list below.
 * `--no-deprecation`
 * `--no-experimental-ffi`
 * `--no-experimental-global-navigator`
+* `--no-experimental-import-text`
 * `--no-experimental-sqlite`
 * `--no-experimental-strip-types`
 * `--no-experimental-vfs`
