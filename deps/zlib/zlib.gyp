@@ -111,33 +111,41 @@
             }],
           ],
         }, # zlib_arm_crc32
-        # {
-        #   'target_name': 'zlib_crc32_simd',
-        #   'type': 'static_library',
-        #   'conditions': [
-        #     ['OS!="win" or clang==1', {
-        #       'cflags': [
-        #         '-msse4.2',
-        #         '-mpclmul',
-        #       ],
-        #       'xcode_settings': {
-        #         'OTHER_CFLAGS': [
-        #           '-msse4.2',
-        #           '-mpclmul',
-        #         ],
-        #       },
-        #     }]
-        #   ],
-        #   'defines': [ 'CRC32_SIMD_SSE42_PCLMUL' ],
-        #   'include_dirs': [ '<(ZLIB_ROOT)' ],
-        #   'direct_dependent_settings': {
-        #     'defines': [ 'CRC32_SIMD_SSE42_PCLMUL' ],
-        #     'include_dirs': [ '<(ZLIB_ROOT)' ],
-        #   },
-        #   'sources': [
-        #     '<!@pymod_do_main(GN-scraper "<(ZLIB_ROOT)/BUILD.gn" "\\"zlib_crc32_simd\\".*?sources = ")',
-        #   ],
-        # }, # zlib_crc32_simd
+        {
+          'target_name': 'zlib_crc32_simd',
+          'type': 'static_library',
+          'conditions': [
+            ['OS!="win" or clang==1', {
+              'cflags': [
+                '-msse4.2',
+                '-mpclmul',
+              ],
+              'xcode_settings': {
+                'OTHER_CFLAGS': [
+                  '-msse4.2',
+                  '-mpclmul',
+                ],
+              },
+              'msvs_settings': {
+                'VCCLCompilerTool': {
+                  'AdditionalOptions': [
+                    '-msse4.2',
+                    '-mpclmul',
+                  ],
+                },
+              },
+            }]
+          ],
+          'defines': [ 'CRC32_SIMD_SSE42_PCLMUL' ],
+          'include_dirs': [ '<(ZLIB_ROOT)' ],
+          'direct_dependent_settings': {
+            'defines': [ 'CRC32_SIMD_SSE42_PCLMUL' ],
+            'include_dirs': [ '<(ZLIB_ROOT)' ],
+          },
+          'sources': [
+            '<!@pymod_do_main(GN-scraper "<(ZLIB_ROOT)/BUILD.gn" "\\"zlib_crc32_simd\\".*?sources = ")',
+          ],
+        }, # zlib_crc32_simd
         {
           'target_name': 'zlib_data_chunk_simd',
           'type': 'static_library',
@@ -212,9 +220,7 @@
             ['target_arch in "ia32 x64" and OS!="ios"', {
               'dependencies': [
                 'zlib_adler32_simd',
-                # Disabled due to memory corruption.
-                # See https://github.com/nodejs/node/issues/45268.
-                # 'zlib_crc32_simd',
+                'zlib_crc32_simd',
               ],
               'defines': [ 'DEFLATE_SLIDE_HASH_SSE2' ],
               'conditions': [
