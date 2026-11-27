@@ -1665,6 +1665,14 @@ Emitted when a non-empty chunk is passed to [`request.write()`][] or
 [`request.end()`][]. The chunk is the value the caller passed, before it is
 written to the socket.
 
+Node.js publishes `Buffer` and `Uint8Array` chunks without copying them.
+Subscribers must treat `chunk` as read-only. Modifying a mutable chunk in place
+can change the bytes sent to the server.
+
+Code running in the same process can subscribe by channel name and receive
+request body data, which may contain credentials or other sensitive information.
+Subscribers should avoid logging or exporting sensitive body data.
+
 ##### Event: `'http.client.request.bodySent'`
 
 * `request` {http.ClientRequest}
@@ -1688,6 +1696,14 @@ Emitted when an error occurs during a client request.
 * `chunk` {Buffer|Uint8Array}
 
 Emitted when raw bytes of a client response body chunk are received.
+
+Node.js publishes the mutable chunk without copying it before passing it to the
+response stream. Subscribers must treat `chunk` as read-only. Modifying it in
+place can change the bytes the application reads.
+
+Code running in the same process can subscribe by channel name and receive
+response body data, which may contain sensitive information. Subscribers should
+avoid logging or exporting sensitive body data.
 
 ##### Event: `'http.client.response.finish'`
 
