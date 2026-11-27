@@ -20,135 +20,151 @@ const serverCert = fixtures.readKey('agent1-cert.pem');
 const serverKey = fixtures.readKey('agent1-key.pem');
 const ca = fixtures.readKey('ca1-cert.pem');
 
-const serverReceivedData = Promise.withResolvers();
-const clientReceivedData = Promise.withResolvers();
+const V12 = { minVersion: 'DTLSv1.2', maxVersion: 'DTLSv1.2' };
+const V13 = { minVersion: 'DTLSv1.3', maxVersion: 'DTLSv1.3' };
 
-let serverSession;
+for (const versions of [V12, V13]) {
+  const serverReceivedData = Promise.withResolvers();
+  const clientReceivedData = Promise.withResolvers();
 
-// Start server.
-const endpoint = listen(mustCall((session) => {
-  serverSession = session;
+  let serverSession;
 
-  session.onmessage = mustCall((data) => {
-    assert.strictEqual(data.toString(), 'hello from client');
-    session.send('hello from server');
-    serverReceivedData.resolve();
+  // Start server.
+  const endpoint = listen(mustCall((session) => {
+    serverSession = session;
+
+    session.onmessage = mustCall((data) => {
+      assert.strictEqual(data.toString(), 'hello from client');
+      session.send('hello from server');
+      serverReceivedData.resolve();
+    });
+
+    session.onhandshake = mustCall();
+  }), {
+    cert: serverCert.toString(),
+    key: serverKey.toString(),
+    port: 0,
+    host: '127.0.0.1',
+    ...versions,
   });
 
-  session.onhandshake = mustCall();
-}), {
-  cert: serverCert.toString(),
-  key: serverKey.toString(),
-  port: 0,
-  host: '127.0.0.1',
-});
+  // --- Endpoint stats should be available immediately ---
 
-// --- Endpoint stats should be available immediately ---
+  const epStats = endpoint.stats;
+  assert.ok(epStats, 'endpoint.stats should be defined');
+  assert.ok(epStats.isConnected, 'stats should be connected');
+  assert.ok(epStats.createdAt > 0n, 'createdAt should be set');
+  assert.strictEqual(epStats.destroyedAt, 0n);
+  assert.strictEqual(epStats.clientSessions, 0n);
+  assert.strictEqual(epStats.serverSessions, 0n);
+  assert.strictEqual(epStats.serverBusyCount, 0n);
 
-const epStats = endpoint.stats;
-assert.ok(epStats, 'endpoint.stats should be defined');
-assert.ok(epStats.isConnected, 'stats should be connected');
-assert.ok(epStats.createdAt > 0n, 'createdAt should be set');
-assert.strictEqual(epStats.destroyedAt, 0n);
-assert.strictEqual(epStats.clientSessions, 0n);
-assert.strictEqual(epStats.serverSessions, 0n);
-assert.strictEqual(epStats.serverBusyCount, 0n);
+  // Connect client.
+  const clientSession = connect('127.0.0.1', endpoint.address.port, {
+    ca: [ca.toString()],
+    rejectUnauthorized: false,
+    ...versions,
+  });
 
-// Connect client.
-const clientSession = connect('127.0.0.1', endpoint.address.port, {
-  ca: [ca.toString()],
-  rejectUnauthorized: false,
-});
+  clientSession.onmessage = mustCall((data) => {
+    assert.strictEqual(data.toString(), 'hello from server');
+    clientReceivedData.resolve();
+  });
 
-clientSession.onmessage = mustCall((data) => {
-  assert.strictEqual(data.toString(), 'hello from server');
-  clientReceivedData.resolve();
-});
+  clientSession.onhandshake = mustCall();
 
-clientSession.onhandshake = mustCall();
+  // Wait for handshake.
+  await clientSession.opened;
 
-// Wait for handshake.
-await clientSession.opened;
+  // --- Client session stats after handshake ---
 
-// --- Client session stats after handshake ---
+  const csStats = clientSession.stats;
+  assert.ok(csStats, 'session.stats should be defined');
+  assert.ok(csStats.isConnected, 'session stats should be connected');
+  assert.ok(csStats.createdAt > 0n, 'createdAt should be set');
+  assert.ok(csStats.handshakeCompletedAt > 0n,
+            'handshake timestamp should be set');
+  assert.ok(csStats.handshakeCompletedAt >= csStats.createdAt,
+            'handshake should complete after creation');
+  assert.strictEqual(csStats.closingAt, 0n);
+  assert.strictEqual(csStats.destroyedAt, 0n);
 
-const csStats = clientSession.stats;
-assert.ok(csStats, 'session.stats should be defined');
-assert.ok(csStats.isConnected, 'session stats should be connected');
-assert.ok(csStats.createdAt > 0n, 'createdAt should be set');
-assert.ok(csStats.handshakeCompletedAt > 0n, 'handshake timestamp should be set');
-assert.ok(csStats.handshakeCompletedAt >= csStats.createdAt,
-          'handshake should complete after creation');
-assert.strictEqual(csStats.closingAt, 0n);
-assert.strictEqual(csStats.destroyedAt, 0n);
+  // Record bytes before sending application data.
+  const csBytesSentBefore = csStats.bytesSent;
+  const csMessagesSentBefore = csStats.messagesSent;
 
-// Record bytes before sending application data.
-const csBytesSentBefore = csStats.bytesSent;
-const csMessagesSentBefore = csStats.messagesSent;
+  // Send data.
+  clientSession.send('hello from client');
 
-// Send data.
-clientSession.send('hello from client');
+  // Wait for bidirectional exchange.
+  await Promise.all([serverReceivedData.promise, clientReceivedData.promise]);
 
-// Wait for bidirectional exchange.
-await Promise.all([serverReceivedData.promise, clientReceivedData.promise]);
+  // --- Client session stats after data exchange ---
 
-// --- Client session stats after data exchange ---
+  assert.ok(csStats.bytesSent > csBytesSentBefore,
+            'bytesSent should increase after send');
+  assert.ok(csStats.messagesSent > csMessagesSentBefore,
+            'messagesSent should increase after send');
+  assert.ok(csStats.bytesReceived > 0n, 'bytesReceived should be non-zero');
+  assert.ok(csStats.messagesReceived > 0n,
+            'messagesReceived should be non-zero');
 
-assert.ok(csStats.bytesSent > csBytesSentBefore,
-          'bytesSent should increase after send');
-assert.ok(csStats.messagesSent > csMessagesSentBefore,
-          'messagesSent should increase after send');
-assert.ok(csStats.bytesReceived > 0n, 'bytesReceived should be non-zero');
-assert.ok(csStats.messagesReceived > 0n, 'messagesReceived should be non-zero');
+  // --- Server session stats after data exchange ---
 
-// --- Server session stats after data exchange ---
+  assert.ok(serverSession, 'server session should exist');
+  const ssStats = serverSession.stats;
+  assert.ok(ssStats.bytesReceived > 0n,
+            'server bytesReceived should be non-zero');
+  assert.ok(ssStats.messagesReceived > 0n,
+            'server messagesReceived should be non-zero');
+  assert.ok(ssStats.bytesSent > 0n, 'server bytesSent should be non-zero');
+  assert.ok(ssStats.messagesSent > 0n,
+            'server messagesSent should be non-zero');
+  assert.ok(ssStats.handshakeCompletedAt > 0n,
+            'server handshake timestamp should be set');
 
-assert.ok(serverSession, 'server session should exist');
-const ssStats = serverSession.stats;
-assert.ok(ssStats.bytesReceived > 0n, 'server bytesReceived should be non-zero');
-assert.ok(ssStats.messagesReceived > 0n, 'server messagesReceived should be non-zero');
-assert.ok(ssStats.bytesSent > 0n, 'server bytesSent should be non-zero');
-assert.ok(ssStats.messagesSent > 0n, 'server messagesSent should be non-zero');
-assert.ok(ssStats.handshakeCompletedAt > 0n, 'server handshake timestamp should be set');
+  // --- Endpoint stats after data exchange ---
 
-// --- Endpoint stats after data exchange ---
+  assert.ok(epStats.bytesReceived > 0n,
+            'endpoint bytesReceived should be non-zero');
+  assert.ok(epStats.bytesSent > 0n, 'endpoint bytesSent should be non-zero');
+  assert.ok(epStats.packetsReceived > 0n,
+            'endpoint packetsReceived should be non-zero');
+  assert.ok(epStats.packetsSent > 0n,
+            'endpoint packetsSent should be non-zero');
+  assert.strictEqual(epStats.serverSessions, 1n);
 
-assert.ok(epStats.bytesReceived > 0n, 'endpoint bytesReceived should be non-zero');
-assert.ok(epStats.bytesSent > 0n, 'endpoint bytesSent should be non-zero');
-assert.ok(epStats.packetsReceived > 0n, 'endpoint packetsReceived should be non-zero');
-assert.ok(epStats.packetsSent > 0n, 'endpoint packetsSent should be non-zero');
-assert.strictEqual(epStats.serverSessions, 1n);
+  // The client's own endpoint should track the client session.
+  const clientEpStats = clientSession.endpoint.stats;
+  assert.strictEqual(clientEpStats.clientSessions, 1n);
+  assert.ok(clientEpStats.bytesSent > 0n);
+  assert.ok(clientEpStats.bytesReceived > 0n);
 
-// The client's own endpoint should track the client session.
-const clientEpStats = clientSession.endpoint.stats;
-assert.strictEqual(clientEpStats.clientSessions, 1n);
-assert.ok(clientEpStats.bytesSent > 0n);
-assert.ok(clientEpStats.bytesReceived > 0n);
+  // --- toJSON / toString ---
 
-// --- toJSON / toString ---
+  const epJson = epStats.toJSON();
+  assert.ok(epJson);
+  assert.strictEqual(typeof epJson.bytesReceived, 'string');
+  assert.strictEqual(typeof epJson.bytesSent, 'string');
+  assert.strictEqual(typeof epJson.connected, 'boolean');
 
-const epJson = epStats.toJSON();
-assert.ok(epJson);
-assert.strictEqual(typeof epJson.bytesReceived, 'string');
-assert.strictEqual(typeof epJson.bytesSent, 'string');
-assert.strictEqual(typeof epJson.connected, 'boolean');
+  const ssJson = csStats.toJSON();
+  assert.ok(ssJson);
+  assert.strictEqual(typeof ssJson.handshakeCompletedAt, 'string');
+  assert.strictEqual(typeof ssJson.messagesReceived, 'string');
 
-const ssJson = csStats.toJSON();
-assert.ok(ssJson);
-assert.strictEqual(typeof ssJson.handshakeCompletedAt, 'string');
-assert.strictEqual(typeof ssJson.messagesReceived, 'string');
+  const epStr = epStats.toString();
+  assert.ok(typeof epStr === 'string');
+  assert.ok(epStr.includes('bytesReceived'));
 
-const epStr = epStats.toString();
-assert.ok(typeof epStr === 'string');
-assert.ok(epStr.includes('bytesReceived'));
+  // Clean up.
+  await clientSession.close();
 
-// Clean up.
-await clientSession.close();
+  // After close, session closing timestamp should be set.
+  assert.notStrictEqual(csStats.closingAt, 0n);
 
-// After close, session closing timestamp should be set.
-assert.notStrictEqual(csStats.closingAt, 0n);
-
-await endpoint.close();
+  await endpoint.close();
+}
 
 // Stats say when they have stopped tracking anything.
 //
@@ -156,12 +172,14 @@ await endpoint.close();
 // ever set it: kFinishClose was defined on both stats classes and imported,
 // and no caller in the module ever invoked it. The numbers stayed readable
 // and stopped moving, and isConnected went on saying they were live.
-{
+for (const versions of [V12, V13]) {
   const server = listen(() => {}, {
     cert: serverCert, key: serverKey, host: '127.0.0.1', port: 0,
+    ...versions,
   });
   const client = connect('127.0.0.1', server.address.port, {
     rejectUnauthorized: false,
+    ...versions,
   });
   await client.opened;
 
@@ -183,12 +201,14 @@ await endpoint.close();
 }
 
 // destroy() reaches them too, not only the graceful path.
-{
+for (const versions of [V12, V13]) {
   const server = listen(() => {}, {
     cert: serverCert, key: serverKey, host: '127.0.0.1', port: 0,
+    ...versions,
   });
   const client = connect('127.0.0.1', server.address.port, {
     rejectUnauthorized: false,
+    ...versions,
   });
   await client.opened;
 

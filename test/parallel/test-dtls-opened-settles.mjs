@@ -25,6 +25,9 @@ const cert = fixtures.readKey('agent1-cert.pem');
 const key = fixtures.readKey('agent1-key.pem');
 const ca = fixtures.readKey('ca1-cert.pem');
 
+const V12 = { minVersion: 'DTLSv1.2', maxVersion: 'DTLSv1.2' };
+const V13 = { minVersion: 'DTLSv1.3', maxVersion: 'DTLSv1.3' };
+
 async function sleep(n) {
   await setTimeout(1000);
   return 'pending';
@@ -40,12 +43,12 @@ function outcome(promise) {
   ]);
 }
 
-function newClient() {
+function newClient(versions) {
   const endpoint = listen(() => {}, {
-    cert, key, host: '127.0.0.1', port: 0,
+    cert, key, host: '127.0.0.1', port: 0, ...versions,
   });
   const client = connect('127.0.0.1', endpoint.address.port, {
-    servername: 'agent1', ca: [ca],
+    servername: 'agent1', ca: [ca], ...versions,
   });
   return { endpoint, client };
 }
@@ -90,8 +93,8 @@ function newClient() {
 
 // A completed handshake still resolves, and a later close must not overwrite
 // that with a rejection.
-{
-  const { endpoint, client } = newClient();
+for (const versions of [V12, V13]) {
+  const { endpoint, client } = newClient(versions);
   await client.opened;
 
   await client.close();
@@ -102,13 +105,13 @@ function newClient() {
 
 // A handshake that fails on its own reports the real reason; teardown must
 // not replace it with the generic teardown error.
-{
+for (const versions of [V12, V13]) {
   const endpoint = listen(() => {}, {
-    cert, key, host: '127.0.0.1', port: 0,
+    cert, key, host: '127.0.0.1', port: 0, ...versions,
   });
   // No CA for this server, so verification fails during the handshake.
   const client = connect('127.0.0.1', endpoint.address.port, {
-    servername: 'agent1', rejectUnauthorized: true,
+    servername: 'agent1', rejectUnauthorized: true, ...versions,
   });
 
   const result = await outcome(client.opened);
@@ -125,17 +128,17 @@ function newClient() {
 // The binding destroys those sessions but emits no callback for them, so
 // anything awaiting one waited for a session that no longer existed. The
 // documentation says the promise always settles and awaiting it cannot hang.
-{
+for (const versions of [V12, V13]) {
   const arrived = Promise.withResolvers();
   let serverSession;
 
   const endpoint = listen((session) => {
     serverSession = session;
     arrived.resolve();
-  }, { cert, key, host: '127.0.0.1', port: 0 });
+  }, { cert, key, host: '127.0.0.1', port: 0, ...versions });
 
   const client = connect('127.0.0.1', endpoint.address.port, {
-    rejectUnauthorized: false,
+    rejectUnauthorized: false, ...versions,
   });
   await client.opened;
   await arrived.promise;
@@ -150,17 +153,17 @@ function newClient() {
 
 // The endpoint's error reaches them, rather than being reported only on the
 // endpoint while the sessions resolve as though nothing went wrong.
-{
+for (const versions of [V12, V13]) {
   const arrived = Promise.withResolvers();
   let serverSession;
 
   const endpoint = listen((session) => {
     serverSession = session;
     arrived.resolve();
-  }, { cert, key, host: '127.0.0.1', port: 0 });
+  }, { cert, key, host: '127.0.0.1', port: 0, ...versions });
 
   const client = connect('127.0.0.1', endpoint.address.port, {
-    rejectUnauthorized: false,
+    rejectUnauthorized: false, ...versions,
   });
   await client.opened;
   await arrived.promise;
@@ -176,11 +179,14 @@ function newClient() {
 
 // A session torn down mid-handshake settles both of its promises, not just
 // the one the peer's departure would settle.
-{
-  const endpoint = listen(() => {}, { cert, key, host: '127.0.0.1', port: 0 });
+for (const versions of [V12, V13]) {
+  const endpoint = listen(() => {}, {
+    cert, key, host: '127.0.0.1', port: 0, ...versions,
+  });
   const client = connect('127.0.0.1', endpoint.address.port, {
     handshakeTimeout: 500,
     rejectUnauthorized: false,
+    ...versions,
   });
 
   // Before the handshake can finish.

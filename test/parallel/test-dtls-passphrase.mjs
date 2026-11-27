@@ -29,6 +29,9 @@ const { connect, listen } = await import('node:dtls');
 
 const PASSPHRASE = 'correct horse battery staple';
 
+const V12 = { minVersion: 'DTLSv1.2', maxVersion: 'DTLSv1.2' };
+const V13 = { minVersion: 'DTLSv1.3', maxVersion: 'DTLSv1.3' };
+
 // Generate an encrypted key and a matching self-signed certificate rather
 // than checking a fixture in, so the passphrase is visible in the test.
 const dir = mkdtempSync(tmpdir.resolve('dtls-passphrase-'));
@@ -56,7 +59,7 @@ rmSync(dir, { recursive: true, force: true });
 assert.match(encryptedKey, /^-----BEGIN ENCRYPTED PRIVATE KEY-----/);
 
 // The correct passphrase decrypts the key, and the endpoint serves with it.
-{
+for (const versions of [V12, V13]) {
   const echoed = Promise.withResolvers();
 
   const endpoint = listen((session) => {
@@ -67,12 +70,14 @@ assert.match(encryptedKey, /^-----BEGIN ENCRYPTED PRIVATE KEY-----/);
     passphrase: PASSPHRASE,
     host: '127.0.0.1',
     port: 0,
+    ...versions,
   });
 
   // Self-signed and not in any CA store, so verification is off here; the
   // point of the test is that the encrypted key loaded and can sign.
   const client = connect('127.0.0.1', endpoint.address.port, {
     rejectUnauthorized: false,
+    ...versions,
   });
 
   await client.opened;

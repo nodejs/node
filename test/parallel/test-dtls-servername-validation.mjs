@@ -27,57 +27,71 @@ const HOST = '127.0.0.1';
 const key = (name) => fixtures.readKey(name).toString();
 const ca = key('ca1-cert.pem');
 
-// agent1's certificate is issued for "agent1" by ca1.
-const endpoint = listen(() => {}, {
-  cert: key('agent1-cert.pem'),
-  key: key('agent1-key.pem'),
-  host: HOST,
-  port: 0,
-});
-const port = endpoint.address.port;
+const V12 = { minVersion: 'DTLSv1.2', maxVersion: 'DTLSv1.2' };
+const V13 = { minVersion: 'DTLSv1.3', maxVersion: 'DTLSv1.3' };
 
-// A name the certificate is not for is rejected. This is the check that a
-// non-string used to skip.
-{
-  const session = connect(HOST, port, { ca: [ca], servername: 'wrong.example' });
-  await assert.rejects(session.opened, { name: 'Error' });
+for (const versions of [V12, V13]) {
+  // agent1's certificate is issued for "agent1" by ca1.
+  const endpoint = listen(() => {}, {
+    cert: key('agent1-cert.pem'),
+    key: key('agent1-key.pem'),
+    host: HOST,
+    port: 0,
+    ...versions,
+  });
+  const port = endpoint.address.port;
+
+  // A name the certificate is not for is rejected. This is the check that a
+  // non-string used to skip.
+  {
+    const session = connect(HOST, port, {
+      ca: [ca], servername: 'wrong.example', ...versions,
+    });
+    await assert.rejects(session.opened, { name: 'Error' });
+  }
+
+  // The right name is accepted, so the check is not simply refusing everything.
+  {
+    const session = connect(HOST, port, {
+      ca: [ca], servername: 'agent1', ...versions,
+    });
+    await session.opened;
+    assert.strictEqual(session.authorized, true);
+    await session.close();
+  }
+
+  // Anything that is not a string is refused up front rather than quietly
+  // disabling the check.
+  for (const servername of [{}, [], 42, true, null, Symbol('x'), () => {}]) {
+    assert.throws(() => connect(HOST, port, { ca: [ca], servername }), {
+      code: 'ERR_INVALID_ARG_TYPE',
+    }, `servername: ${inspect(servername)}`);
+  }
+
+  // An object whose toString() would produce a valid name is still refused;
+  // coercing it would make the identity depend on user-controlled coercion.
+  assert.throws(() => connect(HOST, port, {
+    ca: [ca],
+    servername: { toString: mustNotCall() },
+  }), { code: 'ERR_INVALID_ARG_TYPE' });
+
+  // The empty string keeps its documented meaning: no SNI is sent, and the
+  // identity falls back to the host.
+  {
+    const session = connect(HOST, port, {
+      ca: [ca], servername: '', ...versions,
+    });
+    // Verifying 127.0.0.1 against a certificate for "agent1" must fail.
+    await assert.rejects(session.opened, { name: 'Error' });
+  }
+
+  // Omitting it entirely also falls back to the host.
+  {
+    const session = connect(HOST, port, {
+      ca: [ca], servername: undefined, ...versions,
+    });
+    await assert.rejects(session.opened, { name: 'Error' });
+  }
+
+  await endpoint.close();
 }
-
-// The right name is accepted, so the check is not simply refusing everything.
-{
-  const session = connect(HOST, port, { ca: [ca], servername: 'agent1' });
-  await session.opened;
-  assert.strictEqual(session.authorized, true);
-  await session.close();
-}
-
-// Anything that is not a string is refused up front rather than quietly
-// disabling the check.
-for (const servername of [{}, [], 42, true, null, Symbol('x'), () => {}]) {
-  assert.throws(() => connect(HOST, port, { ca: [ca], servername }), {
-    code: 'ERR_INVALID_ARG_TYPE',
-  }, `servername: ${inspect(servername)}`);
-}
-
-// An object whose toString() would produce a valid name is still refused;
-// coercing it would make the identity depend on user-controlled coercion.
-assert.throws(() => connect(HOST, port, {
-  ca: [ca],
-  servername: { toString: mustNotCall() },
-}), { code: 'ERR_INVALID_ARG_TYPE' });
-
-// The empty string keeps its documented meaning: no SNI is sent, and the
-// identity falls back to the host.
-{
-  const session = connect(HOST, port, { ca: [ca], servername: '' });
-  // Verifying 127.0.0.1 against a certificate for "agent1" must fail.
-  await assert.rejects(session.opened, { name: 'Error' });
-}
-
-// Omitting it entirely also falls back to the host.
-{
-  const session = connect(HOST, port, { ca: [ca], servername: undefined });
-  await assert.rejects(session.opened, { name: 'Error' });
-}
-
-await endpoint.close();

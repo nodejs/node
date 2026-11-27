@@ -29,62 +29,72 @@ const cert = fixtures.readKey('agent1-cert.pem');
 const key = fixtures.readKey('agent1-key.pem');
 const ca = fixtures.readKey('ca1-cert.pem');
 
-const endpoint = listen(() => {}, {
-  cert, key, host: '127.0.0.1', port: 0,
-});
-
-const client = connect('127.0.0.1', endpoint.address.port, {
-  servername: 'agent1', ca: [ca],
-});
-await client.opened;
-
+const V12 = { minVersion: 'DTLSv1.2', maxVersion: 'DTLSv1.2' };
+const V13 = { minVersion: 'DTLSv1.3', maxVersion: 'DTLSv1.3' };
 const label = 'EXPORTER-test';
 
-// Lengths that used to abort the process, plus the rest of the bad range.
-for (const length of [-1, 0, 4294967295, 1e12, NaN, Infinity, -Infinity, 1.5]) {
+for (const versions of [V12, V13]) {
+  const endpoint = listen(() => {}, {
+    cert, key, host: '127.0.0.1', port: 0, ...versions,
+  });
+
+  const client = connect('127.0.0.1', endpoint.address.port, {
+    servername: 'agent1', ca: [ca], ...versions,
+  });
+  await client.opened;
+
+  // Lengths that used to abort the process, plus the rest of the bad range.
+  for (const length of [
+    -1, 0, 4294967295, 1e12, NaN, Infinity, -Infinity, 1.5,
+  ]) {
+    assert.throws(
+      () => client.exportKeyingMaterial(length, label),
+      { code: 'ERR_OUT_OF_RANGE' },
+      `length ${length} should have been refused`);
+  }
+
+  for (const length of ['60', null, {}, [], true]) {
+    assert.throws(
+      () => client.exportKeyingMaterial(length, label),
+      { code: /^ERR_(INVALID_ARG_TYPE|OUT_OF_RANGE)$/ },
+      `length ${typeof length} should have been refused`);
+  }
+
+  // The upper bound is enforced, so a caller cannot request a huge allocation.
+  // Under DTLS 1.3 the exporter is HKDF-Expand-Label, which cannot produce more
+  // than 255 hash lengths.
+  const max = versions === V12 ? 65536 :
+    255 * (/SHA384$/.test(client.cipher.name) ? 48 : 32);
   assert.throws(
-    () => client.exportKeyingMaterial(length, label),
-    { code: 'ERR_OUT_OF_RANGE' },
-    `length ${length} should have been refused`);
-}
+    () => client.exportKeyingMaterial(max + 1, label),
+    { code: 'ERR_OUT_OF_RANGE' });
+  assert.strictEqual(client.exportKeyingMaterial(max, label).length, max);
 
-for (const length of ['60', null, {}, [], true]) {
+  // The label and context arguments are checked too.
+  for (const bad of [undefined, 42, null, {}]) {
+    assert.throws(
+      () => client.exportKeyingMaterial(32, bad),
+      { code: 'ERR_INVALID_ARG_TYPE' },
+      `label ${typeof bad} should have been refused`);
+  }
+
+  for (const bad of ['ctx', 42, {}]) {
+    assert.throws(
+      () => client.exportKeyingMaterial(32, label, bad),
+      { code: 'ERR_INVALID_ARG_TYPE' },
+      `context ${typeof bad} should have been refused`);
+  }
+
+  // A valid call still works, so none of the above is vacuous.
+  assert.strictEqual(client.exportKeyingMaterial(60, label).length, 60);
+  assert.strictEqual(
+    client.exportKeyingMaterial(32, label, Buffer.from('ctx')).length, 32);
+
+  // A destroyed session reports that, rather than reaching the binding.
+  await client.close();
   assert.throws(
-    () => client.exportKeyingMaterial(length, label),
-    { code: /^ERR_(INVALID_ARG_TYPE|OUT_OF_RANGE)$/ },
-    `length ${typeof length} should have been refused`);
+    () => client.exportKeyingMaterial(60, label),
+    { code: 'ERR_INVALID_STATE' });
+
+  await endpoint.close();
 }
-
-// The upper bound is enforced, so a caller cannot request a huge allocation.
-assert.throws(
-  () => client.exportKeyingMaterial(65537, label),
-  { code: 'ERR_OUT_OF_RANGE' });
-assert.strictEqual(client.exportKeyingMaterial(65536, label).length, 65536);
-
-// The label and context arguments are checked too.
-for (const bad of [undefined, 42, null, {}]) {
-  assert.throws(
-    () => client.exportKeyingMaterial(32, bad),
-    { code: 'ERR_INVALID_ARG_TYPE' },
-    `label ${typeof bad} should have been refused`);
-}
-
-for (const bad of ['ctx', 42, {}]) {
-  assert.throws(
-    () => client.exportKeyingMaterial(32, label, bad),
-    { code: 'ERR_INVALID_ARG_TYPE' },
-    `context ${typeof bad} should have been refused`);
-}
-
-// A valid call still works, so none of the above is vacuous.
-assert.strictEqual(client.exportKeyingMaterial(60, label).length, 60);
-assert.strictEqual(
-  client.exportKeyingMaterial(32, label, Buffer.from('ctx')).length, 32);
-
-// A destroyed session reports that, rather than reaching the binding.
-await client.close();
-assert.throws(
-  () => client.exportKeyingMaterial(60, label),
-  { code: 'ERR_INVALID_STATE' });
-
-await endpoint.close();

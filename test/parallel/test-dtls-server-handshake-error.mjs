@@ -7,7 +7,7 @@
 // nobody had been given yet and was lost. A server saw a client fail to
 // connect and heard nothing at all.
 
-import { hasCrypto, mustCall, skip } from '../common/index.mjs';
+import { hasCrypto, mustCall, mustNotCall, skip } from '../common/index.mjs';
 import { setTimeout } from 'node:timers/promises';
 import * as fixtures from '../common/fixtures.mjs';
 import assert from 'node:assert';
@@ -45,10 +45,33 @@ async function within(promise, what, ms = 5000) {
 const key = (name) => fixtures.readKey(name).toString();
 const cert = key('agent1-cert.pem');
 const privateKey = key('agent1-key.pem');
+const ca = key('ca1-cert.pem');
+
+const V12 = { minVersion: 'DTLSv1.2', maxVersion: 'DTLSv1.2' };
+const V13 = { minVersion: 'DTLSv1.3', maxVersion: 'DTLSv1.3' };
+
+// For each version, a handshake the server fails after it has validated the
+// client's address and announced the session. Under DTLS 1.2 a cipher
+// mismatch does; under DTLS 1.3 the cipher is chosen before the address is
+// validated (see below), so a missing client certificate stands in.
+const FAILURES = [
+  {
+    versions: V12,
+    server: { ciphers: 'ECDHE-RSA-AES256-GCM-SHA384' },
+    client: { ciphers: 'ECDHE-RSA-AES128-GCM-SHA256' },
+    message: /no shared cipher/,
+  },
+  {
+    versions: V13,
+    server: { ca: [ca], requestCert: true },
+    client: {},
+    message: /peer did not return a certificate/,
+  },
+];
 
 // A handshake that fails on the server's own terms is reported to the
 // session, and the session is handed over in time for a listener to see it.
-{
+for (const { versions, server, client: clientOptions, message } of FAILURES) {
   const reported = Promise.withResolvers();
 
   const endpoint = listen(mustCall((session) => {
@@ -56,21 +79,22 @@ const privateKey = key('agent1-key.pem');
   }), {
     cert,
     key: privateKey,
-    // Nothing the client below offers.
-    ciphers: 'ECDHE-RSA-AES256-GCM-SHA384',
     host: HOST,
     port: 0,
+    ...server,
+    ...versions,
   });
 
   const client = connect(HOST, endpoint.address.port, {
     rejectUnauthorized: false,
-    ciphers: 'ECDHE-RSA-AES128-GCM-SHA256',
+    ...clientOptions,
+    ...versions,
   });
   await assert.rejects(client.opened, { name: 'Error' });
 
   const err = await within(reported.promise,
                            'the server session error');
-  assert.match(err.message, /no shared cipher/);
+  assert.match(err.message, message);
 
   await endpoint.close();
 }
@@ -79,7 +103,7 @@ const privateKey = key('agent1-key.pem');
 // in place for it. This is what makes the above work, and is worth pinning on
 // its own: a listener attached there must not miss the handshake it belongs
 // to.
-{
+for (const { versions, server, client: clientOptions } of FAILURES) {
   const order = [];
   const settled = Promise.withResolvers();
 
@@ -92,14 +116,16 @@ const privateKey = key('agent1-key.pem');
   }), {
     cert,
     key: privateKey,
-    ciphers: 'ECDHE-RSA-AES256-GCM-SHA384',
     host: HOST,
     port: 0,
+    ...server,
+    ...versions,
   });
 
   const client = connect(HOST, endpoint.address.port, {
     rejectUnauthorized: false,
-    ciphers: 'ECDHE-RSA-AES128-GCM-SHA256',
+    ...clientOptions,
+    ...versions,
   });
   await assert.rejects(client.opened, { name: 'Error' });
   await within(settled.promise, 'the server session error');
@@ -109,9 +135,35 @@ const privateKey = key('agent1-key.pem');
   await endpoint.close();
 }
 
+// Under DTLS 1.3 the cipher suite is chosen from the first ClientHello,
+// because the HelloRetryRequest that carries the cookie commits to it. A
+// client with nothing in common is therefore refused before its address has
+// been validated, and no session is created for it: the client is told by
+// alert, and the server has nothing to report the failure on.
+{
+  const endpoint = listen(mustNotCall(), {
+    cert,
+    key: privateKey,
+    host: HOST,
+    port: 0,
+    ciphers: 'TLS_AES_256_GCM_SHA384',
+    ...V13,
+  });
+
+  const client = connect(HOST, endpoint.address.port, {
+    rejectUnauthorized: false,
+    ciphers: 'TLS_AES_128_GCM_SHA256',
+    ...V13,
+  });
+  await assert.rejects(client.opened, /handshake failure/);
+  assert.strictEqual(endpoint.stats.serverSessions, 0n);
+
+  await endpoint.close();
+}
+
 // Destroying a session from onsession, now that it runs first, must not let
 // the handshake proceed on a session that is already gone.
-{
+for (const versions of [V12, V13]) {
   let first = true;
   const endpoint = listen(mustCall((session) => {
     // Only the first: the probe below has to be left alone.
@@ -119,10 +171,10 @@ const privateKey = key('agent1-key.pem');
       first = false;
       session.destroy();
     }
-  }, 2), { cert, key: privateKey, host: HOST, port: 0 });
+  }, 2), { cert, key: privateKey, host: HOST, port: 0, ...versions });
 
   const client = connect(HOST, endpoint.address.port, {
-    rejectUnauthorized: false,
+    rejectUnauthorized: false, ...versions,
   });
 
   // The client gets nothing back and gives up; what matters is that the
@@ -137,7 +189,7 @@ const privateKey = key('agent1-key.pem');
 
   // Still serving.
   const good = connect(HOST, endpoint.address.port, {
-    rejectUnauthorized: false,
+    rejectUnauthorized: false, ...versions,
   });
   const outcome = await Promise.race([
     good.opened.then(() => 'opened', () => 'failed'),
@@ -151,13 +203,13 @@ const privateKey = key('agent1-key.pem');
 }
 
 // A handshake that succeeds is unaffected.
-{
+for (const versions of [V12, V13]) {
   const endpoint = listen(mustCall((session) => {
     session.onerror = () => assert.fail('handshake should have succeeded');
-  }), { cert, key: privateKey, host: HOST, port: 0 });
+  }), { cert, key: privateKey, host: HOST, port: 0, ...versions });
 
   const client = connect(HOST, endpoint.address.port, {
-    rejectUnauthorized: false,
+    rejectUnauthorized: false, ...versions,
   });
   await client.opened;
 

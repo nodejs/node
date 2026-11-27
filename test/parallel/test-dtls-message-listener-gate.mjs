@@ -32,53 +32,59 @@ const cert = fixtures.readKey('agent1-cert.pem');
 const key = fixtures.readKey('agent1-key.pem');
 const ca = fixtures.readKey('ca1-cert.pem');
 
-const gotSession = Promise.withResolvers();
-const endpoint = listen((session) => gotSession.resolve(session),
-                        { cert, key, host: '127.0.0.1', port: 0 });
+const V12 = { minVersion: 'DTLSv1.2', maxVersion: 'DTLSv1.2' };
+const V13 = { minVersion: 'DTLSv1.3', maxVersion: 'DTLSv1.3' };
 
-const client = connect('127.0.0.1', endpoint.address.port, {
-  servername: 'agent1', ca: [ca],
-});
+for (const versions of [V12, V13]) {
+  const gotSession = Promise.withResolvers();
+  const endpoint = listen((session) => gotSession.resolve(session), {
+    cert, key, host: '127.0.0.1', port: 0, ...versions,
+  });
 
-await client.opened;
-const session = await gotSession.promise;
-await session.opened;
+  const client = connect('127.0.0.1', endpoint.address.port, {
+    servername: 'agent1', ca: [ca], ...versions,
+  });
 
-// Wait for a stat to reach an expected value, so the test does not depend on
-// a fixed sleep. dgram send callbacks fire when the kernel takes the
-// datagram, not when the peer has processed it.
-async function waitForMessages(count) {
-  for (let i = 0; i < 100; i++) {
-    if (session.stats.messagesReceived >= count) return;
-    await setTimeout(20);
+  await client.opened;
+  const session = await gotSession.promise;
+  await session.opened;
+
+  // Wait for a stat to reach an expected value, so the test does not depend on
+  // a fixed sleep. dgram send callbacks fire when the kernel takes the
+  // datagram, not when the peer has processed it.
+  async function waitForMessages(count) {
+    for (let i = 0; i < 100; i++) {
+      if (session.stats.messagesReceived >= count) return;
+      await setTimeout(20);
+    }
+    assert.fail(`only ${session.stats.messagesReceived} of ${count} messages ` +
+                'were read; data is not being drained');
   }
-  assert.fail(`only ${session.stats.messagesReceived} of ${count} messages ` +
-              'were read; data is not being drained');
+
+  // No listener: the data must still be read out of OpenSSL and counted.
+  for (let i = 0; i < 5; i++) client.send(`unheard-${i}`);
+  await waitForMessages(5);
+  assert.strictEqual(session.stats.messagesReceived, 5n);
+  assert.ok(session.stats.bytesReceived > 0n);
+
+  // Attaching a listener starts delivery.
+  const delivered = [];
+  session.onmessage = (data) => delivered.push(data.toString());
+
+  for (let i = 0; i < 3; i++) client.send(`heard-${i}`);
+  await waitForMessages(8);
+
+  // Nothing sent before the listener was attached should be replayed.
+  assert.deepStrictEqual(delivered, ['heard-0', 'heard-1', 'heard-2']);
+
+  // Removing it stops delivery but must not stop reading.
+  session.onmessage = null;
+  for (let i = 0; i < 4; i++) client.send(`unheard-again-${i}`);
+  await waitForMessages(12);
+
+  assert.strictEqual(session.stats.messagesReceived, 12n);
+  assert.strictEqual(delivered.length, 3);
+
+  await client.close();
+  await endpoint.close();
 }
-
-// No listener: the data must still be read out of OpenSSL and counted.
-for (let i = 0; i < 5; i++) client.send(`unheard-${i}`);
-await waitForMessages(5);
-assert.strictEqual(session.stats.messagesReceived, 5n);
-assert.ok(session.stats.bytesReceived > 0n);
-
-// Attaching a listener starts delivery.
-const delivered = [];
-session.onmessage = (data) => delivered.push(data.toString());
-
-for (let i = 0; i < 3; i++) client.send(`heard-${i}`);
-await waitForMessages(8);
-
-// Nothing sent before the listener was attached should be replayed.
-assert.deepStrictEqual(delivered, ['heard-0', 'heard-1', 'heard-2']);
-
-// Removing it stops delivery but must not stop reading.
-session.onmessage = null;
-for (let i = 0; i < 4; i++) client.send(`unheard-again-${i}`);
-await waitForMessages(12);
-
-assert.strictEqual(session.stats.messagesReceived, 12n);
-assert.strictEqual(delivered.length, 3);
-
-await client.close();
-await endpoint.close();

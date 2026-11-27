@@ -27,6 +27,9 @@ const { connect, createSecureContext, listen } = dtls;
 
 const key = (name) => fixtures.readKey(name).toString();
 
+const V12 = { minVersion: 'DTLSv1.2', maxVersion: 'DTLSv1.2' };
+const V13 = { minVersion: 'DTLSv1.3', maxVersion: 'DTLSv1.3' };
+
 // Bounded, so a regression fails with something readable rather than hanging
 // until the runner gives up.
 async function within(promise, what, ms = 5000) {
@@ -50,7 +53,7 @@ function servedCommonName(session) {
 
 // The name selects the certificate, and values may be either an options bag
 // or a DTLSSecureContext.
-{
+for (const versions of [V12, V13]) {
   const endpoint = listen(() => {}, {
     cert: agent1Cert,
     key: agent1Key,
@@ -63,6 +66,7 @@ function servedCommonName(session) {
       }),
       '*': { cert: agent1Cert, key: agent1Key },
     },
+    ...versions,
   });
 
   for (const [servername, expected] of [
@@ -72,6 +76,7 @@ function servedCommonName(session) {
   ]) {
     const client = connect('127.0.0.1', endpoint.address.port, {
       servername, rejectUnauthorized: false,
+      ...versions,
     });
     await client.opened;
     assert.strictEqual(servedCommonName(client), expected);
@@ -83,7 +88,7 @@ function servedCommonName(session) {
 
 // Without a wildcard, an unmatched name is refused rather than falling back
 // to the endpoint's own certificate.
-{
+for (const versions of [V12, V13]) {
   // The session reaches onsession before SNI selection runs -- the server
   // builds it once DTLSv1_listen() has validated the cookie, and only then
   // drives the handshake that consults the map. So a refused name still
@@ -95,10 +100,12 @@ function servedCommonName(session) {
     host: '127.0.0.1',
     port: 0,
     sni: { 'agent1': { cert: agent1Cert, key: agent1Key } },
+    ...versions,
   });
 
   const client = connect('127.0.0.1', endpoint.address.port, {
     servername: 'not.configured', rejectUnauthorized: false,
+    ...versions,
   });
 
   await assert.rejects(client.opened, (err) => {
@@ -111,15 +118,17 @@ function servedCommonName(session) {
 
 // A client that sends no SNI at all also lands on the wildcard, and is
 // refused when there is none.
-{
+for (const versions of [V12, V13]) {
   const withWildcard = listen(() => {}, {
     cert: agent1Cert, key: agent1Key, host: '127.0.0.1', port: 0,
     sni: { '*': { cert: agent1Cert, key: agent1Key } },
+    ...versions,
   });
 
   // servername: '' disables the extension entirely.
   const ok = connect('127.0.0.1', withWildcard.address.port, {
     servername: '', rejectUnauthorized: false,
+    ...versions,
   });
   await ok.opened;
   assert.strictEqual(servedCommonName(ok), 'CN=agent1');
@@ -129,10 +138,12 @@ function servedCommonName(session) {
   const withoutWildcard = listen(() => {}, {
     cert: agent1Cert, key: agent1Key, host: '127.0.0.1', port: 0,
     sni: { 'agent1': { cert: agent1Cert, key: agent1Key } },
+    ...versions,
   });
 
   const refused = connect('127.0.0.1', withoutWildcard.address.port, {
     servername: '', rejectUnauthorized: false,
+    ...versions,
   });
   await assert.rejects(refused.opened, { name: 'Error' });
   await withoutWildcard.close();
@@ -142,7 +153,7 @@ function servedCommonName(session) {
 // ssl->ctx and the verify store is read through it, so an identity that
 // trusts only ca2 rejects a client presenting a ca1 certificate even though
 // the endpoint itself trusts ca1.
-{
+for (const versions of [V12, V13]) {
   const endpoint = listen(() => {}, {
     cert: agent1Cert,
     key: agent1Key,
@@ -159,6 +170,7 @@ function servedCommonName(session) {
         cert: agent1Cert, key: agent1Key, ca: [key('ca2-cert.pem')],
       },
     },
+    ...versions,
   });
 
   // ca1 client against the ca1 identity: accepted.
@@ -166,6 +178,7 @@ function servedCommonName(session) {
     servername: 'anything',
     cert: agent1Cert, key: agent1Key,
     rejectUnauthorized: false,
+    ...versions,
   });
   await accepted.opened;
   await accepted.close();
@@ -175,6 +188,7 @@ function servedCommonName(session) {
     servername: 'ca2-only',
     cert: agent1Cert, key: agent1Key,
     rejectUnauthorized: false,
+    ...versions,
   });
   await assert.rejects(rejected.opened, { name: 'Error' });
 
@@ -183,6 +197,7 @@ function servedCommonName(session) {
     servername: 'ca2-only',
     cert: key('agent3-cert.pem'), key: key('agent3-key.pem'),
     rejectUnauthorized: false,
+    ...versions,
   });
   await other.opened;
   await other.close();
@@ -217,7 +232,7 @@ function servedCommonName(session) {
 
 // A callback may be given instead of a map, for identities that are chosen
 // rather than enumerated. It returns the same two things a map entry holds.
-{
+for (const versions of [V12, V13]) {
   const prepared = createSecureContext({
     cert: localhostCert, key: localhostKey, isServer: true,
   });
@@ -234,6 +249,7 @@ function servedCommonName(session) {
       if (servername === 'agent1') return { cert: agent1Cert, key: agent1Key };
       return undefined;
     },
+    ...versions,
   });
 
   for (const [servername, expected] of [
@@ -242,6 +258,7 @@ function servedCommonName(session) {
   ]) {
     const client = connect('127.0.0.1', endpoint.address.port, {
       rejectUnauthorized: false, servername,
+      ...versions,
     });
     await client.opened;
     assert.strictEqual(servedCommonName(client), expected);
@@ -253,6 +270,7 @@ function servedCommonName(session) {
   // falling back to the endpoint's own certificate.
   const refused = connect('127.0.0.1', endpoint.address.port, {
     rejectUnauthorized: false, servername: 'no.such.host',
+    ...versions,
   });
   await assert.rejects(refused.opened, { name: 'Error' });
 
@@ -264,7 +282,7 @@ function servedCommonName(session) {
 // A client that sends no SNI extension still reaches the callback, and is
 // told the name is absent rather than given an empty string it could not
 // tell apart from one.
-{
+for (const versions of [V12, V13]) {
   const seen = [];
   const endpoint = listen(() => {}, {
     cert: agent1Cert,
@@ -275,10 +293,12 @@ function servedCommonName(session) {
       seen.push(servername);
       return { cert: agent1Cert, key: agent1Key };
     },
+    ...versions,
   });
 
   const client = connect('127.0.0.1', endpoint.address.port, {
     rejectUnauthorized: false,
+    ...versions,
   });
   await client.opened;
   assert.deepStrictEqual(seen, [undefined]);
@@ -297,7 +317,7 @@ function servedCommonName(session) {
 // fail without the retaining reference -- whether the object is collected
 // inside the handshake is not something the test can force. It is here to
 // exercise callback-built contexts, not as proof of the retention.
-{
+for (const versions of [V12, V13]) {
   const endpoint = listen(() => {}, {
     cert: agent1Cert,
     key: agent1Key,
@@ -306,11 +326,13 @@ function servedCommonName(session) {
     // A fresh context every time, deliberately: none of them is reachable
     // from JavaScript once the callback returns.
     sni: () => ({ cert: localhostCert, key: localhostKey }),
+    ...versions,
   });
 
   for (let i = 0; i < 12; i++) {
     const client = connect('127.0.0.1', endpoint.address.port, {
       rejectUnauthorized: false, servername: `host-${i}.example`,
+      ...versions,
     });
     await client.opened;
     assert.strictEqual(servedCommonName(client), 'CN=localhost');
@@ -324,7 +346,7 @@ function servedCommonName(session) {
 // An exception from the callback fails that handshake and is reported to the
 // session, like any other handshake failure. It must not reach the process as
 // an uncaught exception.
-{
+for (const versions of [V12, V13]) {
   process.on('uncaughtException', mustNotCall());
 
   const thrown = new Error('from the sni callback');
@@ -338,10 +360,12 @@ function servedCommonName(session) {
     host: '127.0.0.1',
     port: 0,
     sni: () => { throw thrown; },
+    ...versions,
   });
 
   const client = connect('127.0.0.1', endpoint.address.port, {
     rejectUnauthorized: false, servername: 'anything',
+    ...versions,
   });
   await assert.rejects(client.opened, { name: 'Error' });
 
@@ -354,7 +378,7 @@ function servedCommonName(session) {
 
 // Validation of what a callback returns, which is checked the same way a map
 // entry is.
-{
+for (const versions of [V12, V13]) {
   const clientContext = createSecureContext({
     cert: agent1Cert, key: agent1Key,
   });
@@ -373,10 +397,12 @@ function servedCommonName(session) {
       host: '127.0.0.1',
       port: 0,
       sni: () => returned,
+      ...versions,
     });
 
     const client = connect('127.0.0.1', endpoint.address.port, {
       rejectUnauthorized: false, servername: 'anything',
+      ...versions,
     });
     await assert.rejects(client.opened, { name: 'Error' });
     assert.strictEqual(
@@ -390,7 +416,7 @@ function servedCommonName(session) {
 // for being an object. Unwrapping validates the internal field count with a
 // DCHECK only, so in a release build any other native wrapper would have been
 // reinterpreted as a context and its SSL_CTX read out of whatever was there.
-{
+for (const versions of [V12, V13]) {
   const { Gzip } = await import('node:zlib');
   const nativeButNotAContext = new Gzip();
 
@@ -401,11 +427,13 @@ function servedCommonName(session) {
     port: 0,
     // A different kind of native object, not a DTLSSecureContext.
     sni: () => nativeButNotAContext,
+    ...versions,
   });
 
   const client = connect('127.0.0.1', server.address.port, {
     servername: 'a.example',
     rejectUnauthorized: false,
+    ...versions,
   });
   await assert.rejects(client.opened, { name: 'Error' });
 
@@ -415,7 +443,7 @@ function servedCommonName(session) {
 // The sni option belongs to the context. It can be given to
 // createSecureContext(), and combining it with a prepared secureContext is
 // refused rather than silently reconfiguring a shared context.
-{
+for (const versions of [V12, V13]) {
   const identity = { cert: agent1Cert, key: agent1Key };
 
   const prepared = createSecureContext({
@@ -423,6 +451,7 @@ function servedCommonName(session) {
     key: agent1Key,
     isServer: true,
     sni: { 'named.example': identity },
+    ...versions,
   });
 
   const server = listen(() => {}, {
@@ -431,6 +460,7 @@ function servedCommonName(session) {
 
   const named = connect('127.0.0.1', server.address.port, {
     servername: 'named.example', rejectUnauthorized: false,
+    ...versions,
   });
   await named.opened;
   await named.close();
@@ -439,6 +469,7 @@ function servedCommonName(session) {
   // given to listen() directly.
   const other = connect('127.0.0.1', server.address.port, {
     servername: 'other.example', rejectUnauthorized: false,
+    ...versions,
   });
   await assert.rejects(other.opened, { name: 'Error' });
 

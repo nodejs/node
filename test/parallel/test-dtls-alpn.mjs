@@ -20,36 +20,43 @@ const serverCert = fixtures.readKey('agent1-cert.pem');
 const serverKey = fixtures.readKey('agent1-key.pem');
 const ca = fixtures.readKey('ca1-cert.pem');
 
-const serverAlpnChecked = Promise.withResolvers();
+const V12 = { minVersion: 'DTLSv1.2', maxVersion: 'DTLSv1.2' };
+const V13 = { minVersion: 'DTLSv1.3', maxVersion: 'DTLSv1.3' };
 
-const endpoint = listen(mustCall(async (session) => {
+for (const versions of [V12, V13]) {
+  const serverAlpnChecked = Promise.withResolvers();
+
+  const endpoint = listen(mustCall(async (session) => {
+    await session.opened;
+    // Server should see the negotiated ALPN protocol.
+    assert.strictEqual(session.alpnProtocol, 'coap');
+    serverAlpnChecked.resolve();
+  }), {
+    cert: serverCert.toString(),
+    key: serverKey.toString(),
+    port: 0,
+    host: '127.0.0.1',
+    ...versions,
+    alpn: ['coap', 'h2'],
+  });
+
+  const session = connect('127.0.0.1', endpoint.address.port, {
+    ca: [ca.toString()],
+    rejectUnauthorized: false,
+    ...versions,
+    alpn: ['coap'],
+  });
+
   await session.opened;
-  // Server should see the negotiated ALPN protocol.
+
+  // Client should see the negotiated protocol.
   assert.strictEqual(session.alpnProtocol, 'coap');
-  serverAlpnChecked.resolve();
-}), {
-  cert: serverCert.toString(),
-  key: serverKey.toString(),
-  port: 0,
-  host: '127.0.0.1',
-  alpn: ['coap', 'h2'],
-});
 
-const session = connect('127.0.0.1', endpoint.address.port, {
-  ca: [ca.toString()],
-  rejectUnauthorized: false,
-  alpn: ['coap'],
-});
+  await serverAlpnChecked.promise;
 
-await session.opened;
-
-// Client should see the negotiated protocol.
-assert.strictEqual(session.alpnProtocol, 'coap');
-
-await serverAlpnChecked.promise;
-
-await session.close();
-await endpoint.close();
+  await session.close();
+  await endpoint.close();
+}
 
 // ALPN with no protocol in common: RFC 7301 section 3.2 requires the server to
 // send a fatal no_application_protocol alert, so the handshake must fail.
@@ -58,18 +65,20 @@ await endpoint.close();
 // neither peer reporting a protocol -- which left both ends connected with no
 // agreement on what to speak. The callback returned SSL_TLSEXT_ERR_NOACK; it
 // now returns SSL_TLSEXT_ERR_ALERT_FATAL, matching node:tls.
-{
+for (const versions of [V12, V13]) {
   const server = listen(() => {}, {
     cert: serverCert.toString(),
     key: serverKey.toString(),
     port: 0,
     host: '127.0.0.1',
+    ...versions,
     alpn: ['bar'],
   });
 
   const client = connect('127.0.0.1', server.address.port, {
     ca: [ca.toString()],
     rejectUnauthorized: false,
+    ...versions,
     alpn: ['foo'],
   });
 
@@ -87,7 +96,7 @@ await endpoint.close();
 // A server with no ALPN configured must not reject a client that offers
 // protocols. The alert above applies only where the server does ALPN and
 // finds no overlap; declining the extension entirely is not a failure.
-{
+for (const versions of [V12, V13]) {
   const gotServerSession = Promise.withResolvers();
 
   const server = listen(mustCall((s) => gotServerSession.resolve(s)), {
@@ -95,11 +104,13 @@ await endpoint.close();
     key: serverKey.toString(),
     port: 0,
     host: '127.0.0.1',
+    ...versions,
   });
 
   const client = connect('127.0.0.1', server.address.port, {
     ca: [ca.toString()],
     rejectUnauthorized: false,
+    ...versions,
     alpn: ['foo'],
   });
 
@@ -116,7 +127,7 @@ await endpoint.close();
 
 // A server that does ALPN must still accept a client that offers none: the
 // selection callback only runs when the client sent the extension.
-{
+for (const versions of [V12, V13]) {
   const gotServerSession = Promise.withResolvers();
 
   const server = listen(mustCall((s) => gotServerSession.resolve(s)), {
@@ -124,12 +135,14 @@ await endpoint.close();
     key: serverKey.toString(),
     port: 0,
     host: '127.0.0.1',
+    ...versions,
     alpn: ['bar'],
   });
 
   const client = connect('127.0.0.1', server.address.port, {
     ca: [ca.toString()],
     rejectUnauthorized: false,
+    ...versions,
   });
 
   await client.opened;

@@ -23,20 +23,24 @@ const { connect, listen } = await import('node:dtls');
 const cert = fixtures.readKey('agent1-cert.pem').toString();
 const key = fixtures.readKey('agent1-key.pem').toString();
 
+const V12 = { minVersion: 'DTLSv1.2', maxVersion: 'DTLSv1.2' };
+const V13 = { minVersion: 'DTLSv1.3', maxVersion: 'DTLSv1.3' };
+
 // An IPv6 wildcard endpoint accepts IPv4 peers, which is the default
 // everywhere else in Node.js.
-{
+for (const versions of [V12, V13]) {
   const arrived = Promise.withResolvers();
   let serverSession;
 
   const server = listen((session) => {
     serverSession ??= session;
     arrived.resolve();
-  }, { cert, key, host: '::', port: 0 });
+  }, { cert, key, host: '::', port: 0, ...versions });
 
   const client = connect('127.0.0.1', server.address.port, {
     rejectUnauthorized: false,
     handshakeTimeout: 5000,
+    ...versions,
   });
 
   await client.opened;

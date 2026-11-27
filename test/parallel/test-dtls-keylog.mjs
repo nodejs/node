@@ -28,51 +28,58 @@ const cert = fixtures.readKey('agent1-cert.pem').toString();
 const key = fixtures.readKey('agent1-key.pem').toString();
 const ca = fixtures.readKey('ca1-cert.pem').toString();
 
-const gotKeylog = Promise.withResolvers();
+const V12 = { minVersion: 'DTLSv1.2', maxVersion: 'DTLSv1.2' };
+const V13 = { minVersion: 'DTLSv1.3', maxVersion: 'DTLSv1.3' };
 
-const server = listen(mustCall(), {
-  cert, key, port: 0, host: '127.0.0.1',
-});
+for (const versions of [V12, V13]) {
+  const gotKeylog = Promise.withResolvers();
 
-const client = connect('127.0.0.1', server.address.port, {
-  ca: [ca],
-  rejectUnauthorized: false,
-});
+  const server = listen(mustCall(), {
+    cert, key, port: 0, host: '127.0.0.1', ...versions,
+  });
 
-// state.hasKeylogListener is the flag the native keylog callback reads to
-// decide whether to extract key material at all. Without a listener the
-// secrets stay inside OpenSSL and are never turned into JS strings, where
-// they would be reachable from heap snapshots and core dumps.
-assert.strictEqual(getDTLSSessionState(client).hasKeylogListener, false);
+  const client = connect('127.0.0.1', server.address.port, {
+    ca: [ca],
+    rejectUnauthorized: false,
+    ...versions,
+  });
 
-// A keylog line is "<LABEL> <hex> <hex>" (e.g. "CLIENT_RANDOM ...").
-client.onkeylog = mustCallAtLeast((line) => {
-  assert.strictEqual(typeof line, 'string');
-  assert.match(line, /^\S+ [0-9a-f]+ [0-9a-f]+$/i);
-  gotKeylog.resolve();
-});
+  // state.hasKeylogListener is the flag the native keylog callback reads to
+  // decide whether to extract key material at all. Without a listener the
+  // secrets stay inside OpenSSL and are never turned into JS strings, where
+  // they would be reachable from heap snapshots and core dumps.
+  assert.strictEqual(getDTLSSessionState(client).hasKeylogListener, false);
 
-assert.strictEqual(getDTLSSessionState(client).hasKeylogListener, true);
+  // A keylog line is "<LABEL> <hex> <hex>" (e.g. "CLIENT_RANDOM ...").
+  client.onkeylog = mustCallAtLeast((line) => {
+    assert.strictEqual(typeof line, 'string');
+    assert.match(line, /^\S+ [0-9a-f]+ [0-9a-f]+$/i);
+    gotKeylog.resolve();
+  });
 
-await client.opened;
-await gotKeylog.promise;
+  assert.strictEqual(getDTLSSessionState(client).hasKeylogListener, true);
 
-// Clearing the listener puts the gate back.
-client.onkeylog = null;
-assert.strictEqual(getDTLSSessionState(client).hasKeylogListener, false);
+  await client.opened;
+  await gotKeylog.promise;
 
-await client.close();
-await server.close();
+  // Clearing the listener puts the gate back.
+  client.onkeylog = null;
+  assert.strictEqual(getDTLSSessionState(client).hasKeylogListener, false);
+
+  await client.close();
+  await server.close();
+}
 
 // A session that never gets a listener never reports one, and handshakes
 // normally regardless.
-{
+for (const versions of [V12, V13]) {
   const quietServer = listen(mustCall(), {
-    cert, key, port: 0, host: '127.0.0.1',
+    cert, key, port: 0, host: '127.0.0.1', ...versions,
   });
   const quietClient = connect('127.0.0.1', quietServer.address.port, {
     ca: [ca],
     rejectUnauthorized: false,
+    ...versions,
   });
 
   assert.strictEqual(quietClient.onkeylog, undefined);
@@ -94,13 +101,16 @@ await server.close();
 // report an exception from there, and it used to reach the process as an
 // uncaught exception instead. It is parked and emitted once the handshake
 // returns.
-{
+for (const versions of [V12, V13]) {
   process.on('uncaughtException', mustNotCall('reached uncaughtException'));
 
-  const server = listen(mustCall(), { cert, key, port: 0, host: '127.0.0.1' });
+  const server = listen(mustCall(), {
+    cert, key, port: 0, host: '127.0.0.1', ...versions,
+  });
   const client = connect('127.0.0.1', server.address.port, {
     ca: [ca],
     rejectUnauthorized: false,
+    ...versions,
   });
 
   const reported = Promise.withResolvers();

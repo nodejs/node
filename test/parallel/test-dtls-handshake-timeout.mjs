@@ -11,6 +11,7 @@
 
 import { hasCrypto, skip } from '../common/index.mjs';
 import { setTimeout } from 'node:timers/promises';
+import { once } from 'node:events';
 import assert from 'node:assert';
 
 if (!hasCrypto) {
@@ -21,6 +22,7 @@ if (!process.features.dtls) {
   skip('DTLS is not enabled');
 }
 
+const dgram = await import('node:dgram');
 const dtls = await import('node:dtls');
 
 // The state and sessions views are not public API; they are reached here the
@@ -33,31 +35,56 @@ const { connect, listen } = dtls;
 
 const HOST = '127.0.0.1';
 const KEY = Buffer.from('0123456789abcdef');
-const WRONG = Buffer.from('fedcba9876543210');
+const V12 = { minVersion: 'DTLSv1.2', maxVersion: 'DTLSv1.2' };
+const V13 = { minVersion: 'DTLSv1.3', maxVersion: 'DTLSv1.3' };
 
-// A wrong pre-shared key is the cheapest way to stall a handshake: the
-// identity only names the key, so both sides derive different secrets and
-// then discard each other's records without replying, as DTLS requires
-// (RFC 6347 section 4.1.2.1). Neither peer is ever told, and both retransmit.
-function stall(endpoint, options = {}) {
-  return connect(HOST, endpoint.address.port, {
-    psk: { identity: 'device', key: WRONG }, ...options,
+// Stall a handshake after the server has a session for it. A proxy between
+// the two passes the server's first datagram -- the HelloVerifyRequest or
+// HelloRetryRequest that carries the cookie -- and nothing after it. The
+// client answers with the cookie, so the server validates the address and
+// announces the session, and from then on neither side hears from the other.
+// Both retransmit, and nothing but a deadline ends it.
+async function stall(endpoint, options = {}) {
+  const front = dgram.createSocket('udp4');
+  const back = dgram.createSocket('udp4');
+  let client;
+  let passed = false;
+  front.on('message', (msg, rinfo) => {
+    client = rinfo;
+    back.send(msg, endpoint.address.port, HOST);
   });
+  back.on('message', (msg) => {
+    if (passed) return;
+    passed = true;
+    front.send(msg, client.port, client.address);
+  });
+  front.bind(0, HOST);
+  back.bind(0, HOST);
+  await Promise.all([once(front, 'listening'), once(back, 'listening')]);
+
+  const session = connect(HOST, front.address().port, {
+    psk: { identity: 'device', key: KEY }, ...options,
+  });
+  session.closed.finally(() => {
+    front.close();
+    back.close();
+  }).catch(() => {});
+  return session;
 }
 
-function serve(options = {}) {
-  return listen(() => {}, {
+function serve(options = {}, onsession = () => {}) {
+  return listen(onsession, {
     psk: { 'device': KEY }, host: HOST, port: 0, ...options,
   });
 }
 
-// The deadline is honoured, and close to exactly.
-{
+for (const versions of [V12, V13]) {
+  // The deadline is honoured, and close to exactly.
   for (const handshakeTimeout of [300, 700]) {
-    const endpoint = serve({ handshakeTimeout });
+    const endpoint = serve({ handshakeTimeout, ...versions });
     const started = Date.now();
 
-    const client = stall(endpoint, { handshakeTimeout });
+    const client = await stall(endpoint, { handshakeTimeout, ...versions });
     await assert.rejects(client.opened, { message: /handshake timeout/ });
 
     const elapsed = Date.now() - started;
@@ -87,25 +114,34 @@ function serve(options = {}) {
 // The slot is given back. This is the point of the exercise: without it an
 // abandoned handshake occupies its place against maxSessions until the
 // endpoint closes.
-{
-  const endpoint = serve({ handshakeTimeout: 300, maxSessions: 3 });
+for (const versions of [V12, V13]) {
+  const announced = [];
+  const allAnnounced = Promise.withResolvers();
+  const endpoint = serve({ handshakeTimeout: 300, maxSessions: 3, ...versions },
+                         (session) => {
+                           announced.push(session);
+                           if (announced.length === 3) allAnnounced.resolve();
+                         });
 
   const stalled = [];
   for (let i = 0; i < 3; i++) {
-    const client = stall(endpoint, { handshakeTimeout: 60000 });
+    const client = await stall(endpoint, {
+      handshakeTimeout: 60000, ...versions,
+    });
     client.opened.catch(() => {});
     stalled.push(client);
   }
 
-  await setTimeout(150);
+  await allAnnounced.promise;
   assert.strictEqual(Number(getDTLSEndpointState(endpoint).sessionCount), 3);
 
-  await setTimeout(600);
+  // Each server session expires on its own deadline.
+  await Promise.allSettled(announced.map((session) => session.closed));
   assert.strictEqual(Number(getDTLSEndpointState(endpoint).sessionCount), 0);
 
   // And the endpoint is usable again.
   const good = connect(HOST, endpoint.address.port, {
-    psk: { identity: 'device', key: KEY },
+    psk: { identity: 'device', key: KEY }, ...versions,
   });
   await good.opened;
   await good.close();
@@ -116,11 +152,11 @@ function serve(options = {}) {
 
 // A handshake that completes is not affected, and the deadline does not
 // linger to fire at an established session.
-{
-  const endpoint = serve({ handshakeTimeout: 300 });
+for (const versions of [V12, V13]) {
+  const endpoint = serve({ handshakeTimeout: 300, ...versions });
 
   const client = connect(HOST, endpoint.address.port, {
-    psk: { identity: 'device', key: KEY }, handshakeTimeout: 300,
+    psk: { identity: 'device', key: KEY }, handshakeTimeout: 300, ...versions,
   });
   await client.opened;
 
@@ -131,7 +167,7 @@ function serve(options = {}) {
   const echoed = Promise.withResolvers();
   client.onmessage = (data) => echoed.resolve(data);
   const peer = connect(HOST, endpoint.address.port, {
-    psk: { identity: 'device', key: KEY },
+    psk: { identity: 'device', key: KEY }, ...versions,
   });
   await peer.opened;
   await peer.close();
@@ -142,10 +178,10 @@ function serve(options = {}) {
 
 // Zero disables it, leaving OpenSSL's own retransmit budget as the only
 // limit.
-{
-  const endpoint = serve({ handshakeTimeout: 0 });
+for (const versions of [V12, V13]) {
+  const endpoint = serve({ handshakeTimeout: 0, ...versions });
 
-  const client = stall(endpoint, { handshakeTimeout: 0 });
+  const client = await stall(endpoint, { handshakeTimeout: 0, ...versions });
 
   const pending = Symbol('pending');
   const outcome = await Promise.race([
@@ -160,10 +196,10 @@ function serve(options = {}) {
 
 // The default does not fire early. Checking the 60s default itself would
 // mean waiting 60s, so this only pins that it is not something small.
-{
-  const endpoint = serve();
+for (const versions of [V12, V13]) {
+  const endpoint = serve(versions);
 
-  const client = stall(endpoint);
+  const client = await stall(endpoint, versions);
 
   const pending = Symbol('pending');
   const outcome = await Promise.race([
@@ -177,25 +213,32 @@ function serve(options = {}) {
 }
 
 // It applies to a resumed handshake too, which is a different code path
-// through the state machine but the same session lifecycle.
-{
+// through the state machine but the same session lifecycle. A DTLS 1.3
+// server issues its ticket after the handshake, so it is taken from
+// onsessionticket rather than read when opened settles.
+for (const versions of [V12, V13]) {
   const endpoint = listen(() => {}, {
     psk: { 'device': KEY }, host: HOST, port: 0, handshakeTimeout: 5000,
+    ...versions,
   });
 
   const first = connect(HOST, endpoint.address.port, {
-    psk: { identity: 'device', key: KEY },
+    psk: { identity: 'device', key: KEY }, ...versions,
   });
+  const issued = Promise.withResolvers();
+  first.onsessionticket = (ticket) => issued.resolve(ticket);
   await first.opened;
-  const ticket = first.session;
+  const ticket = await issued.promise;
   await first.close();
 
   const resumed = connect(HOST, endpoint.address.port, {
     psk: { identity: 'device', key: KEY },
     session: ticket,
     handshakeTimeout: 5000,
+    ...versions,
   });
   await resumed.opened;
+  assert.strictEqual(resumed.reused, true);
   assert.strictEqual(getDTLSSessionState(resumed).destroyed, false);
 
   await resumed.close();

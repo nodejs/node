@@ -26,6 +26,9 @@ const cert = fixtures.readKey('agent1-cert.pem').toString();
 const key = fixtures.readKey('agent1-key.pem').toString();
 const ca = fixtures.readKey('ca1-cert.pem').toString();
 
+const V12 = { minVersion: 'DTLSv1.2', maxVersion: 'DTLSv1.2' };
+const V13 = { minVersion: 'DTLSv1.3', maxVersion: 'DTLSv1.3' };
+
 // The context reports which side it was built for.
 {
   const server = createSecureContext({ cert, key, isServer: true });
@@ -42,9 +45,11 @@ assert.throws(() => new DTLSSecureContext(),
 
 // One server context serves several endpoints, and one client context
 // serves connections to all of them.
-{
-  const serverContext = createSecureContext({ cert, key, isServer: true });
-  const clientContext = createSecureContext({ ca: [ca] });
+for (const versions of [V12, V13]) {
+  const serverContext = createSecureContext({
+    cert, key, isServer: true, ...versions,
+  });
+  const clientContext = createSecureContext({ ca: [ca], ...versions });
 
   const endpoints = [];
   for (let i = 0; i < 3; i++) {
@@ -78,9 +83,11 @@ assert.throws(() => new DTLSSecureContext(),
 // The verified identity stays per connection. It is bound to the session
 // with SSL_set1_host(), not to the context, so one context can be used
 // against different peer names -- and still rejects the wrong one.
-{
-  const serverContext = createSecureContext({ cert, key, isServer: true });
-  const clientContext = createSecureContext({ ca: [ca] });
+for (const versions of [V12, V13]) {
+  const serverContext = createSecureContext({
+    cert, key, isServer: true, ...versions,
+  });
+  const clientContext = createSecureContext({ ca: [ca], ...versions });
 
   const endpoint = listen(() => {}, {
     secureContext: serverContext, host: '127.0.0.1', port: 0,
@@ -135,9 +142,11 @@ assert.throws(() => new DTLSSecureContext(),
 
 // Options that belong to the context are refused alongside one, rather than
 // being silently ignored.
-{
-  const serverContext = createSecureContext({ cert, key, isServer: true });
-  const clientContext = createSecureContext({ ca: [ca] });
+for (const versions of [V12, V13]) {
+  const serverContext = createSecureContext({
+    cert, key, isServer: true, ...versions,
+  });
+  const clientContext = createSecureContext({ ca: [ca], ...versions });
 
   for (const [name, value] of [
     ['cert', cert],
@@ -157,7 +166,7 @@ assert.throws(() => new DTLSSecureContext(),
 
   // This one does accept a connection below, so it gets a real handler.
   const endpoint = listen(() => {}, {
-    cert, key, host: '127.0.0.1', port: 0,
+    cert, key, host: '127.0.0.1', port: 0, ...versions,
   });
 
   assert.throws(() => connect('127.0.0.1', endpoint.address.port, {

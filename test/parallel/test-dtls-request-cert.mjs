@@ -33,15 +33,18 @@ const key = fixtures.readKey('agent1-key.pem');
 const ca1 = fixtures.readKey('ca1-cert.pem');
 const ca2 = fixtures.readKey('ca2-cert.pem');
 
+const V12 = { minVersion: 'DTLSv1.2', maxVersion: 'DTLSv1.2' };
+const V13 = { minVersion: 'DTLSv1.3', maxVersion: 'DTLSv1.3' };
+
 // Runs one handshake and reports what the server made of the client.
-async function handshake(serverOptions, clientOptions) {
+async function handshake(versions, serverOptions, clientOptions) {
   const gotSession = Promise.withResolvers();
   const server = listen((session) => {
     session.onhandshake = () => gotSession.resolve(session);
-  }, { cert, key, host: '127.0.0.1', port: 0, ...serverOptions });
+  }, { cert, key, host: '127.0.0.1', port: 0, ...serverOptions, ...versions });
 
   const client = connect('127.0.0.1', server.address.port, {
-    servername: 'agent1', ca: [ca1], ...clientOptions,
+    servername: 'agent1', ca: [ca1], ...clientOptions, ...versions,
   });
 
   let result;
@@ -67,70 +70,78 @@ async function handshake(serverOptions, clientOptions) {
   return result;
 }
 
-// --- requestCert with rejectUnauthorized disabled ------------------------
+for (const versions of [V12, V13]) {
+  const run = (server, client) => handshake(versions, server, client);
 
-// A trusted client certificate is actually requested and received. This is
-// the case that silently produced no certificate at all before.
-assert.deepStrictEqual(
-  await handshake({ requestCert: true, rejectUnauthorized: false, ca: [ca1] },
-                  { cert, key }),
+  // --- requestCert with rejectUnauthorized disabled ------------------------
+
+  // A trusted client certificate is actually requested and received. This is
+  // the case that silently produced no certificate at all before.
+  assert.deepStrictEqual(
+    await run({ requestCert: true, rejectUnauthorized: false, ca: [ca1] },
+              { cert, key }),
+    {
+      rejected: false,
+      sawPeerCertificate: true,
+      authorized: true,
+      authorizationError: undefined,
+    });
+
+  // An untrusted client certificate is received, and the handshake completes so
+  // the application can decide.
+  assert.deepStrictEqual(
+    await run({ requestCert: true, rejectUnauthorized: false, ca: [ca2] },
+              { cert, key }),
+    {
+      rejected: false,
+      sawPeerCertificate: true,
+      authorized: false,
+      authorizationError: 'SELF_SIGNED_CERT_IN_CHAIN',
+    });
+
+  // A client that declines to send one is tolerated rather than rejected.
+  assert.deepStrictEqual(
+    await run({ requestCert: true, rejectUnauthorized: false, ca: [ca1] },
+              {}),
+    {
+      rejected: false,
+      sawPeerCertificate: false,
+      authorized: false,
+      authorizationError: 'UNABLE_TO_GET_ISSUER_CERT',
+    });
+
+  // --- requestCert, enforced -----------------------------------------------
+
+  // OpenSSL rejects these, so the peer receives a real alert rather than having
+  // the session quietly dropped after the handshake.
   {
-    rejected: false,
-    sawPeerCertificate: true,
-    authorized: true,
-    authorizationError: undefined,
-  });
+    const noCert = await run({ requestCert: true, ca: [ca1] }, {});
+    assert.strictEqual(noCert.rejected, true);
+    // A DTLS 1.3 server rejects after the client's final flight, with the
+    // alert TLS 1.3 defined for it. The client is still waiting for that flight
+    // to be acknowledged, so the rejection reaches its opened all the same.
+    assert.match(noCert.message, versions === V12 ?
+      /handshake failure/ : /certificate required/);
 
-// An untrusted client certificate is received, and the handshake completes so
-// the application can decide.
-assert.deepStrictEqual(
-  await handshake({ requestCert: true, rejectUnauthorized: false, ca: [ca2] },
-                  { cert, key }),
-  {
-    rejected: false,
-    sawPeerCertificate: true,
-    authorized: false,
-    authorizationError: 'SELF_SIGNED_CERT_IN_CHAIN',
-  });
+    const untrusted = await run({ requestCert: true, ca: [ca2] },
+                                { cert, key });
+    assert.strictEqual(untrusted.rejected, true);
+    assert.match(untrusted.message, /unknown ca/);
+  }
 
-// A client that declines to send one is tolerated rather than rejected.
-assert.deepStrictEqual(
-  await handshake({ requestCert: true, rejectUnauthorized: false, ca: [ca1] },
-                  {}),
-  {
-    rejected: false,
-    sawPeerCertificate: false,
-    authorized: false,
-    authorizationError: 'UNABLE_TO_GET_ISSUER_CERT',
-  });
+  // --- no requestCert ------------------------------------------------------
 
-// --- requestCert, enforced -----------------------------------------------
-
-// OpenSSL rejects these, so the peer receives a real alert rather than having
-// the session quietly dropped after the handshake.
-{
-  const noCert = await handshake({ requestCert: true, ca: [ca1] }, {});
-  assert.strictEqual(noCert.rejected, true);
-  assert.match(noCert.message, /handshake failure/);
-
-  const untrusted = await handshake({ requestCert: true, ca: [ca2] },
-                                    { cert, key });
-  assert.strictEqual(untrusted.rejected, true);
-  assert.match(untrusted.message, /unknown ca/);
+  // rejectUnauthorized alone must not turn a server into one that demands
+  // client certificates.
+  assert.deepStrictEqual(
+    await run({ rejectUnauthorized: true, ca: [ca1] }, { cert, key }),
+    {
+      rejected: false,
+      sawPeerCertificate: false,
+      authorized: false,
+      authorizationError: 'UNABLE_TO_GET_ISSUER_CERT',
+    });
 }
-
-// --- no requestCert ------------------------------------------------------
-
-// rejectUnauthorized alone must not turn a server into one that demands
-// client certificates.
-assert.deepStrictEqual(
-  await handshake({ rejectUnauthorized: true, ca: [ca1] }, { cert, key }),
-  {
-    rejected: false,
-    sawPeerCertificate: false,
-    authorized: false,
-    authorizationError: 'UNABLE_TO_GET_ISSUER_CERT',
-  });
 
 // --- validation ----------------------------------------------------------
 

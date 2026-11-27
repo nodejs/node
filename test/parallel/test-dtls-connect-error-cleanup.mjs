@@ -22,22 +22,30 @@ const cert = fixtures.readKey('agent1-cert.pem').toString();
 const key = fixtures.readKey('agent1-key.pem').toString();
 const ca = fixtures.readKey('ca1-cert.pem').toString();
 
-// The client rejects the certificate mid-handshake, so this server session
-// never opens; its opened rejection is handled internally by the library.
-const server = listen(mustCall(), { cert, key, port: 0, host: '127.0.0.1' });
+const V12 = { minVersion: 'DTLSv1.2', maxVersion: 'DTLSv1.2' };
+const V13 = { minVersion: 'DTLSv1.3', maxVersion: 'DTLSv1.3' };
 
-// A servername that does not match the certificate, under rejectUnauthorized,
-// makes the client's handshake fail during verification.
-const session = connect('127.0.0.1', server.address.port, {
-  ca: [ca],
-  rejectUnauthorized: true,
-  servername: 'wrong.example.com',
-});
+for (const versions of [V12, V13]) {
+  // The client rejects the certificate mid-handshake, so this server session
+  // never opens; its opened rejection is handled internally by the library.
+  const server = listen(mustCall(), {
+    cert, key, port: 0, host: '127.0.0.1', ...versions,
+  });
 
-await assert.rejects(session.opened, /certificate verify failed/i);
+  // A servername that does not match the certificate, under rejectUnauthorized,
+  // makes the client's handshake fail during verification.
+  const session = connect('127.0.0.1', server.address.port, {
+    ca: [ca],
+    rejectUnauthorized: true,
+    servername: 'wrong.example.com',
+    ...versions,
+  });
 
-// The failed connect must have closed its internally-owned endpoint. Without
-// that, this await never settles and the test times out.
-await session.endpoint.closed;
+  await assert.rejects(session.opened, /certificate verify failed/i);
 
-await server.close();
+  // The failed connect must have closed its internally-owned endpoint. Without
+  // that, this await never settles and the test times out.
+  await session.endpoint.closed;
+
+  await server.close();
+}

@@ -25,17 +25,20 @@ const cert = fixtures.readKey('agent1-cert.pem').toString();
 const key = fixtures.readKey('agent1-key.pem').toString();
 const ca = fixtures.readKey('ca1-cert.pem').toString();
 
+const V12 = { minVersion: 'DTLSv1.2', maxVersion: 'DTLSv1.2' };
+const V13 = { minVersion: 'DTLSv1.3', maxVersion: 'DTLSv1.3' };
+
 // ---------------------------------------------------------------------------
 // Case 1: a matching servername with rejectUnauthorized succeeds, and the
 // server observes the SNI the client sent (proving it is in the ClientHello).
-{
+for (const versions of [V12, V13]) {
   const sawServername = Promise.withResolvers();
 
   const server = listen(mustCall((session) => {
     session.onhandshake = mustCall(() => {
       sawServername.resolve(session.servername);
     });
-  }), { cert, key, port: 0, host: '127.0.0.1' });
+  }), { cert, key, port: 0, host: '127.0.0.1', ...versions });
 
   const { port } = server.address;
 
@@ -43,6 +46,7 @@ const ca = fixtures.readKey('ca1-cert.pem').toString();
     ca: [ca],
     rejectUnauthorized: true,
     servername: 'agent1',
+    ...versions,
   });
 
   const { protocol } = await session.opened;
@@ -57,12 +61,12 @@ const ca = fixtures.readKey('ca1-cert.pem').toString();
 // ---------------------------------------------------------------------------
 // Case 2: a servername that does not match the certificate is rejected during
 // the handshake, even though the certificate chain is otherwise valid.
-{
+for (const versions of [V12, V13]) {
   const server = listen(mustCall((session) => {
     // The client aborts after verifying the certificate, so the server-side
     // handshake never completes.
     session.onhandshake = mustNotCall();
-  }), { cert, key, port: 0, host: '127.0.0.1' });
+  }), { cert, key, port: 0, host: '127.0.0.1', ...versions });
 
   const { port } = server.address;
 
@@ -70,6 +74,7 @@ const ca = fixtures.readKey('ca1-cert.pem').toString();
     ca: [ca],
     rejectUnauthorized: true,
     servername: 'wrong.example.com',
+    ...versions,
   });
 
   await assert.rejects(session.opened, /certificate verify failed/i);

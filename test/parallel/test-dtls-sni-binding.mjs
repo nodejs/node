@@ -28,8 +28,11 @@ const key = (name) => fixtures.readKey(name).toString();
 const cert = key('agent1-cert.pem');
 const privateKey = key('agent1-key.pem');
 
-const serverContext = () =>
-  createSecureContext({ cert, key: privateKey, isServer: true });
+const serverContext = (versions) =>
+  createSecureContext({ cert, key: privateKey, isServer: true, ...versions });
+
+const V12 = { minVersion: 'DTLSv1.2', maxVersion: 'DTLSv1.2' };
+const V13 = { minVersion: 'DTLSv1.3', maxVersion: 'DTLSv1.3' };
 
 // The binding holds SNI contexts weakly, so a context naming itself does not
 // keep itself alive.
@@ -77,9 +80,9 @@ const serverContext = () =>
 // Only ever assigning it meant a context given a map after a callback kept
 // the callback, which for SNI is a fail-open: a map with no '*' entry means
 // only the names in it are served, and a leftover callback answers the rest.
-{
-  const context = serverContext();
-  const identity = serverContext();
+for (const versions of [V12, V13]) {
+  const context = serverContext(versions);
+  const identity = serverContext(versions);
 
   let calls = 0;
   context[kHandle].setSNIContexts([], () => { calls++; return identity; });
@@ -94,6 +97,7 @@ const serverContext = () =>
   const unmatched = connect('127.0.0.1', server.address.port, {
     servername: 'unknown.example',
     rejectUnauthorized: false,
+    ...versions,
   });
   await assert.rejects(unmatched.opened, { name: 'Error' });
   assert.strictEqual(calls, 0);
@@ -101,6 +105,7 @@ const serverContext = () =>
   const matched = connect('127.0.0.1', server.address.port, {
     servername: 'known.example',
     rejectUnauthorized: false,
+    ...versions,
   });
   await matched.opened;
   await matched.close();

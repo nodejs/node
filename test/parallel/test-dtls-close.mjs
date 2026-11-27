@@ -20,8 +20,11 @@ const serverCert = fixtures.readKey('agent1-cert.pem');
 const serverKey = fixtures.readKey('agent1-key.pem');
 const ca = fixtures.readKey('ca1-cert.pem');
 
+const V12 = { minVersion: 'DTLSv1.2', maxVersion: 'DTLSv1.2' };
+const V13 = { minVersion: 'DTLSv1.3', maxVersion: 'DTLSv1.3' };
+
 // Test 1: Graceful close from client side.
-{
+for (const versions of [V12, V13]) {
   const serverSessionClosed = Promise.withResolvers();
 
   const endpoint = listen(mustCall((session) => {
@@ -34,11 +37,13 @@ const ca = fixtures.readKey('ca1-cert.pem');
     key: serverKey.toString(),
     port: 0,
     host: '127.0.0.1',
+    ...versions,
   });
 
   const session = connect('127.0.0.1', endpoint.address.port, {
     ca: [ca.toString()],
     rejectUnauthorized: false,
+    ...versions,
   });
 
   await session.opened;
@@ -56,7 +61,7 @@ const ca = fixtures.readKey('ca1-cert.pem');
 }
 
 // Test 2: Forced destroy.
-{
+for (const versions of [V12, V13]) {
   const endpoint = listen(mustCall((session) => {
     session.onmessage = mustNotCall();
   }), {
@@ -64,11 +69,13 @@ const ca = fixtures.readKey('ca1-cert.pem');
     key: serverKey.toString(),
     port: 0,
     host: '127.0.0.1',
+    ...versions,
   });
 
   const session = connect('127.0.0.1', endpoint.address.port, {
     ca: [ca.toString()],
     rejectUnauthorized: false,
+    ...versions,
   });
 
   await session.opened;
@@ -85,7 +92,7 @@ const ca = fixtures.readKey('ca1-cert.pem');
 }
 
 // Test 3: Endpoint close closes all sessions.
-{
+for (const versions of [V12, V13]) {
   const endpoint = listen(mustCall((session) => {
     session.onmessage = mustNotCall();
   }), {
@@ -93,11 +100,13 @@ const ca = fixtures.readKey('ca1-cert.pem');
     key: serverKey.toString(),
     port: 0,
     host: '127.0.0.1',
+    ...versions,
   });
 
   const session = connect('127.0.0.1', endpoint.address.port, {
     ca: [ca.toString()],
     rejectUnauthorized: false,
+    ...versions,
   });
 
   await session.opened;

@@ -20,68 +20,75 @@ const serverCert = fixtures.readKey('agent1-cert.pem');
 const serverKey = fixtures.readKey('agent1-key.pem');
 const ca = fixtures.readKey('ca1-cert.pem');
 
-const serverReceivedData = Promise.withResolvers();
-const clientReceivedData = Promise.withResolvers();
+const V12 = { minVersion: 'DTLSv1.2', maxVersion: 'DTLSv1.2' };
+const V13 = { minVersion: 'DTLSv1.3', maxVersion: 'DTLSv1.3' };
 
-let serverHandshakeDone = false;
-let clientHandshakeDone = false;
+for (const versions of [V12, V13]) {
+  const serverReceivedData = Promise.withResolvers();
+  const clientReceivedData = Promise.withResolvers();
 
-// Start server.
-const endpoint = listen(mustCall((session) => {
-  session.onmessage = mustCall((data) => {
-    assert.strictEqual(data.toString(), 'hello from client');
-    serverReceivedData.resolve();
+  let serverHandshakeDone = false;
+  let clientHandshakeDone = false;
 
-    // Send response back to client.
-    session.send('hello from server');
+  // Start server.
+  const endpoint = listen(mustCall((session) => {
+    session.onmessage = mustCall((data) => {
+      assert.strictEqual(data.toString(), 'hello from client');
+      serverReceivedData.resolve();
+
+      // Send response back to client.
+      session.send('hello from server');
+    });
+
+    session.onhandshake = mustCall((protocol) => {
+      assert.ok(protocol);
+      assert.match(protocol, /DTLS/i);
+      serverHandshakeDone = true;
+    });
+  }), {
+    cert: serverCert.toString(),
+    key: serverKey.toString(),
+    port: 0,
+    host: '127.0.0.1',
+    ...versions,
   });
 
-  session.onhandshake = mustCall((protocol) => {
+  const serverAddress = endpoint.address;
+  assert.ok(serverAddress);
+  assert.ok(serverAddress.port > 0);
+
+  // Connect client.
+  const clientSession = connect('127.0.0.1', serverAddress.port, {
+    ca: [ca.toString()],
+    rejectUnauthorized: false,
+    ...versions,
+  });
+
+  clientSession.onmessage = mustCall((data) => {
+    assert.strictEqual(data.toString(), 'hello from server');
+    clientReceivedData.resolve();
+  });
+
+  clientSession.onhandshake = mustCall((protocol) => {
     assert.ok(protocol);
-    assert.match(protocol, /DTLS/i);
-    serverHandshakeDone = true;
+    clientHandshakeDone = true;
   });
-}), {
-  cert: serverCert.toString(),
-  key: serverKey.toString(),
-  port: 0,
-  host: '127.0.0.1',
-});
 
-const serverAddress = endpoint.address;
-assert.ok(serverAddress);
-assert.ok(serverAddress.port > 0);
+  // Wait for handshake.
+  const { protocol } = await clientSession.opened;
+  assert.match(protocol, /DTLS/i);
 
-// Connect client.
-const clientSession = connect('127.0.0.1', serverAddress.port, {
-  ca: [ca.toString()],
-  rejectUnauthorized: false,
-});
+  // Send data.
+  clientSession.send('hello from client');
 
-clientSession.onmessage = mustCall((data) => {
-  assert.strictEqual(data.toString(), 'hello from server');
-  clientReceivedData.resolve();
-});
+  // Wait for bidirectional exchange.
+  await Promise.all([serverReceivedData.promise, clientReceivedData.promise]);
 
-clientSession.onhandshake = mustCall((protocol) => {
-  assert.ok(protocol);
-  clientHandshakeDone = true;
-});
+  // Verify handshakes completed.
+  assert.ok(clientHandshakeDone);
+  assert.ok(serverHandshakeDone);
 
-// Wait for handshake.
-const { protocol } = await clientSession.opened;
-assert.match(protocol, /DTLS/i);
-
-// Send data.
-clientSession.send('hello from client');
-
-// Wait for bidirectional exchange.
-await Promise.all([serverReceivedData.promise, clientReceivedData.promise]);
-
-// Verify handshakes completed.
-assert.ok(clientHandshakeDone);
-assert.ok(serverHandshakeDone);
-
-// Clean up.
-await clientSession.close();
-await endpoint.close();
+  // Clean up.
+  await clientSession.close();
+  await endpoint.close();
+}
