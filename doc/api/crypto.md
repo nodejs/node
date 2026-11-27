@@ -3598,6 +3598,24 @@ The OID of the algorithm used to sign the certificate.
 
 Throws if the OID cannot be formatted.
 
+### `x509.signatureHashAlgorithm`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string|undefined}
+
+The name of the hash algorithm used to sign the certificate, such as `'sha256'`
+or `'sha384'`.
+
+For signature algorithms such as RSASSA-PSS, the hash algorithm is determined
+from the signature algorithm parameters rather than the signature algorithm OID.
+
+Returns `undefined` if the signature algorithm does not use a separate hash
+algorithm, such as Ed25519 or Ed448, or if the hash algorithm cannot be
+determined.
+
 ### `x509.version`
 
 <!-- YAML
