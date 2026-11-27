@@ -4945,6 +4945,23 @@ This affects multiple TLS APIs:
   If renegotiation by clients is removed in future these are likely to be
   removed.
 
+### DEP0214: `tls.rootCertificates`
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/67827
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+[`tls.rootCertificates`][] only holds the bundled Mozilla CA store. It doesn't
+reflect the CA certificates that Node.js TLS clients use by default, such as
+certificates added with [`--use-system-ca`][] or [`NODE_EXTRA_CA_CERTS`][].
+Use [`tls.getCACertificates('default')`][] to get the default CA certificates,
+or `tls.getCACertificates('bundled')` to get the bundled Mozilla CA store.
+
 [DEP0142]: #dep0142-repl_builtinlibs
 [DEP0156]: #dep0156-aborted-property-and-abort-aborted-event-in-http
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
@@ -4958,6 +4975,7 @@ This affects multiple TLS APIs:
 [`--pending-deprecation`]: cli.md#--pending-deprecation
 [`--throw-deprecation`]: cli.md#--throw-deprecation
 [`--unhandled-rejections`]: cli.md#--unhandled-rejectionsmode
+[`--use-system-ca`]: cli.md#--use-system-ca
 [`Buffer.allocUnsafeSlow(size)`]: buffer.md#static-method-bufferallocunsafeslowsize-alignment
 [`Buffer.from(array)`]: buffer.md#static-method-bufferfromarray
 [`Buffer.from(buffer)`]: buffer.md#static-method-bufferfrombuffer
@@ -4970,6 +4988,7 @@ This affects multiple TLS APIs:
 [`ERR_INVALID_PACKAGE_TARGET`]: errors.md#err_invalid_package_target
 [`Error.isError`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error/isError
 [`KeyObject.from()`]: crypto.md#static-method-keyobjectfromkey
+[`NODE_EXTRA_CA_CERTS`]: cli.md#node_extra_ca_certsfile
 [`REPLServer.clearBufferedCommand()`]: repl.md#replserverclearbufferedcommand
 [`ReadStream.open()`]: fs.md#class-fsreadstream
 [`Server.getConnections()`]: net.md#servergetconnectionscallback
@@ -5075,6 +5094,8 @@ This affects multiple TLS APIs:
 [`tls.connect()`]: tls.md#tlsconnectoptions-callback
 [`tls.createSecureContext()`]: tls.md#tlscreatesecurecontextoptions
 [`tls.createServer()`]: tls.md#tlscreateserveroptions-secureconnectionlistener
+[`tls.getCACertificates('default')`]: tls.md#tlsgetcacertificatestype
+[`tls.rootCertificates`]: tls.md#tlsrootcertificates
 [`tlsSocket.disableRenegotiation()`]: tls.md#tlssocketdisablerenegotiation
 [`tlsSocket.renegotiate()`]: tls.md#tlssocketrenegotiateoptions-callback
 [`url.format()`]: url.md#urlformaturlobject
