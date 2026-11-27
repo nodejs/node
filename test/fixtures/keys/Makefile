@@ -15,6 +15,10 @@ all: \
   blocked-ca-cert.pem \
   blocked-ca-leaf-cert.pem \
   blocked-key-leaf-cert.pem \
+  distrust-after-ca-cert.pem \
+  distrust-after-pre-leaf-cert.pem \
+  distrust-after-post-leaf-cert.pem \
+  distrust-after-cross-cert.pem \
   cert-without-key-fips.pfx \
   agent1-cert.pem \
   agent1-fips.pfx \
@@ -300,6 +304,93 @@ blocked-key-leaf-cert.pem: blocked-key-leaf-csr.pem ca1-cert.pem ca1-key.pem
 		-CAcreateserial \
 		-extfile blocked-key-leaf.cnf \
 		-out blocked-key-leaf-cert.pem
+
+#
+# distrust-after-ca is a self-signed root whose public key is on the
+# distrust-after list in src/crypto/crypto_context.cc with a cutoff of
+# 2019-12-31 23:59:59 UTC. distrust-after-pre-leaf is a server cert it issued
+# with notBefore exactly at the cutoff second (the last accepted instant);
+# distrust-after-post-leaf is the same with notBefore one second after it.
+# The leaves are issued with `openssl ca` because `openssl x509 -req` cannot
+# set notBefore. distrust-after-cross-cert is the same CA key cross-signed by
+# ca1 as an intermediate, so a chain leaf -> cross -> ca1 carries the
+# date-limited key without the self-signed root.
+#
+# The SHA-256 of the CA key's SubjectPublicKeyInfo is compiled into
+# src/crypto/crypto_context.cc, so the key is pinned: it is kept across
+# `make clean` and never regenerated here. Rotating it means updating the
+# digest and fingerprint in that file as well.
+distrust-after-ca-key.pem:
+	@echo "$@ is pinned (see src/crypto/crypto_context.cc); restore it with: git checkout -- $@" >&2
+	@exit 1
+
+distrust-after-ca-cert.pem: distrust-after-ca.cnf distrust-after-ca-key.pem
+	openssl req -new -x509 -days 99999 \
+		-config distrust-after-ca.cnf \
+		-key distrust-after-ca-key.pem \
+		-out distrust-after-ca-cert.pem
+	echo '01' > distrust-after-ca-serial
+	touch distrust-after-ca-database.txt
+	echo 'unique_subject = no' > distrust-after-ca-database.txt.attr
+	mkdir -p distrust-after-ca-issued-certs
+
+distrust-after-pre-leaf-key.pem:
+	openssl genrsa -out distrust-after-pre-leaf-key.pem 2048
+
+distrust-after-pre-leaf-csr.pem: distrust-after-pre-leaf.cnf distrust-after-pre-leaf-key.pem
+	openssl req -new \
+		-config distrust-after-pre-leaf.cnf \
+		-key distrust-after-pre-leaf-key.pem \
+		-out distrust-after-pre-leaf-csr.pem
+
+distrust-after-pre-leaf-cert.pem: distrust-after-pre-leaf-csr.pem distrust-after-ca-cert.pem distrust-after-ca-key.pem
+	openssl ca \
+		-config distrust-after-ca.cnf \
+		-keyfile distrust-after-ca-key.pem \
+		-cert distrust-after-ca-cert.pem \
+		-batch \
+		-days 99999 \
+		-in distrust-after-pre-leaf-csr.pem \
+		-startdate 20191231235959Z \
+		-notext -out distrust-after-pre-leaf-cert.pem
+
+distrust-after-post-leaf-key.pem:
+	openssl genrsa -out distrust-after-post-leaf-key.pem 2048
+
+distrust-after-post-leaf-csr.pem: distrust-after-post-leaf.cnf distrust-after-post-leaf-key.pem
+	openssl req -new \
+		-config distrust-after-post-leaf.cnf \
+		-key distrust-after-post-leaf-key.pem \
+		-out distrust-after-post-leaf-csr.pem
+
+distrust-after-post-leaf-cert.pem: distrust-after-post-leaf-csr.pem distrust-after-ca-cert.pem distrust-after-ca-key.pem
+	openssl ca \
+		-config distrust-after-ca.cnf \
+		-keyfile distrust-after-ca-key.pem \
+		-cert distrust-after-ca-cert.pem \
+		-batch \
+		-days 99999 \
+		-in distrust-after-post-leaf-csr.pem \
+		-startdate 20200101000000Z \
+		-notext -out distrust-after-post-leaf-cert.pem
+
+distrust-after-cross-csr.pem: distrust-after-cross.cnf distrust-after-ca-key.pem
+	openssl req -new \
+		-config distrust-after-cross.cnf \
+		-key distrust-after-ca-key.pem \
+		-out distrust-after-cross-csr.pem
+
+distrust-after-cross-cert.pem: distrust-after-cross-csr.pem distrust-after-cross.cnf ca1-cert.pem ca1-key.pem
+	openssl x509 -req \
+		-extfile distrust-after-cross.cnf \
+		-extensions v3_ca \
+		-days 99999 \
+		-passin "pass:password" \
+		-in distrust-after-cross-csr.pem \
+		-CA ca1-cert.pem \
+		-CAkey ca1-key.pem \
+		-CAcreateserial \
+		-out distrust-after-cross-cert.pem
 
 #
 # Create Subordinate Certificate Authority: ca4 issued by ca2
@@ -1388,7 +1479,7 @@ non-canonical-ip-dns-key.pem:
 	openssl ecparam -name prime256v1 -genkey -noout -out non-canonical-ip-dns-key.pem
 
 clean:
-	rm -f *.pfx $(filter-out blocked-ca-key.pem,$(wildcard *.pem)) *.srl ca2-database.txt ca2-crl-agent3-database.txt* ca2-crl-agent3.cnf ca2-serial fake-startcom-root-serial *.print *.old fake-startcom-root-issued-certs/*.pem
+	rm -f *.pfx $(filter-out blocked-ca-key.pem distrust-after-ca-key.pem,$(wildcard *.pem)) *.srl ca2-database.txt ca2-crl-agent3-database.txt* ca2-crl-agent3.cnf ca2-serial fake-startcom-root-serial distrust-after-ca-serial distrust-after-ca-database.txt* *.print *.old fake-startcom-root-issued-certs/*.pem distrust-after-ca-issued-certs/*.pem
 	@> fake-startcom-root-database.txt
 
 test: agent1-verify agent2-verify agent3-verify agent4-verify agent5-verify agent6-verify agent7-verify agent8-verify agent10-verify ec10-verify
