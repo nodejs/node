@@ -495,6 +495,8 @@ void RegisterSignalHandler(int signal,
   sa.sa_sigaction = handler;
   sa.sa_flags = reset_handler ? SA_RESETHAND : 0;
 #ifdef __MVS__
+  // SA_ONSTACK: to use alt stack (created in zosStart()) to not interfere
+  // with z/OS LE; SA_SIGINFO: to use handler specified by sa_sigaction.
   sa.sa_flags |= SA_ONSTACK | SA_SIGINFO;
 #endif
   sigfillset(&sa.sa_mask);
@@ -646,6 +648,7 @@ static void PlatformInit(ProcessInitializationFlags::Flags flags) {
     RegisterSignalHandler(SIGINT, SignalExit, true);
     RegisterSignalHandler(SIGTERM, SignalExit, true);
 #ifdef __MVS__
+    // See zosSignalExit() (called by SignalExit()) for its SIGABRT handling.
     RegisterSignalHandler(SIGABRT, SignalExit, true);
 #endif
   }
@@ -868,6 +871,8 @@ static ExitCode ProcessGlobalArgsInternal(std::vector<std::string>* args,
   }
 
 #ifdef __MVS__
+  // A trap with V8 frames on the stack ends with SIGKILL on z/OS. Those
+  // frames lack XPLINK metadata, so LE can't traverse the stack.
   V8::SetFlagsFromString("--nohard_abort", sizeof("--nohard_abort") - 1);
 #endif
 
@@ -1864,9 +1869,6 @@ static ExitCode StartInternal(int argc, char** argv) {
   });
 
   uv_loop_configure(uv_default_loop(), UV_METRICS_IDLE_TIME);
-#ifdef __MVS__
-  zosIgnorePipeChildSignals();
-#endif
   std::string sea_config = per_process::cli_options->experimental_sea_config;
   if (!sea_config.empty()) {
 #if defined(DISABLE_SINGLE_EXECUTABLE_APPLICATION)

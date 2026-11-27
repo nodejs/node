@@ -1,23 +1,6 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
+// z/OS-specific process setup: alternate signal stack, signal handler
+// threads and product registration. Used by node.cc and inspector_agent.cc;
+// compiled on z/OS only.
 
 #include "node_zos.h"
 #include "env-inl.h"
@@ -27,6 +10,8 @@
 #include <pthread.h>
 #include <signal.h>
 #include <sys/msg.h>
+
+#include <string>
 
 #ifndef NJS_PRODUCT_OWNER
 #error "NJS_PRODUCT_OWNER must be defined"
@@ -48,6 +33,9 @@ namespace {
 
 uv_thread_t signalHandlerThread;
 char* galtStack = nullptr;
+// Size of the alternate signal stack of the main thread and of the threads
+// that receive signals (see zosSetThreadAltStack()).
+const unsigned int kAltStackSize = SIGSTKSZ + 1024 * 1024;
 
 void __zosAtExit() {
   if (galtStack != nullptr) {
@@ -67,29 +55,57 @@ void zosDestroyThread() {
   __mainTerminating();
 }
 
+void zosSetThreadAltStack() {
+  // sigaltstack() is per-thread, so a thread that may receive signals needs
+  // its own alternate stack for SA_ONSTACK handlers to run on it.
+  // The stack is intentionally never freed: the callers live until process
+  // exit.
+  char* alt_stack = static_cast<char*>(malloc(kAltStackSize));
+  CHECK_NOT_NULL(alt_stack);
+  stack_t ss = {.ss_sp = alt_stack, .ss_size = kAltStackSize, .ss_flags = 0};
+  CHECK_EQ(0, sigaltstack(&ss, nullptr));
+}
+
 static void SignalHandlerThread(void* data) {
-  while (1) {
+  // Process-directed signals are delivered to this thread (all signals are
+  // blocked on the others), so it needs its own alternate stack.
+  zosSetThreadAltStack();
+
+  // This thread was created with all signals blocked, so that none could be
+  // delivered before the alternate stack was installed. Unblock them now.
+  sigset_t set;
+  sigfillset(&set);
+#if HAVE_INSPECTOR
+  // Keep SIGUSR1 blocked, as PlatformInit() left it, until the inspector
+  // installs its handler (see SigUsr1Posting() in inspector_agent.cc).
+  sigdelset(&set, SIGUSR1);
+#endif
+  CHECK_EQ(0, pthread_sigmask(SIG_UNBLOCK, &set, nullptr));
+
+  while (true) {
     CHECK_EQ(pause(), -1);
     CHECK_EQ(errno, EINTR);
   }
 }
 
 void zosCreateSignalHandler() {
-  uv_thread_create(&signalHandlerThread, SignalHandlerThread, nullptr);
-  // Block all signals on the main thread
+  // Block all signals on the main thread. The signal handler thread inherits
+  // this mask and unblocks the signals once its alternate stack is set.
   sigset_t set;
   sigfillset(&set);
   CHECK_EQ(0, pthread_sigmask(SIG_BLOCK, &set, nullptr));
+  CHECK_EQ(
+      0, uv_thread_create(&signalHandlerThread, SignalHandlerThread, nullptr));
 }
 
 void zosCancelSignalHandler() {
-  if (pthread_cancel(signalHandlerThread) == -1) abort();
+  if (pthread_cancel(signalHandlerThread) != 0) abort();
 }
 
 void zosSignalExit(int signo, siginfo_t* info, void* ucontext) {
   zosDestroyThread();
   // Use alternate stack in case LE uses main thread's sp upon termination.
-  struct sigaction new_action;
+  struct sigaction new_action = {};
   new_action.sa_flags = SA_ONSTACK;
   new_action.sa_handler = SIG_DFL;
   sigaction(signo, &new_action, nullptr);
@@ -97,16 +113,6 @@ void zosSignalExit(int signo, siginfo_t* info, void* ucontext) {
     abort();  // from zoslib
   else
     raise(signo);
-}
-
-void zosIgnorePipeChildSignals() {
-  struct sigaction new_action;
-  new_action.sa_handler = SIG_IGN;
-  sigfillset(&new_action.sa_mask);
-  sigaction(SIGPIPE, &new_action, nullptr);
-  new_action.sa_handler = SIG_IGN;
-  sigfillset(&new_action.sa_mask);
-  sigaction(SIGCHLD, &new_action, nullptr);
 }
 
 static void RegisterProduct() {
@@ -163,15 +169,22 @@ ExitCode zosStart() {
   }
 
   // Create an alternate stack for signal processing
-  const unsigned int STACK_SIZE = SIGSTKSZ + 1024 * 1024;
-  galtStack = reinterpret_cast<char*>(malloc(STACK_SIZE));
+  galtStack = reinterpret_cast<char*>(malloc(kAltStackSize));
   if (galtStack == nullptr) {
+    fprintf(stderr, "Error: could not allocate the alternate signal stack.\n");
     return ExitCode::kGenericUserError;
   }
-  stack_t ss = {.ss_sp = galtStack, .ss_size = STACK_SIZE, .ss_flags = 0};
-  sigaltstack(&ss, 0);
+
+  stack_t ss = {.ss_sp = galtStack, .ss_size = kAltStackSize, .ss_flags = 0};
+  if (sigaltstack(&ss, 0) != 0) {
+    fprintf(stderr, "Error: sigaltstack() failed, errno=%d.\n", errno);
+    return ExitCode::kGenericUserError;
+  }
 
   if (__doLogMemoryUsage()) atexit(__zosAtExit);
+
+  // Register Node.js for Tailored Fit Pricing.
+  RegisterProduct();
 
   return ExitCode::kNoFailure;
 }

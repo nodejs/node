@@ -1,10 +1,3 @@
-///////////////////////////////////////////////////////////////////////////////
-// Licensed Materials - Property of IBM
-// (C) Copyright IBM Corp. 2024. All Rights Reserved.
-// US Government Users Restricted Rights - Use, duplication
-// or disclosure restricted by GSA ADP Schedule Contract with IBM Corp.
-///////////////////////////////////////////////////////////////////////////////
-
 // This is linked to the node executable, so the global libpath object's
 // constructor searches for libnode DLL and sets LIBPATH, so libnode.so can be
 // loaded.
@@ -12,12 +5,21 @@
 #include <errno.h>
 #include <libgen.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/ps.h>
 #include <unistd.h>
 
-#include <sstream>
+#include <string>
 
 namespace {
+/* Append dir to the colon-separated list unless it's already in list. */
+void append_unique(std::string& list, const std::string& dir) {
+  if ((":" + list + ":").find(":" + dir + ":") != std::string::npos) return;
+  if (!list.empty()) list += ':';
+  list += dir;
+}
+
 class __setlibpath {
  public:
   __setlibpath() {
@@ -75,14 +77,13 @@ class __setlibpath {
           return;
         }
 
-        /* Append new paths to libpath. */
-        std::ostringstream libpath;
-        const char* lpenv = getenv("LIBPATH");
-        libpath << (lpenv != nullptr ? lpenv : "");
-        libpath << ":" << p2 << "/lib";
-        libpath << ":" << p << "/lib";
-        libpath << ":" << p << "/lib.target";
-        setenv("LIBPATH", libpath.str().c_str(), 1);
+        /* Append new paths to libpath, skipping any already present. */
+        const char* env = getenv("LIBPATH");
+        std::string libpath = env != nullptr ? env : "";
+        append_unique(libpath, std::string(p2) + "/lib");
+        append_unique(libpath, std::string(p) + "/lib");
+        append_unique(libpath, std::string(p) + "/lib.target");
+        setenv("LIBPATH", libpath.c_str(), 1);
         return;
       }
     }

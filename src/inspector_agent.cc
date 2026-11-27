@@ -41,6 +41,10 @@
 #include <climits>  // PTHREAD_STACK_MIN
 #endif  // __POSIX__
 
+#ifdef __MVS__
+#include "node_zos.h"
+#endif  // __MVS__
+
 #include <algorithm>
 #include <cstring>
 #include <sstream>
@@ -90,6 +94,29 @@ static void StartIoThreadWakeup(int signo, siginfo_t* info, void* ucontext) {
   uv_sem_post(&start_io_thread_semaphore);
 }
 
+#ifdef __MVS__
+// On z/OS, zosCreateSignalHandler() blocks all signals on the main thread, and
+// the signal handler thread in node_zos.cc keeps SIGUSR1 blocked (see
+// SignalHandlerThread()). This dedicated thread is therefore the one that
+// receives SIGUSR1: it installs the handler and unblocks the signal, so
+// delivery doesn't depend on the main thread.
+static void* SigUsr1Posting(void*) {
+  uv_thread_setname("SigUsr1Posting");
+  sigset_t sigmask;
+  // The handler is registered with SA_ONSTACK, and the alternate stack is
+  // per-thread.
+  zosSetThreadAltStack();
+  RegisterSignalHandler(SIGUSR1, StartIoThreadWakeup);
+  sigemptyset(&sigmask);
+  sigaddset(&sigmask, SIGUSR1);
+  CHECK_EQ(0, pthread_sigmask(SIG_UNBLOCK, &sigmask, nullptr));
+  while (true) {
+    CHECK_EQ(pause(), -1);
+    CHECK_EQ(errno, EINTR);
+  }
+}
+#endif  // __MVS__
+
 inline void* StartIoThreadMain(void* unused) {
   uv_thread_setname("SignalInspector");
   for (;;) {
@@ -136,7 +163,31 @@ static int StartWatchdogThread() {
     uv_sem_destroy(&start_io_thread_semaphore);
     return -err;
   }
+#ifdef __MVS__
+  // Start the thread that receives SIGUSR1 (see SigUsr1Posting()) instead of
+  // registering the handler here: this thread's mask blocks SIGUSR1 on z/OS.
+  // The new thread is created while all signals are still blocked, so it
+  // starts with SIGUSR1 blocked.
+  pthread_t thr;
+  pthread_attr_t thrattr;
+  CHECK_EQ(0, pthread_attr_init(&thrattr));
+  CHECK_EQ(0, pthread_attr_setdetachstate(&thrattr, PTHREAD_CREATE_DETACHED));
+  const int thr_err = pthread_create(&thr, &thrattr, SigUsr1Posting, nullptr);
+  CHECK_EQ(0, pthread_attr_destroy(&thrattr));
+  if (thr_err != 0) {
+    // Leave SIGUSR1 blocked, as no handler was installed. The semaphore is
+    // not destroyed: the thread started above is waiting on it.
+    CHECK_EQ(0, pthread_sigmask(SIG_SETMASK, &sigmask, nullptr));
+    fprintf(stderr,
+            "node[%u]: pthread_create: %s\n",
+            uv_os_getpid(),
+            strerror(thr_err));
+    fflush(stderr);
+    return -thr_err;
+  }
+#else
   RegisterSignalHandler(SIGUSR1, StartIoThreadWakeup);
+#endif  // __MVS__
   // Restore original mask
   CHECK_EQ(0, pthread_sigmask(SIG_SETMASK, &sigmask, nullptr));
   return 0;
@@ -152,12 +203,19 @@ static int StartDebugSignalHandler() {
       debug_signal_handler_started = true;
     }
   }
+#ifndef __MVS__
   // Unblock SIGUSR1 on this thread; PlatformInit() left it blocked. A pending
   // SIGUSR1 signal will now be delivered.
   sigset_t sigmask;
   sigemptyset(&sigmask);
   sigaddset(&sigmask, SIGUSR1);
   CHECK_EQ(0, pthread_sigmask(SIG_UNBLOCK, &sigmask, nullptr));
+#endif  // !__MVS__
+  // On z/OS, SIGUSR1 is deliberately left blocked on this thread: the thread
+  // started by StartWatchdogThread() (SigUsr1Posting()) unblocks it and
+  // receives it, including a signal that is already pending. Unblocking it here
+  // would also make this thread, whose signals zosCreateSignalHandler()
+  // blocks, a receiver of SIGUSR1.
   return 0;
 }
 #endif  // __POSIX__
