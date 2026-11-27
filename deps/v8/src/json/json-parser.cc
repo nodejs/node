@@ -6,6 +6,7 @@
 
 #include <optional>
 
+#include "hwy/highway.h"
 #include "src/base/small-vector.h"
 #include "src/base/strings.h"
 #include "src/builtins/builtins.h"
@@ -2514,20 +2515,75 @@ void JsonParser<Char>::DecodeString(SinkChar* sink, uint32_t start,
 
 template <typename Char>
 JsonString JsonParser<Char>::ScanJsonString(bool needs_internalization) {
+  namespace hw = hwy::HWY_NAMESPACE;
+
   DisallowGarbageCollection no_gc;
   uint32_t start = position();
   uint32_t offset = start;
   bool has_escape = false;
   base::uc32 bits = 0;
 
+  // SIMD constants for string scanning, hoisted out of the loop.
+  hw::CappedTag<Char, 16 / sizeof(Char)> tag;
+  const size_t stride = hw::Lanes(tag);
+  const auto mask_0x20 = hw::Set(tag, 0x20);
+  const auto mask_quote = hw::Set(tag, '"');
+  const auto mask_backslash = hw::Set(tag, '\\');
+  [[maybe_unused]] const auto mask_0xff =
+      hw::Set(tag, unibrow::Latin1::kMaxChar);
+
   while (true) {
-    cursor_ = std::find_if(cursor_, end_, [&bits](Char c) {
-      if (sizeof(Char) == 2 && V8_UNLIKELY(c > unibrow::Latin1::kMaxChar)) {
-        bits |= c;
-        return false;
+    if constexpr (sizeof(Char) == 2) {
+      // While all characters seen so far are Latin1 (<= 0xff), also check for
+      // characters > 0xff so `bits` tracks whether the string can be one-byte
+      // converted.
+      if (V8_LIKELY(bits <= unibrow::Latin1::kMaxChar)) {
+        for (; cursor_ + (stride - 1) < end_; cursor_ += stride) {
+          const auto input = hw::LoadU(tag, cursor_);
+          // TODO(floitsch): use operators for the comparisons when they are
+          // available on RISC-V.
+          const auto result = hw::Or(
+              hw::Or(hw::Lt(input, mask_0x20), hw::Eq(input, mask_quote)),
+              hw::Or(hw::Eq(input, mask_backslash), hw::Gt(input, mask_0xff)));
+          if (V8_LIKELY(hw::AllFalse(tag, result))) continue;
+          cursor_ += hw::FindKnownFirstTrue(tag, result);
+          break;
+        }
+        if (cursor_ < end_ &&
+            V8_UNLIKELY(*cursor_ > unibrow::Latin1::kMaxChar)) {
+          bits |= *cursor_;
+          ++cursor_;
+        }
       }
-      return MayTerminateJsonString(character_json_scan_flags[c]);
-    });
+    }
+    // For one-byte strings, or two-byte strings already known to contain a
+    // non-Latin1 character (bits > 0xff), scan for '"', '\', or control chars.
+    if (sizeof(Char) == 1 || V8_UNLIKELY(bits > unibrow::Latin1::kMaxChar)) {
+      for (; cursor_ + (stride - 1) < end_; cursor_ += stride) {
+        const auto input = hw::LoadU(tag, cursor_);
+        // TODO(floitsch): use operators for the comparisons when they are
+        // available on RISC-V.
+        const auto result =
+            hw::Or(hw::Or(hw::Lt(input, mask_0x20), hw::Eq(input, mask_quote)),
+                   hw::Eq(input, mask_backslash));
+        if (V8_LIKELY(hw::AllFalse(tag, result))) continue;
+        cursor_ += hw::FindKnownFirstTrue(tag, result);
+        break;
+      }
+    }
+    // Scalar fallback for remaining tail characters after the last full SIMD
+    // block. When the SIMD loop found a match, *cursor_ is already a special
+    // character and this immediately breaks.
+    for (; cursor_ < end_; ++cursor_) {
+      Char c = *cursor_;
+      if constexpr (sizeof(Char) == 2) {
+        if (V8_UNLIKELY(c > unibrow::Latin1::kMaxChar)) {
+          bits |= c;
+          continue;
+        }
+      }
+      if (MayTerminateJsonString(character_json_scan_flags[c])) break;
+    }
 
     if (V8_UNLIKELY(is_at_end())) {
       AllowGarbageCollection allow_before_exception;
