@@ -13,13 +13,13 @@ import { hasQuic, skip, mustCall, mustNotCall } from '../common/index.mjs';
 import assert from 'node:assert';
 import { createSocket } from 'node:dgram';
 import { Buffer } from 'node:buffer';
-import { hkdfSync, randomBytes } from 'node:crypto';
 import { dump } from 'node:stream/iter';
 
 if (!hasQuic) {
   skip('QUIC is not enabled');
 }
 
+const { hkdfSync, randomBytes } = await import('node:crypto');
 const { listen, connect } = await import('../common/quic.mjs');
 const { bytes } = await import('stream/iter');
 
