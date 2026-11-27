@@ -1,4 +1,4 @@
-// Flags: --permission --allow-fs-read=*
+// Flags: --permission --allow-fs-read=* --allow-fs-vfs
 'use strict';
 const common = require('../common');
 const assert = require('node:assert');
@@ -26,6 +26,10 @@ test('permission model blocks dynamic library access', () => {
 
   assert.throws(() => {
     new ffi.DynamicLibrary(dummyLibraryPath);
+  }, denied);
+  const vfsLibraryPath = `${require('node:vfs').create().mount()}/missing.so`;
+  assert.throws(() => {
+    new ffi.DynamicLibrary(vfsLibraryPath);
   }, denied);
 });
 

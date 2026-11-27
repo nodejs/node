@@ -614,8 +614,9 @@ void DynamicLibrary::New(const FunctionCallbackInfo<Value>& args) {
   // that lives somewhere the dynamic loader cannot open by path (a virtual
   // file system). Materialize them into a private, self-cleaning image - the
   // same mechanism process.dlopen() uses for such native addons - and load
-  // that, while still reporting the library's own path in `library.path` and
-  // any error.
+  // that. `library.path` and errors from materializing the image report the
+  // library's own path; a dlopen failure reports the image's path, as given
+  // by the dynamic loader.
   binding::AddonImage image;
   if (args.Length() > 1 && !args[1]->IsUndefined()) {
     if (!args[1]->IsArrayBufferView()) {
