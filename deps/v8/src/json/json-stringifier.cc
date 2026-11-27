@@ -3362,7 +3362,9 @@ size_t FastJsonStringifier<Char>::AppendEscapedChar(const SrcChar* chars,
                                                     size_t length, size_t i,
                                                     size_t uncopied_src_index) {
   SrcChar c = chars[i];
-  buffer_.Append(chars + uncopied_src_index, i - uncopied_src_index);
+  if (uncopied_src_index != i) {
+    buffer_.Append(chars + uncopied_src_index, i - uncopied_src_index);
+  }
   if constexpr (sizeof(SrcChar) == sizeof(base::uc16)) {
     if (base::IsInRange(c, static_cast<SrcChar>(0xD800),
                         static_cast<SrcChar>(0xDFFF))) {
@@ -3388,7 +3390,12 @@ size_t FastJsonStringifier<Char>::AppendEscapedChar(const SrcChar* chars,
     }
   }
   SBXCHECK_LT(c, 0x60);
-  AppendCStringUnchecked(&JsonEscapeTable[c * kJsonEscapeTableEntrySize]);
+  const char* escape = &JsonEscapeTable[c * kJsonEscapeTableEntrySize];
+  if (escape[1] == 'u') {
+    AppendCStringUnchecked(escape, 6);
+  } else {
+    AppendCStringUnchecked(escape, 2);
+  }
   return 1;
 }
 
@@ -3453,7 +3460,7 @@ bool FastJsonStringifier<Char>::AppendStringSIMD(
   [[maybe_unused]] const auto mask_0xd800 =
       hw::Set(tag, static_cast<SrcChar>(0xd800));
 
-  for (; block + (stride - 1) < end; block += stride) {
+  while (static_cast<size_t>(end - block) >= stride) {
     const auto input = hw::LoadU(tag, block);
     // TODO(floitsch): use operators for the comparisons when they are available
     // on RISC-V.
@@ -3469,18 +3476,33 @@ bool FastJsonStringifier<Char>::AppendStringSIMD(
     }
 
     // No character that needs escaping found in block.
-    if (V8_LIKELY(hw::AllFalse(tag, result))) continue;
+    if (V8_LIKELY(hw::AllFalse(tag, result))) {
+      block += stride;
+      continue;
+    }
 
     needs_escaping = true;
     size_t index = hw::FindKnownFirstTrue(tag, result);
     const size_t char_index = block - chars + index;
+    const size_t gap = char_index - uncopied_src_index;
     const size_t advance =
         AppendEscapedChar(chars, length, char_index, uncopied_src_index);
     uncopied_src_index = char_index + advance;
-    // Advance to character after the one that was found to need escaping.
-    block += index + advance;
-    // Subtract stride as it will be added again at the beginning of the loop.
-    block -= stride;
+    size_t i = uncopied_src_index;
+    if constexpr (sizeof(SrcChar) == sizeof(base::uc16)) {
+      // Avoid repeatedly scanning overlapping vectors in an escape-heavy run.
+      if (gap < stride) {
+        while (i < length && i - uncopied_src_index < stride) {
+          if (DoNotEscape(chars[i])) {
+            ++i;
+          } else {
+            i += AppendEscapedChar(chars, length, i, uncopied_src_index);
+            uncopied_src_index = i;
+          }
+        }
+      }
+    }
+    block = chars + i;
   }
 
   // Handle remaining characters.

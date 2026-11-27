@@ -15,3 +15,12 @@ for (const n of [7, 8, 9, 15, 16, 17]) {
   }
   assertThrows(() => JSON.parse('"' + prefix + '\n"'), SyntaxError);
 }
+
+// Exercise the transition from adjacent escapes back to an unescaped run.
+for (let n = 0; n < 16; n++) {
+  const head = '\u0100'.repeat(32 + n);
+  const tail = '\u0101'.repeat(32);
+  const text = head + '\n"\\\u000b\ud83d\ude00\udfff' + tail;
+  assertEquals('"' + head + '\\n\\"\\\\\\u000b\ud83d\ude00\\udfff' + tail + '"',
+               JSON.stringify(text));
+}
