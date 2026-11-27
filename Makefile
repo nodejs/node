@@ -1235,6 +1235,7 @@ $(PKG): release-only
 		--release-urlbase=$(RELEASE_URLBASE) \
 		$(CONFIG_FLAGS) $(BUILD_RELEASE_FLAGS)
 	$(MAKE) install V=$(V) DESTDIR=$(MACOSOUTDIR)/dist/node
+	$(MAKE) sbom SBOM_OUTPUT=$(MACOSOUTDIR)/installer/productbuild/Resources/node-$(FULLVERSION)-sbom.cdx.json
 	SIGN="$(CODESIGN_CERT)" PKGDIR="$(MACOSOUTDIR)/dist/node/usr/local" sh \
 		tools/osx-codesign.sh
 	mkdir -p $(MACOSOUTDIR)/dist/npm/usr/local/lib/node_modules
@@ -1437,6 +1438,7 @@ $(BINARYTAR): release-only
 	$(MAKE) install DESTDIR=$(BINARYNAME) V=$(V) PORTABLE=1
 	cp README.md $(BINARYNAME)
 	cp LICENSE $(BINARYNAME)
+	$(MAKE) sbom SBOM_OUTPUT=$(BINARYNAME)/node-$(FULLVERSION)-sbom.cdx.json
 ifeq ("$(wildcard $(CHANGELOG))","")
 	cp CHANGELOG.md $(BINARYNAME)
 else

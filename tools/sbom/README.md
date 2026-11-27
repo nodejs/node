@@ -1,5 +1,7 @@
 # SBOM generation
 
+> Stability: 1.0 - Early development
+
 Generates a [CycloneDX](https://cyclonedx.org/) Software Bill of Materials
 (SBOM) in JSON describing the bundled runtime dependencies of the Node.js
 binary.
@@ -28,6 +30,19 @@ The script can also be run directly:
 python tools/sbom/generate_sbom.py [--output PATH]
 python tools/sbom/generate_sbom.py --validate [--output PATH]
 ```
+
+## Release artifacts
+
+Binary release tarballs include a CycloneDX document named
+`node-<version>-sbom.cdx.json` at their root. It provides consumers with an
+inventory of the bundled dependencies, their versions, and the configured build
+environment, such as the C/C++ compilers used to build Node.js. This supports
+vulnerability assessment and supply-chain compliance without requiring
+consumers to build Node.js or generate the document themselves.
+
+The macOS installer includes the same document in its installer resources. To
+extract it, run `pkgutil --expand-full node-<version>.pkg <directory>` and find
+`node-<version>-sbom.cdx.json` under `<directory>`.
 
 ## What the SBOM contains
 
