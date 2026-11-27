@@ -14,6 +14,10 @@ assert.strictEqual(getFreeCallCount(), 0);
 
 const w = new Worker(`require(${JSON.stringify(binding)})`, { eval: true });
 
+// With the V8 sandbox, the data is copied into the sandbox and freed right
+// away, so the buffer created when loading the binding above is freed too.
+const expected = common.hasV8Sandbox ? 2 : 1;
+
 w.on('exit', common.mustCall(() => {
-  assert.strictEqual(getFreeCallCount(), 1);
+  assert.strictEqual(getFreeCallCount(), expected);
 }));
