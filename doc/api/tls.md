@@ -2564,7 +2564,11 @@ console.log(tls.getCertificateCompressionAlgorithms()); // ['zlib', 'brotli', 'z
 
 <!-- YAML
 added: v12.3.0
+deprecated: REPLACEME
 -->
+
+> Stability: 0 - Deprecated. Use [`tls.getCACertificates()`][] instead.
+> See [DEP0214][].
 
 * Type: {string\[]}
 
@@ -2638,6 +2642,7 @@ added: v0.11.3
 [CVE-2021-44531]: https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-44531
 [Chrome's 'modern cryptography' setting]: https://www.chromium.org/Home/chromium-security/education/tls#TOC-Cipher-Suites
 [DEP0213]: deprecations.md#dep0213-tls-renegotiation
+[DEP0214]: deprecations.md#dep0214-tlsrootcertificates
 [DHE]: https://en.wikipedia.org/wiki/Diffie%E2%80%93Hellman_key_exchange
 [ECDHE]: https://en.wikipedia.org/wiki/Elliptic_curve_Diffie%E2%80%93Hellman
 [IANA TLS Supported Groups registry]: https://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-8
