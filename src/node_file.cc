@@ -3092,14 +3092,13 @@ static void WriteBuffer(const FunctionCallbackInfo<Value>& args) {
   CHECK(IsSafeJsInt(args[2]));
   const int64_t off_64 = args[2].As<Integer>()->Value();
   CHECK_GE(off_64, 0);
-  CHECK_LE(static_cast<uint64_t>(off_64), buffer_length);
   const size_t off = static_cast<size_t>(off_64);
 
   CHECK(args[3]->IsInt32());
   const size_t len = static_cast<size_t>(args[3].As<Int32>()->Value());
-  CHECK(Buffer::IsWithinBounds(off, len, buffer_length));
-  CHECK_LE(len, buffer_length);
-  CHECK_GE(off + len, off);
+  if (!Buffer::IsWithinBounds(off, len, buffer_length)) {
+    return THROW_ERR_OUT_OF_RANGE(env, "buffer is out of bounds");
+  }
 
   const int64_t pos = GetOffset(args[4]);
 
@@ -3418,12 +3417,13 @@ static void Read(const FunctionCallbackInfo<Value>& args) {
   CHECK(IsSafeJsInt(args[2]));
   const int64_t off_64 = args[2].As<Integer>()->Value();
   CHECK_GE(off_64, 0);
-  CHECK_LT(static_cast<uint64_t>(off_64), buffer_length);
   const size_t off = static_cast<size_t>(off_64);
 
   CHECK(args[3]->IsInt32());
   const size_t len = static_cast<size_t>(args[3].As<Int32>()->Value());
-  CHECK(Buffer::IsWithinBounds(off, len, buffer_length));
+  if (!Buffer::IsWithinBounds(off, len, buffer_length)) {
+    return THROW_ERR_OUT_OF_RANGE(env, "buffer is out of bounds");
+  }
 
   CHECK(IsSafeJsInt(args[4]) || args[4]->IsBigInt());
   const int64_t pos = args[4]->IsNumber() ? args[4].As<Integer>()->Value()
