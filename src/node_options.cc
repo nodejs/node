@@ -824,7 +824,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kAllowedInEnvvar,
             true);
   AddOption("--experimental-yaml",
-            "experimental node:yaml module",
+            "experimental node:formats/yaml module",
             BOOL_FIELD(experimental_yaml),
             kAllowedInEnvvar);
   // Choosing the entry point is the command line's alone: an environment

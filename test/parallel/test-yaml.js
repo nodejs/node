@@ -3,7 +3,7 @@
 
 const common = require('../common');
 const assert = require('node:assert');
-const { parse } = require('node:yaml');
+const { parse } = require('node:formats/yaml');
 
 common.expectWarning('ExperimentalWarning', 'YAML is an experimental feature and might change at any time');
 

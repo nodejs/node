@@ -162,13 +162,13 @@ BuiltinLoader::BuiltinCategories BuiltinLoader::GetBuiltinCategories() const {
         "bench/reporters",  // Experimental.
         "dtls",             // Experimental.
         "ffi",              // Experimental.
+        "formats/yaml",     // Experimental.
         "quic",             // Experimental.
         "sqlite",           // Experimental.
         "stream/iter",      // Experimental.
         "sys",              // Deprecated.
         "vfs",              // Experimental.
         "wasi",             // Experimental.
-        "yaml",             // Experimental.
         "zlib/iter",        // Experimental.
 #if !HAVE_SQLITE
         "internal/webstorage",  // Experimental.

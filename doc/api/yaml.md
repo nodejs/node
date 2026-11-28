@@ -8,17 +8,17 @@ added: REPLACEME
 
 > Stability: 1.0 - Early development
 
-<!-- source_link=lib/yaml.js -->
+<!-- source_link=lib/formats/yaml.js -->
 
-The `node:yaml` module parses [YAML 1.2][] into JavaScript values. Enable it
-with [`--experimental-yaml`][] and import it with `node:`:
+The `node:formats/yaml` module parses [YAML 1.2][] into JavaScript values.
+Enable it with [`--experimental-yaml`][] and import it with `node:`:
 
 ```mjs
-import yaml from 'node:yaml';
+import yaml from 'node:formats/yaml';
 ```
 
 ```cjs
-const yaml = require('node:yaml');
+const yaml = require('node:formats/yaml');
 ```
 
 Loading the module emits an `ExperimentalWarning`.
@@ -50,7 +50,7 @@ mode, so `no` and `0777` are a string and the decimal number 777. A `%YAML`
 directive with a major version other than 1 throws.
 
 ```mjs
-import yaml from 'node:yaml';
+import yaml from 'node:formats/yaml';
 
 const config = yaml.parse(`
 name: app
@@ -85,7 +85,7 @@ instead of building an error. A document never has the value `undefined`, so
 the result is unambiguous.
 
 ```mjs
-import yaml from 'node:yaml';
+import yaml from 'node:formats/yaml';
 
 console.log(yaml.parse('a: [1, 2', { throwIfInvalid: false }));
 // undefined

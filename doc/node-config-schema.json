@@ -413,7 +413,7 @@
             },
             "experimental-yaml": {
               "type": "boolean",
-              "description": "experimental node:yaml module"
+              "description": "experimental node:formats/yaml module"
             },
             "extra-info-on-fatal-exception": {
               "type": "boolean",

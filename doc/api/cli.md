@@ -1772,7 +1772,7 @@ added: REPLACEME
 
 > Stability: 1.0 - Early development
 
-Enable the experimental [`node:yaml`][] module.
+Enable the experimental [`node:formats/yaml`][] module.
 
 ### `--force-context-aware`
 
@@ -5072,10 +5072,10 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`module.setSourceMapsSupport()`]: module.md#modulesetsourcemapssupportenabled-options
 [`net.getDefaultAutoSelectFamilyAttemptTimeout()`]: net.md#netgetdefaultautoselectfamilyattempttimeout
 [`node:ffi`]: ffi.md
+[`node:formats/yaml`]: yaml.md
 [`node:sqlite`]: sqlite.md
 [`node:stream/iter`]: stream_iter.md
 [`node:vfs`]: vfs.md
-[`node:yaml`]: yaml.md
 [`permission.drop()`]: permissions.md#permissiondropscope-reference
 [`process.setUncaughtExceptionCaptureCallback()`]: process.md#processsetuncaughtexceptioncapturecallbackfn
 [`session.connectToMainThread()`]: inspector.md#sessionconnecttomainthread
