@@ -37,3 +37,23 @@ for (const method of ['GET, HEAD']) {
     assert.deepStrictEqual(results, expected);
   }));
 }
+
+{
+  // Combined chunked end() may invoke onFinish() synchronously when the
+  // assigned socket's write() calls back immediately. The user callback
+  // must still be delivered as a successful finish, not ALREADY_FINISHED.
+  const writable = new stream.Writable({
+    write(chunk, encoding, callback) {
+      callback();
+    }
+  });
+
+  const res = new http.ServerResponse({
+    method: 'POST',
+    httpVersionMajor: 1,
+    httpVersionMinor: 1
+  });
+
+  res.assignSocket(writable);
+  res.end('hello', common.mustSucceed());
+}

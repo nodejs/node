@@ -26,12 +26,33 @@ const { mustCall, mustNotCall, mustCallAtLeast } = require('../common');
 const assert = require('assert');
 
 const { methods, HTTPParser } = require('internal/http/common');
+const { nativeHeadersToArray } = require('internal/test/binding')
+  .internalBinding('http_parser');
 const { REQUEST, RESPONSE } = HTTPParser;
 
 const kOnHeaders = HTTPParser.kOnHeaders | 0;
 const kOnHeadersComplete = HTTPParser.kOnHeadersComplete | 0;
 const kOnBody = HTTPParser.kOnBody | 0;
 const kOnMessageComplete = HTTPParser.kOnMessageComplete | 0;
+
+// Fast-path kOnHeadersComplete now passes a packed Buffer instead of a JS
+// string array. Materialize only when the test inspects them.
+function headerList(headers, fallback) {
+  if (headers != null && !Array.isArray(headers))
+    return nativeHeadersToArray(headers);
+  return headers || fallback || [];
+}
+
+function assertPackedLittleEndian(headers) {
+  if (headers == null || Array.isArray(headers))
+    return;
+  // Magic is the LE encoding of ASCII 'NHDR' on every architecture.
+  assert.strictEqual(headers[0], 0x4e);
+  assert.strictEqual(headers[1], 0x48);
+  assert.strictEqual(headers[2], 0x44);
+  assert.strictEqual(headers[3], 0x52);
+  assert.strictEqual(headers.readUInt32LE(0), HTTPParser.kNativeHeadersMagic);
+}
 
 // The purpose of this test is not to check HTTP compliance but to test the
 // binding. Tests for pathological http messages should be submitted
@@ -83,6 +104,7 @@ function expectBody(expected) {
     assert.strictEqual(versionMinor, 1);
     assert.strictEqual(method, methods.indexOf('GET'));
     assert.strictEqual(url || parser.url, '/hello');
+    assertPackedLittleEndian(headers);
   });
 
   const parser = newParser(REQUEST);
@@ -154,7 +176,7 @@ function expectBody(expected) {
     assert.strictEqual(method, undefined);
     assert.strictEqual(statusCode, 200);
     assert.strictEqual(statusMessage, 'Connection established');
-    assert.deepStrictEqual(headers || parser.headers, []);
+    assert.deepStrictEqual(headerList(headers, parser.headers), []);
   });
 
   const parser = newParser(RESPONSE);
@@ -228,7 +250,7 @@ function expectBody(expected) {
     assert.strictEqual(versionMajor, 1);
     assert.strictEqual(versionMinor, 0);
     assert.deepStrictEqual(
-      headers || parser.headers,
+      headerList(headers, parser.headers),
       ['X-Filler', '1337', 'X-Filler', '42', 'X-Filler2', '42']);
   });
 
@@ -258,7 +280,7 @@ function expectBody(expected) {
     assert.strictEqual(versionMajor, 1);
     assert.strictEqual(versionMinor, 0);
 
-    headers ||= parser.headers;
+    headers = headerList(headers, parser.headers);
 
     assert.strictEqual(headers.length, 2 * 256); // 256 key/value pairs
     for (let i = 0; i < headers.length; i += 2) {
@@ -484,7 +506,7 @@ function expectBody(expected) {
     assert.strictEqual(versionMajor, 1);
     assert.strictEqual(versionMinor, 1);
     assert.deepStrictEqual(
-      headers || parser.headers,
+      headerList(headers, parser.headers),
       ['Content-Type', 'text/plain', 'Transfer-Encoding', 'chunked']);
   });
 
@@ -537,7 +559,7 @@ function expectBody(expected) {
     assert.strictEqual(versionMajor, 1);
     assert.strictEqual(versionMinor, 1);
     assert.deepStrictEqual(
-      headers,
+      headerList(headers),
       ['Content-Type', 'text/plain', 'Transfer-Encoding', 'chunked']);
   });
 
@@ -548,7 +570,7 @@ function expectBody(expected) {
     assert.strictEqual(versionMajor, 1);
     assert.strictEqual(versionMinor, 0);
     assert.deepStrictEqual(
-      headers,
+      headerList(headers),
       ['Content-Type', 'text/plain', 'Content-Length', '4']
     );
   });
