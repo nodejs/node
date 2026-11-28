@@ -28,6 +28,7 @@ import { OptionsBinding } from './internalBinding/options';
 import { OSBinding } from './internalBinding/os';
 import { PerformanceBinding } from './internalBinding/performance';
 import { PermissionBinding } from './internalBinding/permission';
+import { PprofBinding } from './internalBinding/pprof';
 import { ProcessBinding } from './internalBinding/process';
 import { ProcessWrapBinding } from './internalBinding/process_wrap';
 import { ProfilerBinding } from './internalBinding/profiler';
@@ -82,6 +83,7 @@ interface InternalBindingMap {
   os: OSBinding;
   performance: PerformanceBinding;
   permission: PermissionBinding;
+  pprof: PprofBinding;
   process: ProcessBinding;
   process_wrap: ProcessWrapBinding;
   profiler: ProfilerBinding;

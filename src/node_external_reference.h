@@ -92,6 +92,7 @@ class ExternalReferenceRegistry {
   V(os)                                                                        \
   V(performance)                                                               \
   V(permission)                                                                \
+  V(pprof)                                                                     \
   V(process_methods)                                                           \
   V(process_object)                                                            \
   V(process_wrap)                                                              \
