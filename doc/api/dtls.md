@@ -70,7 +70,7 @@ DTLS is designed for UDP transport and differs from TLS in several key ways:
 added: v26.9.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/67837
     description: Added DTLS 1.3, enabled by default, and the `minVersion`
                  and `maxVersion` options.
 -->
@@ -183,7 +183,7 @@ console.log('DTLS server listening on', endpoint.address);
 added: v26.9.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/67837
     description: Added DTLS 1.3, enabled by default, and the `minVersion`
                  and `maxVersion` options.
 -->
@@ -263,7 +263,7 @@ session.onmessage = (data) => {
 added: v26.10.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/67837
     description: Added DTLS 1.3, enabled by default, and the `minVersion`
                  and `maxVersion` options.
 -->
