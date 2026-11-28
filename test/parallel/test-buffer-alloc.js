@@ -405,6 +405,18 @@ const base64flavors = ['base64', 'base64url'];
     b = Buffer.from(expectedIllegal, encoding);
     assert.strictEqual(quote.length, b.length);
     assert.strictEqual(quote, b.toString('ascii', 0, quote.length));
+
+    // Check that the base64 decoder ignores illegal chars in two-byte
+    // strings, including ones whose low byte is a base64 char or '='.
+    const expectedTwoByte = expected.slice(0, 60) + '\u4e2d' +
+                            expected.slice(60, 120) + '\u013d' +
+                            expected.slice(120, 180) + '\u0141' +
+                            expected.slice(180, 240) + '\u4e2d'.repeat(4) +
+                            expected.slice(240, 300) + '\u{1f600}' +
+                            expected.slice(300, 360);
+    b = Buffer.from(expectedTwoByte, encoding);
+    assert.strictEqual(quote.length, b.length);
+    assert.strictEqual(quote, b.toString('ascii', 0, quote.length));
   });
 }
 
@@ -654,6 +666,11 @@ assert.strictEqual(Buffer.from('A', 'hex').length, 0);
 
 // Test that if a trailing character is discarded, rest of string is processed.
 assert.deepStrictEqual(Buffer.from('Abx', 'hex'), Buffer.from('Ab', 'hex'));
+
+// Test that non-Latin1 characters whose low byte is a hex digit are rejected.
+assert.strictEqual(Buffer.from('\u0141\u0141', 'hex').length, 0);
+assert.deepStrictEqual(Buffer.from('Ab\u0141\u0141', 'hex'),
+                       Buffer.from('Ab', 'hex'));
 
 // Test single base64 char encodes as 0.
 assert.strictEqual(Buffer.from('A', 'base64').length, 0);
