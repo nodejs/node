@@ -3491,8 +3491,8 @@ bool FastJsonStringifier<Char>::AppendStringSIMD(
     size_t i = uncopied_src_index;
     if constexpr (sizeof(SrcChar) == sizeof(base::uc16)) {
       // Avoid repeatedly scanning overlapping vectors in an escape-heavy run.
-      if (gap < stride) {
-        while (i < length && i - uncopied_src_index < stride) {
+      if (gap < stride / 2) {
+        while (i < length && i - uncopied_src_index < stride / 2) {
           if (DoNotEscape(chars[i])) {
             ++i;
           } else {
