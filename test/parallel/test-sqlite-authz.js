@@ -367,6 +367,7 @@ suite('authorizer callback reentrancy', () => {
     const cases = {
       prepare: () => db.prepare('SELECT 1'),
       exec: () => db.exec('SELECT 1'),
+      transaction: () => db.transaction(() => {}),
       setAuthorizer: () => db.setAuthorizer(null),
       createSession: () => db.createSession(),
       applyChangeset: () => db.applyChangeset(new Uint8Array([1])),

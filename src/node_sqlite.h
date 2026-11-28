@@ -246,6 +246,7 @@ class Database : public BaseObject {
   static void Dispose(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Prepare(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Exec(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Transaction(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void CreateTagStore(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Location(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void CustomFunction(const v8::FunctionCallbackInfo<v8::Value>& args);

@@ -235,6 +235,50 @@ suite('sqlite.db.query diagnostics channel', () => {
     ]);
   });
 
+  it('subscriber receives the statements run by transaction()', (t) => {
+    let calls = [];
+    using db = new Database(':memory:');
+
+    const handler = (msg) => calls.push(msg.sql);
+    dc.subscribe('sqlite.db.query', handler);
+    t.after(() => dc.unsubscribe('sqlite.db.query', handler));
+
+    db.exec('CREATE TABLE t (x INTEGER)');
+    calls = []; // reset after setup
+
+    db.transaction(() => {
+      db.exec('INSERT INTO t VALUES (1)');
+      db.transaction(() => {});
+    }, { mode: 'immediate' });
+
+    assert.deepStrictEqual(calls, [
+      'BEGIN IMMEDIATE',
+      'INSERT INTO t VALUES (1)',
+      'SAVEPOINT node_sqlite_transaction',
+      'RELEASE node_sqlite_transaction',
+      'COMMIT',
+    ]);
+  });
+
+  it('transaction() rethrows the error from fn with a subscriber', (t) => {
+    using db = new Database(':memory:');
+
+    const handler = () => {};
+    dc.subscribe('sqlite.db.query', handler);
+    t.after(() => dc.unsubscribe('sqlite.db.query', handler));
+
+    db.exec('CREATE TABLE t (x INTEGER)');
+    const err = new Error('boom');
+    assert.throws(() => {
+      db.transaction(() => {
+        db.exec('INSERT INTO t VALUES (1)');
+        throw err;
+      });
+    }, (thrown) => thrown === err);
+    assert.strictEqual(db.isTransaction, false);
+    assert.deepStrictEqual(db.prepare('SELECT x FROM t').all(), []);
+  });
+
   it('does not replace an exception that is already pending', (t) => {
     using db = new Database(':memory:');
     let calls = 0;

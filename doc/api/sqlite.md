@@ -795,6 +795,120 @@ changes:
 Compiles a SQL statement into a [prepared statement][]. This method is a wrapper
 around [`sqlite3_prepare_v3()`][].
 
+### `database.transaction(fn[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `fn` {Function} The function to run inside the transaction. It is called
+  synchronously with no arguments.
+* `options` {Object} Optional configuration for the transaction.
+  * `mode` {string} The type of transaction to start. Must be one of
+    `'deferred'`, `'immediate'`, or `'exclusive'`. This option is ignored if a
+    transaction is already active. **Default:** `'deferred'`.
+* Returns: {any} The value returned by `fn`.
+
+Runs `fn` inside a transaction. The transaction is started with [`BEGIN`][]
+before `fn` is called and is committed when `fn` returns. If `fn` throws, the
+transaction is rolled back and the error is rethrown. If the commit fails, the
+transaction is rolled back and the error is thrown.
+
+If a transaction is already active, including one started by executing `BEGIN`
+directly, a [`SAVEPOINT`][] is used instead. This allows calls to
+`database.transaction()` to be nested. If a nested `fn` throws, only the changes
+made by that call are undone, and the enclosing transaction can still be
+committed if the error is handled.
+
+`fn` must be synchronous. If it returns a `Promise`, the transaction is rolled
+back and an [`ERR_INVALID_RETURN_VALUE`][] error is thrown.
+
+If `fn` ends the transaction itself, for example by executing `COMMIT` or
+`ROLLBACK`, this method does not commit or roll back when `fn` returns.
+
+The statements this method executes to manage the transaction are subject to
+the authorizer callback set with [`database.setAuthorizer()`][]. They are also
+published to the [`'sqlite.db.query'`][] channel, except for the rollback that
+follows an error.
+
+```mjs
+import { Database } from 'node:sqlite';
+
+const db = new Database(':memory:');
+db.exec('CREATE TABLE accounts(id INTEGER PRIMARY KEY, balance INTEGER)');
+db.exec('INSERT INTO accounts VALUES (1, 100), (2, 0)');
+
+using withdraw = db.prepare(
+  'UPDATE accounts SET balance = balance - ? WHERE id = ?');
+using deposit = db.prepare(
+  'UPDATE accounts SET balance = balance + ? WHERE id = ?');
+using balances = db.prepare('SELECT balance FROM accounts ORDER BY id');
+
+function transfer(amount, from, to) {
+  return db.transaction(() => {
+    withdraw.run(amount, from);
+    deposit.run(amount, to);
+    return amount;
+  }, { mode: 'immediate' });
+}
+
+console.log(transfer(40, 1, 2));
+// Prints: 40
+console.log(balances.all());
+// Prints: [ { balance: 60 }, { balance: 40 } ]
+
+try {
+  db.transaction(() => {
+    withdraw.run(10, 1);
+    throw new Error('Transfer cancelled');
+  });
+} catch (err) {
+  console.log(err.message);
+  // Prints: Transfer cancelled
+}
+console.log(balances.all());
+// Prints: [ { balance: 60 }, { balance: 40 } ]
+```
+
+```cjs
+const { Database } = require('node:sqlite');
+
+const db = new Database(':memory:');
+db.exec('CREATE TABLE accounts(id INTEGER PRIMARY KEY, balance INTEGER)');
+db.exec('INSERT INTO accounts VALUES (1, 100), (2, 0)');
+
+using withdraw = db.prepare(
+  'UPDATE accounts SET balance = balance - ? WHERE id = ?');
+using deposit = db.prepare(
+  'UPDATE accounts SET balance = balance + ? WHERE id = ?');
+using balances = db.prepare('SELECT balance FROM accounts ORDER BY id');
+
+function transfer(amount, from, to) {
+  return db.transaction(() => {
+    withdraw.run(amount, from);
+    deposit.run(amount, to);
+    return amount;
+  }, { mode: 'immediate' });
+}
+
+console.log(transfer(40, 1, 2));
+// Prints: 40
+console.log(balances.all());
+// Prints: [ { balance: 60 }, { balance: 40 } ]
+
+try {
+  db.transaction(() => {
+    withdraw.run(10, 1);
+    throw new Error('Transfer cancelled');
+  });
+} catch (err) {
+  console.log(err.message);
+  // Prints: Transfer cancelled
+}
+console.log(balances.all());
+// Prints: [ { balance: 60 }, { balance: 40 } ]
+```
+
 ### `database.createTagStore([maxSize])`
 
 <!-- YAML
@@ -2171,8 +2285,11 @@ callback function to indicate what type of operation is being authorized.
 [Writing numbers and BigInts]: #writing-numbers-and-bigints
 [`'sqlite.db.query'`]: diagnostics_channel.md#event-sqlitedbquery
 [`ATTACH DATABASE`]: https://www.sqlite.org/lang_attach.html
+[`BEGIN`]: https://www.sqlite.org/lang_transaction.html
+[`ERR_INVALID_RETURN_VALUE`]: errors.md#err_invalid_return_value
 [`ERR_INVALID_STATE`]: errors.md#err_invalid_state
 [`PRAGMA foreign_keys`]: https://www.sqlite.org/pragma.html#pragma_foreign_keys
+[`SAVEPOINT`]: https://www.sqlite.org/lang_savepoint.html
 [`SQLITE_DBCONFIG_DEFENSIVE`]: https://www.sqlite.org/c3ref/c_dbconfig_defensive.html#sqlitedbconfigdefensive
 [`SQLITE_DETERMINISTIC`]: https://www.sqlite.org/c3ref/c_deterministic.html
 [`SQLITE_DIRECTONLY`]: https://www.sqlite.org/c3ref/c_deterministic.html

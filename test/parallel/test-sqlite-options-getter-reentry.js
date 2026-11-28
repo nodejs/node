@@ -162,6 +162,20 @@ suite('closing the database from an options getter', () => {
     }, invalidState);
   });
 
+  test('transaction() throws instead of using a closed connection', (t) => {
+    using db = new Database(':memory:');
+    const fn = t.mock.fn();
+    t.assert.throws(() => {
+      db.transaction(fn, {
+        get mode() {
+          db.close();
+          return 'deferred';
+        },
+      });
+    }, invalidState);
+    t.assert.strictEqual(fn.mock.callCount(), 0);
+  });
+
   test('backup() throws instead of using a closed connection', (t) => {
     const db = new Database(':memory:');
     t.assert.throws(() => {
@@ -173,6 +187,22 @@ suite('closing the database from an options getter', () => {
       });
     }, invalidState);
   });
+});
+
+test('transaction() nests in a transaction started by a getter', (t) => {
+  using db = new Database(':memory:');
+  db.exec('CREATE TABLE data(key INTEGER PRIMARY KEY)');
+  db.transaction(() => {
+    db.exec('INSERT INTO data (key) VALUES (1)');
+  }, {
+    get mode() {
+      db.exec('BEGIN');
+      return 'deferred';
+    },
+  });
+  t.assert.strictEqual(db.isTransaction, true);
+  db.exec('ROLLBACK');
+  t.assert.deepStrictEqual(db.prepare('SELECT * FROM data').all(), []);
 });
 
 // The state check runs before the options bag is read, so a call that is
@@ -187,6 +217,7 @@ test('options getters do not run on an already-closed database', (t) => {
 
   const cases = {
     prepare: (db, options) => db.prepare('SELECT 1', options),
+    transaction: (db, options) => db.transaction(() => {}, options),
     function: (db, options) => db.function('fn', options, () => 1),
     aggregate: (db, options) => db.aggregate('agg', options),
     deserialize: (db, options) => db.deserialize(image, options),
@@ -201,6 +232,7 @@ test('options getters do not run on an already-closed database', (t) => {
   // rather than a type error from the returned value.
   const probes = {
     prepare: ['returnArrays', false],
+    transaction: ['mode', 'deferred'],
     function: ['useBigIntArguments', false],
     aggregate: ['start', 0],
     deserialize: ['dbName', 'main'],
