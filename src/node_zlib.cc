@@ -2125,8 +2125,10 @@ static inline uint32_t CRC32Impl(Isolate* isolate,
                                  uint32_t value) {
   return CallOnSequence<uint32_t>(
       isolate, data, [&](const char* ptr, size_t size) -> uint32_t {
+        // crc32_z() takes a z_size_t length; crc32() takes a uInt, which would
+        // truncate the length of inputs larger than 4 GiB.
         return static_cast<uint32_t>(
-            crc32(value, reinterpret_cast<const Bytef*>(ptr), size));
+            crc32_z(value, reinterpret_cast<const Bytef*>(ptr), size));
       });
 }
 
