@@ -4945,6 +4945,22 @@ This affects multiple TLS APIs:
   If renegotiation by clients is removed in future these are likely to be
   removed.
 
+### DEP0206: Piping to emitters without `prependListener`
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/62435
+    description: Runtime deprecation.
+-->
+
+Type: Runtime
+
+Piping to an EventEmitter that does not have a `prependListener` method is
+deprecated. The `prependListener` method has been available on EventEmitter
+since Node.js v6.0.0. The internal fallback code that manually manipulates
+the `_events` object will be removed in a future version.
+
 [DEP0142]: #dep0142-repl_builtinlibs
 [DEP0156]: #dep0156-aborted-property-and-abort-aborted-event-in-http
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
