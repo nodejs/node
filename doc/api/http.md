@@ -1763,7 +1763,7 @@ unless the user specified another socket type.
 added: v0.1.90
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/67851
     description: Added the `options` argument with the `timeout` option.
   - version:
       - v19.0.0
