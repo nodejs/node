@@ -287,6 +287,11 @@
     # Sets -DV8_ENABLE_SPARKPLUG.
     'v8_enable_sparkplug%': 1,
 
+    # Enable Sparkplug+ (dynamic patching of Sparkplug baseline code).
+    # Requires v8_enable_sparkplug.
+    # Sets -DV8_ENABLE_SPARKPLUG_PLUS.
+    'v8_enable_sparkplug_plus%': 0,
+
     # Whether custom embedder snapshots may extend (= allocate new objects in)
     # ReadOnlySpace.
     'v8_enable_extensible_ro_snapshot%': 1,
@@ -532,6 +537,9 @@
       }],
       ['v8_enable_sparkplug==1', {
         'defines': ['V8_ENABLE_SPARKPLUG',],
+      }],
+      ['v8_enable_sparkplug==1 and v8_enable_sparkplug_plus==1', {
+        'defines': ['V8_ENABLE_SPARKPLUG_PLUS',],
       }],
       ['v8_enable_maglev==1', {
         'defines': ['V8_ENABLE_MAGLEV',],
