@@ -20,7 +20,7 @@ that discourage, exhaust, or otherwise negatively affect other participants.
 * [Support](#support)
 * [Release types](#release-types)
   * [Download](#download)
-    * [Current and LTS releases](#current-and-lts-releases)
+    * [LTS, Current and Alpha releases](#lts-current-and-alpha-releases)
     * [Nightly releases](#nightly-releases)
     * [API documentation](#api-documentation)
   * [Verifying binaries](#verifying-binaries)
@@ -79,15 +79,23 @@ For more information, see the
 Binaries, installers, and source tarballs are available at
 <https://nodejs.org/en/download/>.
 
-#### Current and LTS releases
+#### LTS, Current and Alpha releases
 
 <https://nodejs.org/download/release/>
 
+The latest-_codename_ directory is an alias for the latest LTS release.
+For example, the
+[latest-lithium](https://nodejs.org/download/release/latest-lithium/)
+directory contains the latest Lithium (Node.js 26) release.
+
 The [latest](https://nodejs.org/download/release/latest/) directory is an
-alias for the latest Current release. The latest-_codename_ directory is an
-alias for the latest release from an LTS line. For example, the
-[latest-hydrogen](https://nodejs.org/download/release/latest-hydrogen/)
-directory contains the latest Hydrogen (Node.js 18) release.
+alias for the latest release, not including Alpha releases. The latest release
+is also an LTS release during an active Alpha phase, otherwise it is the Current
+release.
+
+The latest-_vn.x_ directories are aliases for the corresponding latest
+release of each `vn.x` release line. During an active Alpha phase,
+the alias is equivalent to the latest Alpha release.
 
 #### Nightly releases
 
