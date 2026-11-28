@@ -680,39 +680,60 @@ const regularFile = __filename;
   assert.rejects(async () => {
     await fsPromises.lstat(blockedFile);
   }, common.expectsError({
+    message: 'Access to this API has been restricted. Use --allow-fs-read to manage permissions.',
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemRead',
+    resource: path.toNamespacedPath(blockedFile),
   })).then(common.mustCall());
   assert.rejects(async () => {
     await fsPromises.lstat(blockedFileURL);
   }, common.expectsError({
+    message: 'Access to this API has been restricted. Use --allow-fs-read to manage permissions.',
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemRead',
+    resource: path.toNamespacedPath(blockedFile),
   })).then(common.mustCall());
   assert.rejects(async () => {
     await fsPromises.lstat(path.join(blockedFolder, 'anyfile'));
   }, common.expectsError({
+    message: 'Access to this API has been restricted. Use --allow-fs-read to manage permissions.',
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemRead',
+    resource: path.toNamespacedPath(path.join(blockedFolder, 'anyfile')),
   })).then(common.mustCall());
 }
 
 // fs.lstat
 {
+  fs.lstat(blockedFile, common.expectsError({
+    message: 'Access to this API has been restricted. Use --allow-fs-read to manage permissions.',
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemRead',
+    resource: path.toNamespacedPath(blockedFile),
+  }));
   assert.throws(() => {
     fs.lstatSync(blockedFile);
   }, common.expectsError({
+    message: 'Access to this API has been restricted. Use --allow-fs-read to manage permissions.',
     code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemRead',
+    resource: path.toNamespacedPath(blockedFile),
   }));
   assert.throws(() => {
     fs.lstatSync(bufferBlockedFile);
   }, common.expectsError({
+    message: 'Access to this API has been restricted. Use --allow-fs-read to manage permissions.',
     code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemRead',
+    resource: path.toNamespacedPath(blockedFile),
   }));
   assert.throws(() => {
     fs.lstatSync(path.join(blockedFolder, 'anyfile'));
   }, common.expectsError({
+    message: 'Access to this API has been restricted. Use --allow-fs-read to manage permissions.',
     code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemRead',
+    resource: path.toNamespacedPath(path.join(blockedFolder, 'anyfile')),
   }));
 
   // doesNotThrow
