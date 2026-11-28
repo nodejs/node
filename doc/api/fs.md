@@ -180,6 +180,9 @@ longer be used.
 <!-- YAML
 added: v10.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64611
+    description: The `data` argument supports {Blob}.
   - version:
     - v21.1.0
     - v20.10.0
@@ -196,7 +199,7 @@ changes:
                  strings anymore.
 -->
 
-* `data` {string|Buffer|TypedArray|DataView|AsyncIterable|Iterable}
+* `data` {string|Buffer|TypedArray|DataView|AsyncIterable|Iterable|Blob}
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `'utf8'`
   * `signal` {AbortSignal|undefined} allows aborting an in-progress writeFile. **Default:** `undefined`
@@ -1007,6 +1010,9 @@ the end of the file.
 <!-- YAML
 added: v10.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64611
+    description: The `data` argument supports {Blob}.
   - version:
       - v15.14.0
       - v14.18.0
@@ -1018,7 +1024,7 @@ changes:
                  strings anymore.
 -->
 
-* `data` {string|Buffer|TypedArray|DataView|AsyncIterable|Iterable}
+* `data` {string|Buffer|TypedArray|DataView|AsyncIterable|Iterable|Blob}
 * `options` {Object|string}
   * `encoding` {string|null} The expected character encoding when `data` is a
     string. **Default:** `'utf8'`
@@ -1026,7 +1032,8 @@ changes:
 * Returns: {Promise}
 
 Asynchronously writes data to a file, replacing the file if it already exists.
-`data` can be a string, a buffer, an {AsyncIterable}, or an {Iterable} object.
+`data` can be a string, a buffer, a {Blob}, an {AsyncIterable}, or an {Iterable}
+object.
 The promise is fulfilled with no arguments upon success.
 
 If `options` is a string, then it specifies the `encoding`.
@@ -1256,6 +1263,10 @@ the error raised if the file is not accessible.
 <!-- YAML
 added: v10.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64611
+    description: The `data` argument now supports typed arrays, `DataView`,
+                 `AsyncIterable`, `Iterable`, `Stream`, and {Blob}.
   - version:
     - v21.1.0
     - v20.10.0
@@ -1269,7 +1280,7 @@ changes:
 -->
 
 * `path` {string|Buffer|URL|FileHandle} filename or {FileHandle}
-* `data` {string|Buffer|TypedArray|DataView|AsyncIterable|Iterable}
+* `data` {string|Buffer|TypedArray|DataView|AsyncIterable|Iterable|Blob}
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `'utf8'`
   * `mode` {integer} **Default:** `0o666`
@@ -1279,7 +1290,8 @@ changes:
 * Returns: {Promise} Fulfills with `undefined` upon success.
 
 Asynchronously append data to a file, creating the file if it does not yet
-`data` can be a string, a buffer, an {AsyncIterable}, or an {Iterable} object.
+exist. `data` can be a string, a buffer, a {Blob}, an {AsyncIterable}, or an
+{Iterable} object.
 
 If `options` is a string, then it specifies the `encoding`.
 
@@ -2360,6 +2372,9 @@ All the [caveats][] for `fs.watch()` also apply to `fsPromises.watch()`.
 <!-- YAML
 added: v10.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/64611
+    description: The `data` argument supports {Blob}.
   - version:
     - v21.0.0
     - v20.10.0
@@ -2383,7 +2398,7 @@ changes:
 -->
 
 * `file` {string|Buffer|URL|FileHandle} filename or `FileHandle`
-* `data` {string|Buffer|TypedArray|DataView|AsyncIterable|Iterable}
+* `data` {string|Buffer|TypedArray|DataView|AsyncIterable|Iterable|Blob}
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `'utf8'`
   * `mode` {integer} **Default:** `0o666`
@@ -2395,9 +2410,10 @@ changes:
 * Returns: {Promise} Fulfills with `undefined` upon success.
 
 Asynchronously writes data to a file, replacing the file if it already exists.
-`data` can be a string, a buffer, an {AsyncIterable}, or an {Iterable} object.
+`data` can be a string, a buffer, a {Blob}, an {AsyncIterable}, or an {Iterable}
+object.
 
-The `encoding` option is ignored if `data` is a buffer.
+The `encoding` option is ignored if `data` is a buffer or a {Blob}.
 
 If `options` is a string, then it specifies the encoding.
 
