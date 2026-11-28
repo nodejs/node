@@ -1989,6 +1989,41 @@ added: v0.1.3
 Print node command-line options.
 The output of this option is less detailed than this document.
 
+### `--hide-internal-stack-frames`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Collapse stack frames that originate from Node.js internal modules (those
+whose file name starts with `node:internal/`), and from the wrapper scripts
+Node.js generates around [`--eval`][] and stdin input, in printed stack
+traces. Each
+run of consecutive internal frames is replaced with a single
+`at <node:internal> (N frames hidden)` line. Frames from user code and from
+public built-in modules such as `node:fs` are kept.
+
+```console
+$ node --hide-internal-stack-frames -e "require('node:fs').readFileSync('missing')"
+...
+Error: ENOENT: no such file or directory, open 'missing'
+    at Object.openSync (node:fs:779:18)
+    at Object.readFileSync (node:fs:625:35)
+    at [eval]:1:20
+    at <node:internal> (7 frames hidden) {
+...
+```
+
+This applies to `error.stack` and to the stack traces Node.js prints itself,
+such as those from [`--trace-uncaught`][], [`--trace-exit`][],
+[`--trace-sync-io`][], [`--process-timeout`][], and the JavaScript stack in a
+[diagnostic report][].
+
+Frames are collapsed after V8 collects them, so a trace still contains at most
+[`Error.stackTraceLimit`][] frames. The flag affects only the default
+formatter: an `Error.prepareStackTrace` function set by the user still
+receives every frame, and [`util.getCallSites()`][] is unaffected.
+
 ### `--icu-data-dir=file`
 
 <!-- YAML
@@ -4396,6 +4431,7 @@ one is included in the list below.
 * `--heap-prof`
 * `--heapsnapshot-near-heap-limit`
 * `--heapsnapshot-signal`
+* `--hide-internal-stack-frames`
 * `--http-parser`
 * `--icu-data-dir`
 * `--import`
@@ -5018,6 +5054,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`--enable-fips`]: #--enable-fips
 [`--env-file-if-exists`]: #--env-file-if-existsfile
 [`--env-file`]: #--env-filefile
+[`--eval`]: #-e---eval-script
 [`--experimental-sea-config`]: single-executable-applications.md#1-generating-single-executable-preparation-blobs
 [`--heap-prof-dir`]: #--heap-prof-dir
 [`--import`]: #--importmodule
@@ -5031,6 +5068,9 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`--redirect-warnings`]: #--redirect-warningsfile
 [`--report-on-process-timeout`]: #--report-on-process-timeout
 [`--require`]: #-r---require-module
+[`--trace-exit`]: #--trace-exit
+[`--trace-sync-io`]: #--trace-sync-io
+[`--trace-uncaught`]: #--trace-uncaught
 [`--use-env-proxy`]: #--use-env-proxy
 [`--use-system-ca`]: #--use-system-ca
 [`--watch`]: #--watch
@@ -5041,6 +5081,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING`]: errors.md#err_unsupported_node_modules_type_stripping
 [`ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX`]: errors.md#err_unsupported_typescript_syntax
 [`ERR_WEBASSEMBLY_NOT_SUPPORTED`]: errors.md#err_webassembly_not_supported
+[`Error.stackTraceLimit`]: errors.md#errorstacktracelimit
 [`NODE_OPTIONS`]: #node_optionsoptions
 [`NODE_USE_ENV_PROXY=1`]: #node_use_env_proxy1
 [`NODE_V8_COVERAGE=dir`]: #node_v8_coveragedir
@@ -5070,6 +5111,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`tls.DEFAULT_MAX_VERSION`]: tls.md#tlsdefault_max_version
 [`tls.DEFAULT_MIN_VERSION`]: tls.md#tlsdefault_min_version
 [`unhandledRejection`]: process.md#event-unhandledrejection
+[`util.getCallSites()`]: util.md#utilgetcallsitesframecount-options
 [`v8.startupSnapshot.addDeserializeCallback()`]: v8.md#v8startupsnapshotadddeserializecallbackcallback-data
 [`v8.startupSnapshot.setDeserializeMainFunction()`]: v8.md#v8startupsnapshotsetdeserializemainfunctioncallback-data
 [`v8.startupSnapshot` API]: v8.md#startup-snapshot-api

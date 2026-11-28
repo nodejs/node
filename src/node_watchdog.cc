@@ -144,10 +144,23 @@ std::string FormatProcessTimeoutHeader(const std::string& duration) {
 }
 // LCOV_EXCL_STOP
 
-std::string FormatJavaScriptStack(Isolate* isolate, Local<StackTrace> stack) {
+std::string FormatJavaScriptStack(Isolate* isolate,
+                                  Local<StackTrace> stack,
+                                  bool hide_internal) {
   std::string result;
+  int hidden = 0;
+  auto flush_hidden = [&]() {
+    if (hidden == 0) return;
+    result += "    at " + FormatHiddenStackFrames(hidden) + "\n";
+    hidden = 0;
+  };
   for (int i = 0; i < stack->GetFrameCount(); i++) {
     Local<StackFrame> frame = stack->GetFrame(isolate, i);
+    if (hide_internal && IsInternalStackFrame(isolate, frame)) {
+      hidden++;
+      continue;
+    }
+    flush_hidden();
     Utf8Value function_name(isolate, frame->GetFunctionName());
     Utf8Value script_name(isolate, frame->GetScriptName());
     const int line = frame->GetLineNumber();
@@ -159,6 +172,7 @@ std::string FormatJavaScriptStack(Isolate* isolate, Local<StackTrace> stack) {
           "    at %s (%s:%d:%d)\n", function_name, script_name, line, column);
     }
   }
+  flush_hidden();
   return result;
 }
 
@@ -352,7 +366,8 @@ std::string FormatProcessTimeoutDiagnostics(Environment* env) {
           .ToLocal(&stack) &&
       stack->GetFrameCount() > 0) {
     result += "Main thread was executing JavaScript:\n";
-    result += FormatJavaScriptStack(isolate, stack);
+    result += FormatJavaScriptStack(
+        isolate, stack, env->options()->hide_internal_stack_frames);
   } else {
     result += "Main thread was not executing JavaScript.\n";
   }
@@ -411,7 +426,10 @@ void RequestWorkerStacks(Environment* env,
             if (GetCurrentStackTrace(
                     isolate, static_cast<int>(worker_env->stack_trace_limit()))
                     .ToLocal(&trace)) {
-              stack = FormatJavaScriptStack(isolate, trace);
+              stack = FormatJavaScriptStack(
+                  isolate,
+                  trace,
+                  worker_env->options()->hide_internal_stack_frames);
             }
             resources = FormatResources(worker_env, "its");
           }

@@ -210,6 +210,7 @@ class EnvironmentOptions : public Options {
   DEFINE_BOOL_FIELD(print_required_tla) = false;
   DEFINE_BOOL_FIELD(require_module) = true;
   DEFINE_BOOL_FIELD(enable_source_maps) = false;
+  DEFINE_BOOL_FIELD(hide_internal_stack_frames) = false;
   DEFINE_BOOL_FIELD(experimental_addon_modules) = true;
   DEFINE_BOOL_FIELD(experimental_bench) = EXPERIMENTALS_DEFAULT_VALUE;
   DEFINE_BOOL_FIELD(experimental_eventsource) = EXPERIMENTALS_DEFAULT_VALUE;

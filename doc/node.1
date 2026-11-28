@@ -1079,6 +1079,33 @@ Heap.20190718.133405.15554.0.001.heapsnapshot
 Print node command-line options.
 The output of this option is less detailed than this document.
 .
+.It Fl -hide-internal-stack-frames
+Collapse stack frames that originate from Node.js internal modules (those
+whose file name starts with \fBnode:internal/\fR), and from the wrapper scripts
+Node.js generates around \fB--eval\fR and stdin input, in printed stack
+traces. Each
+run of consecutive internal frames is replaced with a single
+\fBat <node:internal> (N frames hidden)\fR line. Frames from user code and from
+public built-in modules such as \fBnode:fs\fR are kept.
+.Bd -literal
+$ node --hide-internal-stack-frames -e "require('node:fs').readFileSync('missing')"
+...
+Error: ENOENT: no such file or directory, open 'missing'
+    at Object.openSync (node:fs:779:18)
+    at Object.readFileSync (node:fs:625:35)
+    at [eval]:1:20
+    at <node:internal> (7 frames hidden) {
+...
+.Ed
+This applies to \fBerror.stack\fR and to the stack traces Node.js prints itself,
+such as those from \fB--trace-uncaught\fR, \fB--trace-exit\fR,
+\fB--trace-sync-io\fR, \fB--process-timeout\fR, and the JavaScript stack in a
+diagnostic report.
+Frames are collapsed after V8 collects them, so a trace still contains at most
+\fBError.stackTraceLimit\fR frames. The flag affects only the default
+formatter: an \fBError.prepareStackTrace\fR function set by the user still
+receives every frame, and \fButil.getCallSites()\fR is unaffected.
+.
 .It Fl -icu-data-dir Ns = Ns Ar file
 Specify ICU data load path. (Overrides \fBNODE_ICU_DATA\fR.)
 .
@@ -2368,6 +2395,8 @@ one is included in the list below.
 \fB--heapsnapshot-near-heap-limit\fR
 .It
 \fB--heapsnapshot-signal\fR
+.It
+\fB--hide-internal-stack-frames\fR
 .It
 \fB--http-parser\fR
 .It

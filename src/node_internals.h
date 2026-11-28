@@ -92,6 +92,18 @@ constexpr int kMaxFrameCountForLogging = 10;
 v8::MaybeLocal<v8::StackTrace> GetCurrentStackTrace(
     v8::Isolate* isolate, int frame_count = kMaxFrameCountForLogging);
 
+// Returns true if --hide-internal-stack-frames is in effect for the
+// Environment that is current on `isolate`.
+bool ShouldHideInternalStackFrames(v8::Isolate* isolate);
+// Returns true if `frame` belongs to a Node.js internal module (its script
+// name starts with "node:internal/") or to a generated "[eval]-wrapper"-style
+// script.
+bool IsInternalStackFrame(v8::Isolate* isolate,
+                          v8::Local<v8::StackFrame> frame);
+// The text that stands in for `count` consecutive hidden internal frames,
+// e.g. "<node:internal> (3 frames hidden)".
+std::string FormatHiddenStackFrames(int count);
+
 enum class StackTracePrefix {
   kAt,  // "    at "
   kNumber
