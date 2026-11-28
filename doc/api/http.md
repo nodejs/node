@@ -1757,11 +1757,14 @@ stream. If required, you can access the raw connection underlying the request
 via [`request.socket`][], which is guaranteed to be an instance of {net.Socket}
 unless the user specified another socket type.
 
-### `server.close([callback])`
+### `server.close([options][, callback])`
 
 <!-- YAML
 added: v0.1.90
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/67851
+    description: Added the `options` argument with the `timeout` option.
   - version:
       - v19.0.0
     pr-url: https://github.com/nodejs/node/pull/43522
@@ -1769,12 +1772,22 @@ changes:
 
 -->
 
+* `options` {Object}
+  * `timeout` {integer} The number of milliseconds to wait for the remaining
+    connections to end before destroying them. Must be greater than `0`.
+    **Default:** no timeout.
 * `callback` {Function}
 
 Stops the server from accepting new connections and closes all connections
 connected to this server which are not sending a request or waiting for
 a response.
 See [`net.Server.close()`][].
+
+By default, the server waits indefinitely for the remaining connections to
+end. If `options.timeout` is set, connections that are still open when it
+elapses are destroyed with [`server.closeAllConnections()`][], which interrupts
+any request in progress. Sockets upgraded to a different protocol, such as
+WebSocket or HTTP/2, are not destroyed.
 
 ```js
 const http = require('node:http');
@@ -5093,7 +5106,8 @@ const agent2 = new http.Agent({ proxyEnv: process.env });
 [`response.writeEarlyHints()`]: #responsewriteearlyhintshints-callback
 [`response.writeHead()`]: #responsewriteheadstatuscode-statusmessage-headers
 [`response.writeProcessing()`]: #responsewriteprocessingcallback
-[`server.close()`]: #serverclosecallback
+[`server.close()`]: #servercloseoptions-callback
+[`server.closeAllConnections()`]: #servercloseallconnections
 [`server.headersTimeout`]: #serverheaderstimeout
 [`server.keepAliveTimeoutBuffer`]: #serverkeepalivetimeoutbuffer
 [`server.keepAliveTimeout`]: #serverkeepalivetimeout

@@ -142,12 +142,20 @@ added: v0.3.4
 
 See [`http.Server`][] for more information.
 
-### `server.close([callback])`
+### `server.close([options][, callback])`
 
 <!-- YAML
 added: v0.1.90
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/67851
+    description: Added the `options` argument with the `timeout` option.
 -->
 
+* `options` {Object}
+  * `timeout` {integer} The number of milliseconds to wait for the remaining
+    connections to end before destroying them. Must be greater than `0`.
+    **Default:** no timeout.
 * `callback` {Function}
 * Returns: {https.Server}
 
@@ -765,7 +773,7 @@ statusCode: 200
 [`import()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/import
 [`net.Server`]: net.md#class-netserver
 [`new URL()`]: url.md#new-urlinput-base
-[`server.close()`]: http.md#serverclosecallback
+[`server.close()`]: http.md#servercloseoptions-callback
 [`server.closeAllConnections()`]: http.md#servercloseallconnections
 [`server.closeIdleConnections()`]: http.md#servercloseidleconnections
 [`server.headersTimeout`]: http.md#serverheaderstimeout
@@ -778,5 +786,5 @@ statusCode: 200
 [`tls.connect()`]: tls.md#tlsconnectoptions-callback
 [`tls.createSecureContext()`]: tls.md#tlscreatesecurecontextoptions
 [`tls.createServer()`]: tls.md#tlscreateserveroptions-secureconnectionlistener
-[httpsServerClose]: #serverclosecallback
+[httpsServerClose]: #servercloseoptions-callback
 [sni wiki]: https://en.wikipedia.org/wiki/Server_Name_Indication
