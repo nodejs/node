@@ -13,7 +13,7 @@ const tmpdir = require('../common/tmpdir');
 
 tmpdir.refresh();
 
-const subDirectory = path.join(tmpdir.path, 'nested');
+const subDirectory = tmpdir.resolve('nested');
 fs.mkdirSync(subDirectory);
 
 const testFileName = 'keep.txt';

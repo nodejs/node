@@ -4,7 +4,6 @@ import * as common from '../common/index.mjs';
 import { run } from 'node:test';
 import { writeFileSync, readFileSync } from 'node:fs';
 import tmpdir from '../common/tmpdir.js';
-import { join } from 'node:path';
 import fixtures from '../common/fixtures.js';
 import { skipIfNoWatch } from '../common/watch.js';
 
@@ -14,9 +13,9 @@ tmpdir.refresh();
 
 const testJs = fixtures.path('test-runner-watch', 'test.js');
 const testJsContent = readFileSync(testJs, 'utf8');
-writeFileSync(join(tmpdir.path, 'test.js'), testJsContent);
-writeFileSync(join(tmpdir.path, 'dependency.js'), 'module.exports = {};');
-writeFileSync(join(tmpdir.path, 'dependency.mjs'), 'export const a = 1;');
+writeFileSync(tmpdir.resolve('test.js'), testJsContent);
+writeFileSync(tmpdir.resolve('dependency.js'), 'module.exports = {};');
+writeFileSync(tmpdir.resolve('dependency.mjs'), 'export const a = 1;');
 
 const controller = new AbortController();
 const stream = run({

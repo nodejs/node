@@ -31,7 +31,7 @@ function createTmpFile(content = 'console.log(\'running\');', ext = '.js', basen
 }
 
 function createTmpDir() {
-  const dir = path.join(tmpdir.path, `${tmpFiles++}`);
+  const dir = tmpdir.resolve(`${tmpFiles++}`);
   mkdirSync(dir);
   return dir;
 }

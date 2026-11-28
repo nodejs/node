@@ -3,7 +3,7 @@ import { before, describe, it, run } from 'node:test';
 import assert from 'node:assert';
 import { spawnSync } from 'node:child_process';
 import { cp } from 'node:fs/promises';
-import { join, sep } from 'node:path';
+import { sep } from 'node:path';
 import tmpdir from '../common/tmpdir.js';
 import fixtures from '../common/fixtures.js';
 
@@ -26,7 +26,7 @@ describe('run() coverage with isolation: none', skipIfNoInspector, () => {
   for (const isolation of ['none', 'process']) {
     it(`reports src coverage and excludes test files by default (isolation=${isolation})`, async () => {
       const stream = run({
-        files: [join(tmpdir.path, 'tests', 'foo.test.mjs')],
+        files: [tmpdir.resolve('tests', 'foo.test.mjs')],
         coverage: true,
         isolation,
         cwd: tmpdir.path,
@@ -60,7 +60,7 @@ describe('run() coverage with isolation: none', skipIfNoInspector, () => {
   it('is idempotent when --experimental-test-coverage is also passed', async () => {
     const result = spawnSync(process.execPath, [
       '--experimental-test-coverage',
-      join(tmpdir.path, 'runner.mjs'),
+      tmpdir.resolve('runner.mjs'),
     ], { cwd: tmpdir.path });
     assert.strictEqual(
       result.status,

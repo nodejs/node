@@ -2,7 +2,6 @@
 import * as common from '../common/index.mjs';
 import { run } from 'node:test';
 import { writeFileSync } from 'node:fs';
-import { join } from 'node:path';
 import tmpdir from '../common/tmpdir.js';
 import { refreshForTestRunnerWatch, skipIfNoWatch, fixtureContent } from '../common/watch.js';
 
@@ -15,7 +14,7 @@ const stream = run({
 });
 
 stream.on('test:watch:restarted', common.mustNotCall());
-writeFileSync(join(tmpdir.path, 'test.js'), fixtureContent['test.js']);
+writeFileSync(tmpdir.resolve('test.js'), fixtureContent['test.js']);
 
 // eslint-disable-next-line no-unused-vars
 for await (const _ of stream);

@@ -26,7 +26,7 @@ const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
 (async () => {
-  const root = fs.mkdtempSync(path.join(tmpdir.path, 'watch-prefix-'));
+  const root = fs.mkdtempSync(tmpdir.resolve('watch-prefix-'));
 
   // Sibling names that share the prefix `foo` with the entries to delete.
   fs.mkdirSync(path.join(root, 'foo_bar'));
