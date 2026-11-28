@@ -2329,6 +2329,127 @@ void Database::Exec(const FunctionCallbackInfo<Value>& args) {
   CHECK_ERROR_OR_THROW(env->isolate(), db, r, SQLITE_OK, void());
 }
 
+// SQLite resolves savepoint names newest-first, so one name covers any depth.
+static constexpr char kTransactionSavepointSql[] =
+    "SAVEPOINT node_sqlite_transaction";
+static constexpr char kTransactionReleaseSql[] =
+    "RELEASE node_sqlite_transaction";
+static constexpr char kTransactionRollbackToSql[] =
+    "ROLLBACK TO node_sqlite_transaction; RELEASE node_sqlite_transaction";
+
+static bool InTransaction(Database* db) {
+  return sqlite3_get_autocommit(db->Connection()) == 0;
+}
+
+static int ExecTransactionSql(Database* db, const char* sql) {
+  return sqlite3_exec(db->Connection(), sql, nullptr, nullptr, nullptr);
+}
+
+// Returns the BEGIN statement for options.mode, or nullptr after throwing.
+static const char* ReadTransactionBeginSql(Environment* env,
+                                           Local<Value> options) {
+  std::string mode = "deferred";
+  if (!options->IsUndefined()) {
+    if (!options->IsObject()) {
+      THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
+                                 "The \"options\" argument must be an object.");
+      return nullptr;
+    }
+    if (!ReadOptionalString(env, options.As<Object>(), "mode", &mode)) {
+      return nullptr;
+    }
+  }
+
+  if (mode == "deferred") return "BEGIN DEFERRED";
+  if (mode == "immediate") return "BEGIN IMMEDIATE";
+  if (mode == "exclusive") return "BEGIN EXCLUSIVE";
+  THROW_ERR_INVALID_ARG_VALUE(
+      env->isolate(),
+      "The \"options.mode\" argument must be one of 'deferred', 'immediate', "
+      "or 'exclusive'.");
+  return nullptr;
+}
+
+// Calls fn and commits. Returns an empty handle with an exception pending on
+// failure, leaving any rollback to the caller.
+static MaybeLocal<Value> CallAndCommit(Environment* env,
+                                       Database* db,
+                                       Local<Function> fn,
+                                       bool nested) {
+  Isolate* isolate = env->isolate();
+  Local<Value> result;
+  if (!fn->Call(env->context(), Undefined(isolate), 0, nullptr)
+           .ToLocal(&result)) {
+    return {};
+  }
+
+  if (result->IsPromise()) {
+    THROW_ERR_INVALID_RETURN_VALUE(
+        isolate,
+        "Expected a non-Promise value to be returned from the \"fn\" function "
+        "but got an instance of Promise.");
+    return {};
+  }
+
+  if (!db->IsOpen()) {
+    THROW_ERR_INVALID_STATE(env, "database is not open");
+    return {};
+  }
+
+  // fn may have ended the transaction itself.
+  if (InTransaction(db)) {
+    int r = ExecTransactionSql(db, nested ? kTransactionReleaseSql : "COMMIT");
+    CHECK_ERROR_OR_THROW(isolate, db, r, SQLITE_OK, MaybeLocal<Value>());
+  }
+
+  return result;
+}
+
+void Database::Transaction(const FunctionCallbackInfo<Value>& args) {
+  Database* db;
+  ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+  THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
+  THROW_AND_RETURN_IF_IN_AUTHORIZER(env, db);
+
+  if (!args[0]->IsFunction()) {
+    THROW_ERR_INVALID_ARG_TYPE(isolate,
+                               "The \"fn\" argument must be a function.");
+    return;
+  }
+
+  const char* begin_sql = ReadTransactionBeginSql(env, args[1]);
+  if (begin_sql == nullptr) return;
+
+  // An options getter may have closed the database or begun a transaction.
+  THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
+  const bool nested = InTransaction(db);
+
+  // fn may drop every other reference to the database.
+  BaseObjectPtr<Database> guard(db);
+
+  int r = ExecTransactionSql(db, nested ? kTransactionSavepointSql : begin_sql);
+  CHECK_ERROR_OR_THROW(isolate, db, r, SQLITE_OK, void());
+
+  TryCatch try_catch(isolate);
+  Local<Value> result;
+  if (CallAndCommit(env, db, args[0].As<Function>(), nested).ToLocal(&result)) {
+    args.GetReturnValue().Set(result);
+    return;
+  }
+
+  // Best effort: a failed rollback must not replace the caught exception.
+  if (db->IsOpen() && InTransaction(db)) {
+    TryCatch rollback_try_catch(isolate);
+    USE(ExecTransactionSql(db,
+                           nested ? kTransactionRollbackToSql : "ROLLBACK"));
+    db->SetIgnoreNextSQLiteError(false);
+  }
+
+  if (try_catch.HasCaught()) try_catch.ReThrow();
+}
+
 void Database::CustomFunction(const FunctionCallbackInfo<Value>& args) {
   Database* db;
   ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
@@ -5159,6 +5280,7 @@ static void Initialize(Local<Object> target,
     SetProtoDispose(isolate, db_tmpl, Database::Dispose);
     SetProtoMethod(isolate, db_tmpl, "prepare", Database::Prepare);
     SetProtoMethod(isolate, db_tmpl, "exec", Database::Exec);
+    SetProtoMethod(isolate, db_tmpl, "transaction", Database::Transaction);
     SetProtoMethod(isolate, db_tmpl, "function", Database::CustomFunction);
     SetProtoMethod(
         isolate, db_tmpl, "createTagStore", Database::CreateTagStore);
