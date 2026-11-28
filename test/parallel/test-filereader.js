@@ -1,0 +1,373 @@
+// Flags: --expose-internals --experimental-web-worker --experimental-fileapi
+'use strict';
+
+const common = require('../common');
+const assert = require('node:assert');
+
+{
+  assert.strictEqual(typeof FileReader, 'function');
+  assert.strictEqual(typeof ProgressEvent, 'function');
+  assert.strictEqual(typeof FileReaderSync, 'function');
+}
+
+{
+  const reader = new FileReader();
+  assert.strictEqual(reader.readyState, FileReader.EMPTY);
+  assert.strictEqual(reader.result, null);
+  assert.strictEqual(reader.error, null);
+  for (const name of [
+    'onloadstart', 'onprogress', 'onload', 'onabort', 'onerror', 'onloadend',
+  ]) {
+    assert.strictEqual(reader[name], null);
+  }
+  assert.strictEqual(FileReader.EMPTY, 0);
+  assert.strictEqual(FileReader.LOADING, 1);
+  assert.strictEqual(FileReader.DONE, 2);
+  assert.strictEqual(FileReader.prototype.EMPTY, 0);
+  assert.throws(() => {
+    reader.readAsText({});
+  }, { code: 'ERR_INVALID_ARG_TYPE' });
+  assert.throws(() => {
+    FileReader.prototype.readAsText.call({}, new Blob());
+  }, { code: 'ERR_INVALID_THIS' });
+  reader.abort();
+  assert.strictEqual(reader.readyState, FileReader.EMPTY);
+  assert.strictEqual(reader.result, null);
+}
+
+{
+  const reader = new FileReader();
+  const events = [];
+  reader.addEventListener('loadstart', common.mustCall((event) => {
+    events.push('loadstart');
+    assert.ok(event instanceof ProgressEvent);
+    assert.strictEqual(event.isTrusted, true);
+    assert.strictEqual(reader.readyState, FileReader.LOADING);
+    assert.strictEqual(reader.result, null);
+  }));
+  reader.addEventListener('progress', common.mustCall((event) => {
+    events.push('progress');
+    assert.ok(event instanceof ProgressEvent);
+    assert.strictEqual(event.isTrusted, true);
+    assert.strictEqual(reader.readyState, FileReader.LOADING);
+    assert.strictEqual(reader.result, null);
+  }));
+  reader.addEventListener('load', common.mustCall((event) => {
+    events.push('load');
+    assert.ok(event instanceof ProgressEvent);
+    assert.strictEqual(event.isTrusted, true);
+    assert.strictEqual(reader.readyState, FileReader.DONE);
+    assert.strictEqual(reader.result, 'TEST');
+  }));
+  reader.addEventListener('loadend', common.mustCall((event) => {
+    events.push('loadend');
+    assert.ok(event instanceof ProgressEvent);
+    assert.strictEqual(event.isTrusted, true);
+    assert.deepStrictEqual(events, ['loadstart', 'progress', 'load', 'loadend']);
+  }));
+  reader.readAsText(new Blob(['TEST']));
+}
+
+{
+  const reader = new FileReader();
+  const events = [];
+  reader.onloadstart = common.mustCall(() => events.push('loadstart'));
+  reader.onprogress = common.mustNotCall();
+  reader.onload = common.mustCall(() => {
+    events.push('load');
+    assert.strictEqual(reader.result, '');
+  });
+  reader.onloadend = common.mustCall(() => {
+    events.push('loadend');
+    assert.deepStrictEqual(events, ['loadstart', 'load', 'loadend']);
+  });
+  reader.readAsText(new Blob());
+}
+
+{
+  const reader = new FileReader();
+  reader.onload = common.mustCall(() => {
+    assert.strictEqual(reader.result, '\u4554\u5453');
+  });
+  reader.readAsText(new Blob(['TEST']), 'UTF-16');
+}
+
+{
+  const data = [0xFE, 0xFF, 0x00, 0x68, 0x00, 0x65, 0x00, 0x6C, 0x00, 0x6C, 0x00, 0x6F];
+  const reader = new FileReader();
+  reader.onload = common.mustCall(() => {
+    assert.strictEqual(reader.result, 'hello');
+  });
+  reader.readAsText(new Blob([new Uint8Array(data)], {
+    type: 'text/plain;charset=UTF-16BE',
+  }));
+}
+
+{
+  const reader = new FileReader();
+  reader.onload = common.mustCall(() => {
+    assert.strictEqual(reader.result, 'data:text/plain;base64,VEVTVA==');
+    assert.strictEqual(reader.result instanceof ArrayBuffer, false);
+  });
+  reader.readAsDataURL(new Blob(['TEST'], { type: 'text/plain' }));
+}
+
+{
+  const reader = new FileReader();
+  reader.onload = common.mustCall(() => {
+    assert.strictEqual(
+      reader.result,
+      'data:;base64,VEVTVA==');
+  });
+  reader.readAsDataURL(new Blob(['TEST']));
+}
+
+{
+  const reader = new FileReader();
+  reader.onload = common.mustCall(() => {
+    assert.ok(reader.result instanceof ArrayBuffer);
+    assert.deepStrictEqual(
+      new Uint8Array(reader.result),
+      new Uint8Array([84, 69, 83, 84]));
+  });
+  reader.readAsArrayBuffer(new Blob(['TEST']));
+}
+
+{
+  const reader = new FileReader();
+  reader.onload = common.mustCall(() => {
+    assert.strictEqual(reader.result, '\xcf\x83');
+  });
+  reader.readAsBinaryString(new Blob(['σ']));
+}
+
+{
+  const reader = new FileReader();
+  const blob = new Blob(['TEST THE ABORT METHOD']);
+  reader.onloadstart = common.mustCall(() => {
+    assert.strictEqual(reader.readyState, FileReader.LOADING);
+    reader.onabort = common.mustCall((event) => {
+      assert.strictEqual(event.type, 'abort');
+      assert.strictEqual(event.bubbles, false);
+      assert.strictEqual(event.cancelable, false);
+      assert.ok(event instanceof ProgressEvent);
+      assert.strictEqual(reader.readyState, FileReader.DONE);
+      assert.strictEqual(reader.result, null);
+    });
+    reader.onloadend = common.mustCall(() => {
+      assert.strictEqual(reader.readyState, FileReader.DONE);
+    });
+    reader.onload = common.mustNotCall();
+    reader.abort();
+  });
+  reader.readAsText(blob);
+}
+
+{
+  const reader = new FileReader();
+  reader.readAsText(new Blob(['one']));
+  assert.throws(() => {
+    reader.readAsText(new Blob(['two']));
+  }, { name: 'InvalidStateError' });
+}
+
+{
+  const first = new FileReader();
+  first.onloadstart = common.mustCall(() => {
+    first.abort();
+    first.onloadstart = null;
+    first.onloadend = common.mustCall(() => {
+      assert.strictEqual(first.result, 'second');
+    });
+    first.readAsText(new Blob(['second']));
+  });
+  first.readAsText(new Blob(['first']));
+}
+
+{
+  const event = new ProgressEvent('progress', {
+    lengthComputable: true,
+    loaded: 3,
+    total: 4,
+    bubbles: true,
+  });
+  assert.strictEqual(event.type, 'progress');
+  assert.strictEqual(event.lengthComputable, true);
+  assert.strictEqual(event.loaded, 3);
+  assert.strictEqual(event.total, 4);
+  assert.strictEqual(event.bubbles, true);
+  assert.strictEqual(event.cancelable, false);
+  assert.throws(() => new ProgressEvent('load', { loaded: Infinity }), {
+    code: 'ERR_INVALID_ARG_TYPE',
+  });
+  assert.throws(() => ProgressEvent.prototype.loaded, {
+    code: 'ERR_INVALID_THIS',
+  });
+  assert.strictEqual(new ProgressEvent('load').isTrusted, false);
+}
+
+{
+  const reader = new FileReader();
+  reader.onload = common.mustCall(() => {
+    assert.strictEqual(reader.result, '\uFFFD');
+  });
+  reader.readAsText(new Blob(['hello']), 'iso-2022-kr');
+}
+
+{
+  const reader = new FileReader();
+  reader.onload = common.mustCall(() => {
+    assert.strictEqual(reader.result, '');
+  });
+  reader.readAsText(new Blob(), 'iso-2022-kr');
+}
+
+{
+  const blob = new Blob(['TEST']);
+  blob.stream = () => {
+    throw new Error('public stream should not be used');
+  };
+  Object.defineProperty(blob, 'type', {
+    get() { return 'text/evil'; },
+  });
+  const reader = new FileReader();
+  reader.onload = common.mustCall(() => {
+    assert.strictEqual(reader.result, 'data:;base64,VEVTVA==');
+  });
+  reader.readAsDataURL(blob);
+}
+
+{
+  const sync = new FileReaderSync();
+  const blob = new Blob(['test']);
+  assert.strictEqual(sync.readAsText(blob), 'test');
+  assert.strictEqual(sync.readAsText(new Blob()), '');
+  assert.strictEqual(sync.readAsBinaryString(blob), 'test');
+  assert.strictEqual(sync.readAsArrayBuffer(blob).byteLength, 4);
+  assert.strictEqual(sync.readAsDataURL(new Blob()).indexOf('data:'), 0);
+}
+
+{
+  const { Worker: ThreadWorker } = require('node:worker_threads');
+  const thread = new ThreadWorker(`
+    const { parentPort } = require('node:worker_threads');
+    parentPort.postMessage(new FileReaderSync().readAsText(new Blob(['thread'])));
+  `, { eval: true });
+  thread.on('message', common.mustCall((data) => {
+    assert.strictEqual(data, 'thread');
+  }));
+}
+
+if (common.hasCrypto) {
+  const source = `
+    const sync = new FileReaderSync();
+    const blob = new Blob(['test']);
+    const empty = new Blob();
+    postMessage({
+      hasReader: typeof FileReader === 'function',
+      text: sync.readAsText(blob),
+      empty: sync.readAsText(empty),
+      binary: sync.readAsBinaryString(blob),
+      url: sync.readAsDataURL(empty),
+      bytes: sync.readAsArrayBuffer(blob).byteLength,
+    });
+  `;
+  const url = URL.createObjectURL(new Blob([source], { type: 'text/javascript' }));
+  const worker = new Worker(url);
+  URL.revokeObjectURL(url);
+  worker.onerror = common.mustNotCall('worker failed');
+  worker.onmessage = common.mustCall(({ data }) => {
+    worker.terminate();
+    assert.strictEqual(data.hasReader, true);
+    assert.strictEqual(data.text, 'test');
+    assert.strictEqual(data.empty, '');
+    assert.strictEqual(data.binary, 'test');
+    assert.strictEqual(data.url.indexOf('data:'), 0);
+    assert.strictEqual(data.bytes, 4);
+  });
+}
+
+{
+  const reader = new FileReader();
+  const order = [];
+  reader.onload = common.mustCall(() => {
+    setImmediate(common.mustCall(() => {
+      order.push('immediate');
+      assert.deepStrictEqual(order, ['loadend', 'immediate']);
+    }));
+  });
+  reader.onloadend = common.mustCall(() => {
+    order.push('loadend');
+  });
+  reader.readAsText(new Blob(['x']));
+}
+
+{
+  assert.throws(() => {
+    new ProgressEvent(Symbol(), new Proxy({ __proto__: null }, {
+      get() {
+        throw new Error('argument 2 was read');
+      },
+    }));
+  }, TypeError);
+}
+
+{
+  const reader = new FileReader();
+  reader.onload = common.mustCall(() => {
+    assert.strictEqual(
+      reader.result,
+      'data:text/plain;x=%23;base64,aGVsbG8=');
+  });
+  reader.readAsDataURL(new Blob(['hello'], { type: 'text/plain;x=#' }));
+}
+
+{
+  // A comma ends the media type in the Fetch data URL processor, even inside
+  // a quoted parameter, so it must be escaped to round-trip.
+  const reader = new FileReader();
+  reader.onload = common.mustCall(async () => {
+    assert.strictEqual(
+      reader.result,
+      'data:text/plain;x="a%2Cb";base64,aGVsbG8=');
+    const response = await fetch(reader.result);
+    assert.strictEqual(await response.text(), 'hello');
+  });
+  reader.readAsDataURL(new Blob(['hello'], { type: 'text/plain;x="a,b"' }));
+}
+
+{
+  // A read started from promise jobs queued by onload suppresses the first
+  // read's loadend, as browsers do. Only the second read fires loadend.
+  const reader = new FileReader();
+  const events = [];
+  reader.onload = common.mustCall(async () => {
+    reader.onload = null;
+    await null;
+    await null;
+    await null;
+    events.push('second read');
+    reader.readAsText(new Blob(['second']));
+  });
+  reader.onloadend = common.mustCall(() => {
+    events.push('loadend');
+    assert.deepStrictEqual(events, ['second read', 'loadend']);
+  });
+  reader.readAsText(new Blob(['first']));
+}
+
+{
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const path = require('node:path');
+  const file = path.join(os.tmpdir(), `node-filereader-${process.pid}.txt`);
+  fs.writeFileSync(file, 'x');
+  fs.openAsBlob(file).then(common.mustCall((blob) => {
+    fs.unlinkSync(file);
+    const reader = new FileReader();
+    reader.onerror = common.mustCall(() => {
+      assert.strictEqual(reader.error.name, 'NotFoundError');
+    });
+    reader.readAsText(blob);
+  }));
+}
