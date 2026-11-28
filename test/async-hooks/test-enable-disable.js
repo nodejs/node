@@ -1,3 +1,4 @@
+// Flags: --no-deprecation
 //  Test Steps Explained
 //  ====================
 //

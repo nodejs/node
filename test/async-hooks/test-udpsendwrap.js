@@ -1,4 +1,4 @@
-// Flags: --test-udp-no-try-send
+// Flags: --test-udp-no-try-send --no-deprecation
 'use strict';
 
 const common = require('../common');

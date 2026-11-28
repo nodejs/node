@@ -15,7 +15,8 @@ const {
 checkTraceProcessor();
 
 const CODE =
-  'setTimeout(() => { for (let i = 0; i < 100000; i++) { "test" + i } }, 1)';
+  'setTimeout(() => { for (let i = 0; i < 100000; i++) { "test" + i } }, 1);' +
+  'Promise.resolve().then(() => {});';
 
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
@@ -57,6 +58,18 @@ proc.once('exit', common.mustCall(() => {
     if (trace.cat !== traceCategory('node.async_hooks'))
       return false;
     if (trace.name !== 'Timeout')
+      return false;
+    return true;
+  }));
+
+  // Promises are not AsyncWrap resources, their trace events are generated
+  // from JavaScript as well.
+  assert(traces.some((trace) => {
+    if (trace.pid !== proc.pid)
+      return false;
+    if (trace.cat !== traceCategory('node.async_hooks'))
+      return false;
+    if (trace.name !== 'PROMISE')
       return false;
     return true;
   }));

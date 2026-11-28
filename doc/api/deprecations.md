@@ -4945,6 +4945,30 @@ This affects multiple TLS APIs:
   If renegotiation by clients is removed in future these are likely to be
   removed.
 
+### DEP0214: `async_hooks.createHook()`
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/67271
+    description: Runtime deprecation.
+-->
+
+Type: Runtime
+
+[`async_hooks.createHook()`][] is deprecated. The callbacks it registers run for
+every asynchronous resource created in the process, which has a significant
+performance cost, and they expose internal implementation details that change
+between Node.js versions.
+
+Use [`AsyncLocalStorage`][] to propagate state across asynchronous operations,
+and [`diagnostics_channel`][] (in particular [`TracingChannel`][]) to observe
+operations for tracing and monitoring. [`process.getActiveResourcesInfo()`][]
+returns the types of the resources that keep the event loop alive.
+
+`async_hooks.createHook()` may be put behind a command-line flag or removed in
+a future version of Node.js.
+
 [DEP0142]: #dep0142-repl_builtinlibs
 [DEP0156]: #dep0156-aborted-property-and-abort-aborted-event-in-http
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
@@ -4958,6 +4982,7 @@ This affects multiple TLS APIs:
 [`--pending-deprecation`]: cli.md#--pending-deprecation
 [`--throw-deprecation`]: cli.md#--throw-deprecation
 [`--unhandled-rejections`]: cli.md#--unhandled-rejectionsmode
+[`AsyncLocalStorage`]: async_context.md#class-asynclocalstorage
 [`Buffer.allocUnsafeSlow(size)`]: buffer.md#static-method-bufferallocunsafeslowsize-alignment
 [`Buffer.from(array)`]: buffer.md#static-method-bufferfromarray
 [`Buffer.from(buffer)`]: buffer.md#static-method-bufferfrombuffer
@@ -4975,9 +5000,11 @@ This affects multiple TLS APIs:
 [`Server.getConnections()`]: net.md#servergetconnectionscallback
 [`Server.listen({fd: <number>})`]: net.md#serverlistenhandle-backlog-callback
 [`String.prototype.toWellFormed`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/toWellFormed
+[`TracingChannel`]: diagnostics_channel.md#class-tracingchannel
 [`WriteStream.open()`]: fs.md#class-fswritestream
 [`assert`]: assert.md
 [`asyncResource.runInAsyncScope()`]: async_context.md#asyncresourceruninasyncscopefn-thisarg-args
+[`async_hooks.createHook()`]: async_hooks.md#async_hookscreatehookoptions
 [`buffer.subarray`]: buffer.md#bufsubarraystart-end
 [`child_process.execFile`]: child_process.md#child_processexecfilefile-args-options-callback
 [`child_process.exec`]: child_process.md#child_processexeccommand-options-callback
@@ -4997,6 +5024,7 @@ This affects multiple TLS APIs:
 [`crypto.scrypt()`]: crypto.md#cryptoscryptpassword-salt-keylen-options-callback
 [`decipher.final()`]: crypto.md#decipherfinaloutputencoding
 [`decipher.setAuthTag()`]: crypto.md#deciphersetauthtagbuffer-encoding
+[`diagnostics_channel`]: diagnostics_channel.md
 [`dirent.parentPath`]: fs.md#direntparentpath
 [`dns.lookup()`]: dns.md#dnslookuphostname-options-callback
 [`dnsPromises.lookup()`]: dns.md#dnspromiseslookuphostname-options

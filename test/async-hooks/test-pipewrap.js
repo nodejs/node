@@ -1,7 +1,7 @@
 // NOTE: this also covers process wrap as one is created along with the pipes
 // when we launch the sleep process
 'use strict';
-// Flags: --expose-gc
+// Flags: --expose-gc --no-deprecation
 
 const common = require('../common');
 const assert = require('assert');

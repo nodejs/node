@@ -1,3 +1,4 @@
+// Flags: --no-deprecation
 'use strict';
 
 // Regression test for https://github.com/nodejs/node/issues/13262

@@ -1,3 +1,4 @@
+// Flags: --no-deprecation
 // Covers TCPWRAP and related TCPCONNECTWRAP
 'use strict';
 
