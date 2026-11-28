@@ -5,15 +5,19 @@
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
 #include "node_bob-inl.h"
+#include "node_buffer.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
 #include "node_file.h"
 #include "path.h"
 #include "permission/permission.h"
 #include "util.h"
+#include "uv.h"
 #include "v8.h"
 
 #include <algorithm>
+#include <string>
+#include <string_view>
 
 namespace node {
 
@@ -112,8 +116,35 @@ void BlobFromFilePath(const FunctionCallbackInfo<Value>& args) {
   ToNamespacedPath(env, &path);
   THROW_IF_INSUFFICIENT_PERMISSIONS(
       env, permission::PermissionScope::kFileSystemRead, path.ToStringView());
+
+  std::string_view backing_path = path.ToStringView();
+#ifndef _WIN32
+  std::string pinned;
+  if (!backing_path.empty() && backing_path.front() != '/') {
+    // Keep ".." intact so that the filesystem can resolve it through symlinks.
+    size_t size = PATH_MAX_BYTES;
+    pinned.resize(size);
+    int err = uv_cwd(pinned.data(), &size);
+    if (err == UV_ENOBUFS) {
+      pinned.resize(size);
+      err = uv_cwd(pinned.data(), &size);
+    }
+    if (err != 0) return env->ThrowUVException(err, "getcwd");
+    pinned.resize(size);
+    if (!pinned.ends_with('/')) pinned.push_back('/');
+    pinned.append(backing_path);
+    backing_path = pinned;
+  }
+#endif
+
+  Local<Object> stored_path;
+  if (!Buffer::Copy(env->isolate(), backing_path.data(), backing_path.size())
+           .ToLocal(&stored_path)) {
+    return;
+  }
+
   int status = 0;
-  auto entry = DataQueue::CreateFdEntry(env, args[0], &status);
+  auto entry = DataQueue::CreateFdEntry(env, stored_path, &status);
   if (entry == nullptr) {
     // The file could not be stat'd. Report the libuv error so callers can tell
     // ENOENT apart from any other reason the path could not be used.
