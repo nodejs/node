@@ -22,7 +22,7 @@ if (isMainThread) {
   process.umask(0o000);
 }
 function getTempFile() {
-  return join(tmpdir.path, `fastutf8stream-${process.pid}-${Date.now()}-${fileCounter++}.log`);
+  return tmpdir.resolve(`fastutf8stream-${process.pid}-${Date.now()}-${fileCounter++}.log`);
 }
 
 runTests(false);

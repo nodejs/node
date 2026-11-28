@@ -18,7 +18,7 @@ async function buildArchive(entries, comment) {
 }
 
 async function createTempZip(entries, comment) {
-  const dir = await fs.mkdtemp(path.join(tmpdir.path, 'zlib-zip-writable-'));
+  const dir = await fs.mkdtemp(tmpdir.resolve('zlib-zip-writable-'));
   const filePath = path.join(dir, 'archive.zip');
   await fs.writeFile(filePath, await buildArchive(entries, comment));
   return { filePath, cleanup: () => fs.rm(dir, { recursive: true, force: true }) };

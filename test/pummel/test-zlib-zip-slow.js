@@ -59,7 +59,7 @@ test('an archive larger than 4 GiB round-trips and triggers Zip64 via offset', a
     return;
   }
 
-  const dir = await fs.mkdtemp(path.join(tmpdir.path, 'zlib-zip-slow-'));
+  const dir = await fs.mkdtemp(tmpdir.resolve('zlib-zip-slow-'));
   const archivePath = path.join(dir, 'large.zip');
   try {
     const entries = [

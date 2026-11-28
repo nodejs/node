@@ -13,7 +13,7 @@ const vfs = require('node:vfs');
 const { getVirtualFd } = require('internal/vfs/fd');
 
 tmpdir.refresh();
-const root = path.join(tmpdir.path, 'real-handle');
+const root = tmpdir.resolve('real-handle');
 fs.mkdirSync(root, { recursive: true });
 const myVfs = vfs.create(new vfs.RealFSProvider(root));
 

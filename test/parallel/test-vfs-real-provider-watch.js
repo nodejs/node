@@ -15,7 +15,7 @@ const path = require('path');
 const vfs = require('node:vfs');
 
 tmpdir.refresh();
-const root = path.join(tmpdir.path, 'real-provider-watch');
+const root = tmpdir.resolve('real-provider-watch');
 fs.mkdirSync(root, { recursive: true });
 const myVfs = vfs.create(new vfs.RealFSProvider(root));
 

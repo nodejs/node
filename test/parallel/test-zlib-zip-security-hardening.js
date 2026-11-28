@@ -19,7 +19,6 @@ const assert = require('assert');
 const { test } = require('node:test');
 const zlib = require('zlib');
 const fs = require('fs');
-const path = require('path');
 const { spawnSync } = require('child_process');
 const tmpdir = require('../common/tmpdir');
 
@@ -94,7 +93,7 @@ test('failed local-header validation does not poison file-backed entries', async
   buf.writeUInt32LE(zlib.crc32(decoy), centralOffset(buf) + 16);
 
   tmpdir.refresh();
-  const file = path.join(tmpdir.path, 'mismatched.zip');
+  const file = tmpdir.resolve('mismatched.zip');
   fs.writeFileSync(file, buf);
   const invalid = { code: 'ERR_ZIP_INVALID_ARCHIVE' };
 
@@ -191,7 +190,7 @@ test('failed local-header validation does not poison file-backed entries', async
 test('zipFiles rejects a FIFO source instead of hanging', () => {
   if (process.platform === 'win32') return; // no mkfifo
   tmpdir.refresh();
-  const fifo = path.join(tmpdir.path, 'evil.fifo');
+  const fifo = tmpdir.resolve('evil.fifo');
   if (spawnSync('mkfifo', [fifo]).status !== 0) return; // mkfifo unavailable
   const script =
     'const zlib = require("zlib");' +

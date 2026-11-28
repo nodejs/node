@@ -19,7 +19,7 @@ const { spawnSync } = require('child_process');
 
 tmpdir.refresh();
 let id = 0;
-function fixture(name) { return path.join(tmpdir.path, `${id++}-${name}`); }
+function fixture(name) { return tmpdir.resolve(`${id++}-${name}`); }
 
 function run(args) {
   return spawnSync(process.execPath, args, { encoding: 'utf8' });
@@ -281,7 +281,7 @@ require('worker_threads').parentPort.postMessage('unexpected');
 // there.
 {
   const oddName = common.isWindows ? `${id++}-od d $x` : `${id++}-od d "q" $x`;
-  const dir = path.join(tmpdir.path, oddName);
+  const dir = tmpdir.resolve(oddName);
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, 'index.js'), 'console.log("ran:odd");\n');
   const res = run([`--vfs-load=${dir}`]);

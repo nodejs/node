@@ -12,7 +12,6 @@ const {
   writeSync,
 } = require('node:fs');
 const { Utf8Stream } = require('node:fs');
-const { join } = require('node:path');
 const { isMainThread } = require('node:worker_threads');
 
 tmpdir.refresh();
@@ -23,7 +22,7 @@ if (isMainThread) {
 let fileCounter = 0;
 
 function getTempFile() {
-  return join(tmpdir.path, `fastutf8stream-partial-${process.pid}-${Date.now()}-${fileCounter++}.log`);
+  return tmpdir.resolve(`fastutf8stream-partial-${process.pid}-${Date.now()}-${fileCounter++}.log`);
 }
 
 runTests(false);

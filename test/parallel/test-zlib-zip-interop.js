@@ -60,7 +60,7 @@ test('an archive written by createZipArchive is readable by unzip, zipinfo, and 
   const unzipBuild = spawnSync('unzip', ['-v'], { encoding: 'utf8' }).stdout || '';
   const zipinfoUnicode = /UNICODE_SUPPORT/.test(unzipBuild);
 
-  const dir = await fs.mkdtemp(path.join(tmpdir.path, 'zlib-zip-interop-'));
+  const dir = await fs.mkdtemp(tmpdir.resolve('zlib-zip-interop-'));
   try {
     const files = {
       'hello.txt': Buffer.from('Hello, world!'.repeat(50)),
@@ -115,7 +115,7 @@ test('an archive written by Python\'s zipfile module is readable by ZipFile', as
     return;
   }
 
-  const dir = await fs.mkdtemp(path.join(tmpdir.path, 'zlib-zip-interop-'));
+  const dir = await fs.mkdtemp(tmpdir.resolve('zlib-zip-interop-'));
   try {
     const archivePath = path.join(dir, 'python.zip');
     const script = `

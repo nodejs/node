@@ -8,11 +8,10 @@ const common = require('../common');
 const tmpdir = require('../common/tmpdir');
 const assert = require('assert');
 const fs = require('fs');
-const path = require('path');
 const vfs = require('node:vfs');
 
 tmpdir.refresh();
-const root = path.join(tmpdir.path, 'real-provider-promises');
+const root = tmpdir.resolve('real-provider-promises');
 fs.mkdirSync(root, { recursive: true });
 const myVfs = vfs.create(new vfs.RealFSProvider(root));
 

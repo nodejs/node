@@ -61,7 +61,7 @@ test('parsed and file-backed entries expose their raw bytes', async () => {
     await assertRawReads(entry, entry.name === 'empty.txt' ? Buffer.alloc(0) : text);
   }
 
-  const dir = await fs.mkdtemp(path.join(tmpdir.path, 'zlib-zip-raw-'));
+  const dir = await fs.mkdtemp(tmpdir.resolve('zlib-zip-raw-'));
   const filePath = path.join(dir, 'archive.zip');
   await fs.writeFile(filePath, archive);
   const zip = await zlib.ZipFile.open(filePath);

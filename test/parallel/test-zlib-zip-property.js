@@ -63,7 +63,7 @@ async function buildTree(random, count) {
 test('random archives round-trip through ZipEntry.read, ZipBuffer, and ZipFile', async () => {
   const random = mulberry32(0xC0FFEE);
   const rounds = 8;
-  const dir = await fs.mkdtemp(path.join(tmpdir.path, 'zlib-zip-property-'));
+  const dir = await fs.mkdtemp(tmpdir.resolve('zlib-zip-property-'));
   try {
     for (let round = 0; round < rounds; round++) {
       const { archive, specs } = await buildTree(random, 6);

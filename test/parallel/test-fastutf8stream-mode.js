@@ -20,7 +20,7 @@ if (isMainThread) {
 }
 
 function getTempFile() {
-  return join(tmpdir.path, `fastutf8stream-${process.pid}-${Date.now()}-${fileCounter++}.log`);
+  return tmpdir.resolve(`fastutf8stream-${process.pid}-${Date.now()}-${fileCounter++}.log`);
 }
 
 const isWindows = process.platform === 'win32';
