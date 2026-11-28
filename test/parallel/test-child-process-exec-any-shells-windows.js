@@ -53,9 +53,12 @@ fs.writeFile(`${tmpPath}\\test file`, 'Test', common.mustSucceed(() => {
           }));
 }));
 
-// Test Bash (from WSL and Git), if available
+// Test Bash (from WSL and Git), if available.
+// The Microsoft Store app execution alias for bash.exe cannot be stat'ed or
+// invoked reliably on GitHub Actions Windows runners, so skip the bash shells
+// there.
 cp.exec('where bash', common.mustCall((error, stdout) => {
-  if (error) {
+  if (error || process.env.GITHUB_ACTIONS) {
     return;
   }
   const lines = stdout.trim().split(/[\r\n]+/g);
