@@ -80,6 +80,18 @@ const checkers = {
     assert.strictEqual(typeof r.weight, 'number');
     assert.strictEqual(r.type, 'SRV');
   },
+  checkSVCB(r) {
+    assert.strictEqual(typeof r.priority, 'number');
+    assert.strictEqual(typeof r.target, 'string');
+    assert.strictEqual(typeof r.params, 'object');
+    assert.strictEqual(r.type, 'SVCB');
+  },
+  checkHTTPS(r) {
+    assert.strictEqual(typeof r.priority, 'number');
+    assert.strictEqual(typeof r.target, 'string');
+    assert.strictEqual(typeof r.params, 'object');
+    assert.strictEqual(r.type, 'HTTPS');
+  },
 };
 /* eslint-enable node-core/must-call-assert */
 

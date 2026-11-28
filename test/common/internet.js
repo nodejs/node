@@ -36,6 +36,8 @@ const addresses = {
   CAA_HOST: 'google.com',
   // A host with CNAME records registered
   CNAME_HOST: 'blog.nodejs.org',
+  // A host with HTTPS records registered
+  HTTPS_HOST: 'cloudflare.com',
   // A host with NS records registered
   NS_HOST: 'nodejs.org',
   // A host with TLSA records registered
