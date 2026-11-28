@@ -4201,6 +4201,16 @@ changes:
 Enable the [module compile cache][] for the Node.js instance. See the documentation of
 [module compile cache][] for details.
 
+### `NODE_COMPILE_CACHE_PACKED=1`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+When set to 1, the [module compile cache][] stores its entries in a single file
+per cache directory instead of one file per module. This can make loading from
+the cache faster on file systems where opening many small files is expensive.
+
 ### `NODE_COMPILE_CACHE_PORTABLE=1`
 
 When set to 1, the [module compile cache][] can be reused across different directory

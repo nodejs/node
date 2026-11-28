@@ -412,6 +412,23 @@ the directory holds and never writes to it: modules without a usable entry are
 compiled as usual but not persisted, [`module.flushCompileCache()`][] is a
 no-op, and the directory is not created if it is missing.
 
+### Packed compile cache
+
+By default, each module is cached in its own file, so loading N modules from the
+cache opens and reads N files. Where opening a file is expensive, for example on
+Windows with real-time antivirus scanning, that cost can outweigh the time the
+cache saves. With [`NODE_COMPILE_CACHE_PACKED=1`][], the entries are stored in a
+single file per cache directory instead, which is read once when the first module
+is looked up. This applies whether the cache is enabled by
+[`NODE_COMPILE_CACHE=dir`][] or by [`module.enableCompileCache()`][].
+
+When only a few entries change in a run, for example after a module is edited,
+they are written as separate files next to the packed file instead of rewriting
+it, and they are folded into the packed file once enough of them accumulate. When
+the packed file is rewritten, it is merged with its version on disk at that time,
+so entries written in the meantime by other processes sharing the directory,
+such as child processes, are kept.
+
 ### Limitations of the compile cache
 
 V8 cannot collect block-level [V8 JavaScript code coverage][] for functions that
@@ -1411,6 +1428,7 @@ returned object contains the following keys:
 [`--import`]: cli.md#--importmodule
 [`--require`]: cli.md#-r---require-module
 [`NODE_COMPILE_CACHE=dir`]: cli.md#node_compile_cachedir
+[`NODE_COMPILE_CACHE_PACKED=1`]: cli.md#node_compile_cache_packed1
 [`NODE_COMPILE_CACHE_PORTABLE=1`]: cli.md#node_compile_cache_portable1
 [`NODE_COMPILE_CACHE_READONLY=1`]: cli.md#node_compile_cache_readonly1
 [`NODE_DISABLE_COMPILE_CACHE=1`]: cli.md#node_disable_compile_cache1

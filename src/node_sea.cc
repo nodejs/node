@@ -836,6 +836,7 @@ ExitCode GenerateVfsCompileCache(
   // write the compile cache the build process itself may be configured with.
   env->set_env_vars(env->env_vars()->Clone(isolate));
   for (const char* name : {"NODE_COMPILE_CACHE",
+                           "NODE_COMPILE_CACHE_PACKED",
                            "NODE_COMPILE_CACHE_PORTABLE",
                            "NODE_COMPILE_CACHE_READONLY",
                            "NODE_DISABLE_COMPILE_CACHE"}) {
