@@ -364,7 +364,14 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   // exits. Scopes can be nested. When nested, pending data will be sent
   // only when the outermost scope is exited.
   struct SendPendingDataScope final {
-    Session* session;
+    // Sessions are detached from JS ownership: SessionManager::sessions_ holds
+    // the sole BaseObjectPtr<Session>. Synchronous JS callbacks made while the
+    // scope is active (BeginShutdown, EmitClose, DatagramStatus, EmitBlocked,
+    // EmitWantTrailers) can destroy the session and free it. Pinning the
+    // session with a strong BaseObjectPtr keeps the Session object alive for
+    // the lifetime of the scope so the destructor never dereferences freed
+    // heap memory.
+    BaseObjectPtr<Session> session;
     explicit SendPendingDataScope(Session* session);
     explicit SendPendingDataScope(const BaseObjectPtr<Session>& session);
     ~SendPendingDataScope();

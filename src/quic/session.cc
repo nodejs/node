@@ -1802,7 +1802,7 @@ Session::SendPendingDataScope::SendPendingDataScope(Session* session)
 
 Session::SendPendingDataScope::SendPendingDataScope(
     const BaseObjectPtr<Session>& session)
-    : session(session.get()) {
+    : session(session) {
   CHECK_NOT_NULL(session);
   CHECK(!session->is_destroyed());
   ++session->impl_->send_scope_depth_;
@@ -1811,7 +1811,8 @@ Session::SendPendingDataScope::SendPendingDataScope(
 Session::SendPendingDataScope::~SendPendingDataScope() {
   if (session->is_destroyed()) return;
   DCHECK_GE(session->impl_->send_scope_depth_, 1);
-  Debug(session, "Send Scope Depth %zu", session->impl_->send_scope_depth_);
+  Debug(
+      session.get(), "Send Scope Depth %zu", session->impl_->send_scope_depth_);
   if (--session->impl_->send_scope_depth_ == 0 &&
       session->impl_->application_ && !session->impl_->handshake_deferred_) {
     session->SendPendingData();
@@ -1868,7 +1869,11 @@ ssize_t Session::TryWritePendingDatagram(PathStorage* path,
           "Datagram %" PRIu64 " abandoned after %u attempts",
           front.id,
           front.send_attempts);
+    // DatagramStatus -> EmitDatagramStatus can call into JS and destroy the
+    // session. Bail out before touching impl_ again.
     DatagramStatus(front.id, DatagramStatus::ABANDONED);
+    if (is_destroyed()) [[unlikely]]
+      return 0;
     PopPendingDatagram();
   }
 
@@ -1929,7 +1934,11 @@ ssize_t Session::TryWritePendingDatagram(PathStorage* path,
       // Non-fatal error cases. Peer either does not support datagrams
       // or the datagram is too large for the peer's max.
       // Abandon the datagram and signal skip by returning std::nullopt.
+      // DatagramStatus -> EmitDatagramStatus can call into JS and destroy the
+      // session. Bail out before touching impl_ again.
       DatagramStatus(dg.id, DatagramStatus::ABANDONED);
+      if (is_destroyed()) [[unlikely]]
+        return 0;
       PopPendingDatagram();
       return 0;
     }
@@ -1953,6 +1962,13 @@ ssize_t Session::TryWritePendingDatagram(PathStorage* path,
 // and make sure to test thoroughly. When in doubt... don't change it.
 void Session::SendPendingData() {
   DCHECK(!is_destroyed());
+  // Pin the session for the duration of this method. The session is detached
+  // from JS ownership (SessionManager holds the sole BaseObjectPtr<Session>)
+  // and the synchronous JS callbacks below (StreamCommit, StreamDataBlocked,
+  // DatagramStatus, ...) can destroy and free it. Pinning keeps the Session
+  // object alive so the is_destroyed() guards and the update_stats scope-exit
+  // lambda never touch freed heap memory.
+  BaseObjectPtr<Session> self(this);
   if (!can_send_packets()) [[unlikely]] {
     return;
   }
@@ -2143,7 +2159,14 @@ void Session::SendPendingData() {
           // We should only have received this error if there was an actual
           // stream identified in the stream data, but let's double check.
           DCHECK_GE(stream_data.id, 0);
+          // StreamDataBlocked -> BlockStream -> EmitBlocked can call into JS
+          // and destroy the session. Bail out before continuing the loop; the
+          // next iteration would dereference the (now null) impl_.
           StreamDataBlocked(stream_data.id);
+          if (is_destroyed()) [[unlikely]] {
+            closed = true;
+            return;
+          }
           continue;
         }
         case NGTCP2_ERR_STREAM_SHUT_WR: {
@@ -2173,6 +2196,12 @@ void Session::SendPendingData() {
           if (HasPendingDatagrams()) {
             auto result = TryWritePendingDatagram(
                 &path, packet->data(), packet->length(), ts);
+            // TryWritePendingDatagram -> DatagramStatus can call into JS and
+            // destroy the session.
+            if (is_destroyed()) [[unlikely]] {
+              closed = true;
+              return;
+            }
             // When result is 0, either the datagram was congestion controlled,
             // didn't fit in the packet, or was abandoned. Skip and continue.
 
@@ -2234,6 +2263,12 @@ void Session::SendPendingData() {
       }
       auto result =
           TryWritePendingDatagram(&path, packet->data(), packet->length(), ts);
+      // TryWritePendingDatagram -> DatagramStatus can call into JS and destroy
+      // the session.
+      if (is_destroyed()) [[unlikely]] {
+        closed = true;
+        return;
+      }
       if (result > 0) {
         Debug(this, "Sending datagram packet with %zd bytes", result);
         enqueue_packet(packet, static_cast<size_t>(result), PacketInfo());
@@ -3140,6 +3175,10 @@ void Session::Send(Packet::Ptr packet, const PathStorage& path) {
 
 datagram_id Session::SendDatagram(Store&& data) {
   DCHECK(!is_destroyed());
+  // Pin the session. DatagramStatus below can call into JS and destroy the
+  // session; the pin keeps the Session object alive so is_destroyed() guards
+  // and trailing impl_ accesses are safe.
+  BaseObjectPtr<Session> self(this);
 
   // Sending a datagram is best effort. If we cannot send it for any reason,
   // we just return 0 to indicate that the datagram was not sent an the
@@ -3186,12 +3225,16 @@ datagram_id Session::SendDatagram(Store&& data) {
             "Datagram queue full, dropping oldest datagram %" PRIu64,
             oldest.id);
       DatagramStatus(oldest.id, DatagramStatus::ABANDONED);
+      if (is_destroyed()) [[unlikely]]
+        return 0;
       impl_->pending_datagrams_.pop_front();
     } else {
       // DROP_NEWEST: reject the incoming datagram.
       Debug(
           this, "Datagram queue full, dropping newest datagram %" PRIu64, did);
       DatagramStatus(did, DatagramStatus::ABANDONED);
+      if (is_destroyed()) [[unlikely]]
+        return 0;
       return did;
     }
   }

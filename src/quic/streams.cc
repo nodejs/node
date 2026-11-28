@@ -1563,6 +1563,15 @@ void Stream::CapReadable(std::optional<uint64_t> maybe_final_size) {
 void Stream::Destroy(QuicError error) {
   if (is_destroyed()) return;
 
+  // Pin the stream for the duration of Destroy(). Stream objects are detached
+  // from JS ownership (the session's streams_ map holds the sole
+  // BaseObjectPtr<Stream>). ReturnFlowControlCredit and EmitClose below can
+  // call into JS, and a JS callback may destroy the session — which releases
+  // the last BaseObjectPtr<Stream> and frees `this` before the remaining
+  // teardown (id(), ReleaseArenaSlots(), RemoveStream()) runs. The pin keeps
+  // the Stream object alive through the whole function.
+  BaseObjectPtr<Stream> self(this);
+
   // Record the destroyed at timestamp before notifying the JavaScript side
   // that the stream is being destroyed.
   STAT_RECORD_TIMESTAMP(Stats, destroyed_at);
