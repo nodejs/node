@@ -527,6 +527,7 @@
       'src/ffi/types.h',
     ],
     'node_mksnapshot_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)node_mksnapshot<(EXECUTABLE_SUFFIX)',
+    'node_mksnapshot_wxneeded_prefix%': [],
     'node_js2c_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)node_js2c<(EXECUTABLE_SUFFIX)',
     'conditions': [
       [ 'node_shared=="true"', {
@@ -541,6 +542,15 @@
         'use_openssl_def%': 1,
       }, {
         'use_openssl_def%': 0,
+      }],
+      [ 'OS=="freebsd"', {
+        'node_mksnapshot_wxneeded_prefix': [
+          '<(python)',
+          '<(DEPTH)/tools/freebsd-wxneeded.py',
+          '--exec',
+          'node_mksnapshot',
+          '--',
+        ],
       }],
     ],
   },
@@ -1108,6 +1118,7 @@
                     '<(SHARED_INTERMEDIATE_DIR)/node_snapshot.cc',
                   ],
                   'action': [
+                    '<@(node_mksnapshot_wxneeded_prefix)',
                     '<@(emulator)',
                     '<(node_mksnapshot_exec)',
                     '--build-snapshot',
@@ -1128,6 +1139,7 @@
                     '<(SHARED_INTERMEDIATE_DIR)/node_snapshot.cc',
                   ],
                   'action': [
+                    '<@(node_mksnapshot_wxneeded_prefix)',
                     '<@(emulator)',
                     '<@(_inputs)',
                     '<@(_outputs)',
@@ -1766,6 +1778,38 @@
                 '<(python)', 'tools/copyfile.py',
                 '<@(_inputs)',
                 '<@(_outputs)',
+              ],
+            },
+          ],
+        },
+      ],
+    }],
+    ['OS=="freebsd"', {
+      'targets': [
+        {
+          # FreeBSD enforces W^X when kern.elf{32,64}.allow_wx is 0. Node
+          # needs RWX pages for V8's code range, so mark the linked executable
+          # as requiring W+X mappings.
+          'target_name': 'node_wxneeded',
+          'type': 'none',
+          'dependencies': [
+            '<(node_core_target_name)',
+          ],
+          'actions': [
+            {
+              'action_name': 'mark_node_wxneeded',
+              'inputs': [
+                '<(PRODUCT_DIR)/<(node_core_target_name)',
+              ],
+              'outputs': [
+                '<(SHARED_INTERMEDIATE_DIR)/node.wxneeded',
+              ],
+              'action': [
+                '<(python)',
+                '<(DEPTH)/tools/freebsd-wxneeded.py',
+                '--mark',
+                '<(PRODUCT_DIR)/<(node_core_target_name)',
+                '<(SHARED_INTERMEDIATE_DIR)/node.wxneeded',
               ],
             },
           ],
