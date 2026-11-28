@@ -203,7 +203,9 @@ void ProcessRunner::ExitCallback(uv_process_t* handle,
 }
 
 void ProcessRunner::OnExit(int64_t exit_status, int term_signal) {
-  if (exit_status > 0) {
+  // A script terminated by a signal has an exit status of 0; report it as a
+  // failure like any other unsuccessful run.
+  if (exit_status > 0 || term_signal != 0) {
     init_result_->exit_code_ = ExitCode::kGenericUserError;
   } else {
     init_result_->exit_code_ = ExitCode::kNoFailure;

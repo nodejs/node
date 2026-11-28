@@ -39,6 +39,18 @@ describe('node --run [command]', { concurrency: !process.env.TEST_PARALLEL }, ()
     assert.strictEqual(child.code, 1);
   });
 
+  it('returns an error when the script is terminated by a signal', {
+    skip: common.isWindows && 'the script uses POSIX kill',
+  }, async () => {
+    const child = await common.spawnPromisified(
+      process.execPath,
+      [ '--run', 'kill-self', '--no-warnings'],
+      { cwd: fixtures.path('run-script') },
+    );
+    assert.strictEqual(child.code, 1);
+    assert.strictEqual(child.signal, null);
+  });
+
   it('recognizes cmd.exe case-insensitively', {
     skip: !common.isWindows,
   }, async () => {
