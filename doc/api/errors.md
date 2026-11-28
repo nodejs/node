@@ -2336,6 +2336,17 @@ specific purpose. It is only used in the [WHATWG URL API][] support in the
 [`fs`][] module (which only accepts URLs with `'file'` scheme), but may be used
 in other Node.js APIs as well in the future.
 
+<a id="ERR_INVALID_YAML"></a>
+
+### `ERR_INVALID_YAML`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+The input passed to [`yaml.parse()`][] is not valid YAML. The message names
+the problem and its line and column.
+
 <a id="ERR_IPC_CHANNEL_CLOSED"></a>
 
 ### `ERR_IPC_CHANNEL_CLOSED`
@@ -4914,6 +4925,7 @@ An error occurred trying to allocate memory. This should never happen.
 [`util.parseArgs()`]: util.md#utilparseargsconfig
 [`v8.startupSnapshot.setDeserializeMainFunction()`]: v8.md#v8startupsnapshotsetdeserializemainfunctioncallback-data
 [`vfs.mount()`]: vfs.md#vfsmount
+[`yaml.parse()`]: formats.md#yamlparseinput-options
 [`zlib`]: zlib.md
 [crypto digest algorithm]: crypto.md#cryptogethashes
 [debugger]: debugger.md

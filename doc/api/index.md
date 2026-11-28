@@ -29,6 +29,7 @@
 * [Events](events.md)
 * [File system](fs.md)
 * [FFI](ffi.md)
+* [Formats](formats.md)
 * [Globals](globals.md)
 * [HTTP](http.md)
 * [HTTP/2](http2.md)

@@ -1764,6 +1764,16 @@ added:
 
 Enable experimental support for the worker inspection with Chrome DevTools.
 
+### `--experimental-yaml`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.0 - Early development
+
+Enable the experimental [`node:formats/yaml`][] module.
+
 ### `--force-context-aware`
 
 <!-- YAML
@@ -4386,6 +4396,7 @@ one is included in the list below.
 * `--experimental-vm-modules`
 * `--experimental-wasi-unstable-preview1`
 * `--experimental-websocket`
+* `--experimental-yaml`
 * `--force-context-aware`
 * `--force-fips`
 * `--force-node-api-uncaught-exceptions-policy`
@@ -5061,6 +5072,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`module.setSourceMapsSupport()`]: module.md#modulesetsourcemapssupportenabled-options
 [`net.getDefaultAutoSelectFamilyAttemptTimeout()`]: net.md#netgetdefaultautoselectfamilyattempttimeout
 [`node:ffi`]: ffi.md
+[`node:formats/yaml`]: formats.md#yaml
 [`node:sqlite`]: sqlite.md
 [`node:stream/iter`]: stream_iter.md
 [`node:vfs`]: vfs.md
