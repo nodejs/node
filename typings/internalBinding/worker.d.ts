@@ -31,8 +31,20 @@ export interface CPUProfileHandle {
 }
 
 export interface HeapProfileHandle {
+  setSampleInterval(sampleInterval: number): Promise<void>;
+  getSamples(): Promise<HeapProfileSample[]>;
   stop(): Promise<string>;
   [Symbol.asyncDispose](): Promise<void>;
+}
+
+export interface HeapProfileSample {
+  size: number;
+  objectSize: number;
+  objectCount: number;
+  nodeId: number;
+  ordinal: number;
+  isLive: boolean;
+  sampleInterval: number;
 }
 
 export interface WorkerBinding {
