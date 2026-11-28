@@ -3,7 +3,9 @@
 
 const common = require('../common');
 const {
+  NodeEventTarget,
   defineEventHandler,
+  kRemoveListener,
   kWeakHandler,
 } = require('internal/event_target');
 
@@ -809,4 +811,84 @@ let asyncTest = Promise.resolve();
   ]) {
     assert.strictEqual(get.call(value), false);
   }
+}
+
+{
+  // Multiple listeners should all observe the event in its dispatching state.
+  const et = new EventTarget();
+  const checkListener = common.mustCall((e) => {
+    assert.strictEqual(e.currentTarget, et);
+    assert.strictEqual(e.eventPhase, Event.AT_TARGET);
+    assert.deepStrictEqual(e.composedPath(), [et]);
+    e.initEvent('bar', true, true);
+    assert.strictEqual(e.type, 'foo');
+    assert.strictEqual(e.bubbles, false);
+    assert.strictEqual(e.cancelable, false);
+    assert.throws(() => et.dispatchEvent(e), {
+      code: 'ERR_EVENT_RECURSION',
+    });
+  }, 2);
+
+  et.addEventListener('foo', checkListener);
+  et.addEventListener('foo', checkListener, { capture: true });
+
+  const event = new Event('foo');
+  et.dispatchEvent(event);
+  assert.strictEqual(event.currentTarget, null);
+  assert.strictEqual(event.eventPhase, Event.NONE);
+  assert.deepStrictEqual(event.composedPath(), []);
+}
+
+{
+  // NodeEventTarget mixed with standard, passive, and subsequent once listeners.
+  const net = new NodeEventTarget();
+  let capturedEvent;
+  const checkStandard = common.mustCall((e) => {
+    capturedEvent = e;
+    assert.strictEqual(e.currentTarget, net);
+    assert.strictEqual(e.eventPhase, Event.AT_TARGET);
+    assert.deepStrictEqual(e.composedPath(), [net]);
+    assert.strictEqual(e.detail, 'payload');
+    assert.throws(() => net.dispatchEvent(e), {
+      code: 'ERR_EVENT_RECURSION',
+    });
+  }, 3);
+
+  net.on('foo', common.mustCall((detail) => {
+    assert.strictEqual(detail, 'payload');
+  }));
+  net.addEventListener('foo', checkStandard);
+  net.addEventListener('foo', checkStandard, { passive: true, capture: true });
+  net.addEventListener('foo', common.mustCall((e) => {
+    checkStandard(e);
+  }), { once: true });
+
+  assert.strictEqual(net.emit('foo', 'payload'), true);
+  assert.strictEqual(capturedEvent.currentTarget, null);
+  assert.strictEqual(capturedEvent.eventPhase, Event.NONE);
+  assert.deepStrictEqual(capturedEvent.composedPath(), []);
+}
+
+{
+  // Throwing inside [kRemoveListener] for a once listener must not leave
+  // the event stuck in its dispatching state.
+  class ThrowingRemoveTarget extends EventTarget {
+    [kRemoveListener]() {
+      throw new Error('remove-boom');
+    }
+  }
+
+  const et = new ThrowingRemoveTarget();
+  et.addEventListener('foo', common.mustNotCall(), { once: true });
+  et.addEventListener('foo', common.mustNotCall());
+
+  const event = new Event('foo');
+  assert.throws(() => et.dispatchEvent(event), /remove-boom/);
+  assert.strictEqual(event.currentTarget, null);
+  assert.strictEqual(event.eventPhase, Event.NONE);
+  assert.deepStrictEqual(event.composedPath(), []);
+  // Can be dispatched again without ERR_EVENT_RECURSION.
+  const et2 = new EventTarget();
+  et2.addEventListener('foo', common.mustCall());
+  assert.strictEqual(et2.dispatchEvent(event), true);
 }

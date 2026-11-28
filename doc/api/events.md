@@ -2453,6 +2453,14 @@ target.removeEventListener('foo', handler, { capture: true });
 
 <!-- YAML
 added: v14.5.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/67765
+    description: Keep the event in its dispatching state across all listeners.
+                 Re-dispatching the same event or calling `initEvent()` from any
+                 listener while it is being dispatched now throws
+                 `ERR_EVENT_RECURSION` or is ignored, respectively, not only in
+                 the first listener.
 -->
 
 * `event` {Event}
