@@ -593,6 +593,12 @@ void CpuProfiler::set_use_precise_sampling(bool value) {
   use_precise_sampling_ = value;
 }
 
+void CpuProfiler::set_sample_context_extractor(
+    ProfilerEventsProcessor::SampleContextExtractor extractor) {
+  DCHECK(!is_profiling_);
+  sample_context_extractor_ = extractor;
+}
+
 void CpuProfiler::ResetProfiles() {
   profiles_.reset(new CpuProfilesCollection(isolate_));
   profiles_->set_cpu_profiler(this);
@@ -662,7 +668,6 @@ CpuProfilingResult CpuProfiler::StartProfiling(
 CpuProfilingResult CpuProfiler::StartProfiling(
     const char* title, CpuProfilingOptions options,
     std::unique_ptr<DiscardedSamplesDelegate> delegate) {
-  auto sample_context_extractor = options.sample_context_extractor();
   CpuProfilingResult result =
       profiles_->StartProfiling(title, std::move(options), std::move(delegate));
 
@@ -672,7 +677,7 @@ CpuProfilingResult CpuProfiler::StartProfiling(
       result.status == CpuProfilingStatus::kAlreadyStarted) {
     TRACE_EVENT0("v8", "CpuProfiler::StartProfiling");
     AdjustSamplingInterval();
-    StartProcessorIfNotStarted(sample_context_extractor);
+    StartProcessorIfNotStarted();
     // after StartProcessorIfNotStarted processor_ must exist.
     DCHECK(processor_);
 
@@ -713,8 +718,7 @@ CpuProfilingResult CpuProfiler::StartProfiling(
                         std::move(delegate));
 }
 
-void CpuProfiler::StartProcessorIfNotStarted(
-    ProfilerEventsProcessor::SampleContextExtractor sample_context_extractor) {
+void CpuProfiler::StartProcessorIfNotStarted() {
   if (processor_) {
     processor_->AddCurrentStack();
     return;
@@ -733,7 +737,7 @@ void CpuProfiler::StartProcessorIfNotStarted(
   base::TimeDelta sampling_interval = ComputeSamplingInterval();
   processor_.reset(new SamplingEventsProcessor(
       isolate_, symbolizer_.get(), code_observer_.get(), profiles_.get(),
-      sampling_interval, use_precise_sampling_, sample_context_extractor));
+      sampling_interval, use_precise_sampling_, sample_context_extractor_));
   is_profiling_ = true;
 
   // Enable stack sampling.

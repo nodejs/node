@@ -32,8 +32,9 @@ using SnapshotObjectId = uint32_t;
 using ProfilerId = uint32_t;
 
 /**
- * Embedder-supplied callback invoked as each CPU profile sample is captured.
- * The returned pointer is stored on the sample and retrievable via
+ * Embedder-supplied callback, installed via
+ * CpuProfiler::SetSampleContextExtractor, invoked as each CPU profile sample is
+ * captured. The returned pointer is stored on the sample and retrievable via
  * CpuProfile::GetSampleContext.
  *
  * The context in which it runs depends on how the sample was taken. For
@@ -308,8 +309,8 @@ class V8_EXPORT CpuProfile {
   /**
    * Returns the embedder-supplied sample context for the sample at the given
    * index. The pointer was produced by the SampleContextExtractor installed
-   * on the CpuProfilingOptions used to start this profile. If no extractor
-   * was installed, or the extractor returned nullptr for this sample, returns
+   * on the CpuProfiler that recorded this profile. If no extractor was
+   * installed, or the extractor returned nullptr for this sample, returns
    * nullptr.
    */
   void* GetSampleContext(int index) const;
@@ -436,19 +437,12 @@ class V8_EXPORT CpuProfilingOptions {
    * \param filter_context If specified, profiles will only contain frames
    *                       using this context. Other frames will be elided.
    * \param profile_source Identifies the source of this CPU profile.
-   * \param sample_context_extractor Optional embedder callback invoked as each
-   *                                 sample is captured. The returned pointer
-   *                                 is stored on the sample and retrievable
-   *                                 via CpuProfile::GetSampleContext. See
-   *                                 SampleContextExtractor for the
-   *                                 signal-safety contract.
    */
   CpuProfilingOptions(
       CpuProfilingMode mode = kLeafNodeLineNumbers,
       unsigned max_samples = kNoSampleLimit, int sampling_interval_us = 0,
       MaybeLocal<Context> filter_context = MaybeLocal<Context>(),
-      CpuProfileSource profile_source = CpuProfileSource::kUnspecified,
-      SampleContextExtractor sample_context_extractor = nullptr);
+      CpuProfileSource profile_source = CpuProfileSource::kUnspecified);
 
   CpuProfilingOptions(CpuProfilingOptions&&) = default;
   CpuProfilingOptions& operator=(CpuProfilingOptions&&) = default;
@@ -457,9 +451,6 @@ class V8_EXPORT CpuProfilingOptions {
   unsigned max_samples() const { return max_samples_; }
   int sampling_interval_us() const { return sampling_interval_us_; }
   CpuProfileSource profile_source() const { return profile_source_; }
-  SampleContextExtractor sample_context_extractor() const {
-    return sample_context_extractor_;
-  }
 
  private:
   friend class internal::CpuProfile;
@@ -472,7 +463,6 @@ class V8_EXPORT CpuProfilingOptions {
   int sampling_interval_us_;
   Global<Context> filter_context_;
   CpuProfileSource profile_source_;
-  SampleContextExtractor sample_context_extractor_ = nullptr;
 };
 
 /**
@@ -520,6 +510,17 @@ class V8_EXPORT CpuProfiler {
    * no profiles being recorded.
    */
   void SetUsePreciseSampling(bool);
+
+  /**
+   * Installs an embedder callback invoked as each sample is captured while
+   * this profiler is recording profiles. The pointer it returns is stored on
+   * the sample, and retrievable via CpuProfile::GetSampleContext from every
+   * profile recorded by this profiler. Embedders wanting different extractors
+   * should use a separate CpuProfiler for each. Passing nullptr removes the
+   * extractor. See SampleContextExtractor for the signal-safety contract. This
+   * method must be called when there are no profiles being recorded.
+   */
+  void SetSampleContextExtractor(SampleContextExtractor extractor);
 
   /**
    * Starts collecting a CPU profile. Several profiles may be collected at once.
