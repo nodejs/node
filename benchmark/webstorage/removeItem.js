@@ -1,5 +1,4 @@
 'use strict';
-const { join } = require('node:path');
 const common = require('../common.js');
 const tmpdir = require('../../test/common/tmpdir');
 
@@ -8,7 +7,7 @@ let cnt = 0;
 tmpdir.refresh();
 
 function nextLocalStorage() {
-  return join(tmpdir.path, `${++cnt}.localstorage`);
+  return tmpdir.resolve(`${++cnt}.localstorage`);
 }
 
 const options = {
