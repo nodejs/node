@@ -365,6 +365,13 @@ void JSValueToSQLiteResult(Isolate* isolate,
 class Database;
 
 inline void THROW_ERR_SQLITE_ERROR(Isolate* isolate, Database* db) {
+  // If a collation threw, throw its exception instead of SQLite's generic
+  // "interrupted" error.
+  if (db->ThrowCollationError(isolate)) {
+    db->SetIgnoreNextSQLiteError(false);
+    return;
+  }
+
   if (db->ShouldIgnoreSQLiteError()) {
     db->SetIgnoreNextSQLiteError(false);
     // Suppression that swallows no pending exception would also swallow the
@@ -402,6 +409,25 @@ inline void THROW_ERR_SQLITE_ERROR(Isolate* isolate, int errcode) {
           .IsJust()) {
     isolate->ThrowException(error);
   }
+}
+
+// SQLite only checks for an interrupt between certain instructions, so a step
+// can still return a row, or even finish, after a collation threw. Treat that
+// step as interrupted.
+inline int StepStatement(Database* db, sqlite3_stmt* stmt) {
+  int r = sqlite3_step(stmt);
+  if ((r == SQLITE_ROW || r == SQLITE_DONE) && db->HasCollationError()) {
+    // Reset it right away. As long as any statement is still running, SQLite
+    // keeps interrupting new ones on the same connection.
+    sqlite3_reset(stmt);
+    // A write may have gone through with an index entry in the wrong place.
+    // When SQLite interrupts a write itself, it rolls back the transaction, so
+    // do the same here. Outside a transaction, the commit hook already turned
+    // the step into an error, so it doesn't get this far.
+    if (!sqlite3_stmt_readonly(stmt)) db->RollbackAfterCollationError();
+    return SQLITE_INTERRUPT;
+  }
+  return r;
 }
 
 inline MaybeLocal<Value> NullableSQLiteStringToValue(Isolate* isolate,
@@ -876,6 +902,65 @@ void UserDefinedFunction::xFunc(sqlite3_context* ctx,
 
 void UserDefinedFunction::xDestroy(void* self) {
   delete static_cast<UserDefinedFunction*>(self);
+}
+
+UserDefinedCollation::UserDefinedCollation(Environment* env,
+                                           Local<Function> fn,
+                                           BaseObjectWeakPtr<Database> db)
+    : env_(env), fn_(env->isolate(), fn), db_(std::move(db)) {
+  db_->user_defined_functions_.insert(this);
+}
+
+UserDefinedCollation::~UserDefinedCollation() {
+  if (db_) db_->user_defined_functions_.erase(this);
+}
+
+int UserDefinedCollation::xCompare(
+    void* self, int a_length, const void* a, int b_length, const void* b) {
+  return static_cast<UserDefinedCollation*>(self)->Compare(
+      std::string_view(static_cast<const char*>(a), a_length),
+      std::string_view(static_cast<const char*>(b), b_length));
+}
+
+int UserDefinedCollation::Compare(std::string_view a, std::string_view b) {
+  Isolate* isolate = env_->isolate();
+
+  // After a comparison throws, SQLite can keep comparing until it notices the
+  // interrupt. Just return 0 for those instead of calling into JS again.
+  if (!db_ || db_->IsInDestructor() || !env_->can_call_into_js() ||
+      db_->HasCollationError() || isolate->HasPendingException()) {
+    return 0;
+  }
+
+  // A single sort can call this thousands of times, so don't leave the
+  // handles in the caller's scope.
+  HandleScope handle_scope(isolate);
+  CallbackDepthGuard guard(db_.get());
+  TryCatch try_catch(isolate);
+
+  Local<Value> argv[2];
+  Local<Value> result;
+  Local<Number> order;
+  if (!Utf8StringMaybeOneByte(isolate, a).ToLocal(&argv[0]) ||
+      !Utf8StringMaybeOneByte(isolate, b).ToLocal(&argv[1]) ||
+      !fn_.Get(isolate)
+           ->Call(env_->context(), Undefined(isolate), 2, argv)
+           .ToLocal(&result) ||
+      !result->ToNumber(env_->context()).ToLocal(&order)) {
+    if (try_catch.HasCaught() && try_catch.CanContinue()) {
+      db_->SetCollationError(isolate, try_catch.Exception());
+    }
+    sqlite3_interrupt(db_->Connection());
+    return 0;
+  }
+
+  // Same as Array.prototype.sort(): NaN counts as equal.
+  double value = order->Value();
+  return (value > 0) - (value < 0);
+}
+
+void UserDefinedCollation::xDestroy(void* self) {
+  delete static_cast<UserDefinedCollation*>(self);
 }
 
 DatabaseLimits::DatabaseLimits(Environment* env,
@@ -1858,6 +1943,33 @@ bool Database::ShouldIgnoreSQLiteError() {
   return ignore_next_sqlite_error_;
 }
 
+void Database::SetCollationError(Isolate* isolate, Local<Value> error) {
+  collation_error_.Reset(isolate, error);
+}
+
+void Database::RollbackAfterCollationError() {
+  if (!IsOpen() || sqlite3_get_autocommit(connection_.get())) return;
+  TraceEventSuppressionGuard suppress_trace(this);
+  sqlite3_exec(connection_.get(), "ROLLBACK", nullptr, nullptr, nullptr);
+}
+
+// Committing now could keep a change made after a collation threw, so turn
+// the commit into a rollback. Must not touch the connection.
+int Database::CommitHook(void* db) {
+  return static_cast<Database*>(db)->HasCollationError() ? 1 : 0;
+}
+
+// If something else already threw in the meantime, that exception wins.
+bool Database::ThrowCollationError(Isolate* isolate) {
+  if (collation_error_.IsEmpty()) return false;
+  Local<Value> error = collation_error_.Get(isolate);
+  collation_error_.Reset();
+  if (!isolate->HasPendingException()) {
+    isolate->ThrowException(error);
+  }
+  return true;
+}
+
 void Database::CreateTagStore(const FunctionCallbackInfo<Value>& args) {
   Database* db = BaseObject::Unwrap<Database>(args.This());
   Environment* env = Environment::GetCurrent(args);
@@ -2326,6 +2438,13 @@ void Database::Exec(const FunctionCallbackInfo<Value>& args) {
 
   Utf8Value sql(env->isolate(), args[0].As<String>());
   int r = sqlite3_exec(db->connection_.get(), *sql, nullptr, nullptr, nullptr);
+  // sqlite3_exec() can still report success if the statement finished before
+  // SQLite noticed the interrupt.
+  if (db->HasCollationError()) {
+    db->RollbackAfterCollationError();
+    db->ThrowCollationError(env->isolate());
+    return;
+  }
   CHECK_ERROR_OR_THROW(env->isolate(), db, r, SQLITE_OK, void());
 }
 
@@ -2419,6 +2538,41 @@ void Database::CustomFunction(const FunctionCallbackInfo<Value>& args) {
                                      nullptr,
                                      UserDefinedFunction::xDestroy);
   CHECK_ERROR_OR_THROW(env->isolate(), db, r, SQLITE_OK, void());
+}
+
+void Database::CreateCollation(const FunctionCallbackInfo<Value>& args) {
+  Database* db;
+  ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
+  Environment* env = Environment::GetCurrent(args);
+  THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
+  THROW_AND_RETURN_IF_IN_AUTHORIZER(env, db);
+
+  if (!args[0]->IsString()) {
+    THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
+                               "The \"name\" argument must be a string.");
+    return;
+  }
+
+  if (!args[1]->IsFunction()) {
+    THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
+                               "The \"compare\" argument must be a function.");
+    return;
+  }
+
+  Utf8Value name(env->isolate(), args[0].As<String>());
+  auto collation = std::make_unique<UserDefinedCollation>(
+      env, args[1].As<Function>(), BaseObjectWeakPtr<Database>(db));
+  int r = sqlite3_create_collation_v2(db->connection_.get(),
+                                      *name,
+                                      SQLITE_UTF8,
+                                      collation.get(),
+                                      UserDefinedCollation::xCompare,
+                                      UserDefinedCollation::xDestroy);
+  // Unlike sqlite3_create_function_v2(), this does not call xDestroy when it
+  // fails, so SQLite only takes ownership once it succeeds.
+  CHECK_ERROR_OR_THROW(env->isolate(), db, r, SQLITE_OK, void());
+  collation.release();
+  sqlite3_commit_hook(db->connection_.get(), Database::CommitHook, db);
 }
 
 void Database::Location(const FunctionCallbackInfo<Value>& args) {
@@ -3223,6 +3377,11 @@ void Database::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
         xConflict,
         static_cast<void*>(&context));
   }
+  if (db->HasCollationError()) {
+    db->RollbackAfterCollationError();
+    db->ThrowCollationError(env->isolate());
+    return;
+  }
   if (r == SQLITE_OK) {
     args.GetReturnValue().Set(true);
     return;
@@ -3914,7 +4073,7 @@ MaybeLocal<Value> StatementExecutionHelper::All(Environment* env,
   LocalVector<Value> row_values(isolate);
 
   SteppingStatementGuard stepping(db, stmt);
-  while ((r = sqlite3_step(stmt)) == SQLITE_ROW) {
+  while ((r = StepStatement(db, stmt)) == SQLITE_ROW) {
     if (num_cols == 0) {
       num_cols = sqlite3_column_count(stmt);
       if (!return_arrays && !statement->UpdateRowCache()) {
@@ -3960,7 +4119,7 @@ MaybeLocal<Object> StatementExecutionHelper::Run(Environment* env,
     if (needs_reset) sqlite3_reset(statement->statement_.get());
   });
 
-  int step_r = sqlite3_step(stmt);
+  int step_r = StepStatement(db, stmt);
   // SQLITE_ROW is accepted here (and discarded) so that run() can still be
   // used on RETURNING/SELECT statements, matching prior behavior of
   // ignoring the step result entirely.
@@ -4049,7 +4208,7 @@ MaybeLocal<Value> StatementExecutionHelper::Get(Environment* env,
     if (needs_reset) sqlite3_reset(statement->statement_.get());
   });
 
-  int r = sqlite3_step(stmt);
+  int r = StepStatement(db, stmt);
   if (r == SQLITE_DONE) {
     RESET_AND_CHECK(isolate, db, stmt, needs_reset, MaybeLocal<Value>());
     return scope.Escape(Undefined(isolate));
@@ -4852,7 +5011,7 @@ void StatementIterator::Next(const FunctionCallbackInfo<Value>& args) {
   // stays inside the guard.
   SteppingStatementGuard stepping(iter->stmt_->db_.get(),
                                   iter->stmt_->statement_.get());
-  int r = sqlite3_step(iter->stmt_->statement_.get());
+  int r = StepStatement(iter->stmt_->db_.get(), iter->stmt_->statement_.get());
   if (r != SQLITE_ROW) {
     CHECK_ERROR_OR_THROW(
         env->isolate(), iter->stmt_->db_.get(), r, SQLITE_DONE, void());
@@ -5177,6 +5336,8 @@ static void Initialize(Local<Object> target,
     SetProtoMethod(isolate, db_tmpl, "deserialize", Database::Deserialize);
     SetProtoMethod(isolate, db_tmpl, "setAuthorizer", Database::SetAuthorizer);
     SetProtoMethod(isolate, db_tmpl, "createModule", Database::CreateModule);
+    SetProtoMethod(
+        isolate, db_tmpl, "createCollation", Database::CreateCollation);
     SetSideEffectFreeGetter(isolate,
                             db_tmpl,
                             FIXED_ONE_BYTE_STRING(isolate, "isOpen"),

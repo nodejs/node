@@ -251,6 +251,7 @@ class Database : public BaseObject {
   static void CustomFunction(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void AggregateFunction(
       const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void CreateCollation(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void CreateSession(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void ApplyChangeset(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void EnableLoadExtension(
@@ -305,6 +306,14 @@ class Database : public BaseObject {
   // enable that use case.
   void SetIgnoreNextSQLiteError(bool ignore);
   bool ShouldIgnoreSQLiteError();
+
+  // Collations have no way to report an error to SQLite, so an exception
+  // thrown by one is stored here and rethrown once the statement returns.
+  bool HasCollationError() const { return !collation_error_.IsEmpty(); }
+  void SetCollationError(v8::Isolate* isolate, v8::Local<v8::Value> error);
+  bool ThrowCollationError(v8::Isolate* isolate);
+  void RollbackAfterCollationError();
+  static int CommitHook(void* db);
   void EnableTracing();
   void DisableTracing();
 
@@ -359,6 +368,7 @@ class Database : public BaseObject {
   bool enable_load_extension_;
   ConnectionPtr connection_;
   bool ignore_next_sqlite_error_;
+  v8::Global<v8::Value> collation_error_;
   int callback_depth_ = 0;
   int destructor_depth_ = 0;
   int authorizer_depth_ = 0;
@@ -377,6 +387,7 @@ class Database : public BaseObject {
   BaseObjectWeakPtr<diagnostics_channel::Channel> trace_channel_;
 
   friend class UserDefinedFunction;
+  friend class UserDefinedCollation;
   friend class CustomAggregate;
   friend class DatabaseLimits;
   friend class Session;
@@ -647,6 +658,24 @@ class UserDefinedFunction {
   v8::Global<v8::Function> fn_;
   BaseObjectWeakPtr<Database> db_;
   bool use_bigint_args_;
+};
+
+class UserDefinedCollation {
+ public:
+  UserDefinedCollation(Environment* env,
+                       v8::Local<v8::Function> fn,
+                       BaseObjectWeakPtr<Database> db);
+  ~UserDefinedCollation();
+  static int xCompare(
+      void* self, int a_length, const void* a, int b_length, const void* b);
+  static void xDestroy(void* self);
+
+ private:
+  int Compare(std::string_view a, std::string_view b);
+
+  Environment* env_;
+  v8::Global<v8::Function> fn_;
+  BaseObjectWeakPtr<Database> db_;
 };
 
 class DatabaseLimits : public BaseObject {
