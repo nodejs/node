@@ -159,7 +159,7 @@ class V8_EXPORT ArrayBufferBase : public Object {
 
   /**
    * Returns true if this ArrayBuffer may be detached. Always false for
-   * SharedArrayBuffer.
+   * immutable ArrayBuffers and SharedArrayBuffers.
    */
   bool IsDetachable() const;
 
