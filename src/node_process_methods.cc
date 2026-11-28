@@ -93,10 +93,12 @@ static void Chdir(const FunctionCallbackInfo<Value>& args) {
   if (err) {
     // Also include the original working directory, since that will usually
     // be helpful information when debugging a `chdir()` failure.
+    // uv_cwd() fails if the working directory was removed; buf is then not
+    // written, so leave the original directory out of the error.
     char buf[PATH_MAX_BYTES];
     size_t cwd_len = sizeof(buf);
-    uv_cwd(buf, &cwd_len);
-    return env->ThrowUVException(err, "chdir", nullptr, buf, *path);
+    const char* cwd = uv_cwd(buf, &cwd_len) == 0 ? buf : nullptr;
+    return env->ThrowUVException(err, "chdir", nullptr, cwd, *path);
   }
 }
 
