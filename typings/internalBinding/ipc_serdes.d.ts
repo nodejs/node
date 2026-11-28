@@ -1,8 +1,23 @@
 declare namespace InternalIPCSerdesBinding {
   type Buffer = Uint8Array;
+
+  // Per-channel native framer for the `advanced` codec. Accumulates partial
+  // reads in C++ and returns the complete, deserialized messages found in each
+  // chunk. See src/node_ipc_serdes.cc.
+  class IPCChannelFramer {
+    constructor();
+    read(chunk: Uint8Array): unknown[];
+    // Bitmask of kFramerBuffering and kFramerError.
+    status(): number;
+    // Returns and clears the error of a frame that failed to deserialize.
+    takeError(): unknown;
+  }
 }
 
 export interface IPCSerdesBinding {
   serialize(message: unknown): InternalIPCSerdesBinding.Buffer;
   deserialize(buffer: ArrayBufferView): unknown;
+  IPCChannelFramer: typeof InternalIPCSerdesBinding.IPCChannelFramer;
+  kFramerBuffering: number;
+  kFramerError: number;
 }
