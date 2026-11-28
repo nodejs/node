@@ -22,3 +22,11 @@ await run([
 
 assert(output.accumulator.includes(
   "null { result: { type: 'number', value: 2, description: '2' } }"));
+
+// Ensures that we do not rely on user-mutable global identifiers:
+await run([
+  'Object.prototype.toJSON = function() { throw new Error() }',
+  'delete global, delete globalThis, delete Function, delete eval, delete Object, delete Reflect; Math',
+]);
+
+assert.match(output.accumulator, /^Object \[Math\] \{\}$/m);

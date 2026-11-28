@@ -20,6 +20,6 @@ start({
 
 input.end('setImmediate(() => { throw new Error("test"); });\n');
 
-setImmediate(common.mustCall(() => {
+process.on('beforeExit', common.mustCall(() => {
   assert.match(output.read(), /Uncaught Error: test/);
 }));
