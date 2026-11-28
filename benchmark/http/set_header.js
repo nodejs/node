@@ -8,6 +8,8 @@ const bench = common.createBenchmark(main, {
     'X-Powered-By',
     'Vary',
     'Set-Cookie',
+    'Cookie',
+    'Authorization',
     'Content-Type',
     'Content-Length',
     'Connection',
