@@ -36,6 +36,16 @@ declare namespace InternalHttpParserBinding {
     static kLenientSpacesAfterChunkSize: number;
     static kLenientAll: number;
 
+    static kNativeHeadersMagic: number;
+    static kNativeHeaderFlagHost: number;
+    static kNativeHeaderFlagExpect: number;
+    static kNativeHeaderFlagContentLength: number;
+    static kNativeHeaderFlagTransferEncoding: number;
+    static kNativeHeaderFlagTE: number;
+    static kNativeHeadersCountOffset: number;
+    static kNativeHeadersFlagsOffset: number;
+    static kNativeHeadersPrefix: number;
+
     close(): void;
     free(): void;
     remove(): void;
@@ -54,6 +64,7 @@ declare namespace InternalHttpParserBinding {
     consume(stream: Stream): void;
     unconsume(): void;
     getCurrentBuffer(): Buffer;
+    setSkipBody(skip?: boolean): void;
   }
 }
 
@@ -62,4 +73,8 @@ export interface HttpParserBinding {
   HTTPParser: typeof InternalHttpParserBinding.HTTPParser;
   allMethods: string[];
   methods: string[];
+  nativeHeadersHas(headers: Buffer, name: string): boolean;
+  nativeHeadersGet(headers: Buffer, name: string): string | undefined;
+  nativeHeadersToArray(headers: Buffer, maxElements?: number): string[];
+  nativeHeadersByteLength(headers: Buffer): number;
 }
