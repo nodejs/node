@@ -12,6 +12,7 @@
     "special-env-variables": "special-env-variables",
     "special-env-variables-windows": "special-env-variables.bat",
     "pwd": "pwd",
-    "pwd-windows": "cd"
+    "pwd-windows": "cd",
+    "kill-self": "kill -TERM $$"
   }
 }
