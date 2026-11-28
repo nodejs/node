@@ -1,8 +1,9 @@
 'use strict';
 
-const { mustCall, hasCrypto } = require('../common');
+const { mustCall, hasCrypto, hasTemporal } = require('../common');
 const assert = require('assert');
 const util = require('util');
+const vm = require('vm');
 const { test } = require('node:test');
 const defaultMsgStart = 'Expected values to be strictly deep-equal:\n';
 const defaultMsgStartFull = `${defaultMsgStart}+ actual - expected`;
@@ -165,6 +166,58 @@ test('regexp', () => {
               "+ /test/\n- MyRegExp /test/ {\n-   '0': '1'\n- }\n"
     }
   );
+});
+
+test('Temporal objects are compared by value', {
+  skip: !hasTemporal && 'Temporal is not available',
+}, () => {
+  const instant = Temporal.Instant.from('2026-01-01T00:00:00Z');
+  const laterInstant = Temporal.Instant.from('2036-01-01T00:00:00Z');
+
+  assertDeepAndStrictEqual(instant, Temporal.Instant.fromEpochMilliseconds(instant.epochMilliseconds));
+  assertNotDeepOrStrict(instant, laterInstant);
+  assertNotDeepOrStrict({ at: instant }, { at: laterInstant });
+  assert.throws(() => assert.partialDeepStrictEqual({ at: instant, id: 1 }, { at: laterInstant }), {
+    code: 'ERR_ASSERTION',
+  });
+  assert.partialDeepStrictEqual({ at: instant, id: 1 }, { at: Temporal.Instant.from(instant) });
+
+  const pairs = [
+    ['2026-01-01', '2026-01-02', Temporal.PlainDate],
+    ['2026-01-01T10:00', '2026-01-01T10:01', Temporal.PlainDateTime],
+    ['10:00', '10:00:00.000000001', Temporal.PlainTime],
+    ['2026-01', '2026-02', Temporal.PlainYearMonth],
+    ['01-01', '01-02', Temporal.PlainMonthDay],
+    ['2026-01-01T00:00Z[UTC]', '2026-01-01T00:00Z[Europe/Brussels]', Temporal.ZonedDateTime],
+  ];
+  for (const { 0: value, 1: otherValue, 2: Type } of pairs) {
+    assertDeepAndStrictEqual(Type.from(value), Type.from(value));
+    assertNotDeepOrStrict(Type.from(value), Type.from(otherValue));
+  }
+
+  assertNotDeepOrStrict(Temporal.PlainDate.from('2026-01-01'),
+                        Temporal.PlainDate.from('2026-01-01[u-ca=gregory]'));
+  assertNotDeepOrStrict(instant, instant.toZonedDateTimeISO('UTC'));
+
+  assertDeepAndStrictEqual(Temporal.Duration.from({ hours: 1 }), Temporal.Duration.from('PT1H'));
+  assertNotDeepOrStrict(Temporal.Duration.from({ hours: 1 }), Temporal.Duration.from({ minutes: 60 }));
+  assertNotDeepOrStrict(Temporal.Duration.from({ hours: 1 }), Temporal.Duration.from({ hours: -1 }));
+
+  // Own properties are still compared.
+  assertNotDeepOrStrict(Object.assign(Temporal.Instant.from(instant), { id: 1 }), Temporal.Instant.from(instant));
+
+  // Temporal objects from another realm are compared by value as well. Their
+  // prototypes differ, which only deepStrictEqual compares.
+  const otherRealmInstant = vm.runInNewContext(`Temporal.Instant.from('${instant}')`);
+  assert.deepEqual(instant, otherRealmInstant);
+  assert.partialDeepStrictEqual(instant, otherRealmInstant);
+  assert.throws(() => assert.deepStrictEqual(instant, otherRealmInstant), { code: 'ERR_ASSERTION' });
+  assertNotDeepOrStrict(laterInstant, otherRealmInstant);
+
+  // An object that only carries the Temporal tag is not a Temporal object.
+  const lookalike = Object.defineProperty({}, Symbol.toStringTag, { value: 'Temporal.Instant' });
+  assertNotDeepOrStrict(instant, lookalike);
+  assertNotDeepOrStrict(lookalike, instant);
 });
 
 // For these weird cases, deepEqual should pass (at least for now),

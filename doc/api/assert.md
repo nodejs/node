@@ -342,6 +342,9 @@ An alias of [`assert.ok()`][].
 <!-- YAML
 added: v0.1.21
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/67059
+    description: Temporal objects are compared by value.
   - version: v26.0.0
     pr-url: https://github.com/nodejs/node/pull/58849
     description: Message may now be a `printf`-like format string or function.
@@ -444,6 +447,9 @@ are also recursively evaluated by the following rules.
   will result in inequality, even if they contain the same content.
 * {RegExp} lastIndex, flags, and source are always compared, even if these
   are not enumerable properties.
+* Temporal objects are compared by value: `Temporal.Duration` objects field by
+  field, so `PT1H` and `PT60M` are not equal, and all other Temporal objects
+  with their `equals()` method.
 
 The following example does not throw an [`AssertionError`][] because the
 primitives are compared using the [`==` operator][].
@@ -546,6 +552,9 @@ parameter is an instance of {Error} then it will be thrown instead of the
 <!-- YAML
 added: v1.2.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/67059
+    description: Temporal objects are compared by value.
   - version: v25.1.0
     pr-url: https://github.com/nodejs/node/pull/58849
     description: Message may now be a `printf`-like format string or function.
@@ -628,6 +637,9 @@ are recursively evaluated also by the following rules.
   will result in inequality, even if they contain the same content.
 * {RegExp} lastIndex, flags, and source are always compared, even if these
   are not enumerable properties.
+* Temporal objects are compared by value: `Temporal.Duration` objects field by
+  field, so `PT1H` and `PT60M` are not equal, and all other Temporal objects
+  with their `equals()` method.
 
 ```mjs
 import assert from 'node:assert/strict';
@@ -2368,6 +2380,9 @@ added:
   - v23.4.0
   - v22.13.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/67059
+    description: Temporal objects are compared by value.
   - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/59448
     description: Promises are not considered equal anymore if they are not of
@@ -2416,6 +2431,9 @@ behaving as a super set of it.
   will result in inequality, even if they contain the same content.
 * {RegExp} lastIndex, flags, and source are always compared, even if these
   are not enumerable properties.
+* Temporal objects are compared by value: `Temporal.Duration` objects field by
+  field, so `PT1H` and `PT60M` are not equal, and all other Temporal objects
+  with their `equals()` method.
 * Holes in sparse arrays are ignored.
 
 ```mjs
