@@ -11,7 +11,7 @@
 # the toolchain versions are read from config.gypi.
 
 import argparse
-import datetime
+import datetime as dt
 import glob
 import json
 import os
@@ -816,7 +816,7 @@ def build_sbom(node_version, components, lib_files, build_env=None):
     'serialNumber': f'urn:uuid:{uuid.uuid4()}',
     'version': 1,
     'metadata': {
-      'timestamp': datetime.datetime.now(datetime.timezone.utc).isoformat(),
+      'timestamp': dt.datetime.now(dt.timezone.utc).isoformat(),
       'lifecycles': [{'phase': 'build'}],
       # This script ships with Node.js, so it carries the Node.js version.
       'tools': {
