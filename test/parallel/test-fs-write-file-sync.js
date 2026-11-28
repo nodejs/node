@@ -50,6 +50,15 @@ tmpdir.refresh();
   assert.strictEqual(fs.statSync(file).mode & 0o777, mode);
 }
 
+// Test writeFileSync utf8 encoding aliases (including uppercase)
+{
+  for (const encoding of ['utf8', 'utf-8', 'UTF8', 'UTF-8', 'Utf8', 'uTf-8']) {
+    const file = tmpdir.resolve(`testWriteFileSync-${encoding}.txt`);
+    fs.writeFileSync(file, 'hello', { encoding, mode });
+    assert.strictEqual(fs.readFileSync(file, 'utf8'), 'hello');
+  }
+}
+
 // Test appendFileSync
 {
   const file = tmpdir.resolve('testAppendFileSync.txt');
