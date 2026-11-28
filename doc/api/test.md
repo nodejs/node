@@ -502,21 +502,20 @@ added:
 
 > Stability: 1.0 - Early development
 
-Tags annotate tests and suites with arbitrary string labels. The
+Tags provide string labels for tests and suites. The
 [`--experimental-test-tag-filter`][] CLI flag (or the `testTagFilters`
-option on [`run()`][]) selects tests by a boolean expression over those
+option on [`run()`][]) selects tests using a filter expression over those
 labels.
 
-Tags are an alternative to encoding metadata into test names. They are
-useful for cross-cutting axes such as subsystem, speed bucket, flakiness,
-or environment, where a name pattern would be brittle.
+Tags avoid the need to encode metadata into test names (such as
+subsystem, speed, or environment).
 
 ### Authoring tagged tests
 
-Pass a `tags` array on any of `test()`, `it()`, `suite()`, or `describe()`.
-Tags inherit from a suite to its child tests by union—a test inside a
-suite tagged `['db']` that declares its own `tags: ['integration']`
-effectively has both tags.
+Pass a `tags` array to `test()`, `it()`, `suite()`, or `describe()`.
+Child tests inherit their suite's tags. For example, if a suite has
+`tags: ['db']` and a test inside it has `tags: ['integration']`, the
+test has both `db` and `integration` tags.
 
 ```mjs
 import { describe, it } from 'node:test';
@@ -538,23 +537,21 @@ describe('database', { tags: ['db'] }, () => {
 });
 ```
 
-Tag values must be non-empty strings that contain no whitespace, no
-operator characters (`& | ! ( ) *`), and are not the reserved words
-`'and'`, `'or'`, or `'not'` in any casing. Tags are matched
-case-insensitively; the canonical form is lowercase. Duplicates within a
-single `tags` array are collapsed on the lowercased form, preserving the
-first-seen declaration order.
+Tag values must be non-empty strings. They cannot contain whitespace or
+operator characters (`&`, `|`, `!`, `(`, `)`, `*`), and cannot use the
+reserved words `'and'`, `'or'`, or `'not'` (case-insensitive). Tags are
+matched case-insensitively and normalized to lowercase. Duplicate tags
+within the same array are removed, preserving their initial order.
 
-Hooks (`before`, `after`, `beforeEach`, `afterEach`) do not declare their
-own tags. They run as part of their owning suite, which carries the
-suite's tags.
+Hooks (`before`, `after`, `beforeEach`, `afterEach`) do not accept a
+`tags` option. They run with the tags of their enclosing suite.
 
 ### Filtering syntax
 
 The filter expression supports:
 
-* Identifiers—any non-whitespace, non-operator characters. A literal
-  identifier matches a tag of the same value (case-insensitive).
+* Identifiers: non-whitespace, non-operator characters that match a tag
+  name (case-insensitive).
 * `*` wildcards inside an identifier match any sequence of characters.
   A bare `*` matches any tagged test.
 * Boolean operators with two equivalent forms:
@@ -563,8 +560,8 @@ The filter expression supports:
   * `not` / `!`
 * Parentheses for grouping.
 
-The word forms (`and`, `or`, `not`) require whitespace separation; the
-punctuation forms do not.
+Word operators (`and`, `or`, `not`) must be separated by whitespace;
+symbol operators (`&&`, `||`, `!`) do not require whitespace.
 
 #### Operator precedence
 
@@ -578,49 +575,47 @@ The expression is evaluated with the standard precedence
 
 Use parentheses to override:
 
-| Expression                     | Selects                                    |
-| ------------------------------ | ------------------------------------------ |
-| `(unit or smoke) and not slow` | unit-or-smoke tests that are not also slow |
-| `db && !flaky`                 | db tests that are not flaky                |
-| `*`                            | every tagged test                          |
+| Expression                     | Selects                                  |
+| ------------------------------ | ---------------------------------------- |
+| `(unit or smoke) and not slow` | Tests tagged unit or smoke, but not slow |
+| `db && !flaky`                 | Tests tagged db, but not flaky           |
+| `*`                            | All tests with at least one tag          |
 
 #### Untagged tests
 
 Untagged tests behave as if they have an empty tag set. As a result:
 
-| Filter expression        | Untagged test | Why                                              |
-| ------------------------ | ------------- | ------------------------------------------------ |
-| `db`                     | excluded      | Positive match against an empty tag set is false |
-| `*`                      | excluded      | The bare wildcard requires at least one tag      |
-| `db or unit`             | excluded      | Both branches are false against an empty tag set |
-| `not flaky`              | included      | Negation against an empty tag set is true        |
-| `not flaky and not slow` | included      | Both negations are true against an empty tag set |
-| `db or not flaky`        | included      | The negated branch is true                       |
+| Filter expression        | Untagged test | Why                                 |
+| ------------------------ | ------------- | ----------------------------------- |
+| `db`                     | excluded      | Untagged tests have no matching tag |
+| `*`                      | excluded      | Wildcard requires at least one tag  |
+| `db or unit`             | excluded      | Neither tag matches                 |
+| `not flaky`              | included      | The test is not tagged flaky        |
+| `not flaky and not slow` | included      | The test is neither flaky nor slow  |
+| `db or not flaky`        | included      | The negated branch matches          |
 
 For example, `--experimental-test-tag-filter='not flaky'` runs every test
 that is not tagged `flaky`, including all untagged tests.
 
 #### Composing multiple filters
 
-[`--experimental-test-tag-filter`][] may be specified more than once on the
-command line. Multiple expressions compose by AND—a test must satisfy
-every expression to run. The same applies to passing an array to
-`testTagFilters` on [`run()`][]. The tag filter is also AND'd with
-[`--test-name-pattern`][], [`--test-skip-pattern`][], and `.only`
-filtering.
+When [`--experimental-test-tag-filter`][] is specified multiple times, or
+when an array is passed to `testTagFilters` in [`run()`][], expressions
+are combined with `AND`—a test must satisfy every expression to run.
+Tag filters also combine with [`--test-name-pattern`][],
+[`--test-skip-pattern`][], and `.only`.
 
 #### Reading tags from inside a test
 
 The [`TestContext`][] object exposes the test's tags as a frozen array
-through [`context.tags`][], so tests can branch on their own metadata.
+through [`context.tags`][].
 
 #### Errors
 
-A tag value that violates the validation rules above throws
-`ERR_INVALID_ARG_VALUE` at the registration site, before any test runs.
-A non-array `tags` value throws `ERR_INVALID_ARG_TYPE`. A malformed
-filter expression on the CLI causes the test runner to exit with a
-non-zero status before running any test files.
+Invalid tag values throw `ERR_INVALID_ARG_VALUE` when registered.
+A non-array `tags` value throws `ERR_INVALID_ARG_TYPE`. An invalid
+filter expression on the CLI causes the test runner to exit with an
+error before running tests.
 
 ## Extraneous asynchronous activity
 
