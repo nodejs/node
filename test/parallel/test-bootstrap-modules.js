@@ -90,6 +90,7 @@ expected.beforePreExec = new Set([
   'Internal Binding fs',
   'NativeModule internal/fs/utils',
   'NativeModule fs',
+  'NativeModule internal/fs/synchronous',
   'Internal Binding options',
   'NativeModule internal/options',
   'NativeModule internal/source_map/source_map_cache',
