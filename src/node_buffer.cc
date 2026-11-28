@@ -768,6 +768,12 @@ start_fill:
   }
 }
 
+// Kept out of line so the string write paths stay small.
+void COLD_NOINLINE ThrowImmutableWriteError(Isolate* isolate) {
+  THROW_ERR_INVALID_ARG_VALUE(
+      isolate,
+      "The argument 'buffer' must not be backed by an immutable ArrayBuffer");
+}
 
 template <encoding encoding>
 void StringWrite(const FunctionCallbackInfo<Value>& args) {
@@ -796,6 +802,10 @@ void StringWrite(const FunctionCallbackInfo<Value>& args) {
       ParseArrayIndex(env, args[3], ts_obj_length - offset, &max_length));
 
   max_length = std::min(ts_obj_length - offset, max_length);
+
+  if (ts_obj_buffer->IsImmutable()) [[unlikely]] {
+    return ThrowImmutableWriteError(env->isolate());
+  }
 
   if (max_length == 0)
     return args.GetReturnValue().Set(0);
@@ -1965,6 +1975,10 @@ void SlowWriteString(const FunctionCallbackInfo<Value>& args) {
 
   max_length = std::min(ts_obj_length - offset, max_length);
 
+  if (ts_obj_buffer->IsImmutable()) [[unlikely]] {
+    return ThrowImmutableWriteError(env->isolate());
+  }
+
   if (max_length == 0) return args.GetReturnValue().Set(0);
 
   uint32_t written = 0;
@@ -2003,6 +2017,12 @@ uint32_t FastWriteString(Local<Value> receiver,
   CHECK(offset <= dst_length);
   CHECK(dst_length - offset <= std::numeric_limits<uint32_t>::max());
   TRACK_V8_FAST_API_CALL("buffer.writeString");
+
+  // Throw before `src` is read, as creating the error may trigger a GC.
+  if (dst_buffer->IsImmutable()) [[unlikely]] {
+    ThrowImmutableWriteError(options.isolate);
+    return 0;
+  }
 
   return WriteOneByteString<encoding>(
       src.data,
