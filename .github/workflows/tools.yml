@@ -361,7 +361,7 @@ jobs:
         if: env.COMMIT_MSG == '' && (github.event_name == 'schedule' || inputs.id == 'all' || inputs.id == matrix.id) && steps.check-pr.outputs.hasNonBotCommits != 'true'
         run: |
           echo "COMMIT_MSG=${{ matrix.subsystem }}: update ${{ matrix.id }} to $NEW_VERSION" >> "$GITHUB_ENV"
-      - uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1  # v8.1.1
+      - uses: peter-evans/create-pull-request@3ffccacd46053766916f087ce41d627c0b8cf2d1  # v8.1.3
         if: (github.event_name == 'schedule' || inputs.id == 'all' || inputs.id == matrix.id) && steps.check-pr.outputs.hasNonBotCommits != 'true'
         # Creates a PR or update the Action's existing PR, or
         # no-op if the base branch is already up-to-date.
