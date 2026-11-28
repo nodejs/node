@@ -632,6 +632,29 @@ async function tests() {
   }
 
   {
+    // An already destroyed stream with autoDestroy: false and an async _destroy
+    // must not emit an unhandled 'error' event after the iterator finishes.
+    // Refs: https://github.com/nodejs/node/issues/67418
+
+    const stream = new Readable({
+      read() {},
+      autoDestroy: false,
+      destroy(err, cb) {
+        setTimeout(() => cb(err), 10);
+      },
+    });
+
+    const expectedErr = new Error('stream error');
+    stream.destroy(expectedErr);
+
+    await assert.rejects(async () => {
+      for await (const chunk of stream) {
+        assert.fail(`unexpected chunk: ${chunk}`);
+      }
+    }, expectedErr);
+  }
+
+  {
     // Don't destroy before 'end'.
 
     const r = new Readable({
