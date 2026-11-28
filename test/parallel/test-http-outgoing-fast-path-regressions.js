@@ -2,34 +2,23 @@
 
 // Flags: --expose-internals
 
-// Regression coverage for the native HTTP/1.1 message builder
-// (buildHttpMessage) and its parity with the legacy JS path.
-//
-// Cases:
-// - Empty chunked responses still terminate with 0\r\n\r\n
-// - Trailer keeps chunked framing (no Content-Length rewrite)
-// - Transfer-Encoding: chunked;params is still recognized as chunked
-// - strictContentLength throws on single res.end(chunk)
-// - Large Content-Length is not truncated via native out-params
-//
-// Framing cases are run twice by re-executing this file with
-// --legacy-path so both the native builder and the pre-existing JS path
-// are checked against the same assertions (see pimterry review).
+// Regression coverage for HTTP/1.1 outgoing framing on the JS fast path
+// (tryFastEnd / tryFastStoreHeaderObject) and the legacy store/write path.
+// The fast path is what ServerResponse uses by default. Re-executing with
+// --legacy-path turns it off so the same assertions cover both.
 
 const common = require('../common');
 const assert = require('assert');
 const http = require('http');
 const net = require('net');
 const { spawnSync } = require('child_process');
-const { internalBinding } = require('internal/test/binding');
+const { setOutgoingFastPathForTests } = require('internal/http/outgoing');
 
 const isLegacy = process.argv.includes('--legacy-path');
-const pathLabel = isLegacy ? 'legacy' : 'native';
+const pathLabel = isLegacy ? 'legacy' : 'fast';
 
 if (isLegacy) {
-  // Force tryNativeStoreHeader / tryFastEnd to fall back to the JS path.
-  const httpParser = internalBinding('http_parser');
-  httpParser.buildHttpMessage = () => undefined;
+  setOutgoingFastPathForTests(false);
 }
 
 function rawRequest(handler, callback) {
@@ -85,7 +74,7 @@ rawRequest((req, res) => {
 }));
 
 // strictContentLength must be enforced for the single res.end(chunk) path
-// too (native tryFastEnd must not swallow the mismatch).
+// too. The fast path defers to write_() instead of swallowing the mismatch.
 {
   const server = http.createServer(common.mustCall((req, res) => {
     res.strictContentLength = true;
@@ -114,10 +103,9 @@ rawRequest((req, res) => {
   }));
 }
 
-// Do not truncate Content-Length bookkeeping through native out-params.
-// 4294967296 == 2^32, which would wrap to 0 if stored in a uint32 slot.
-// Only meaningful on the native path (out-params are native-only).
-if (!isLegacy) {
+// 4294967296 === 2^32. Bookkeeping must keep the full JS number rather than
+// wrapping through a 32-bit slot.
+{
   const server = http.createServer(common.mustCall((req, res) => {
     res.setHeader('Content-Length', '4294967296');
     res.writeHead(200);
@@ -141,8 +129,8 @@ if (!isLegacy) {
   }));
 }
 
-// Re-run this file with the legacy path forced so both implementations are
-// covered by the same framing assertions.
+// Re-run with the fast path disabled so the legacy store/write path is
+// checked against the same framing assertions.
 if (!isLegacy) {
   const result = spawnSync(
     process.execPath,
