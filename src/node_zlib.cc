@@ -699,6 +699,15 @@ class CompressionStream : public AsyncWrap,
       Close();
   }
 
+  // Used by the init() bindings: the context (and its buffers) must not be
+  // (re)initialized while the thread pool is still using it.
+  bool ThrowIfWriteInProgress() {
+    if (!write_in_progress_) return false;
+    env()->ThrowError(
+        "Cannot initialize zlib stream while a write is in progress");
+    return true;
+  }
+
   static void Reset(const FunctionCallbackInfo<Value> &args) {
     CompressionStream* wrap;
     ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
@@ -798,6 +807,11 @@ class ZlibStream final : public CompressionStream<ZlibContext> {
 
   // just pull the ints out of the args and call the other Init
   static void Init(const FunctionCallbackInfo<Value>& args) {
+    ZlibStream* wrap;
+    ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
+
+    if (wrap->ThrowIfWriteInProgress()) return;
+
     // Refs: https://github.com/nodejs/node/issues/16649
     // Refs: https://github.com/nodejs/node/issues/14161
     if (args.Length() == 5) {
@@ -812,9 +826,6 @@ class ZlibStream final : public CompressionStream<ZlibContext> {
           "init(windowBits, level, memLevel, strategy, writeResult, "
           "writeCallback,"
           " dictionary[, rejectGarbageAfterEnd])");
-
-    ZlibStream* wrap;
-    ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
 
     Local<Context> context = args.GetIsolate()->GetCurrentContext();
 
@@ -914,6 +925,9 @@ class BrotliCompressionStream final :
   static void Init(const FunctionCallbackInfo<Value>& args) {
     BrotliCompressionStream* wrap;
     ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
+
+    if (wrap->ThrowIfWriteInProgress()) return;
+
     CHECK((args.Length() == 3 || args.Length() == 4) &&
           "init(params, writeResult, writeCallback[, dictionary])");
 
@@ -996,12 +1010,14 @@ class ZstdStream final : public CompressionStream<CompressionContext> {
   }
 
   static void Init(const FunctionCallbackInfo<Value>& args) {
+    ZstdStream* wrap;
+    ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
+
+    if (wrap->ThrowIfWriteInProgress()) return;
+
     CHECK((args.Length() >= 4 && args.Length() <= 6) &&
           "init(params, pledgedSrcSize, writeResult, writeCallback[, "
           "dictionary[, rejectGarbageAfterEnd]])");
-
-    ZstdStream* wrap;
-    ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
 
     CHECK(args[2]->IsUint32Array());
     CHECK_GE(args[2].As<Uint32Array>()->Length(), 2);
