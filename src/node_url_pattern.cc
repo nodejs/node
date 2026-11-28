@@ -5,8 +5,13 @@
 #include "node.h"
 #include "node_errors.h"
 #include "node_mem-inl.h"
+#include "node_process.h"
 #include "path.h"
 #include "util-inl.h"
+
+#include <iterator>
+#include <span>
+#include <unordered_set>
 
 namespace node {
 using node::url_pattern::URLPatternRegexProvider;
@@ -56,9 +61,12 @@ using v8::Array;
 using v8::Context;
 using v8::DictionaryTemplate;
 using v8::DontDelete;
+using v8::DontEnum;
+using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::Global;
+using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
 using v8::LocalVector;
@@ -71,6 +79,7 @@ using v8::ReadOnly;
 using v8::RegExp;
 using v8::Signature;
 using v8::String;
+using v8::Symbol;
 using v8::Value;
 
 std::optional<URLPatternRegexProvider::regex_type>
@@ -447,23 +456,48 @@ MaybeLocal<Object> URLPattern::URLPatternComponentResult::ToJSObject(
 
 MaybeLocal<Value> URLPattern::URLPatternResult::ToJSValue(
     Environment* env, const ada::url_pattern_result& result) {
+  return ToJSValue(env, result, Local<Object>());
+}
+
+MaybeLocal<Value> URLPattern::URLPatternResult::ToJSValue(
+    Environment* env,
+    const ada::url_pattern_result& result,
+    Local<Object> pattern) {
   auto isolate = env->isolate();
 
-  auto tmpl = env->urlpatternresult_template();
-  if (tmpl.IsEmpty()) {
-    static constexpr std::string_view namesVec[] = {
-        "hash",
-        "hostname",
-        "inputs",
-        "password",
-        "pathname",
-        "port",
-        "protocol",
-        "search",
-        "username",
-    };
-    tmpl = DictionaryTemplate::New(isolate, namesVec);
-    env->set_urlpatternresult_template(tmpl);
+  // Per WebIDL, the members of a dictionary are ordered lexicographically,
+  // after the members of the dictionary it inherits from. The `pattern` member
+  // of a URLPatternListResult therefore comes after the URLPatternResult ones.
+  static constexpr std::string_view namesVec[] = {
+      "hash",
+      "hostname",
+      "inputs",
+      "password",
+      "pathname",
+      "port",
+      "protocol",
+      "search",
+      "username",
+      "pattern",
+  };
+  constexpr size_t kResultMemberCount = std::size(namesVec) - 1;
+
+  Local<DictionaryTemplate> tmpl;
+  if (pattern.IsEmpty()) {
+    tmpl = env->urlpatternresult_template();
+    if (tmpl.IsEmpty()) {
+      tmpl = DictionaryTemplate::New(
+          isolate,
+          std::span<const std::string_view>(namesVec).first(
+              kResultMemberCount));
+      env->set_urlpatternresult_template(tmpl);
+    }
+  } else {
+    tmpl = env->urlpatternlistresult_template();
+    if (tmpl.IsEmpty()) {
+      tmpl = DictionaryTemplate::New(isolate, namesVec);
+      env->set_urlpatternlistresult_template(tmpl);
+    }
   }
 
   size_t index = 0;
@@ -489,8 +523,13 @@ MaybeLocal<Value> URLPattern::URLPatternResult::ToJSValue(
       URLPatternComponentResult::ToJSObject(env, result.port),
       URLPatternComponentResult::ToJSObject(env, result.protocol),
       URLPatternComponentResult::ToJSObject(env, result.search),
-      URLPatternComponentResult::ToJSObject(env, result.username)};
-  return NewDictionaryInstanceNullProto(env->context(), tmpl, vals);
+      URLPatternComponentResult::ToJSObject(env, result.username),
+      pattern};
+  std::span<MaybeLocal<Value>> values(vals);
+  return NewDictionaryInstanceNullProto(
+      env->context(),
+      tmpl,
+      pattern.IsEmpty() ? values.first(kResultMemberCount) : values);
 }
 
 std::optional<ada::url_pattern_options>
@@ -662,6 +701,363 @@ void URLPattern::HasRegexpGroups(const FunctionCallbackInfo<Value>& info) {
   info.GetReturnValue().Set(url_pattern->HasRegExpGroups());
 }
 
+namespace {
+// Processes `input` and `base_url` as the URLPattern "match" algorithm does
+// before it runs the component regular expressions, mirroring
+// ada::url_pattern::match(). Returns errors::type_error where "match" throws,
+// and std::nullopt where it returns null.
+// https://urlpattern.spec.whatwg.org/#url-pattern-match
+ada::result<std::optional<URLPatternList::Components>> ProcessMatchInput(
+    const ada::url_pattern_input& input, const std::string_view* base_url) {
+  URLPatternList::Components components;
+
+  if (const auto* init = std::get_if<ada::url_pattern_init>(&input)) {
+    if (base_url != nullptr) {
+      return tl::unexpected(ada::errors::type_error);
+    }
+    auto processed =
+        ada::url_pattern_init::process(*init,
+                                       ada::url_pattern_init::process_type::url,
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "");
+    if (!processed) {
+      return std::nullopt;
+    }
+    components.protocol = std::move(processed->protocol).value_or("");
+    components.username = std::move(processed->username).value_or("");
+    components.password = std::move(processed->password).value_or("");
+    components.hostname = std::move(processed->hostname).value_or("");
+    components.port = std::move(processed->port).value_or("");
+    components.pathname = std::move(processed->pathname).value_or("");
+    components.search = std::move(processed->search).value_or("");
+    if (components.search.starts_with('?')) {
+      components.search.erase(0, 1);
+    }
+    components.hash = std::move(processed->hash).value_or("");
+    return components;
+  }
+
+  std::optional<ada::url_aggregator> base;
+  if (base_url != nullptr) {
+    auto parsed_base = ada::parse<ada::url_aggregator>(*base_url, nullptr);
+    if (!parsed_base) {
+      return std::nullopt;
+    }
+    base = std::move(*parsed_base);
+  }
+  auto url = ada::parse<ada::url_aggregator>(std::get<std::string_view>(input),
+                                             base ? &*base : nullptr);
+  if (!url) {
+    return std::nullopt;
+  }
+
+  std::string_view protocol = url->get_protocol();
+  protocol.remove_suffix(1);  // The trailing ':'.
+  components.protocol = protocol;
+  components.username = url->get_username();
+  components.password = url->get_password();
+  components.hostname = url->get_hostname();
+  components.port = url->get_port();
+  components.pathname = url->get_pathname();
+  if (url->has_search()) {
+    std::string_view search = url->get_search();
+    if (search.starts_with('?')) search.remove_prefix(1);
+    components.search = search;
+  }
+  if (url->has_hash()) {
+    std::string_view hash = url->get_hash();
+    if (hash.starts_with('#')) hash.remove_prefix(1);
+    components.hash = hash;
+  }
+  return components;
+}
+
+// Converts `value` to a WebIDL sequence<URLPattern>. Per WebIDL, any iterable
+// is read through its iterator, including arrays, and the conversion stops at
+// the first value that is not a URLPattern. Returns false if a JavaScript
+// exception is pending.
+// https://webidl.spec.whatwg.org/#js-sequence
+bool ToURLPatternSequence(Environment* env,
+                          Local<Value> value,
+                          std::vector<BaseObjectPtr<URLPattern>>* patterns) {
+  static constexpr std::string_view kNotIterable =
+      "The \"patterns\" argument must be an iterable of URLPattern objects";
+  Isolate* isolate = env->isolate();
+  Local<Context> context = env->context();
+
+  if (!value->IsObject()) {
+    THROW_ERR_INVALID_ARG_TYPE(env, kNotIterable);
+    return false;
+  }
+  Local<Object> iterable = value.As<Object>();
+  Local<Value> method;
+  if (!iterable->Get(context, Symbol::GetIterator(isolate)).ToLocal(&method)) {
+    return false;
+  }
+  if (!method->IsFunction()) {
+    THROW_ERR_INVALID_ARG_TYPE(env, kNotIterable);
+    return false;
+  }
+  Local<Value> iterator;
+  if (!method.As<Function>()
+           ->Call(context, iterable, 0, nullptr)
+           .ToLocal(&iterator)) {
+    return false;
+  }
+  if (!iterator->IsObject()) {
+    THROW_ERR_INVALID_ARG_TYPE(env, kNotIterable);
+    return false;
+  }
+  Local<Value> next;
+  if (!iterator.As<Object>()->Get(context, env->next_string()).ToLocal(&next)) {
+    return false;
+  }
+  if (!next->IsFunction()) {
+    THROW_ERR_INVALID_ARG_TYPE(env, kNotIterable);
+    return false;
+  }
+
+  while (true) {
+    HandleScope handle_scope(isolate);
+    Local<Value> result;
+    if (!next.As<Function>()
+             ->Call(context, iterator, 0, nullptr)
+             .ToLocal(&result)) {
+      return false;
+    }
+    if (!result->IsObject()) {
+      THROW_ERR_INVALID_ARG_TYPE(env, kNotIterable);
+      return false;
+    }
+    Local<Value> done;
+    if (!result.As<Object>()->Get(context, env->done_string()).ToLocal(&done)) {
+      return false;
+    }
+    if (done->BooleanValue(isolate)) {
+      return true;
+    }
+    Local<Value> item;
+    if (!result.As<Object>()
+             ->Get(context, env->value_string())
+             .ToLocal(&item)) {
+      return false;
+    }
+    if (!URLPattern::HasInstance(env, item)) {
+      THROW_ERR_INVALID_ARG_TYPE(
+          env,
+          "The \"patterns[%d]\" argument must be an instance of URLPattern",
+          patterns->size());
+      return false;
+    }
+    patterns->emplace_back(BaseObject::Unwrap<URLPattern>(item));
+  }
+}
+}  // namespace
+
+URLPatternList::URLPatternList(
+    Environment* env,
+    Local<Object> object,
+    std::vector<BaseObjectPtr<URLPattern>>&& patterns)
+    : BaseObject(env, object), patterns_(std::move(patterns)) {
+  MakeWeak();
+  BuildPathnameIndex();
+}
+
+void URLPatternList::BuildPathnameIndex() {
+  // ada::url_pattern_list compiles every pathname as the pathname of a URL
+  // with a special scheme, with one ignore_case flag for the whole index. A
+  // pattern is only indexed if its own pathname component was compiled that
+  // way, so that the index and the pattern agree on which pathnames match.
+  std::optional<bool> ignore_case;
+  std::vector<std::string_view> pathnames;
+  for (size_t i = 0; i < patterns_.size(); i++) {
+    auto& pattern = patterns_[i]->url_pattern_;
+    bool indexable =
+        ada::url_pattern_helpers::protocol_component_matches_special_scheme(
+            pattern.protocol_component);
+    if (indexable) {
+      if (!ignore_case.has_value()) ignore_case = pattern.ignore_case();
+      indexable = pattern.ignore_case() == *ignore_case;
+    }
+    if (indexable) {
+      indexed_patterns_.push_back(i);
+      pathnames.push_back(pattern.get_pathname());
+    } else {
+      unindexed_patterns_.push_back(i);
+    }
+  }
+  if (pathnames.empty()) {
+    return;
+  }
+
+  ada::url_pattern_options options{.ignore_case = *ignore_case};
+  auto index = ada::parse_url_pattern_list<URLPatternRegexProvider>(
+      pathnames, nullptr, &options);
+  if (!index) {
+    // Without an index, FindMatch() tests every pattern in list order.
+    indexed_patterns_.clear();
+    unindexed_patterns_.clear();
+    return;
+  }
+  pathname_index_.emplace(std::move(*index));
+}
+
+bool URLPatternList::Matches(size_t index, const Components& components) const {
+  return patterns_[index]->url_pattern_.test_components(components.protocol,
+                                                        components.username,
+                                                        components.password,
+                                                        components.hostname,
+                                                        components.port,
+                                                        components.pathname,
+                                                        components.search,
+                                                        components.hash);
+}
+
+std::optional<size_t> URLPatternList::FindMatch(const Components& components,
+                                                bool any_match) const {
+  size_t end = patterns_.size();
+  std::optional<size_t> match;
+  if (pathname_index_.has_value()) {
+    auto result = pathname_index_->match(components.pathname);
+    if (!result.has_match()) {
+      for (size_t index : unindexed_patterns_) {
+        if (Matches(index, components)) return index;
+      }
+      return std::nullopt;
+    }
+    // The index reports the most specific matching pathname rather than the
+    // first one in list order, and the rest of that pattern may not match.
+    // When it does match, only the patterns before it can match first.
+    size_t candidate =
+        indexed_patterns_[static_cast<size_t>(result.route_index)];
+    if (Matches(candidate, components)) {
+      if (any_match) return candidate;
+      match = candidate;
+      end = candidate;
+    }
+  }
+  for (size_t index = 0; index < end; index++) {
+    if (Matches(index, components)) return index;
+  }
+  return match;
+}
+
+void URLPatternList::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackField("patterns", patterns_);
+  tracker->TrackField("indexed_patterns", indexed_patterns_);
+  tracker->TrackField("unindexed_patterns", unindexed_patterns_);
+}
+
+void URLPatternList::New(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  if (!args.IsConstructCall()) {
+    THROW_ERR_CONSTRUCT_CALL_REQUIRED(env);
+    return;
+  }
+  if (env->EmitURLPatternListWarning() &&
+      ProcessEmitWarningGeneric(env,
+                                "URLPatternList is an experimental feature and "
+                                "might change at any time",
+                                "ExperimentalWarning")
+          .IsNothing()) {
+    return;
+  }
+  if (args.Length() < 1) {
+    THROW_ERR_MISSING_ARGS(env, "The \"patterns\" argument must be specified");
+    return;
+  }
+
+  std::vector<BaseObjectPtr<URLPattern>> patterns;
+  if (!ToURLPatternSequence(env, args[0], &patterns)) {
+    return;
+  }
+
+  std::unordered_set<URLPattern*> seen;
+  seen.reserve(patterns.size());
+  for (const auto& pattern : patterns) {
+    if (!seen.insert(pattern.get()).second) {
+      THROW_ERR_INVALID_ARG_VALUE(env,
+                                  "The \"patterns\" argument must not contain "
+                                  "the same URLPattern more than once");
+      return;
+    }
+  }
+  if (patterns.empty()) {
+    THROW_ERR_INVALID_ARG_VALUE(env,
+                                "The \"patterns\" argument must not be empty");
+    return;
+  }
+
+  new URLPatternList(env, args.This(), std::move(patterns));
+}
+
+void URLPatternList::Exec(const FunctionCallbackInfo<Value>& args) {
+  URLPatternList* list;
+  ASSIGN_OR_RETURN_UNWRAP(&list, args.This());
+  Environment* env = Environment::GetCurrent(args);
+
+  URLPatternMatchArgs match_args;
+  if (!ParseURLPatternMatchArgs(env, args, &match_args)) return;
+  std::optional<std::string_view> base_url = match_args.base_url_view();
+  const std::string_view* base_url_ptr = base_url ? &*base_url : nullptr;
+
+  auto components = ProcessMatchInput(match_args.input, base_url_ptr);
+  if (!components) {
+    THROW_ERR_OPERATION_FAILED(env, "Failed to exec URLPatternList");
+    return;
+  }
+  std::optional<size_t> index;
+  if (components->has_value()) {
+    index = list->FindMatch(**components, false);
+  }
+  if (!index.has_value()) {
+    args.GetReturnValue().SetNull();
+    return;
+  }
+
+  URLPattern* pattern = list->patterns_[*index].get();
+  auto result = pattern->url_pattern_.exec(match_args.input, base_url_ptr);
+  if (!result) {
+    THROW_ERR_OPERATION_FAILED(env, "Failed to exec URLPatternList");
+    return;
+  }
+  if (!result->has_value()) {
+    args.GetReturnValue().SetNull();
+    return;
+  }
+  Local<Value> js_result;
+  if (URLPattern::URLPatternResult::ToJSValue(
+          env, result->value(), pattern->object())
+          .ToLocal(&js_result)) {
+    args.GetReturnValue().Set(js_result);
+  }
+}
+
+void URLPatternList::Test(const FunctionCallbackInfo<Value>& args) {
+  URLPatternList* list;
+  ASSIGN_OR_RETURN_UNWRAP(&list, args.This());
+  Environment* env = Environment::GetCurrent(args);
+
+  URLPatternMatchArgs match_args;
+  if (!ParseURLPatternMatchArgs(env, args, &match_args)) return;
+  std::optional<std::string_view> base_url = match_args.base_url_view();
+
+  auto components =
+      ProcessMatchInput(match_args.input, base_url ? &*base_url : nullptr);
+  if (!components) {
+    THROW_ERR_OPERATION_FAILED(env, "Failed to test URLPatternList");
+    return;
+  }
+  args.GetReturnValue().Set(components->has_value() &&
+                            list->FindMatch(**components, true).has_value());
+}
+
 static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(URLPattern::New);
 #define URL_PATTERN_COMPONENT_GETTERS(uppercase_name, _)                       \
@@ -671,16 +1067,20 @@ static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(URLPattern::HasRegexpGroups);
   registry->Register(URLPattern::Exec);
   registry->Register(URLPattern::Test);
+  registry->Register(URLPatternList::New);
+  registry->Register(URLPatternList::Exec);
+  registry->Register(URLPatternList::Test);
 }
 
-static void Initialize(Local<Object> target,
-                       Local<Value> unused,
-                       Local<Context> context,
-                       void* priv) {
-  Environment* env = Environment::GetCurrent(context);
+Local<FunctionTemplate> URLPattern::GetConstructorTemplate(Environment* env) {
+  Local<FunctionTemplate> ctor_tmpl = env->urlpattern_constructor_template();
+  if (!ctor_tmpl.IsEmpty()) {
+    return ctor_tmpl;
+  }
+
   Isolate* isolate = env->isolate();
   auto attributes = static_cast<PropertyAttribute>(ReadOnly | DontDelete);
-  auto ctor_tmpl = NewFunctionTemplate(isolate, URLPattern::New);
+  ctor_tmpl = NewFunctionTemplate(isolate, URLPattern::New);
   auto instance_template = ctor_tmpl->InstanceTemplate();
   auto prototype_template = ctor_tmpl->PrototypeTemplate();
   Local<String> url_pattern_string =
@@ -718,7 +1118,43 @@ static void Initialize(Local<Object> target,
 
   SetProtoMethodNoSideEffect(isolate, ctor_tmpl, "exec", URLPattern::Exec);
   SetProtoMethodNoSideEffect(isolate, ctor_tmpl, "test", URLPattern::Test);
-  SetConstructorFunction(context, target, "URLPattern", ctor_tmpl);
+  env->set_urlpattern_constructor_template(ctor_tmpl);
+  return ctor_tmpl;
+}
+
+bool URLPattern::HasInstance(Environment* env, Local<Value> value) {
+  return GetConstructorTemplate(env)->HasInstance(value);
+}
+
+static void Initialize(Local<Object> target,
+                       Local<Value> unused,
+                       Local<Context> context,
+                       void* priv) {
+  Environment* env = Environment::GetCurrent(context);
+  Isolate* isolate = env->isolate();
+
+  // The template is shared by every context of the isolate and may already be
+  // instantiated, so its class name is set once in GetConstructorTemplate().
+  SetConstructorFunction(context,
+                         target,
+                         "URLPattern",
+                         URLPattern::GetConstructorTemplate(env),
+                         SetConstructorFunctionFlag::NONE);
+
+  auto list_tmpl = NewFunctionTemplate(isolate, URLPatternList::New);
+  // The `patterns` argument is required.
+  list_tmpl->SetLength(1);
+  list_tmpl->InstanceTemplate()->SetInternalFieldCount(
+      URLPatternList::kInternalFieldCount);
+  Local<String> url_pattern_list_string =
+      FIXED_ONE_BYTE_STRING(isolate, "URLPatternList");
+  list_tmpl->PrototypeTemplate()->Set(
+      Symbol::GetToStringTag(isolate),
+      url_pattern_list_string,
+      static_cast<PropertyAttribute>(ReadOnly | DontEnum));
+  SetProtoMethodNoSideEffect(isolate, list_tmpl, "test", URLPatternList::Test);
+  SetProtoMethodNoSideEffect(isolate, list_tmpl, "exec", URLPatternList::Exec);
+  SetConstructorFunction(context, target, url_pattern_list_string, list_tmpl);
 }
 
 }  // namespace node::url_pattern

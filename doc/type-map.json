@@ -146,6 +146,8 @@
   "TransformStreamDefaultController": "webstreams.html#class-transformstreamdefaultcontroller",
   "TurboShakeParams": "webcrypto.html#class-turboshakeparams",
   "URL": "url.html#the-whatwg-url-api",
+  "URLPattern": "url.html#class-urlpattern",
+  "URLPatternList": "url.html#class-urlpatternlist",
   "URLSearchParams": "url.html#class-urlsearchparams",
   "Verify": "crypto.html#class-verify",
   "VirtualFileSystem": "vfs.html#class-virtualfilesystem",
