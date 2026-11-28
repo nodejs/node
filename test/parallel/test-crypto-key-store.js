@@ -12,7 +12,6 @@ if (isBoringSSL)
 
 const assert = require('assert');
 const fs = require('fs');
-const path = require('path');
 const { pathToFileURL } = require('url');
 const {
   createPublicKey,
@@ -36,7 +35,7 @@ const data = Buffer.from('hello store');
 
 {
   const { privateKey, publicKey } = generateKeyPairSync('ed25519');
-  const file = path.join(tmpdir.path, 'priv.pem');
+  const file = tmpdir.resolve('priv.pem');
   fs.writeFileSync(file, privateKey.export({ format: 'pem', type: 'pkcs8' }));
   const url = pathToFileURL(file);
 
@@ -66,7 +65,7 @@ const data = Buffer.from('hello store');
   const { privateKey, publicKey } = generateKeyPairSync('rsa', {
     modulusLength: 2048,
   });
-  const file = path.join(tmpdir.path, 'rsa.pem');
+  const file = tmpdir.resolve('rsa.pem');
   fs.writeFileSync(file, privateKey.export({ format: 'pem', type: 'pkcs8' }));
   const url = pathToFileURL(file);
   const plaintext = Buffer.from('hello rsa store');
@@ -91,7 +90,7 @@ const data = Buffer.from('hello store');
   } else {
     const alice = generateKeyPairSync('x25519');
     const bob = generateKeyPairSync('x25519');
-    const file = path.join(tmpdir.path, 'x25519.pem');
+    const file = tmpdir.resolve('x25519.pem');
     fs.writeFileSync(file, alice.privateKey.export({
       format: 'pem',
       type: 'pkcs8',
@@ -117,7 +116,7 @@ const data = Buffer.from('hello store');
   // Encrypted PKCS#8 with passphrase via { key: url, passphrase }.
   const passphrase = 'correct-passphrase';
   const { privateKey, publicKey } = generateKeyPairSync('ed25519');
-  const file = path.join(tmpdir.path, 'enc.pem');
+  const file = tmpdir.resolve('enc.pem');
   fs.writeFileSync(file, privateKey.export({
     format: 'pem', type: 'pkcs8', cipher: 'aes-256-cbc', passphrase,
   }));
@@ -139,7 +138,7 @@ const data = Buffer.from('hello store');
 
 {
   // A URL is only accepted in private-key contexts.
-  const url = pathToFileURL(path.join(tmpdir.path, 'priv.pem'));
+  const url = pathToFileURL(tmpdir.resolve('priv.pem'));
   assert.throws(() => createPublicKey(url), {
     code: 'ERR_INVALID_ARG_TYPE',
   });
@@ -188,7 +187,7 @@ const data = Buffer.from('hello store');
 {
   // A readable URI that holds no private key is distinguishable from a URI
   // that could not be opened at all.
-  const file = path.join(tmpdir.path, 'nope.pem');
+  const file = tmpdir.resolve('nope.pem');
   fs.writeFileSync(file, 'not a key');
   assert.throws(() => createPrivateKey(pathToFileURL(file)), {
     code: 'ERR_CRYPTO_OPERATION_FAILED',
@@ -199,7 +198,7 @@ const data = Buffer.from('hello store');
   // portable either: some builds leave a generic STORE `unsupported` on top of
   // the error the loader itself raised. The reason is reported either way.
   assert.throws(
-    () => createPrivateKey(pathToFileURL(path.join(tmpdir.path, 'missing.pem'))),
+    () => createPrivateKey(pathToFileURL(tmpdir.resolve('missing.pem'))),
     (err) => {
       assert.match([err.message, ...err.opensslErrorStack ?? []].join('\n'),
                    /No such file or directory/);
@@ -219,7 +218,7 @@ const data = Buffer.from('hello store');
   // Only a genuine URL selects the STORE loader. A plain object that merely
   // exposes `href` and `protocol` must not be treated as one, otherwise an
   // attacker-supplied JWK could redirect the load to a URI of their choosing.
-  const file = path.join(tmpdir.path, 'priv.pem');
+  const file = tmpdir.resolve('priv.pem');
   const spoofed = {
     kty: 'EC',
     crv: 'P-256',
@@ -244,9 +243,9 @@ const data = Buffer.from('hello store');
   // Read the URI from the URL's private state. Public accessors on a branded
   // subclass must not redirect a previously created URL to a different key.
   const trustedHref = pathToFileURL(
-    path.join(tmpdir.path, 'priv.pem')).href;
+    tmpdir.resolve('priv.pem')).href;
   const redirectHref = pathToFileURL(
-    path.join(tmpdir.path, 'rsa.pem')).href;
+    tmpdir.resolve('rsa.pem')).href;
   class RedirectingURL extends URL {
     get href() { return redirectHref; }
   }
@@ -274,7 +273,7 @@ const data = Buffer.from('hello store');
 
   // Replacing `protocol` must not turn an opaque STORE URI into a file path.
   const filePathname = pathToFileURL(
-    path.join(tmpdir.path, 'priv.pem')).pathname;
+    tmpdir.resolve('priv.pem')).pathname;
   const opaqueURL = new URL(`pkcs11:${filePathname}`);
   const protocolDescriptor = Object.getOwnPropertyDescriptor(
     URL.prototype, 'protocol');
@@ -294,7 +293,7 @@ const data = Buffer.from('hello store');
 {
   // The URI is handed to OpenSSL as a NUL-terminated C string, so an embedded
   // NUL must be rejected rather than silently truncating the path.
-  const file = path.join(tmpdir.path, 'priv.pem');
+  const file = tmpdir.resolve('priv.pem');
   assert.throws(
     () => createPrivateKey(new URL(`${pathToFileURL(file).href}%00.txt`)), {
       code: 'ERR_INVALID_ARG_VALUE',

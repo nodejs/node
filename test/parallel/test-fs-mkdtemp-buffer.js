@@ -2,12 +2,11 @@
 const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
-const path = require('path');
 
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
-const prefixString = path.join(tmpdir.path, 'buffer-');
+const prefixString = tmpdir.resolve('buffer-');
 const prefixBuffer = Buffer.from(prefixString);
 
 // 1. Test Sync API

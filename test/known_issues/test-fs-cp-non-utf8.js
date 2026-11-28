@@ -10,8 +10,7 @@ if (!common.isLinux) {
 }
 
 const assert = require('assert');
-const { join } = require('path');
-const path = require('path');
+const { sep } = require('path');
 const tmpdir = require('../common/tmpdir');
 const {
   cpSync,
@@ -22,8 +21,8 @@ const {
 } = require('fs');
 tmpdir.refresh();
 
-const tmpdirPath = Buffer.from(join(tmpdir.path, 'a', 'c'));
-const sepBuf = Buffer.from(path.sep);
+const tmpdirPath = Buffer.from(tmpdir.resolve('a', 'c'));
+const sepBuf = Buffer.from(sep);
 
 mkdirSync(tmpdirPath, { recursive: true });
 
@@ -48,7 +47,7 @@ assert.strictEqual(readFileSync(testPath, 'utf8'), 'test content');
 // The cpSync is expected to fail because the implementation does not
 // properly handle non-UTF8 names in the path.
 
-cpSync(join(tmpdir.path, 'a'), join(tmpdir.path, 'b'), {
+cpSync(tmpdir.resolve('a'), tmpdir.resolve('b'), {
   recursive: true,
   filter: common.mustCall(() => true, 1),
 });

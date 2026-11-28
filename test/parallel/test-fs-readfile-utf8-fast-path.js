@@ -2,7 +2,6 @@
 
 require('../common');
 const fs = require('node:fs');
-const path = require('node:path');
 const assert = require('node:assert');
 const { describe, it } = require('node:test');
 const tmpdir = require('../common/tmpdir');
@@ -10,7 +9,7 @@ const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
 function writeFile(name, buf) {
-  const p = path.join(tmpdir.path, name);
+  const p = tmpdir.resolve(name);
   fs.writeFileSync(p, buf);
   return p;
 }

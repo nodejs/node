@@ -17,7 +17,7 @@ mkdirSync(join(src, 'real'), { recursive: true });
 writeFileSync(join(src, 'real', 'file'), 'data');
 symlinkSync('real', join(src, 'alias'));
 symlinkSync('alias/file', join(src, 'link'));
-const absoluteTarget = join(tmpdir.path, 'x', '..', 'elsewhere');
+const absoluteTarget = tmpdir.resolve('x', '..', 'elsewhere');
 symlinkSync(absoluteTarget, join(src, 'abs'));
 
 for (const filter of [undefined, () => true]) {

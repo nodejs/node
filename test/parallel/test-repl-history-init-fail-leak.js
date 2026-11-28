@@ -3,7 +3,6 @@
 
 const common = require('../common');
 const fs = require('fs');
-const path = require('path');
 const { ReplHistory } = require('internal/repl/history');
 const assert = require('assert');
 
@@ -12,7 +11,7 @@ common.skipIfInspectorDisabled();
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
-const historyPath = path.join(tmpdir.path, '.node_repl_history');
+const historyPath = tmpdir.resolve('.node_repl_history');
 
 fs.writeFileSync(historyPath, 'dummy\n');
 

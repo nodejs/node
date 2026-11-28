@@ -14,14 +14,13 @@ if (isBoringSSL)
 const assert = require('assert');
 const dc = require('diagnostics_channel');
 const fs = require('fs');
-const path = require('path');
 const { pathToFileURL } = require('url');
 const { createPrivateKey, generateKeyPairSync } = require('crypto');
 const { spawnSync } = require('child_process');
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
-const file = path.join(tmpdir.path, 'priv.pem');
+const file = tmpdir.resolve('priv.pem');
 fs.writeFileSync(
   file, generateKeyPairSync('ed25519').privateKey.export({
     format: 'pem', type: 'pkcs8',
@@ -83,7 +82,7 @@ assert.doesNotMatch(JSON.stringify(messages[0]), new RegExp(secret));
 // OpenSSL tries the file loader before the loader identified by an opaque URI.
 {
   const opaqueFile = 'pkcs11:priv.pem';
-  fs.copyFileSync(file, path.join(tmpdir.path, opaqueFile));
+  fs.copyFileSync(file, tmpdir.resolve(opaqueFile));
   const { status, stdout } = spawnSync(process.execPath, [
     '--permission', '--allow-openssl-store',
     '-e', `try { require('crypto').createPrivateKey(new URL(${JSON.stringify(opaqueFile)})); console.log('LOADED'); } catch (e) { console.log(e.code, e.permission); }`,

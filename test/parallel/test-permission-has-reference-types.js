@@ -18,8 +18,8 @@ const path = require('path');
 
 tmpdir.refresh();
 
-const allowedDir = path.join(tmpdir.path, 'allowed');
-const deniedDir = path.join(tmpdir.path, 'denied');
+const allowedDir = tmpdir.resolve('allowed');
+const deniedDir = tmpdir.resolve('denied');
 fs.mkdirSync(allowedDir);
 fs.mkdirSync(deniedDir);
 

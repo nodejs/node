@@ -12,7 +12,6 @@ const { NodeInstance } = require('../common/inspector-helper.js');
 const tmpdir = require('../common/tmpdir');
 const assert = require('node:assert');
 const { once } = require('node:events');
-const { join } = require('node:path');
 const { DatabaseSync } = require('node:sqlite');
 tmpdir.refresh();
 
@@ -21,7 +20,7 @@ tmpdir.refresh();
 // the same schema without STRICT: BLOB columns have no affinity, so a TEXT
 // value stays TEXT.
 function malformedLocalStorage(name, schemaVersion, value) {
-  const file = join(tmpdir.path, name);
+  const file = tmpdir.resolve(name);
   const db = new DatabaseSync(file);
   db.exec(`
     CREATE TABLE nodejs_webstorage(

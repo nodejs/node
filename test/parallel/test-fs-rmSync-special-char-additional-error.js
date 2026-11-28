@@ -23,7 +23,7 @@ function countOccurrences(haystack, needle) {
   return count;
 }
 
-const dirPath = path.join(tmpdir.path, '速_dir');
+const dirPath = tmpdir.resolve('速_dir');
 const filePath = path.join(dirPath, 'test_file.txt');
 
 // Create a directory and a file within it

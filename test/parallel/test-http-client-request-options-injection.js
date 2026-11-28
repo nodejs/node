@@ -3,7 +3,6 @@
 const common = require('../common');
 const assert = require('node:assert');
 const http = require('node:http');
-const path = require('node:path');
 const tmpdir = require('../common/tmpdir');
 
 // Regression test: an ordinary object that happens to satisfy `isURL()` (truthy
@@ -35,7 +34,7 @@ server.listen(0, common.localhostIPv4, common.mustCall(() => {
     password: '',
     search: '',
     hash: '',
-    socketPath: path.join(tmpdir.path, 'should-not-be-used.sock'),
+    socketPath: tmpdir.resolve('should-not-be-used.sock'),
     method: 'POST',
     headers: { 'x-injected': 'yes' },
     agent: false,

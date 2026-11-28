@@ -48,8 +48,8 @@ async function chdirDoesNotAffectRemoval() {
   const first = await fsPromises.mkdtempDisposable('first.');
   const second = await fsPromises.mkdtempDisposable('second.');
 
-  const fullFirstPath = path.join(tmpdir.path, first.path);
-  const fullSecondPath = path.join(tmpdir.path, second.path);
+  const fullFirstPath = tmpdir.resolve(first.path);
+  const fullSecondPath = tmpdir.resolve(second.path);
 
   assert(fs.existsSync(fullFirstPath));
   assert(fs.existsSync(fullSecondPath));
