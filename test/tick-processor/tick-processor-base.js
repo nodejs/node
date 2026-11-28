@@ -50,7 +50,7 @@ function match(pattern, parent, ticks, flags = []) {
 
       // Retry after timeout
       if (!pattern.test(out))
-        return setTimeout(() => match(pattern, parent, ticks), RETRY_TIMEOUT);
+        return setTimeout(() => match(pattern, parent, ticks, flags), RETRY_TIMEOUT);
 
       parent.stdout.removeAllListeners();
       parent.kill();
