@@ -37,29 +37,41 @@ const ca = fixtures.readKey('ca1-cert.pem').toString();
 
 const serverOptions = { cert, key, host: '127.0.0.1', port: 0 };
 
+const V12 = { minVersion: 'DTLSv1.2', maxVersion: 'DTLSv1.2' };
+const V13 = { minVersion: 'DTLSv1.3', maxVersion: 'DTLSv1.3' };
+
+// Connects, and returns the session with a ticket to resume it from. A DTLS
+// 1.3 server sends its tickets after the handshake, so there the first is
+// taken from onsessionticket rather than read from session.session.
+async function ticketed(port, versions, options) {
+  const session = connect('127.0.0.1', port, { ...options, ...versions });
+  const issued = Promise.withResolvers();
+  session.onsessionticket = (ticket) => issued.resolve(ticket);
+  await session.opened;
+  const ticket = versions === V12 ? session.session : await issued.promise;
+  return { session, ticket };
+}
+
 // A ticket earned without verification cannot be spent with it. The chain
 // does not verify here -- no `ca` is supplied, so only the system-default CAs
 // are trusted -- and rejectUnauthorized: false is what let the first
 // connection through.
-{
-  const server = listen(mustCall(2), serverOptions);
+for (const versions of [V12, V13]) {
+  const server = listen(mustCall(2), { ...serverOptions, ...versions });
 
-  const first = connect('127.0.0.1', server.address.port, {
-    rejectUnauthorized: false,
-  });
-  await first.opened;
+  const { session: first, ticket } = await ticketed(
+    server.address.port, versions, { rejectUnauthorized: false });
 
   // The failure that the blob is about to carry with it.
   assert.strictEqual(first.authorized, false);
   assert.ok(first.authorizationError);
-  const ticket = first.session;
   assert.ok(Buffer.isBuffer(ticket));
   await first.close();
 
   // Same host, so the identity binding permits the blob; the difference is
   // that this caller asked for a verified peer.
   const second = connect('127.0.0.1', server.address.port, {
-    rejectUnauthorized: true, session: ticket,
+    rejectUnauthorized: true, session: ticket, ...versions,
   });
 
   await assert.rejects(second.opened, {
@@ -75,20 +87,19 @@ const serverOptions = { cert, key, host: '127.0.0.1', port: 0 };
 // for real. With the CA trusted and the identity matching the certificate,
 // the first handshake verifies, the recorded result is X509_V_OK, and the
 // resumed handshake inherits it.
-{
-  const server = listen(mustCall(2), serverOptions);
+for (const versions of [V12, V13]) {
+  const server = listen(mustCall(2), { ...serverOptions, ...versions });
 
-  const first = connect('127.0.0.1', server.address.port, {
-    ca, servername: 'agent1', rejectUnauthorized: true,
-  });
-  await first.opened;
+  const { session: first, ticket } = await ticketed(
+    server.address.port, versions,
+    { ca, servername: 'agent1', rejectUnauthorized: true });
   assert.strictEqual(first.authorized, true);
   assert.strictEqual(first.authorizationError, undefined);
-  const ticket = first.session;
   await first.close();
 
   const second = connect('127.0.0.1', server.address.port, {
     ca, servername: 'agent1', rejectUnauthorized: true, session: ticket,
+    ...versions,
   });
   await second.opened;
 
@@ -103,19 +114,16 @@ const serverOptions = { cert, key, host: '127.0.0.1', port: 0 };
 // A caller that did not ask for verification still gets the connection, and
 // still gets told the peer never verified. Resumption does not change that
 // either way.
-{
-  const server = listen(mustCall(2), serverOptions);
+for (const versions of [V12, V13]) {
+  const server = listen(mustCall(2), { ...serverOptions, ...versions });
 
-  const first = connect('127.0.0.1', server.address.port, {
-    rejectUnauthorized: false,
-  });
-  await first.opened;
-  const ticket = first.session;
+  const { session: first, ticket } = await ticketed(
+    server.address.port, versions, { rejectUnauthorized: false });
   const firstError = first.authorizationError;
   await first.close();
 
   const second = connect('127.0.0.1', server.address.port, {
-    rejectUnauthorized: false, session: ticket,
+    rejectUnauthorized: false, session: ticket, ...versions,
   });
   await second.opened;
 

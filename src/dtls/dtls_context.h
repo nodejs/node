@@ -20,6 +20,21 @@
 
 namespace node::dtls {
 
+class DTLSSession;
+
+// Address validation progress for a server SSL that has not become a
+// DTLSSession yet. See DTLSEndpoint::AcceptPendingHandshake().
+struct PendingHandshakeState {
+  // Set once the cookie flight (HelloVerifyRequest for DTLS 1.2,
+  // HelloRetryRequest for DTLS 1.3) has been generated. The next
+  // ClientHello is the one expected to carry the cookie back.
+  bool cookie_sent = false;
+  // An exception thrown by a callback while this handshake was being driven.
+  // There is no session to report it to, so the endpoint reports it once
+  // OpenSSL has returned.
+  v8::Global<v8::Value> error;
+};
+
 // DTLSContext wraps an SSL_CTX configured for DTLS.
 // It manages certificate/key configuration, cipher selection,
 // ALPN, and automatic cookie generation/verification for servers.
@@ -49,6 +64,17 @@ class DTLSContext final : public BaseObject {
   // to the SSL rather than the SSL_CTX because SNI reassigns the latter.
   void BindToSSL(SSL* ssl);
 
+  // Mark |ssl| as a server handshake whose peer address has not been
+  // validated yet, or clear the mark with nullptr. |state| is owned by the
+  // caller and must outlive the mark.
+  static void SetPendingState(SSL* ssl, PendingHandshakeState* state);
+  static PendingHandshakeState* GetPendingState(SSL* ssl);
+
+  // True if a handshake on this context may negotiate DTLS 1.3, which
+  // validates the peer address with a HelloRetryRequest cookie rather than
+  // the HelloVerifyRequest DTLSv1_listen() is limited to.
+  bool AllowsDTLS13() const;
+
   // Set the peer address for cookie generation during DTLSv1_listen().
   void set_cookie_peer(const SocketAddress& addr) {
     current_cookie_peer_ = addr;
@@ -64,6 +90,7 @@ class DTLSContext final : public BaseObject {
   static void SetKey(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void AddCACert(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetCiphers(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetCipherSuites(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetALPN(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetSRTP(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetVerifyMode(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -74,6 +101,27 @@ class DTLSContext final : public BaseObject {
   static void SetSNIContexts(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetTicketKeys(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetPSK(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetProtocolVersions(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  // Suspends a pending server handshake at the ClientHello that should carry
+  // the cookie back, before OpenSSL verifies it, so the endpoint can turn the
+  // bare SSL into a DTLSSession at a point where no OpenSSL call is in
+  // progress. Everything after cookie verification -- SNI, PSK, key
+  // derivation and the keylog lines it produces -- then runs against that
+  // session.
+  static int ClientHelloCallback(SSL* ssl, int* al, void* arg);
+
+  // True while |ssl| belongs to a peer that has not completed the cookie
+  // exchange. The JavaScript SNI callback is not run for such a peer: its
+  // source address may be forged. (The PSK callback has to be; see
+  // PSKServerCallback().)
+  static bool IsUnvalidatedPeer(SSL* ssl);
+
+  // Client: OpenSSL has a new resumable session for the connection. Under
+  // DTLS 1.2 that is at the end of the handshake; under DTLS 1.3 it is each
+  // NewSessionTicket, which arrives after the handshake has completed.
+  static int NewSessionCallback(SSL* ssl, SSL_SESSION* session);
 
   // RFC 4279 pre-shared keys. The identity map is consulted first and needs
   // no call into JavaScript; the callback, if there is one, is only reached

@@ -33,6 +33,18 @@ void RecordTimestampStat(Stats* stats) {
 
 #define DTLS_STAT_FIELD(_, name) uint64_t name;
 
+// How long a server handshake may wait to complete the cookie exchange
+// before it is dropped. A real client answers a HelloVerifyRequest or
+// HelloRetryRequest within a round trip and retransmits its first
+// ClientHello on a 1s timer if the answer is lost, so this allows several
+// retransmits while keeping the state a forged source can pin short-lived.
+constexpr uint64_t kValidationTimeoutMs = 10000;
+
+// Most server handshakes that may be awaiting the cookie exchange at once.
+// Each holds an SSL with a possibly fragmented ClientHello buffered in it;
+// the oldest is dropped to make room for a new one.
+constexpr size_t kMaxPendingHandshakes = 1024;
+
 // ============================================================================
 // Stats X-macros: V(ENUM_NAME, field_name)
 
@@ -94,6 +106,7 @@ enum DTLSCallbackIndex {
   DTLS_CB_SESSION_HANDSHAKE,
   DTLS_CB_SESSION_MESSAGE,
   DTLS_CB_SESSION_KEYLOG,
+  DTLS_CB_SESSION_TICKET,
   DTLS_CB_COUNT
 };
 

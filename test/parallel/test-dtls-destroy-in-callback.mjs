@@ -23,11 +23,14 @@ const cert = fixtures.readKey('agent1-cert.pem').toString();
 const key = fixtures.readKey('agent1-key.pem').toString();
 const ca = fixtures.readKey('ca1-cert.pem').toString();
 
+const V12 = { minVersion: 'DTLSv1.2', maxVersion: 'DTLSv1.2' };
+const V13 = { minVersion: 'DTLSv1.3', maxVersion: 'DTLSv1.3' };
+
 // ---------------------------------------------------------------------------
 // Case 1: destroy the (server) session from inside onmessage. The datagram
 // carrying the message drives receive -> pump -> onmessage -> destroy(), which
 // frees the session's map entry while ClearOut() is still looping over ssl_.
-{
+for (const versions of [V12, V13]) {
   const destroyed = Promise.withResolvers();
 
   const server = listen(mustCall((session) => {
@@ -35,11 +38,12 @@ const ca = fixtures.readKey('ca1-cert.pem').toString();
       session.destroy();
       destroyed.resolve();
     });
-  }), { cert, key, port: 0, host: '127.0.0.1' });
+  }), { cert, key, port: 0, host: '127.0.0.1', ...versions });
 
   const client = connect('127.0.0.1', server.address.port, {
     ca: [ca],
     rejectUnauthorized: false,
+    ...versions,
   });
 
   await client.opened;
@@ -55,7 +59,7 @@ const ca = fixtures.readKey('ca1-cert.pem').toString();
 // Case 2: destroy the (server) session from inside onhandshake. Handshake
 // completion is emitted from the middle of the pump (Cycle), so destroying
 // there must not free the session before the pump finishes unwinding.
-{
+for (const versions of [V12, V13]) {
   const destroyed = Promise.withResolvers();
 
   const server = listen(mustCall((session) => {
@@ -63,11 +67,12 @@ const ca = fixtures.readKey('ca1-cert.pem').toString();
       session.destroy();
       destroyed.resolve();
     });
-  }), { cert, key, port: 0, host: '127.0.0.1' });
+  }), { cert, key, port: 0, host: '127.0.0.1', ...versions });
 
   const client = connect('127.0.0.1', server.address.port, {
     ca: [ca],
     rejectUnauthorized: false,
+    ...versions,
   });
 
   await destroyed.promise;

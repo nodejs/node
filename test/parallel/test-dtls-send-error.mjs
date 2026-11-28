@@ -31,6 +31,9 @@ if (!process.features.dtls) {
 const { connect } = await import('node:dtls');
 const dgram = await import('node:dgram');
 
+const V12 = { minVersion: 'DTLSv1.2', maxVersion: 'DTLSv1.2' };
+const V13 = { minVersion: 'DTLSv1.3', maxVersion: 'DTLSv1.3' };
+
 // Whether this kernel refuses a broadcast send from an unconfigured socket is
 // not something the test controls, so establish it with a plain UDP socket
 // first. If it does refuse, DTLS has to report that -- deciding from the DTLS
@@ -50,13 +53,14 @@ if (!refusesBroadcast) {
 
 // Sending to the broadcast address without SO_BROADCAST is refused by the
 // kernel with EACCES, on the first flight, synchronously.
-{
+for (const versions of [V12, V13]) {
   const timeout = 5000;
   const started = Date.now();
 
   const session = connect('255.255.255.255', 4433, {
     rejectUnauthorized: false,
     handshakeTimeout: timeout,
+    ...versions,
   });
 
   // Reported from the first flight, which connect() runs before it returns:

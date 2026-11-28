@@ -108,6 +108,21 @@ class DTLSSession final : public AsyncWrap {
   bool is_handshake_complete() const { return handshake_complete_; }
   bool is_closed() const { return closed_; }
 
+  // A server session promoted from a pending handshake starts out neither
+  // validated nor announced: the endpoint hands it the ClientHello that
+  // should carry the cookie back, and only once OpenSSL has verified that
+  // cookie is the session announced to JavaScript. Until then nothing is
+  // emitted, a failure tears it down silently, and the JavaScript SNI and PSK
+  // callbacks are not run for it. Every other session is both from the start.
+  void AwaitAddressValidation();
+  void OnAddressValidated() { address_validated_ = true; }
+  bool address_validated() const { return address_validated_; }
+  bool announced() const { return announced_; }
+
+  // A new resumable session is available; reported once Cycle() is done,
+  // since OpenSSL calls this from inside SSL_read() or SSL_do_handshake().
+  void OnNewSessionTicket() { ticket_pending_ = true; }
+
   void MemoryInfo(MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(DTLSSession)
   SET_SELF_SIZE(DTLSSession)
@@ -231,6 +246,16 @@ class DTLSSession final : public AsyncWrap {
   // Emit a failure to put a record on the wire.
   void EmitSendError();
 
+  // Emit a new resumable session reported by OnNewSessionTicket().
+  void EmitSessionTicket();
+
+  // Hand a newly validated session to the endpoint, which emits it to
+  // JavaScript, then deliver the keylog lines derived before that.
+  void Announce();
+  void FlushEarlyKeylog();
+  void DiscardEarlyKeylog();
+  bool ValidationDeadlineExpired() const;
+
   BaseObjectWeakPtr<DTLSEndpoint> endpoint_;
   ncrypto::SSLPointer ssl_;
 
@@ -249,6 +274,21 @@ class DTLSSession final : public AsyncWrap {
   bool closed_ = false;
   bool destroyed_ = false;
   int cycle_depth_ = 0;
+  bool address_validated_ = true;
+  bool announced_ = true;
+  bool ticket_pending_ = false;
+
+  // Absolute time by which an unannounced session must validate its peer, or
+  // 0 once it has. Short and separate from the handshake deadline: a session
+  // here has been handed a ClientHello but not shown to hold the address.
+  uint64_t validation_deadline_ = 0;
+
+  // Keylog lines produced before the session was announced. Under DTLS 1.3
+  // the handshake secrets are derived while the cookie-bearing ClientHello is
+  // processed, before JavaScript has had a chance to attach a listener.
+  // Delivered after the announcement if one was attached, and cleansed
+  // either way.
+  std::vector<std::string> early_keylog_;
 
   v8::Global<v8::Value> pending_error_;
 

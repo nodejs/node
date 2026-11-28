@@ -21,6 +21,9 @@ const cert = fixtures.readKey('agent1-cert.pem').toString();
 const key = fixtures.readKey('agent1-key.pem').toString();
 const ca = fixtures.readKey('ca1-cert.pem').toString();
 
+const V12 = { minVersion: 'DTLSv1.2', maxVersion: 'DTLSv1.2' };
+const V13 = { minVersion: 'DTLSv1.3', maxVersion: 'DTLSv1.3' };
+
 // MTU must be within [256, 65535].
 assert.throws(() => new DTLSEndpoint({ mtu: 255 }), { code: 'ERR_OUT_OF_RANGE' });
 assert.throws(() => new DTLSEndpoint({ mtu: 65536 }), { code: 'ERR_OUT_OF_RANGE' });
@@ -33,7 +36,7 @@ assert.throws(() => new DTLSEndpoint({ mtu: 65536 }), { code: 'ERR_OUT_OF_RANGE'
 
 // A small valid MTU forces the handshake flights (e.g. the certificate) to be
 // fragmented across records, and the exchange still succeeds.
-{
+for (const versions of [V12, V13]) {
   const received = Promise.withResolvers();
 
   const server = listen(mustCall((session) => {
@@ -42,13 +45,14 @@ assert.throws(() => new DTLSEndpoint({ mtu: 65536 }), { code: 'ERR_OUT_OF_RANGE'
       session.send('world');
     });
   }), {
-    cert, key, port: 0, host: '127.0.0.1', mtu: 256,
+    cert, key, port: 0, host: '127.0.0.1', mtu: 256, ...versions,
   });
 
   const client = connect('127.0.0.1', server.address.port, {
     ca: [ca],
     rejectUnauthorized: false,
     mtu: 256,
+    ...versions,
   });
 
   client.onmessage = mustCall((data) => {

@@ -29,18 +29,21 @@ const cert = fixtures.readKey('agent1-cert.pem');
 const key = fixtures.readKey('agent1-key.pem');
 const ca = fixtures.readKey('ca1-cert.pem');
 
+const V12 = { minVersion: 'DTLSv1.2', maxVersion: 'DTLSv1.2' };
+const V13 = { minVersion: 'DTLSv1.3', maxVersion: 'DTLSv1.3' };
+
 // A full handshake and round trip over IPv6 loopback.
-{
+for (const versions of [V12, V13]) {
   const echoed = Promise.withResolvers();
 
   const endpoint = listen((session) => {
     session.onmessage = (data) => session.send(data);
-  }, { cert, key, host: '::1', port: 0 });
+  }, { cert, key, host: '::1', port: 0, ...versions });
 
   assert.strictEqual(endpoint.address.family, 'IPv6');
 
   const client = connect('::1', endpoint.address.port, {
-    servername: 'agent1', ca: [ca],
+    servername: 'agent1', ca: [ca], ...versions,
   });
 
   await client.opened;
@@ -55,11 +58,13 @@ const ca = fixtures.readKey('ca1-cert.pem');
 
 // The local socket picks the peer's family without being told. Binding the
 // IPv4 wildcard here is what used to break the send.
-{
-  const endpoint = listen(() => {}, { cert, key, host: '::1', port: 0 });
+for (const versions of [V12, V13]) {
+  const endpoint = listen(() => {}, {
+    cert, key, host: '::1', port: 0, ...versions,
+  });
 
   const client = connect('::1', endpoint.address.port, {
-    servername: 'agent1', ca: [ca],
+    servername: 'agent1', ca: [ca], ...versions,
   });
   await client.opened;
 
@@ -68,11 +73,13 @@ const ca = fixtures.readKey('ca1-cert.pem');
 }
 
 // An explicit bindHost is still honoured.
-{
-  const endpoint = listen(() => {}, { cert, key, host: '::1', port: 0 });
+for (const versions of [V12, V13]) {
+  const endpoint = listen(() => {}, {
+    cert, key, host: '::1', port: 0, ...versions,
+  });
 
   const client = connect('::1', endpoint.address.port, {
-    servername: 'agent1', ca: [ca], bindHost: '::',
+    servername: 'agent1', ca: [ca], bindHost: '::', ...versions,
   });
   await client.opened;
 
@@ -81,15 +88,15 @@ const ca = fixtures.readKey('ca1-cert.pem');
 }
 
 // IPv4 is unaffected: the default must not become IPv6 for v4 peers.
-{
+for (const versions of [V12, V13]) {
   const endpoint = listen(() => {}, {
-    cert, key, host: '127.0.0.1', port: 0,
+    cert, key, host: '127.0.0.1', port: 0, ...versions,
   });
 
   assert.strictEqual(endpoint.address.family, 'IPv4');
 
   const client = connect('127.0.0.1', endpoint.address.port, {
-    servername: 'agent1', ca: [ca],
+    servername: 'agent1', ca: [ca], ...versions,
   });
   await client.opened;
 

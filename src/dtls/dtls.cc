@@ -75,6 +75,12 @@ void CreatePerContextProperties(Local<Object> target,
   NODE_DEFINE_CONSTANT(target, SSL_VERIFY_NONE_VALUE);
   NODE_DEFINE_CONSTANT(target, SSL_VERIFY_PEER_VALUE);
   NODE_DEFINE_CONSTANT(target, SSL_VERIFY_FAIL_IF_NO_PEER_CERT_VALUE);
+
+  // Protocol versions accepted by DTLSContext.setProtocolVersions().
+  constexpr auto DTLS1_2_VERSION_VALUE = DTLS1_2_VERSION;
+  constexpr auto DTLS1_3_VERSION_VALUE = DTLS1_3_VERSION;
+  NODE_DEFINE_CONSTANT(target, DTLS1_2_VERSION_VALUE);
+  NODE_DEFINE_CONSTANT(target, DTLS1_3_VERSION_VALUE);
 }
 
 void CreatePerIsolateProperties(IsolateData* isolate_data,

@@ -20,42 +20,50 @@ const serverCert = fixtures.readKey('agent1-cert.pem');
 const serverKey = fixtures.readKey('agent1-key.pem');
 const ca = fixtures.readKey('ca1-cert.pem');
 
-const endpoint = listen(mustCall((session) => {
-  session.onmessage = mustNotCall();
-}), {
-  cert: serverCert.toString(),
-  key: serverKey.toString(),
-  port: 0,
-  host: '127.0.0.1',
-});
+const V12 = { minVersion: 'DTLSv1.2', maxVersion: 'DTLSv1.2' };
+const V13 = { minVersion: 'DTLSv1.3', maxVersion: 'DTLSv1.3' };
 
-const session = connect('127.0.0.1', endpoint.address.port, {
-  ca: [ca.toString()],
-  rejectUnauthorized: false,
-});
+for (const versions of [V12, V13]) {
+  const endpoint = listen(mustCall((session) => {
+    session.onmessage = mustNotCall();
+  }), {
+    cert: serverCert.toString(),
+    key: serverKey.toString(),
+    port: 0,
+    host: '127.0.0.1',
+    ...versions,
+  });
 
-await session.opened;
+  const session = connect('127.0.0.1', endpoint.address.port, {
+    ca: [ca.toString()],
+    rejectUnauthorized: false,
+    ...versions,
+  });
 
-// Protocol should be DTLSv1.2.
-assert.match(session.protocol, /DTLS/i);
+  await session.opened;
 
-// Cipher should be an object with name, standardName, version.
-const cipher = session.cipher;
-assert.strictEqual(typeof cipher?.name, 'string');
-assert.strictEqual(typeof cipher?.standardName, 'string');
-assert.strictEqual(typeof cipher?.version, 'string');
+  // Protocol should be the pinned version.
+  assert.match(session.protocol, /DTLS/i);
+  assert.strictEqual(session.protocol, versions.maxVersion);
 
-// Remote address should be defined.
-const addr = session.remoteAddress;
-assert.ok(addr);
+  // Cipher should be an object with name, standardName, version.
+  const cipher = session.cipher;
+  assert.strictEqual(typeof cipher?.name, 'string');
+  assert.strictEqual(typeof cipher?.standardName, 'string');
+  assert.strictEqual(typeof cipher?.version, 'string');
 
-// Peer certificate should be available (PEM string).
-const peerCert = session.peerCertificate;
-assert.ok(peerCert);
-assert.ok(peerCert.includes('BEGIN CERTIFICATE'));
+  // Remote address should be defined.
+  const addr = session.remoteAddress;
+  assert.ok(addr);
 
-// State should reflect open connection.
-assert.strictEqual(session.destroyed, false);
+  // Peer certificate should be available (PEM string).
+  const peerCert = session.peerCertificate;
+  assert.ok(peerCert);
+  assert.ok(peerCert.includes('BEGIN CERTIFICATE'));
 
-await session.close();
-await endpoint.close();
+  // State should reflect open connection.
+  assert.strictEqual(session.destroyed, false);
+
+  await session.close();
+  await endpoint.close();
+}

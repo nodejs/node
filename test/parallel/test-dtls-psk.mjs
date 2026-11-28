@@ -26,6 +26,9 @@ const KEY = Buffer.from('0123456789abcdef');
 const OTHER = Buffer.from('fedcba9876543210');
 const HOST = '127.0.0.1';
 const PSK_CIPHER = 'PSK-AES128-CCM8@SECLEVEL=0';
+const V12 = { minVersion: 'DTLSv1.2', maxVersion: 'DTLSv1.2' };
+const V13 = { minVersion: 'DTLSv1.3', maxVersion: 'DTLSv1.3' };
+const VERSIONS = [V12, V13];
 
 const readKey = (name) => fixtures.readKey(name).toString();
 
@@ -34,17 +37,26 @@ function open(endpoint, options) {
 }
 
 // A map on the server, an identity on the client. No certificate anywhere.
-{
+for (const versions of VERSIONS) {
   const endpoint = listen(mustCall(), {
-    psk: { 'device-42': KEY }, host: HOST, port: 0,
+    psk: { 'device-42': KEY }, host: HOST, port: 0, ...versions,
   });
 
-  const client = open(endpoint, { psk: { identity: 'device-42', key: KEY } });
+  const client = open(endpoint, {
+    psk: { identity: 'device-42', key: KEY }, ...versions,
+  });
   await client.opened;
 
-  // A PSK suite must actually have been negotiated -- the default cipher
-  // list excludes PSK, so this also pins the implicit enabling below.
-  assert.match(client.cipher.standardName, /_PSK_/);
+  if (versions === V12) {
+    // A PSK suite must actually have been negotiated -- the default cipher
+    // list excludes PSK, so this also pins the implicit enabling below.
+    assert.match(client.cipher.standardName, /_PSK_/);
+  } else {
+    // DTLS 1.3 suite names do not say how the peer authenticated; the
+    // absence of a certificate does, and the key is bound to SHA-256.
+    assert.strictEqual(client.peerCertificate, undefined);
+    assert.match(client.cipher.standardName, /_SHA256$/);
+  }
   assert.strictEqual(client.authorized, true);
 
   await client.close();
@@ -52,21 +64,30 @@ function open(endpoint, options) {
 }
 
 // A callback on either side, for keys that are looked up or derived rather
-// than known up front.
-{
+// than known up front. Under DTLS 1.3 the client offers its key in each
+// ClientHello, and the server is asked about each, so both are called twice:
+// once for the first ClientHello and once for the one answering the
+// HelloRetryRequest.
+for (const versions of VERSIONS) {
+  const calls = versions === V13 ? 2 : 1;
   const endpoint = listen(() => {}, {
     psk: mustCall((identity) => {
       assert.strictEqual(identity, 'device-42');
       return KEY;
-    }),
-    host: HOST, port: 0,
+    }, calls),
+    host: HOST, port: 0, ...versions,
   });
 
   const client = open(endpoint, {
-    psk: mustCall(() => ({ identity: 'device-42', key: KEY })),
+    psk: mustCall(() => ({ identity: 'device-42', key: KEY }), calls),
+    ...versions,
   });
   await client.opened;
-  assert.match(client.cipher.standardName, /_PSK_/);
+  if (versions === V12) {
+    assert.match(client.cipher.standardName, /_PSK_/);
+  } else {
+    assert.strictEqual(client.peerCertificate, undefined);
+  }
 
   await client.close();
   await endpoint.close();
@@ -75,11 +96,13 @@ function open(endpoint, options) {
 // The map answers first; the callback is only reached on a miss. This is what
 // keeps a map-only configuration from running JavaScript inside the
 // handshake at all.
-{
+for (const versions of VERSIONS) {
   const endpoint = listen(() => {}, {
-    psk: { 'in-map': KEY }, host: HOST, port: 0,
+    psk: { 'in-map': KEY }, host: HOST, port: 0, ...versions,
   });
-  const client = open(endpoint, { psk: { identity: 'in-map', key: KEY } });
+  const client = open(endpoint, {
+    psk: { identity: 'in-map', key: KEY }, ...versions,
+  });
   await client.opened;
   await client.close();
   await endpoint.close();
@@ -87,18 +110,21 @@ function open(endpoint, options) {
 
 // An identity the server does not know fails closed rather than negotiating
 // with an empty key.
-{
+for (const versions of VERSIONS) {
   const endpoint = listen(() => {}, {
-    psk: { 'known': KEY }, host: HOST, port: 0,
+    psk: { 'known': KEY }, host: HOST, port: 0, ...versions,
   });
 
-  const client = open(endpoint, { psk: { identity: 'unknown', key: KEY } });
+  const client = open(endpoint, {
+    psk: { identity: 'unknown', key: KEY }, ...versions,
+  });
   await assert.rejects(client.opened, { name: 'Error' });
 
   await endpoint.close();
 }
 
-// The right identity with the wrong key does not fail -- it stalls.
+// Under DTLS 1.2, the right identity with the wrong key does not fail -- it
+// stalls.
 //
 // The identity only names the key, so the handshake proceeds and the two
 // sides derive different secrets. The first record that fails authentication
@@ -112,10 +138,12 @@ function open(endpoint, options) {
 // wait below is only to observe the stall, not to wait one out.
 {
   const endpoint = listen(() => {}, {
-    psk: { 'device-42': KEY }, host: HOST, port: 0,
+    psk: { 'device-42': KEY }, host: HOST, port: 0, ...V12,
   });
 
-  const client = open(endpoint, { psk: { identity: 'device-42', key: OTHER } });
+  const client = open(endpoint, {
+    psk: { identity: 'device-42', key: OTHER }, ...V12,
+  });
 
   const stalled = Symbol('stalled');
   const outcome = await Promise.race([
@@ -128,13 +156,30 @@ function open(endpoint, options) {
   await endpoint.close();
 }
 
-// A callback returning nothing is a refusal, not an error.
+// Under DTLS 1.3 it fails at once: the client's ClientHello carries a binder
+// computed with its key, which the server checks before going further.
 {
   const endpoint = listen(() => {}, {
-    psk: mustCall(() => undefined), host: HOST, port: 0,
+    psk: { 'device-42': KEY }, host: HOST, port: 0, ...V13,
   });
 
-  const client = open(endpoint, { psk: { identity: 'anyone', key: KEY } });
+  const client = open(endpoint, {
+    psk: { identity: 'device-42', key: OTHER }, ...V13,
+  });
+  await assert.rejects(client.opened, /decrypt error/);
+
+  await endpoint.close();
+}
+
+// A callback returning nothing is a refusal, not an error.
+for (const versions of VERSIONS) {
+  const endpoint = listen(() => {}, {
+    psk: mustCall(() => undefined), host: HOST, port: 0, ...versions,
+  });
+
+  const client = open(endpoint, {
+    psk: { identity: 'anyone', key: KEY }, ...versions,
+  });
   await assert.rejects(client.opened, { name: 'Error' });
 
   await endpoint.close();
@@ -142,13 +187,15 @@ function open(endpoint, options) {
 
 // The cookie exchange still runs, so PSK is not a way around the address
 // validation the endpoint's DoS protection depends on.
-{
+for (const versions of VERSIONS) {
   const endpoint = listen(() => {}, {
-    psk: { 'device-42': KEY }, host: HOST, port: 0,
+    psk: { 'device-42': KEY }, host: HOST, port: 0, ...versions,
   });
 
   const before = Number(endpoint.stats.packetsReceived);
-  const client = open(endpoint, { psk: { identity: 'device-42', key: KEY } });
+  const client = open(endpoint, {
+    psk: { identity: 'device-42', key: KEY }, ...versions,
+  });
   await client.opened;
   const received = Number(endpoint.stats.packetsReceived) - before;
 
@@ -167,15 +214,16 @@ function open(endpoint, options) {
 // Asking for it therefore needs @SECLEVEL=0, and asking without one does not
 // report anything: the handshake stalls, because a DTLS peer with nothing to
 // select discards rather than replies. Anyone implementing CoAP will meet
-// this, so it is pinned here.
+// this, so it is pinned here. It is a DTLS 1.2 suite, and the list has no
+// DTLS 1.3 suite in it, so it only applies to DTLS 1.2.
 {
   const ciphers = 'PSK-AES128-CCM8@SECLEVEL=0';
   const endpoint = listen(() => {}, {
-    psk: { 'device-42': KEY }, ciphers, host: HOST, port: 0,
+    psk: { 'device-42': KEY }, ciphers, host: HOST, port: 0, ...V12,
   });
 
   const client = open(endpoint, {
-    psk: { identity: 'device-42', key: KEY }, ciphers,
+    psk: { identity: 'device-42', key: KEY }, ciphers, ...V12,
   });
   await client.opened;
   assert.strictEqual(client.cipher.standardName,
@@ -187,13 +235,16 @@ function open(endpoint, options) {
 
 // Without an explicit list a forward-secret suite is chosen. Plain PSK
 // derives its keys from the shared secret alone, so anyone who later learns
-// the key can decrypt recorded traffic.
+// the key can decrypt recorded traffic. A DTLS 1.3 suite name does not say
+// how the key was exchanged, so this is checked under DTLS 1.2.
 {
   const endpoint = listen(() => {}, {
-    psk: { 'device-42': KEY }, host: HOST, port: 0,
+    psk: { 'device-42': KEY }, host: HOST, port: 0, ...V12,
   });
 
-  const client = open(endpoint, { psk: { identity: 'device-42', key: KEY } });
+  const client = open(endpoint, {
+    psk: { identity: 'device-42', key: KEY }, ...V12,
+  });
   await client.opened;
   assert.match(client.cipher.standardName, /_(EC)?DHE_PSK_/);
 
@@ -202,42 +253,58 @@ function open(endpoint, options) {
 }
 
 // A certificate still works alongside PSK, because DEFAULT stays on the end
-// of the implicit cipher list.
-{
+// of the implicit cipher list. Under DTLS 1.3 a server holding a certificate
+// does not prefer the SHA-256 suites a PSK is bound to, so this also pins
+// that a PSK client offers only those.
+for (const versions of VERSIONS) {
   const endpoint = listen(() => {}, {
     cert: readKey('agent1-cert.pem'),
     key: readKey('agent1-key.pem'),
     psk: { 'device-42': KEY },
-    host: HOST, port: 0,
+    host: HOST, port: 0, ...versions,
   });
 
-  const psk = open(endpoint, { psk: { identity: 'device-42', key: KEY } });
+  const psk = open(endpoint, {
+    psk: { identity: 'device-42', key: KEY }, ...versions,
+  });
   await psk.opened;
-  assert.match(psk.cipher.standardName, /_PSK_/);
+  if (versions === V12) {
+    assert.match(psk.cipher.standardName, /_PSK_/);
+  }
+  assert.strictEqual(psk.peerCertificate, undefined);
   await psk.close();
 
-  const cert = open(endpoint, { rejectUnauthorized: false });
+  const cert = open(endpoint, { rejectUnauthorized: false, ...versions });
   await cert.opened;
-  assert.doesNotMatch(cert.cipher.standardName, /_PSK_/);
+  if (versions === V12) {
+    assert.doesNotMatch(cert.cipher.standardName, /_PSK_/);
+  }
+  assert.ok(cert.peerCertificate);
   await cert.close();
 
   await endpoint.close();
 }
 
 // The identity hint is a server-side courtesy (RFC 4279 section 5.2) and
-// reaches the client's callback.
-{
+// reaches the client's callback. DTLS 1.3 has no identity hint: the client
+// offers its key before the server has sent anything, so the callback is
+// called without one, for each ClientHello.
+for (const [versions, hint, calls] of [
+  [V12, 'example.com', 1],
+  [V13, undefined, 2],
+]) {
   const endpoint = listen(() => {}, {
     psk: { 'device-42': KEY },
     pskIdentityHint: 'example.com',
-    host: HOST, port: 0,
+    host: HOST, port: 0, ...versions,
   });
 
   const client = open(endpoint, {
-    psk: mustCall((hint) => {
-      assert.strictEqual(hint, 'example.com');
+    psk: mustCall((received) => {
+      assert.strictEqual(received, hint);
       return { identity: 'device-42', key: KEY };
-    }),
+    }, calls),
+    ...versions,
   });
   await client.opened;
 
@@ -249,6 +316,7 @@ function open(endpoint, options) {
 // session. It must not reach the process as an uncaughtException: one bad
 // callback should not take a server down.
 {
+  const versions = V12;
   process.on('uncaughtException', mustNotCall());
 
   const thrown = new Error('from the psk callback');
@@ -258,14 +326,52 @@ function open(endpoint, options) {
     session.onerror = (err) => seen.resolve(err);
   }, {
     psk: () => { throw thrown; },
-    host: HOST, port: 0,
+    host: HOST, port: 0, ...versions,
   });
 
-  const client = open(endpoint, { psk: { identity: 'device-42', key: KEY } });
+  const client = open(endpoint, {
+    psk: { identity: 'device-42', key: KEY }, ...versions,
+  });
   await assert.rejects(client.opened, { name: 'Error' });
 
   // The user's own error, not something wrapped around it.
   assert.strictEqual(await seen.promise, thrown);
+
+  await endpoint.close();
+  process.removeAllListeners('uncaughtException');
+}
+
+// Under DTLS 1.3 the server's callback is first asked about the ClientHello
+// that precedes the cookie exchange, and a throw there fails a handshake
+// that has no session yet. The error is reported on the endpoint instead,
+// as thrown; the client is refused, the process is not taken down, and the
+// endpoint goes on serving.
+{
+  process.on('uncaughtException', mustNotCall());
+
+  const thrown = new Error('from the psk callback');
+  // Called once, for the connection that works.
+  const endpoint = listen(mustCall(), {
+    psk: (identity) => {
+      if (identity === 'throws') throw thrown;
+      return KEY;
+    },
+    host: HOST, port: 0, ...V13,
+  });
+  const reported = Promise.withResolvers();
+  endpoint.onerror = mustCall((err) => reported.resolve(err));
+
+  const failing = open(endpoint, {
+    psk: { identity: 'throws', key: KEY }, ...V13,
+  });
+  await assert.rejects(failing.opened, { name: 'Error' });
+  assert.strictEqual(await reported.promise, thrown);
+
+  const working = open(endpoint, {
+    psk: { identity: 'device-42', key: KEY }, ...V13,
+  });
+  await working.opened;
+  await working.close();
 
   await endpoint.close();
   process.removeAllListeners('uncaughtException');
@@ -322,9 +428,9 @@ function open(endpoint, options) {
 // without reporting it, so the caller saw an opaque SSL error instead of what
 // it threw, and the TryCatch was left to unwind with the exception still
 // caught on the way back into OpenSSL.
-{
+for (const versions of VERSIONS) {
   const server = listen(() => {}, {
-    host: HOST, port: 0, psk: { 'id-1': KEY },
+    host: HOST, port: 0, psk: { 'id-1': KEY }, ...versions,
   });
 
   for (const build of [
@@ -345,13 +451,22 @@ function open(endpoint, options) {
       }
     })();
 
-    const client = connect(HOST, server.address.port, { psk: build });
-    const seen = Promise.withResolvers();
-    client.onerror = (error) => seen.resolve(error);
+    const client = connect(HOST, server.address.port, {
+      psk: build, ...versions,
+    });
 
-    const error = await seen.promise;
-    // The caller's own error, not "error:0A0000DF:SSL routines".
-    assert.strictEqual(error.message, expected);
+    // A DTLS 1.2 client is asked for its key once the server's first flight
+    // arrives, so onerror is attached in time to hear about it. A DTLS 1.3
+    // client offers its key in its first ClientHello, which connect() builds
+    // before returning, so there only opened can carry the error.
+    if (versions === V12) {
+      const seen = Promise.withResolvers();
+      client.onerror = (error) => seen.resolve(error);
+
+      const error = await seen.promise;
+      // The caller's own error, not "error:0A0000DF:SSL routines".
+      assert.strictEqual(error.message, expected);
+    }
 
     await assert.rejects(client.opened, { message: expected });
   }
@@ -366,7 +481,7 @@ function open(endpoint, options) {
 // SSL_get_SSL_CTX(), which SNI reassigns: selecting any identity -- including
 // the '*' fallback, so this needed no servername at all -- pointed the lookup
 // at a context with no PSK configuration and every PSK handshake failed.
-{
+for (const versions of VERSIONS) {
   const cert = fixtures.readKey('agent1-cert.pem').toString();
   const key = fixtures.readKey('agent1-key.pem').toString();
   const identity = { cert, key };
@@ -378,12 +493,14 @@ function open(endpoint, options) {
     key,
     psk: { 'id-1': KEY },
     sni: { 'a.example': identity, '*': identity },
+    ...versions,
   });
 
   for (const servername of [undefined, 'a.example', 'unmatched.example']) {
     const client = connect(HOST, server.address.port, {
       psk: { identity: 'id-1', key: KEY },
       servername,
+      ...versions,
     });
     await client.opened;
     await client.close();
@@ -396,7 +513,7 @@ function open(endpoint, options) {
 // callbacks are installed on the connection by SSL_new(), before any name is
 // known, and SSL_set_SSL_CTX() does not replace them -- so they stay the
 // endpoint's, and a PSK configured on an SNI identity is never consulted.
-{
+for (const versions of VERSIONS) {
   const cert = fixtures.readKey('agent1-cert.pem').toString();
   const key = fixtures.readKey('agent1-key.pem').toString();
   const other = Buffer.from('fedcba9876543210');
@@ -408,11 +525,13 @@ function open(endpoint, options) {
     key,
     psk: { 'endpoint-id': KEY },
     sni: { 'a.example': { cert, key, psk: { 'sni-id': other } } },
+    ...versions,
   });
 
   const accepted = connect(HOST, server.address.port, {
     psk: { identity: 'endpoint-id', key: KEY },
     servername: 'a.example',
+    ...versions,
   });
   await accepted.opened;
   await accepted.close();
@@ -420,6 +539,7 @@ function open(endpoint, options) {
   const refused = connect(HOST, server.address.port, {
     psk: { identity: 'sni-id', key: other },
     servername: 'a.example',
+    ...versions,
   });
   await assert.rejects(refused.opened, { name: 'Error' });
 
@@ -432,13 +552,14 @@ function open(endpoint, options) {
 // every one of these took, so a mistake in the callback arrived as
 // "error:0A0000DF:SSL routines::psk identity not found" -- the same string
 // for all of them, naming nothing the caller had done.
-{
+for (const [versions, ciphers] of [[V12, PSK_CIPHER], [V13, undefined]]) {
   const server = listen(() => {}, {
     psk: () => ({ key: KEY }),
     pskIdentityHint: 'hint',
     host: HOST,
     port: 0,
-    ciphers: PSK_CIPHER,
+    ciphers,
+    ...versions,
   });
 
   const cases = [
@@ -453,8 +574,9 @@ function open(endpoint, options) {
   for (const [psk, expected] of cases) {
     const session = connect(HOST, server.address.port, {
       psk,
-      ciphers: PSK_CIPHER,
+      ciphers,
       handshakeTimeout: 5000,
+      ...versions,
     });
     const error = await session.opened.then(() => null, (e) => e);
     assert.ok(error, 'the handshake should not have completed');

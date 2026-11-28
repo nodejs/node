@@ -27,21 +27,27 @@ const cert = fixtures.readKey('agent1-cert.pem').toString();
 const key = fixtures.readKey('agent1-key.pem').toString();
 const ca = fixtures.readKey('ca1-cert.pem').toString();
 
-// The largest application payload that fits in a single DTLS record (2^14).
-const MAX_RECORD = 16384;
+const V12 = { minVersion: 'DTLSv1.2', maxVersion: 'DTLSv1.2' };
+const V13 = { minVersion: 'DTLSv1.3', maxVersion: 'DTLSv1.3' };
+
+// The largest application payload send() accepts in a single DTLS record:
+// 2^14, or one byte less under DTLS 1.3, where OpenSSL mis-measures a
+// full-length record on receipt and ends the association.
+const LIMITS = [[V12, 16384], [V13, 16383]];
 
 // Case 1: send() before the handshake is a state error; afterwards it returns
 // the number of bytes written and the message is delivered whole.
-{
+for (const [versions, MAX_RECORD] of LIMITS) {
   const received = Promise.withResolvers();
 
   const server = listen(mustCall((session) => {
     session.onmessage = mustCall((data) => received.resolve(data.length));
-  }), { cert, key, port: 0, host: '127.0.0.1' });
+  }), { cert, key, port: 0, host: '127.0.0.1', ...versions });
 
   const client = connect('127.0.0.1', server.address.port, {
     ca: [ca],
     rejectUnauthorized: false,
+    ...versions,
   });
 
   assert.throws(
@@ -59,14 +65,15 @@ const MAX_RECORD = 16384;
 
 // Case 2: a payload larger than a single record is refused, and the error
 // names both the size given and the limit rather than just failing.
-{
+for (const [versions, MAX_RECORD] of LIMITS) {
   const server = listen(mustCall((session) => {
     session.onmessage = mustNotCall();
-  }), { cert, key, port: 0, host: '127.0.0.1' });
+  }), { cert, key, port: 0, host: '127.0.0.1', ...versions });
 
   const client = connect('127.0.0.1', server.address.port, {
     ca: [ca],
     rejectUnauthorized: false,
+    ...versions,
   });
 
   await client.opened;
@@ -88,17 +95,18 @@ const MAX_RECORD = 16384;
 // Case 3: the record limit is what bounds send(), not the MTU. A record
 // larger than the configured MTU is still sent and still arrives; IP
 // fragments it. Getting this wrong would make send() reject valid payloads.
-{
+for (const [versions] of LIMITS) {
   const received = Promise.withResolvers();
 
   const server = listen(mustCall((session) => {
     session.onmessage = mustCall((data) => received.resolve(data.length));
-  }), { cert, key, port: 0, host: '127.0.0.1' });
+  }), { cert, key, port: 0, host: '127.0.0.1', ...versions });
 
   const client = connect('127.0.0.1', server.address.port, {
     ca: [ca],
     rejectUnauthorized: false,
     mtu: 1200,
+    ...versions,
   });
 
   await client.opened;
@@ -111,13 +119,14 @@ const MAX_RECORD = 16384;
 
 // Case 4: a closed session reports that, and is not confused with the size
 // or handshake errors above.
-{
+for (const [versions] of LIMITS) {
   const server = listen(mustCall(),
-                        { cert, key, port: 0, host: '127.0.0.1' });
+                        { cert, key, port: 0, host: '127.0.0.1', ...versions });
 
   const client = connect('127.0.0.1', server.address.port, {
     ca: [ca],
     rejectUnauthorized: false,
+    ...versions,
   });
 
   await client.opened;
@@ -136,7 +145,7 @@ const MAX_RECORD = 16384;
 // exportKeyingMaterial() on the same object accepted one. Views with an
 // offset and views whose elements are wider than a byte have to send the
 // bytes they cover, not the bytes of the buffer behind them.
-{
+for (const [versions] of LIMITS) {
   const received = [];
   const done = Promise.withResolvers();
   let expected = 0;
@@ -146,10 +155,10 @@ const MAX_RECORD = 16384;
       received.push(Buffer.from(data).toString('hex'));
       if (received.length === expected) done.resolve();
     };
-  }, { cert, key, host: HOST, port: 0 });
+  }, { cert, key, host: HOST, port: 0, ...versions });
 
   const client = connect(HOST, server.address.port, {
-    rejectUnauthorized: false,
+    rejectUnauthorized: false, ...versions,
   });
   await client.opened;
 

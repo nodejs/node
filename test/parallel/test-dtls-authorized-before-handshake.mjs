@@ -31,8 +31,11 @@ const cert = key('agent1-cert.pem');
 const privateKey = key('agent1-key.pem');
 const ca = key('ca1-cert.pem');
 
+const V12 = { minVersion: 'DTLSv1.2', maxVersion: 'DTLSv1.2' };
+const V13 = { minVersion: 'DTLSv1.3', maxVersion: 'DTLSv1.3' };
+
 // Server side: read both accessors at the earliest moment they exist.
-{
+for (const versions of [V12, V13]) {
   const checked = Promise.withResolvers();
 
   const endpoint = listen(mustCall((session) => {
@@ -42,10 +45,11 @@ const ca = key('ca1-cert.pem');
     assert.strictEqual(session.authorized, false);
     assert.strictEqual(session.authorizationError, 'HANDSHAKE_INCOMPLETE');
     checked.resolve();
-  }), { cert, key: privateKey, host: HOST, port: 0 });
+  }), { cert, key: privateKey, host: HOST, port: 0, ...versions });
 
   const client = connect(HOST, endpoint.address.port, {
     rejectUnauthorized: false,
+    ...versions,
   });
   await client.opened;
   await checked.promise;
@@ -55,13 +59,15 @@ const ca = key('ca1-cert.pem');
 }
 
 // Client side: readable between connect() and the handshake completing.
-{
+for (const versions of [V12, V13]) {
   const endpoint = listen(() => {}, {
     cert, key: privateKey, host: HOST, port: 0,
+    ...versions,
   });
 
   const client = connect(HOST, endpoint.address.port, {
     rejectUnauthorized: false,
+    ...versions,
   });
 
   assert.strictEqual(client.authorized, false);
@@ -75,14 +81,16 @@ const ca = key('ca1-cert.pem');
 
 // After the handshake the accessors report the real result, so the guard has
 // not simply pinned them to a constant.
-{
+for (const versions of [V12, V13]) {
   const endpoint = listen(() => {}, {
     cert, key: privateKey, host: HOST, port: 0,
+    ...versions,
   });
 
   // Trusting the issuer: authorized, with no error.
   const trusting = connect(HOST, endpoint.address.port, {
     ca: [ca], servername: 'agent1',
+    ...versions,
   });
   await trusting.opened;
   assert.strictEqual(trusting.authorized, true);
@@ -92,6 +100,7 @@ const ca = key('ca1-cert.pem');
   // Not trusting it: a real verification error, not the placeholder.
   const untrusting = connect(HOST, endpoint.address.port, {
     rejectUnauthorized: false,
+    ...versions,
   });
   await untrusting.opened;
   assert.strictEqual(untrusting.authorized, false);
@@ -103,13 +112,15 @@ const ca = key('ca1-cert.pem');
 }
 
 // And after close, when the handle is gone.
-{
+for (const versions of [V12, V13]) {
   const endpoint = listen(() => {}, {
     cert, key: privateKey, host: HOST, port: 0,
+    ...versions,
   });
 
   const client = connect(HOST, endpoint.address.port, {
     rejectUnauthorized: false,
+    ...versions,
   });
   await client.opened;
   await client.close();

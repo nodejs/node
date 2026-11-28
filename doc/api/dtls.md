@@ -57,8 +57,10 @@ DTLS is designed for UDP transport and differs from TLS in several key ways:
   DTLS preserves datagram semantics.
 * One socket, many peers: A single UDP socket can serve multiple DTLS
   sessions. The `DTLSEndpoint` manages this multiplexing.
-* Cookie exchange: DTLS servers use a stateless cookie mechanism
-  (HelloVerifyRequest) to prevent denial-of-service amplification attacks.
+* Cookie exchange: DTLS servers validate a new peer's address with a cookie
+  (HelloVerifyRequest in DTLS 1.2, HelloRetryRequest in DTLS 1.3) before
+  committing to a handshake, to prevent denial-of-service amplification
+  attacks.
 * Retransmission: DTLS handles handshake retransmission internally since
   UDP does not guarantee delivery.
 
@@ -66,6 +68,11 @@ DTLS is designed for UDP transport and differs from TLS in several key ways:
 
 <!-- YAML
 added: v26.9.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/67837
+    description: Added DTLS 1.3, enabled by default, and the `minVersion`
+                 and `maxVersion` options.
 -->
 
 * `callback` {Function} Called for each new DTLS session accepted by the
@@ -88,7 +95,13 @@ added: v26.9.0
   * `port` {number} Port to bind to. **Required.**
   * `host` {string} Address to bind to. **Default:** `'0.0.0.0'`.
   * `ca` {string|Buffer|string\[]|Buffer\[]} CA certificates in PEM format.
-  * `ciphers` {string} OpenSSL cipher list string.
+  * `ciphers` {string} OpenSSL cipher list string. Names beginning `TLS_`
+    select DTLS 1.3 cipher suites; the rest select DTLS 1.2 cipher suites.
+    See [Protocol versions][].
+  * `minVersion` {string} The oldest protocol version to accept, `'DTLSv1.2'`
+    or `'DTLSv1.3'`. **Default:** `'DTLSv1.2'`. See [Protocol versions][].
+  * `maxVersion` {string} The newest protocol version to offer, `'DTLSv1.2'`
+    or `'DTLSv1.3'`. **Default:** `'DTLSv1.3'`.
   * `alpn` {string\[]|Buffer} ALPN protocol names. Each name must be between
     1 and 255 bytes. A `Buffer` must already be in ALPN wire format: one
     length byte followed by that many bytes, repeated.
@@ -168,6 +181,11 @@ console.log('DTLS server listening on', endpoint.address);
 
 <!-- YAML
 added: v26.9.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/67837
+    description: Added DTLS 1.3, enabled by default, and the `minVersion`
+                 and `maxVersion` options.
 -->
 
 * `host` {string} Remote host to connect to, as an IPv4 or IPv6 literal.
@@ -209,6 +227,10 @@ added: v26.9.0
     1 and 255 bytes. A `Buffer` must already be in ALPN wire format: one
     length byte followed by that many bytes, repeated.
   * `srtp` {string} SRTP protection profile names.
+  * `minVersion` {string} The oldest protocol version to accept, `'DTLSv1.2'`
+    or `'DTLSv1.3'`. **Default:** `'DTLSv1.2'`. See [Protocol versions][].
+  * `maxVersion` {string} The newest protocol version to offer, `'DTLSv1.2'`
+    or `'DTLSv1.3'`. **Default:** `'DTLSv1.3'`.
   * `mtu` {number} Maximum size in bytes of a DTLS datagram. **Default:**
     `1200`.
   * `handshakeTimeout` {number} Milliseconds a handshake may take before it is
@@ -239,6 +261,11 @@ session.onmessage = (data) => {
 
 <!-- YAML
 added: v26.10.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/67837
+    description: Added DTLS 1.3, enabled by default, and the `minVersion`
+                 and `maxVersion` options.
 -->
 
 * `options` {Object}
@@ -246,10 +273,16 @@ added: v26.10.0
   * `ca` {string|Buffer|Array} CA certificates in PEM format. When omitted,
     the bundled default certificate authorities are used.
   * `cert` {string|Buffer} Certificate in PEM format.
-  * `ciphers` {string} OpenSSL cipher suite list.
+  * `ciphers` {string} OpenSSL cipher list string. Names beginning `TLS_`
+    select DTLS 1.3 cipher suites; the rest select DTLS 1.2 cipher suites.
+    See [Protocol versions][].
   * `ecdhCurve` {string} Named curve or curve list for ECDH.
   * `isServer` {boolean} Build a context for a server. **Default:** `false`.
   * `key` {string|Buffer} Private key in PEM format.
+  * `maxVersion` {string} Newest protocol version to offer. See
+    [Protocol versions][].
+  * `minVersion` {string} Oldest protocol version to accept. See
+    [Protocol versions][].
   * `passphrase` {string} Passphrase for `key`, if it is encrypted.
   * `rejectUnauthorized` {boolean} Verification behaviour, as for
     [`dtls.listen()`][] and [`dtls.connect()`][].
@@ -259,7 +292,8 @@ added: v26.10.0
     [Server Name Indication][].
   * `psk` {Object|Function} Pre-shared keys. See [Pre-shared keys][].
   * `pskIdentityHint` {string} Identity hint to advertise, naming which key a
-    client should pick. Requires `psk`. Servers only.
+    client should pick. Requires `psk`. Servers only. DTLS 1.3 has no identity
+    hint, so it is only sent in a DTLS 1.2 handshake.
   * `srtp` {string} SRTP profile list.
   * `ticketKeys` {Buffer} Session ticket keys, for resuming sessions across
     endpoints and restarts. Servers only. See [Session resumption][].
@@ -314,6 +348,59 @@ const s2 = connect('192.0.2.2', 5684, {
   servername: 'b.example.com',
 });
 ```
+
+## Protocol versions
+
+DTLS 1.2 ([RFC 6347][]) and DTLS 1.3 ([RFC 9147][]) are supported. DTLS 1.0 is
+not: it is deprecated by [RFC 8996][] and has no AEAD cipher suites. Each side
+offers the range from `minVersion` to `maxVersion`, and the newest version both
+allow is negotiated; with none in common the handshake fails with a
+`protocol_version` alert. Both versions are enabled by default.
+
+```mjs
+import { connect, listen } from 'node:dtls';
+
+const endpoint = listen(onsession, { cert, key, port: 5684 });
+
+const session = connect('192.0.2.1', 5684, { ca });
+const { protocol } = await session.opened;   // 'DTLSv1.3'
+
+// A peer that only speaks DTLS 1.2 is still served; to offer only that:
+const legacy = connect('192.0.2.2', 5684, { ca, maxVersion: 'DTLSv1.2' });
+```
+
+What changes under DTLS 1.3:
+
+* A server validates the peer's address with a cookie in a
+  HelloRetryRequest rather than a HelloVerifyRequest; see
+  [Denial of service][].
+* The server chooses the cipher suite from the first ClientHello, before the
+  peer's address is validated, because the HelloRetryRequest commits to it.
+  A client the server refuses at that point, for want of a common cipher
+  suite or because it offered a pre-shared key identity the server does not
+  know, is sent an alert, but no session is created for it. An exception
+  thrown by the server's `psk` callback at that point is reported on
+  [`endpoint.onerror`][].
+* The server issues resumption tickets after the handshake rather than during
+  it, so [`session.session`][] is `undefined` when `session.opened` settles.
+  Use [`session.onsessionticket`][]; see [Session resumption][].
+* A missing client certificate is refused with a `certificate_required`
+  alert rather than `handshake_failure`. The server sends it after the client
+  has finished its side of the handshake, but a DTLS 1.3 client waits for the
+  server to acknowledge that flight, so its `session.opened` still rejects.
+* A wrong pre-shared key is rejected at once with a `decrypt_error` alert,
+  rather than stalling; see [Pre-shared keys][]. There is no identity hint,
+  and a client's `psk` callback is called while `dtls.connect()` builds the
+  first ClientHello, so an error it throws is reported through
+  `session.opened` alone.
+* [`session.send()`][] accepts at most 16383 bytes, and
+  [`session.exportKeyingMaterial()`][] at most 255 hash lengths.
+* DTLS 1.3 has its own cipher suites, named like TLS 1.3's. As in `node:tls`,
+  the names in `ciphers` that begin `TLS_` configure them and the rest
+  configure DTLS 1.2. A string without any `TLS_` names leaves the default
+  DTLS 1.3 suites in place, so it does not restrict a DTLS 1.3 handshake. One
+  with only `TLS_` names raises `minVersion` to `'DTLSv1.3'`, since DTLS 1.2
+  would have nothing to negotiate, and throws if DTLS 1.3 is not enabled.
 
 ## Server Name Indication
 
@@ -407,6 +494,18 @@ failure.
 
 ## Denial of service
 
+A server does not commit to a handshake, or announce a session, until the peer
+has returned a cookie from the address it claims to be sending from. With only
+DTLS 1.2 enabled this is stateless: nothing is kept for a peer until its
+cookie comes back. With DTLS 1.3 enabled the server keeps a small pending
+handshake for each new peer while the exchange completes, because a DTLS 1.3
+ClientHello often spans several datagrams and the second ClientHello cannot be
+verified without it. Pending handshakes are not visible to JavaScript and do
+not count against `maxSessions`; at most 1024 are kept, the oldest giving way
+to a new one, and each expires after 10 seconds. Nothing is sent to a peer
+that has not completed the exchange except replies to datagrams it sent, each
+smaller than what it answers.
+
 Cookie exchange proves a peer can receive at its claimed address, but it does
 not limit how many sessions that peer may then establish, and each session
 holds a TLS state machine, two buffers and a timer. `maxSessions` bounds the
@@ -443,9 +542,9 @@ the handshake completes; it is not an idle timeout.
 
 A handshake can stall without either peer being at fault or aware.
 DTLS discards records it cannot authenticate rather than answering them
-(RFC 6347 section 4.1.2.1), so a mismatched pre-shared key or a cipher list
-with nothing in common produces silence rather than an alert. This timeout is
-what ends those.
+(RFC 6347 section 4.1.2.1), so under DTLS 1.2 a mismatched pre-shared key or a
+cipher list with nothing in common produces silence rather than an alert. This
+timeout is what ends those.
 
 ## Pre-shared keys
 
@@ -473,7 +572,9 @@ Either side may pass a function instead, for keys that are looked up or
 derived rather than known up front. A server's is called with the identity the
 client offered and returns the key, or nothing to refuse it. A client's is
 called with the server's identity hint, if it sent one, and returns
-`{ identity, key }`:
+`{ identity, key }`. A DTLS 1.3 client offers its key in its first message,
+before the server has said anything, so there the callback is called without
+a hint, once for each ClientHello it sends:
 
 ```mjs
 listen(onsession, {
@@ -483,7 +584,10 @@ listen(onsession, {
 ```
 
 The callback runs during the handshake and must return synchronously, so it
-cannot consult a database. Where both are given, the map is checked first and
+cannot consult a database. Under DTLS 1.3 a server's callback is called for
+each ClientHello, so usually twice per handshake, and the first call comes
+before the client has completed the cookie exchange. It has to give the same
+answer both times. Where both are given, the map is checked first and
 the callback is only reached when the map has no answer -- a configuration
 using only the map never runs JavaScript inside the handshake.
 
@@ -493,9 +597,17 @@ exception.
 
 ### Cipher suites
 
-The default cipher list excludes PSK, so giving `psk` without `ciphers`
-enables the PSK suites. Supplying `ciphers` disables that and uses exactly
-what was asked for.
+The default DTLS 1.2 cipher list excludes PSK, so giving `psk` without `ciphers`
+enables the PSK suites. DTLS 1.3 needs no special suites for PSK, but a key
+supplied by a callback or a map can only be used with a SHA-256 suite, so a
+client given `psk` without `ciphers` offers only `TLS_AES_128_GCM_SHA256` and
+`TLS_CHACHA20_POLY1305_SHA256`. Supplying `ciphers` disables both and uses
+exactly what was asked for.
+
+A server that also has a certificate takes the client's order of DTLS 1.3
+suites. A client from another implementation that prefers a SHA-384 suite is
+therefore offered one in the HelloRetryRequest, and fails, since its key cannot
+be used with it; such a client has to put the SHA-256 suites first.
 
 A server keeps the certificate suites as well, since it may serve both kinds
 of client on one port. A client does not: a client that configured a
@@ -518,6 +630,10 @@ listen(onsession, { port: 5684, psk, ciphers: 'PSK-AES128-CCM8@SECLEVEL=0' });
 ```
 
 ### Failure modes
+
+Under DTLS 1.3 a wrong key fails the handshake straight away with a
+`decrypt_error` alert, because the client proves it holds the key in its
+ClientHello. What follows describes DTLS 1.2.
 
 A wrong key does not produce an error. The identity only names the key, so the
 handshake proceeds and the two sides derive different secrets; the first
@@ -558,6 +674,19 @@ const second = connect('192.0.2.1', 5684, {
 });
 await second.opened;
 console.log(second.reused);          // True.
+```
+
+Under DTLS 1.3 the server sends its tickets once the handshake has completed,
+so there is nothing to resume with when `opened` settles. Set
+[`session.onsessionticket`][], which is called with each ticket as it arrives
+under either version:
+
+```mjs
+const first = connect('192.0.2.1', 5684, {
+  ca, servername: 'device.example', maxVersion: 'DTLSv1.3',
+});
+first.onsessionticket = (ticket) => saveForLater(ticket);
+await first.opened;
 ```
 
 A session that the server will not accept -- expired, or issued by a different
@@ -703,6 +832,28 @@ Immediately destroys the endpoint without sending `close_notify` alerts.
 
 Equivalent to calling `endpoint.close()`.
 
+### `endpoint.onerror`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {Function}
+  * `error` {Error}
+
+Set to receive errors that belong to the endpoint rather than to any one
+session. Neither closes the endpoint. They are:
+
+* A failure reported by the UDP socket while receiving.
+* An exception thrown by the server's `psk` callback for a DTLS 1.3 client
+  whose address has not yet been validated. The callback is first asked
+  about the client's opening ClientHello, before there is a session to
+  report to, so the exception is passed here, as thrown, and the client is
+  refused. A peer that has not proven its address can cause this once for
+  each ClientHello it sends, so the handler should be cheap.
+
+Without a handler these errors are discarded.
+
 ## Class: `DTLSEndpoint.Stats`
 
 <!-- YAML
@@ -832,8 +983,9 @@ Represents a DTLS association with a single remote peer.
 ### `session.send(data)`
 
 * `data` {string|Buffer|TypedArray|DataView} The data to send. At most 16384
-  bytes. A view sends the bytes it covers, so an offset or a subarray is sent
-  as given rather than as the whole buffer behind it.
+  bytes, or 16383 under DTLS 1.3. A view sends the bytes it covers, so an
+  offset or a subarray is sent as given rather than as the whole buffer behind
+  it.
 * Returns: {number} The number of bytes written to the DTLS layer.
 
 Send application data to the peer. The data is encrypted by DTLS before
@@ -843,7 +995,10 @@ being sent over UDP. Can only be called after the handshake completes
 DTLS carries application data in a single record per datagram and does not
 fragment it, so `data` must fit in one record. Sending more throws
 `ERR_OUT_OF_RANGE`. This limit is independent of the `mtu` option: a record
-larger than the path MTU is still sent, and is fragmented by IP.
+larger than the path MTU is still sent, and is fragmented by IP. The DTLS 1.3
+limit is a byte lower than the protocol allows because OpenSSL misjudges the
+size of a full-length DTLS 1.3 record on receipt and ends the association
+with a `record_overflow` alert.
 
 Throws `ERR_INVALID_STATE` if the handshake has not completed, or if the
 session is closed or destroyed.
@@ -951,7 +1106,8 @@ added: v26.10.0
 -->
 
 * Returns: {Buffer|undefined} An opaque session for resuming this connection
-  later, or `undefined` on a server session or before the handshake completes.
+  later, or `undefined` on a server session, before the handshake completes,
+  or under DTLS 1.3 before the server's first ticket has arrived.
 
 Pass it as the `session` option to a later [`dtls.connect()`][]. It is bound to
 the host this connection authenticated against and is refused elsewhere; see
@@ -1058,6 +1214,10 @@ bound is not imposed by [RFC 5705][]; it exists so that a caller cannot request
 an arbitrarily large allocation, and is far above what any defined exporter
 needs (DTLS-SRTP uses 60 bytes).
 
+Under DTLS 1.3 the exporter is HKDF based and cannot produce more than 255
+times the cipher suite's hash length: 8160 bytes with a SHA-256 suite, 12240
+with SHA-384. A larger `length` throws `ERR_OUT_OF_RANGE`.
+
 ### Callback properties
 
 #### `session.onmessage`
@@ -1087,6 +1247,21 @@ Set to receive handshake completion notifications.
   * `line` {string}
 
 Set to receive TLS key log lines (for debugging with Wireshark).
+
+#### `session.onsessionticket`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {Function}
+  * `ticket` {Buffer} The same value [`session.session`][] returns.
+
+Set on a client session to be told each time it has a session that a later
+connection can resume. Under DTLS 1.2 that is once, as the handshake
+completes. Under DTLS 1.3 it is once for each ticket the server sends after
+the handshake, which by default is two. Set it before awaiting
+`session.opened`. Never called on a server session.
 
 ### `session[Symbol.asyncDispose]()`
 
@@ -1247,8 +1422,12 @@ The minimum allowed MTU is 256 bytes. The maximum is 65535.
 [Handshake timeout]: #handshake-timeout
 [Permission Model]: permissions.md#permission-model
 [Pre-shared keys]: #pre-shared-keys
+[Protocol versions]: #protocol-versions
 [RFC 5705]: https://www.rfc-editor.org/rfc/rfc5705
+[RFC 6347]: https://www.rfc-editor.org/rfc/rfc6347
 [RFC 7301]: https://www.rfc-editor.org/rfc/rfc7301
+[RFC 8996]: https://www.rfc-editor.org/rfc/rfc8996
+[RFC 9147]: https://www.rfc-editor.org/rfc/rfc9147
 [Server Name Indication]: #server-name-indication
 [Session resumption]: #session-resumption
 [`DTLSEndpoint`]: #class-dtlsendpoint
@@ -1257,11 +1436,14 @@ The minimum allowed MTU is 256 bytes. The maximum is 65535.
 [`dtls.connect()`]: #dtlsconnecthost-port-options
 [`dtls.createSecureContext()`]: #dtlscreatesecurecontextoptions
 [`dtls.listen()`]: #dtlslistencallback-options
+[`endpoint.onerror`]: #endpointonerror
 [`endpointStats.serverRefusedCount`]: #endpointstatsserverrefusedcount
 [`handshakeTimeout`]: #handshake-timeout
 [`session.authorizationError`]: #sessionauthorizationerror
 [`session.authorized`]: #sessionauthorized
 [`session.destroy()`]: #sessiondestroyerror
+[`session.exportKeyingMaterial()`]: #sessionexportkeyingmateriallength-label-context
+[`session.onsessionticket`]: #sessiononsessionticket
 [`session.peerX509Certificate`]: #sessionpeerx509certificate
 [`session.reused`]: #sessionreused
 [`session.send()`]: #sessionsenddata

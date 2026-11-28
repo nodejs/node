@@ -33,52 +33,58 @@ const key = fixtures.readKey('agent1-key.pem');
 const ca1 = fixtures.readKey('ca1-cert.pem');
 const ca2 = fixtures.readKey('ca2-cert.pem');
 
-// The server accepts each session (cookie exchange completes) and only the
-// client rejects, so sessions do arrive here; nothing needs doing with them.
-const endpoint = listen(() => {}, {
-  cert, key, ca: [ca1], host: '127.0.0.1', port: 0,
-});
-const { port } = endpoint.address;
+const V12 = { minVersion: 'DTLSv1.2', maxVersion: 'DTLSv1.2' };
+const V13 = { minVersion: 'DTLSv1.3', maxVersion: 'DTLSv1.3' };
 
-// Provoke failures from both directions.
-
-// 1. Rejected handshakes: the server certificate does not chain to ca2.
-for (let i = 0; i < 3; i++) {
-  const client = connect('127.0.0.1', port, {
-    servername: 'agent1',
-    ca: [ca2],
+for (const versions of [V12, V13]) {
+  // The server accepts each session (cookie exchange completes) and only the
+  // client rejects, so sessions do arrive here; nothing needs doing with them.
+  const endpoint = listen(() => {}, {
+    cert, key, ca: [ca1], host: '127.0.0.1', port: 0, ...versions,
   });
-  await assert.rejects(client.opened, (err) => {
-    assert.match(err.message, /certificate verify failed/);
-    return true;
-  });
+  const { port } = endpoint.address;
+
+  // Provoke failures from both directions.
+
+  // 1. Rejected handshakes: the server certificate does not chain to ca2.
+  for (let i = 0; i < 3; i++) {
+    const client = connect('127.0.0.1', port, {
+      servername: 'agent1',
+      ca: [ca2],
+      ...versions,
+    });
+    await assert.rejects(client.opened, (err) => {
+      assert.match(err.message, /certificate verify failed/);
+      return true;
+    });
+  }
+
+  // 2. Garbage datagrams: each one reaches DTLSv1_listen() and fails there.
+  // The leading 22 makes them look enough like a DTLS handshake record to get
+  // past a cheap length/type screen.
+  const socket = dgram.createSocket('udp4');
+  for (let i = 0; i < 32; i++) {
+    socket.send(Buffer.from([22, 254, 253, 0, 0, i & 0xff]), port, '127.0.0.1');
+  }
+  // Let the datagrams reach the endpoint and be processed before closing;
+  // dgram.close() does not flush queued sends.
+  await setTimeout(200);
+  await new Promise((resolve) => socket.close(resolve));
+
+  // An unrelated crypto failure must report its own cause. Before the error
+  // queue was drained this surfaced a stale "SSL routines::..." entry left by
+  // the DTLS activity above, with the real DECODER error demoted into
+  // opensslErrorStack.
+  assert.throws(
+    () => crypto.createPrivateKey(
+      '-----BEGIN PRIVATE KEY-----\nZm9v\n-----END PRIVATE KEY-----\n'),
+    (err) => {
+      assert.doesNotMatch(
+        err.message, /SSL routines/,
+        `crypto error contaminated by a stale DTLS entry: ${err.message}`);
+      return true;
+    },
+  );
+
+  await endpoint.close();
 }
-
-// 2. Garbage datagrams: each one reaches DTLSv1_listen() and fails there.
-// The leading 22 makes them look enough like a DTLS handshake record to get
-// past a cheap length/type screen.
-const socket = dgram.createSocket('udp4');
-for (let i = 0; i < 32; i++) {
-  socket.send(Buffer.from([22, 254, 253, 0, 0, i & 0xff]), port, '127.0.0.1');
-}
-// Let the datagrams reach the endpoint and be processed before closing;
-// dgram.close() does not flush queued sends.
-await setTimeout(200);
-await new Promise((resolve) => socket.close(resolve));
-
-// An unrelated crypto failure must report its own cause. Before the error
-// queue was drained this surfaced a stale "SSL routines::..." entry left by
-// the DTLS activity above, with the real DECODER error demoted into
-// opensslErrorStack.
-assert.throws(
-  () => crypto.createPrivateKey(
-    '-----BEGIN PRIVATE KEY-----\nZm9v\n-----END PRIVATE KEY-----\n'),
-  (err) => {
-    assert.doesNotMatch(
-      err.message, /SSL routines/,
-      `crypto error contaminated by a stale DTLS entry: ${err.message}`);
-    return true;
-  },
-);
-
-await endpoint.close();

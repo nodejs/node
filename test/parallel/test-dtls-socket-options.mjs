@@ -24,6 +24,9 @@ const cert = fixtures.readKey('agent1-cert.pem').toString();
 const key = fixtures.readKey('agent1-key.pem').toString();
 const HOST = '127.0.0.1';
 
+const V12 = { minVersion: 'DTLSv1.2', maxVersion: 'DTLSv1.2' };
+const V13 = { minVersion: 'DTLSv1.3', maxVersion: 'DTLSv1.3' };
+
 // reusePort lets a second endpoint take the same port, which is how a server
 // is spread over several processes.
 {
@@ -60,7 +63,7 @@ const HOST = '127.0.0.1';
 // rcvbuf 212992 and one asking for 1 MiB reported 425984, the kernel having
 // doubled and clamped it. Reading them back would need a getter this module
 // does not have.
-{
+for (const versions of [V12, V13]) {
   const server = listen(() => {}, {
     cert,
     key,
@@ -69,10 +72,12 @@ const HOST = '127.0.0.1';
     udpReceiveBufferSize: 1024 * 1024,
     udpSendBufferSize: 1024 * 1024,
     udpTTL: 64,
+    ...versions,
   });
 
   const client = connect(HOST, server.address.port, {
     rejectUnauthorized: false,
+    ...versions,
   });
   await client.opened;
   await client.close();

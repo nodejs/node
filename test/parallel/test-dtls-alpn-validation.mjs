@@ -30,6 +30,9 @@ const ca = fixtures.readKey('ca1-cert.pem');
 
 const base = { cert, key, host: '127.0.0.1', port: 0 };
 
+const V12 = { minVersion: 'DTLSv1.2', maxVersion: 'DTLSv1.2' };
+const V13 = { minVersion: 'DTLSv1.3', maxVersion: 'DTLSv1.3' };
+
 // A name that does not fit in the length byte.
 assert.throws(
   () => listen(() => {}, { ...base, alpn: ['a'.repeat(256)] }),
@@ -46,11 +49,11 @@ assert.throws(
   { code: 'ERR_OUT_OF_RANGE', message: /alpn\[1\]/ });
 
 // 255 is the largest representable name and must still be accepted.
-{
+for (const versions of [V12, V13]) {
   const name = 'b'.repeat(255);
-  const endpoint = listen(() => {}, { ...base, alpn: [name] });
+  const endpoint = listen(() => {}, { ...base, alpn: [name], ...versions });
   const client = connect('127.0.0.1', endpoint.address.port, {
-    servername: 'agent1', ca: [ca], alpn: [name],
+    servername: 'agent1', ca: [ca], alpn: [name], ...versions,
   });
   await client.opened;
   assert.strictEqual(client.alpnProtocol, name);
@@ -68,12 +71,12 @@ assert.throws(
   { code: 'ERR_INVALID_ARG_VALUE', message: /past the end/ });
 
 // A well-formed buffer still works, so the walk is not rejecting everything.
-{
+for (const versions of [V12, V13]) {
   const endpoint = listen(() => {}, {
-    ...base, alpn: Buffer.from([2, 0x68, 0x32]),
+    ...base, alpn: Buffer.from([2, 0x68, 0x32]), ...versions,
   });
   const client = connect('127.0.0.1', endpoint.address.port, {
-    servername: 'agent1', ca: [ca], alpn: ['h2'],
+    servername: 'agent1', ca: [ca], alpn: ['h2'], ...versions,
   });
   await client.opened;
   assert.strictEqual(client.alpnProtocol, 'h2');

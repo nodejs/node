@@ -26,46 +26,51 @@ const key = fixtures.readKey('agent1-key.pem');
 const ca1 = fixtures.readKey('ca1-cert.pem');
 const ca2 = fixtures.readKey('ca2-cert.pem');
 
+const V12 = { minVersion: 'DTLSv1.2', maxVersion: 'DTLSv1.2' };
+const V13 = { minVersion: 'DTLSv1.3', maxVersion: 'DTLSv1.3' };
+
 // --- Client side ---------------------------------------------------------
 
-const endpoint = listen(() => {}, {
-  cert, key, host: '127.0.0.1', port: 0,
-});
-const { port } = endpoint.address;
+for (const versions of [V12, V13]) {
+  const endpoint = listen(() => {}, {
+    cert, key, host: '127.0.0.1', port: 0, ...versions,
+  });
+  const { port } = endpoint.address;
 
-for (const [description, options, authorized, authorizationError] of [
-  ['a trusted chain and matching identity verifies',
-   { servername: 'agent1', ca: [ca1] },
-   true, undefined],
-  ['an untrusted chain reports the issuer failure',
-   { servername: 'agent1', ca: [ca2], rejectUnauthorized: false },
-   false, 'UNABLE_TO_GET_ISSUER_CERT_LOCALLY'],
-  ['a trusted chain with the wrong identity reports the name mismatch',
-   { servername: 'not-agent1', ca: [ca1], rejectUnauthorized: false },
-   false, 'HOSTNAME_MISMATCH'],
-]) {
-  const client = connect('127.0.0.1', port, options);
-  await client.opened;
-  assert.strictEqual(client.authorized, authorized, description);
-  assert.strictEqual(client.authorizationError, authorizationError,
-                     description);
-  await client.close();
+  for (const [description, options, authorized, authorizationError] of [
+    ['a trusted chain and matching identity verifies',
+     { servername: 'agent1', ca: [ca1] },
+     true, undefined],
+    ['an untrusted chain reports the issuer failure',
+     { servername: 'agent1', ca: [ca2], rejectUnauthorized: false },
+     false, 'UNABLE_TO_GET_ISSUER_CERT_LOCALLY'],
+    ['a trusted chain with the wrong identity reports the name mismatch',
+     { servername: 'not-agent1', ca: [ca1], rejectUnauthorized: false },
+     false, 'HOSTNAME_MISMATCH'],
+  ]) {
+    const client = connect('127.0.0.1', port, { ...options, ...versions });
+    await client.opened;
+    assert.strictEqual(client.authorized, authorized, description);
+    assert.strictEqual(client.authorizationError, authorizationError,
+                       description);
+    await client.close();
+  }
+
+  await endpoint.close();
 }
-
-await endpoint.close();
 
 // --- Server side ---------------------------------------------------------
 
 // A peer that sent no certificate is reported as unverified rather than
 // authorized, even though OpenSSL has nothing to find fault with.
-{
+for (const versions of [V12, V13]) {
   const serverSession = Promise.withResolvers();
   const server = listen(mustCall((session) => {
     session.onhandshake = mustCall(() => serverSession.resolve(session));
-  }), { cert, key, host: '127.0.0.1', port: 0 });
+  }), { cert, key, host: '127.0.0.1', port: 0, ...versions });
 
   const client = connect('127.0.0.1', server.address.port, {
-    servername: 'agent1', ca: [ca1],
+    servername: 'agent1', ca: [ca1], ...versions,
   });
   await client.opened;
 
@@ -78,16 +83,17 @@ await endpoint.close();
 }
 
 // A peer that sent a chain the server trusts is authorized.
-{
+for (const versions of [V12, V13]) {
   const serverSession = Promise.withResolvers();
   const server = listen(mustCall((session) => {
     session.onhandshake = mustCall(() => serverSession.resolve(session));
   }), {
     cert, key, ca: [ca1], requestCert: true, host: '127.0.0.1', port: 0,
+    ...versions,
   });
 
   const client = connect('127.0.0.1', server.address.port, {
-    cert, key, servername: 'agent1', ca: [ca1],
+    cert, key, servername: 'agent1', ca: [ca1], ...versions,
   });
   await client.opened;
 

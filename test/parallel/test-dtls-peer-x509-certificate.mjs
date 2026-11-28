@@ -33,6 +33,9 @@ const chain = leafCert + intermediate;
 const agentCert = fixtures.readKey('agent1-cert.pem').toString();
 const agentKey = fixtures.readKey('agent1-key.pem').toString();
 
+const V12 = { minVersion: 'DTLSv1.2', maxVersion: 'DTLSv1.2' };
+const V13 = { minVersion: 'DTLSv1.3', maxVersion: 'DTLSv1.3' };
+
 function commonNames(cert) {
   const names = [];
   for (let x = cert, i = 0; x && i < 8; i++) {
@@ -46,13 +49,15 @@ function commonNames(cert) {
 }
 
 // The client sees the chain the server presented.
-{
+for (const versions of [V12, V13]) {
   const endpoint = listen(() => {}, {
     cert: chain, key: leafKey, host: '127.0.0.1', port: 0,
+    ...versions,
   });
 
   const client = connect('127.0.0.1', endpoint.address.port, {
     rejectUnauthorized: false,
+    ...versions,
   });
   await client.opened;
 
@@ -83,7 +88,7 @@ function commonNames(cert) {
 // The server sees the chain the client presented. This is the other branch
 // of GetPeerCertificateFlag: SSL_get_peer_cert_chain() omits the peer's leaf
 // on the server, so the wrong flag here silently drops or repeats it.
-{
+for (const versions of [V12, V13]) {
   const gotSession = Promise.withResolvers();
 
   const endpoint = listen((session) => gotSession.resolve(session), {
@@ -93,10 +98,12 @@ function commonNames(cert) {
     rejectUnauthorized: false,
     host: '127.0.0.1',
     port: 0,
+    ...versions,
   });
 
   const client = connect('127.0.0.1', endpoint.address.port, {
     cert: chain, key: leafKey, rejectUnauthorized: false,
+    ...versions,
   });
 
   await client.opened;
@@ -117,13 +124,15 @@ function commonNames(cert) {
 // lifts the leaf out of the SSL's chain with sk_X509_delete(), so calling it
 // twice returns a shorter chain and then nothing. The accessor must call it
 // once and keep the result.
-{
+for (const versions of [V12, V13]) {
   const endpoint = listen(() => {}, {
     cert: chain, key: leafKey, host: '127.0.0.1', port: 0,
+    ...versions,
   });
 
   const client = connect('127.0.0.1', endpoint.address.port, {
     rejectUnauthorized: false,
+    ...versions,
   });
   await client.opened;
 
@@ -140,15 +149,17 @@ function commonNames(cert) {
 }
 
 // A peer that sent no certificate reports undefined rather than an empty one.
-{
+for (const versions of [V12, V13]) {
   const gotSession = Promise.withResolvers();
 
   const endpoint = listen((session) => gotSession.resolve(session), {
     cert: agentCert, key: agentKey, host: '127.0.0.1', port: 0,
+    ...versions,
   });
 
   const client = connect('127.0.0.1', endpoint.address.port, {
     rejectUnauthorized: false,
+    ...versions,
   });
 
   await client.opened;

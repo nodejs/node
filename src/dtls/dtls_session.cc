@@ -119,6 +119,13 @@ DTLSSession::DTLSSession(Environment* env,
                           BaseObjectPtr<DTLSSession> strong_ref{this};
                           MarkPopErrorOnReturn mark_pop_error_on_return;
 
+                          // Nothing to report for a peer that never proved
+                          // it holds its address.
+                          if (!announced_ && ValidationDeadlineExpired()) {
+                            Destroy();
+                            return;
+                          }
+
                           // The deadline is checked before retransmitting, so
                           // an expired handshake stops rather than sends once
                           // more.
@@ -461,6 +468,7 @@ void DTLSSession::Cycle() {
   // handshake recovered from.
   EmitPendingError();
   EmitSendError();
+  EmitSessionTicket();
 }
 
 void DTLSSession::CycleInner() {
@@ -470,8 +478,30 @@ void DTLSSession::CycleInner() {
   // If handshake is not yet complete, drive it forward.
   if (!handshake_complete_) {
     int ret = SSL_do_handshake(ssl_.get());
+    int err = ret <= 0 ? SSL_get_error(ssl_.get(), ret) : SSL_ERROR_NONE;
+
+    if (!announced_) {
+      if (!address_validated_) {
+        // The peer has not shown it can receive at its address, so whatever
+        // happened stays here. A bad cookie still gets OpenSSL's
+        // illegal_parameter alert, which RFC 9147 section 5.1 requires and
+        // which is a handful of bytes; nothing else is sent to an address
+        // that may be forged.
+        EncOut();
+        if (err == SSL_ERROR_SSL) {
+          Destroy();
+          return;
+        }
+        UpdateTimer();
+        return;
+      }
+      // Announce before anything else is reported, so the error, handshake
+      // and message callbacks below have a wrapper to land on.
+      Announce();
+      if (destroyed_) return;
+    }
+
     if (ret <= 0) {
-      int err = SSL_get_error(ssl_.get(), ret);
       if (err == SSL_ERROR_SSL) {
         std::string message = FormatSSLError(err);
         // Flush any fatal alert OpenSSL queued for the peer before emitting the
@@ -723,7 +753,63 @@ bool DTLSSession::PeerVerificationPassed() {
   return false;
 }
 
+void DTLSSession::AwaitAddressValidation() {
+  address_validated_ = false;
+  announced_ = false;
+  validation_deadline_ = uv_hrtime() / 1000000 + kValidationTimeoutMs;
+}
+
+bool DTLSSession::ValidationDeadlineExpired() const {
+  return validation_deadline_ != 0 &&
+         uv_hrtime() / 1000000 >= validation_deadline_;
+}
+
+void DTLSSession::Announce() {
+  announced_ = true;
+  validation_deadline_ = 0;
+  auto ep = endpoint_.get();
+  if (ep == nullptr) {
+    Destroy();
+    return;
+  }
+  ep->AnnounceSession(this);
+  // The new-session handler may have destroyed the session.
+  if (destroyed_) return;
+  FlushEarlyKeylog();
+}
+
+void DTLSSession::FlushEarlyKeylog() {
+  if (early_keylog_.empty()) return;
+  // Swapped out first: the handler may destroy the session, which discards
+  // whatever is still held.
+  std::vector<std::string> lines;
+  lines.swap(early_keylog_);
+  if (state_->has_keylog_listener) {
+    HandleScope handle_scope(env()->isolate());
+    Context::Scope context_scope(env()->context());
+    for (const std::string& line : lines) {
+      if (destroyed_) break;
+      Local<Value> str;
+      if (!ToV8Value(env()->context(), line).ToLocal(&str)) continue;
+      Local<Value> argv[] = {str};
+      EmitCallback(DTLS_CB_SESSION_KEYLOG, 1, argv);
+    }
+  }
+  for (std::string& line : lines) OPENSSL_cleanse(line.data(), line.size());
+}
+
+void DTLSSession::DiscardEarlyKeylog() {
+  for (std::string& line : early_keylog_) {
+    OPENSSL_cleanse(line.data(), line.size());
+  }
+  early_keylog_.clear();
+}
+
 void DTLSSession::EmitHandshakeTimeout() {
+  if (!announced_) {
+    Destroy();
+    return;
+  }
   HandleScope hs(env()->isolate());
   Context::Scope cs(env()->context());
   Local<Value> message;
@@ -739,7 +825,25 @@ void DTLSSession::UpdateTimer() {
   if (destroyed_) return;
 
   struct timeval tv;
-  if (DTLSv1_get_timeout(ssl_.get(), &tv)) {
+  bool have_timeout = DTLSv1_get_timeout(ssl_.get(), &tv);
+
+  // An unannounced session has to wake at its validation deadline whether or
+  // not OpenSSL wants to retransmit anything: a peer that sent the one
+  // ClientHello and went quiet would otherwise hold the slot until the
+  // handshake deadline.
+  if (!announced_ && validation_deadline_ != 0) {
+    uint64_t now = uv_hrtime() / 1000000;
+    uint64_t remaining =
+        validation_deadline_ > now ? validation_deadline_ - now : 1;
+    if (have_timeout) {
+      uint64_t timeout_ms = tv.tv_sec * 1000 + tv.tv_usec / 1000;
+      if (timeout_ms < remaining) remaining = timeout_ms == 0 ? 1 : timeout_ms;
+    }
+    retransmit_timer_.Update(remaining);
+    return;
+  }
+
+  if (have_timeout) {
     uint64_t timeout_ms = tv.tv_sec * 1000 + tv.tv_usec / 1000;
     if (timeout_ms == 0) timeout_ms = 1;  // Minimum 1ms.
 
@@ -787,13 +891,23 @@ int DTLSSession::Send(const uint8_t* data, size_t len) {
   // DTLS carries application data in a single record per datagram and does
   // not fragment it, so anything above the maximum plaintext record length is
   // unsendable. Report the limit rather than letting SSL_write fail opaquely.
-  if (len > SSL3_RT_MAX_PLAIN_LENGTH) {
+  //
+  // One byte less under DTLS 1.3. RFC 8446 section 5.4 allows the full 2^14
+  // of content, but OpenSSL 4.1 checks a received DTLS 1.3 record against
+  // the maximum fragment length before removing the inner content type byte,
+  // so a full-sized record arrives one byte over and the receiver ends the
+  // association with record_overflow. Every OpenSSL-based peer -- including
+  // another Node.js -- is affected, so staying under it is not optional.
+  const size_t max_len = SSL_version(ssl_.get()) == DTLS1_3_VERSION
+                             ? SSL3_RT_MAX_PLAIN_LENGTH - 1
+                             : SSL3_RT_MAX_PLAIN_LENGTH;
+  if (len > max_len) {
     THROW_ERR_OUT_OF_RANGE(
         env(),
-        "data is %zu bytes, which exceeds the %d byte maximum for a single "
+        "data is %zu bytes, which exceeds the %zu byte maximum for a single "
         "DTLS record",
         len,
-        SSL3_RT_MAX_PLAIN_LENGTH);
+        max_len);
     return -1;
   }
 
@@ -872,6 +986,7 @@ void DTLSSession::Destroy() {
   // A parked exception is a strong reference to a JS Error, whose stack
   // normally reaches back to this session. Nothing will emit it now.
   pending_error_.Reset();
+  DiscardEarlyKeylog();
 
   // Promote to strong ref to keep endpoint alive during removal,
   // then release our weak pointer.
@@ -883,6 +998,13 @@ void DTLSSession::Destroy() {
 void DTLSSession::SSLKeylogCallback(const SSL* ssl, const char* line) {
   DTLSSession* session = static_cast<DTLSSession*>(SSL_get_app_data(ssl));
   if (session == nullptr || session->destroyed_) return;
+
+  // Not announced yet, so there is no wrapper to ask whether anything is
+  // listening. Held in C++ until there is; see FlushEarlyKeylog().
+  if (!session->announced_) {
+    session->early_keylog_.emplace_back(line);
+    return;
+  }
 
   // `line` carries the connection's secrets. Do not copy it into the JS heap
   // unless something is actually listening -- once it is a JS string it is
@@ -925,6 +1047,14 @@ void DTLSSession::EmitSendError() {
   }
   Local<Value> argv[] = {message};
   EmitCallback(DTLS_CB_SESSION_ERROR, 1, argv);
+}
+
+void DTLSSession::EmitSessionTicket() {
+  if (!ticket_pending_ || destroyed_ || !announced_) return;
+  ticket_pending_ = false;
+  HandleScope handle_scope(env()->isolate());
+  Local<Value> argv[] = {};
+  EmitCallback(DTLS_CB_SESSION_TICKET, 0, argv);
 }
 
 void DTLSSession::EmitPendingError() {
@@ -1138,6 +1268,28 @@ void DTLSSession::ExportKeyingMaterial(
 
   MarkPopErrorOnReturn mark_pop_error_on_return;
 
+  // The DTLS 1.3 exporter is HKDF-Expand-Label (RFC 8446 section 7.5), which
+  // cannot produce more than 255 hash lengths of output: 8160 bytes under a
+  // SHA-256 suite, 12240 under SHA-384. Reported as the range error it is
+  // rather than as OpenSSL's bare failure.
+  if (SSL_version(session->ssl_.get()) == DTLS1_3_VERSION) {
+    const SSL_CIPHER* cipher = SSL_get_current_cipher(session->ssl_.get());
+    const EVP_MD* md =
+        cipher != nullptr ? SSL_CIPHER_get_handshake_digest(cipher) : nullptr;
+    if (md != nullptr) {
+      const uint32_t max = 255 * static_cast<uint32_t>(EVP_MD_get_size(md));
+      if (length > max) {
+        return THROW_ERR_OUT_OF_RANGE(
+            env,
+            "The value of \"length\" is out of range. It must be <= %u "
+            "under DTLS 1.3 with %s. Received %u",
+            max,
+            SSL_CIPHER_get_name(cipher),
+            length);
+      }
+    }
+  }
+
   std::vector<uint8_t> out(length);
   int ret = SSL_export_keying_material(session->ssl_.get(),
                                        out.data(),
@@ -1234,6 +1386,12 @@ void DTLSSession::GetSession(const FunctionCallbackInfo<Value>& args) {
   // SSL_get1_session() takes a reference, which the pointer releases.
   ncrypto::SSLSessionPointer sess(SSL_get1_session(session->ssl_.get()));
   if (!sess) return;
+
+  // A DTLS 1.3 connection has a session as soon as the handshake completes,
+  // but nothing to resume it with until the server's NewSessionTicket
+  // arrives. Handing that out would look like a ticket and buy a full
+  // handshake.
+  if (!SSL_SESSION_is_resumable(sess.get())) return;
 
   int size = i2d_SSL_SESSION(sess.get(), nullptr);
   if (size <= 0) return;

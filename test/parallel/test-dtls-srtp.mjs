@@ -24,52 +24,59 @@ const ca = fixtures.readKey('ca1-cert.pem').toString();
 
 const SRTP_PROFILE = 'SRTP_AEAD_AES_128_GCM';
 
-const gotServerSession = Promise.withResolvers();
+const V12 = { minVersion: 'DTLSv1.2', maxVersion: 'DTLSv1.2' };
+const V13 = { minVersion: 'DTLSv1.3', maxVersion: 'DTLSv1.3' };
 
-const server = listen(mustCall((session) => {
-  gotServerSession.resolve(session);
-}), {
-  cert,
-  key,
-  port: 0,
-  host: '127.0.0.1',
-  srtp: SRTP_PROFILE,
-});
+for (const versions of [V12, V13]) {
+  const gotServerSession = Promise.withResolvers();
 
-const client = connect('127.0.0.1', server.address.port, {
-  ca: [ca],
-  rejectUnauthorized: false,
-  srtp: SRTP_PROFILE,
-});
+  const server = listen(mustCall((session) => {
+    gotServerSession.resolve(session);
+  }), {
+    cert,
+    key,
+    port: 0,
+    host: '127.0.0.1',
+    srtp: SRTP_PROFILE,
+    ...versions,
+  });
 
-await client.opened;
-const serverSession = await gotServerSession.promise;
-await serverSession.opened;
+  const client = connect('127.0.0.1', server.address.port, {
+    ca: [ca],
+    rejectUnauthorized: false,
+    srtp: SRTP_PROFILE,
+    ...versions,
+  });
 
-// Both peers negotiate the same SRTP profile.
-assert.strictEqual(client.srtpProfile, SRTP_PROFILE);
-assert.strictEqual(serverSession.srtpProfile, SRTP_PROFILE);
+  await client.opened;
+  const serverSession = await gotServerSession.promise;
+  await serverSession.opened;
 
-// Both peers derive identical keying material for the same label and length.
-const label = 'EXTRACTOR-dtls_srtp';
-const clientKM = client.exportKeyingMaterial(60, label);
-const serverKM = serverSession.exportKeyingMaterial(60, label);
-assert.strictEqual(clientKM.length, 60);
-assert.deepStrictEqual(clientKM, serverKM);
+  // Both peers negotiate the same SRTP profile.
+  assert.strictEqual(client.srtpProfile, SRTP_PROFILE);
+  assert.strictEqual(serverSession.srtpProfile, SRTP_PROFILE);
 
-// The optional context is bound into the derivation: the same context yields
-// the same material on both peers, and a different context yields different
-// material.
-const contextA = Buffer.from('context-a');
-const contextB = Buffer.from('context-b');
-assert.deepStrictEqual(
-  client.exportKeyingMaterial(32, label, contextA),
-  serverSession.exportKeyingMaterial(32, label, contextA),
-);
-assert.notDeepStrictEqual(
-  client.exportKeyingMaterial(32, label, contextA),
-  client.exportKeyingMaterial(32, label, contextB),
-);
+  // Both peers derive identical keying material for the same label and length.
+  const label = 'EXTRACTOR-dtls_srtp';
+  const clientKM = client.exportKeyingMaterial(60, label);
+  const serverKM = serverSession.exportKeyingMaterial(60, label);
+  assert.strictEqual(clientKM.length, 60);
+  assert.deepStrictEqual(clientKM, serverKM);
 
-await client.close();
-await server.close();
+  // The optional context is bound into the derivation: the same context yields
+  // the same material on both peers, and a different context yields different
+  // material.
+  const contextA = Buffer.from('context-a');
+  const contextB = Buffer.from('context-b');
+  assert.deepStrictEqual(
+    client.exportKeyingMaterial(32, label, contextA),
+    serverSession.exportKeyingMaterial(32, label, contextA),
+  );
+  assert.notDeepStrictEqual(
+    client.exportKeyingMaterial(32, label, contextA),
+    client.exportKeyingMaterial(32, label, contextB),
+  );
+
+  await client.close();
+  await server.close();
+}

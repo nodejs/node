@@ -25,15 +25,18 @@ const cert = fixtures.readKey('agent1-cert.pem');
 const key = fixtures.readKey('agent1-key.pem');
 const ca = fixtures.readKey('ca1-cert.pem');
 
+const V12 = { minVersion: 'DTLSv1.2', maxVersion: 'DTLSv1.2' };
+const V13 = { minVersion: 'DTLSv1.3', maxVersion: 'DTLSv1.3' };
+
 // An explicit context is accepted and does not disturb the handshake.
-{
+for (const versions of [V12, V13]) {
   const endpoint = listen(() => {}, {
     cert, key, host: '127.0.0.1', port: 0,
-    sessionIdContext: 'a'.repeat(32),
+    sessionIdContext: 'a'.repeat(32), ...versions,
   });
 
   const client = connect('127.0.0.1', endpoint.address.port, {
-    servername: 'agent1', ca: [ca],
+    servername: 'agent1', ca: [ca], ...versions,
   });
   await client.opened;
   assert.strictEqual(endpoint.stats.serverSessions, 1n);
@@ -43,13 +46,13 @@ const ca = fixtures.readKey('ca1-cert.pem');
 }
 
 // The default is applied when none is given, and handshakes still work.
-{
+for (const versions of [V12, V13]) {
   const endpoint = listen(() => {}, {
-    cert, key, host: '127.0.0.1', port: 0,
+    cert, key, host: '127.0.0.1', port: 0, ...versions,
   });
 
   const client = connect('127.0.0.1', endpoint.address.port, {
-    servername: 'agent1', ca: [ca],
+    servername: 'agent1', ca: [ca], ...versions,
   });
   await client.opened;
   assert.strictEqual(endpoint.stats.serverSessions, 1n);

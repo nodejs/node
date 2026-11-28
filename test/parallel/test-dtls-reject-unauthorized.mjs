@@ -21,19 +21,23 @@ const { listen, connect } = await import('node:dtls');
 const cert = fixtures.readKey('agent1-cert.pem').toString();
 const key = fixtures.readKey('agent1-key.pem').toString();
 
+const V12 = { minVersion: 'DTLSv1.2', maxVersion: 'DTLSv1.2' };
+const V13 = { minVersion: 'DTLSv1.3', maxVersion: 'DTLSv1.3' };
+
 // Case 1: with rejectUnauthorized, a certificate that does not chain to a
 // trusted CA fails verification. The servername matches the certificate, so
 // the failure is the untrusted chain and not an identity mismatch. No `ca` is
 // supplied, so only the system-default CAs are trusted (which do not include
 // this test's CA).
-{
+for (const versions of [V12, V13]) {
   const server = listen(mustCall(), {
-    cert, key, port: 0, host: '127.0.0.1',
+    cert, key, port: 0, host: '127.0.0.1', ...versions,
   });
 
   const client = connect('127.0.0.1', server.address.port, {
     rejectUnauthorized: true,
     servername: 'agent1',
+    ...versions,
   });
 
   await assert.rejects(client.opened, /certificate verify failed/i);
@@ -43,13 +47,14 @@ const key = fixtures.readKey('agent1-key.pem').toString();
 }
 
 // Case 2: the same untrusted certificate is accepted when verification is off.
-{
+for (const versions of [V12, V13]) {
   const server = listen(mustCall(), {
-    cert, key, port: 0, host: '127.0.0.1',
+    cert, key, port: 0, host: '127.0.0.1', ...versions,
   });
 
   const client = connect('127.0.0.1', server.address.port, {
     rejectUnauthorized: false,
+    ...versions,
   });
 
   const { protocol } = await client.opened;

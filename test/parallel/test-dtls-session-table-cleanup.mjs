@@ -28,18 +28,22 @@ const cert = fixtures.readKey('agent1-cert.pem').toString();
 const key = fixtures.readKey('agent1-key.pem').toString();
 const ca = fixtures.readKey('ca1-cert.pem').toString();
 
+const V12 = { minVersion: 'DTLSv1.2', maxVersion: 'DTLSv1.2' };
+const V13 = { minVersion: 'DTLSv1.3', maxVersion: 'DTLSv1.3' };
+
 // ---------------------------------------------------------------------------
 // Case 1: the server closes its own session -> removed from the table.
-{
+for (const versions of [V12, V13]) {
   const gotSession = Promise.withResolvers();
 
   const server = listen(mustCall((session) => {
     gotSession.resolve(session);
-  }), { cert, key, port: 0, host: '127.0.0.1' });
+  }), { cert, key, port: 0, host: '127.0.0.1', ...versions });
 
   const client = connect('127.0.0.1', server.address.port, {
     ca: [ca],
     rejectUnauthorized: false,
+    ...versions,
   });
 
   await client.opened;
@@ -56,16 +60,17 @@ const ca = fixtures.readKey('ca1-cert.pem').toString();
 // ---------------------------------------------------------------------------
 // Case 2: the client closes -> the server sees the peer close_notify and
 // removes the session from the table.
-{
+for (const versions of [V12, V13]) {
   const gotSession = Promise.withResolvers();
 
   const server = listen(mustCall((session) => {
     gotSession.resolve(session);
-  }), { cert, key, port: 0, host: '127.0.0.1' });
+  }), { cert, key, port: 0, host: '127.0.0.1', ...versions });
 
   const client = connect('127.0.0.1', server.address.port, {
     ca: [ca],
     rejectUnauthorized: false,
+    ...versions,
   });
 
   await client.opened;

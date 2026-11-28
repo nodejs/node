@@ -20,28 +20,35 @@ const serverCert = fixtures.readKey('agent1-cert.pem');
 const serverKey = fixtures.readKey('agent1-key.pem');
 const ca = fixtures.readKey('ca1-cert.pem');
 
-const endpoint = listen(mustCall((session) => {
-  session.onmessage = mustNotCall();
-}), {
-  cert: serverCert.toString(),
-  key: serverKey.toString(),
-  port: 0,
-  host: '127.0.0.1',
-});
+const V12 = { minVersion: 'DTLSv1.2', maxVersion: 'DTLSv1.2' };
+const V13 = { minVersion: 'DTLSv1.3', maxVersion: 'DTLSv1.3' };
 
-const session = connect('127.0.0.1', endpoint.address.port, {
-  ca: [ca.toString()],
-  rejectUnauthorized: false,
-});
+for (const versions of [V12, V13]) {
+  const endpoint = listen(mustCall((session) => {
+    session.onmessage = mustNotCall();
+  }), {
+    cert: serverCert.toString(),
+    key: serverKey.toString(),
+    port: 0,
+    host: '127.0.0.1',
+    ...versions,
+  });
 
-await session.opened;
+  const session = connect('127.0.0.1', endpoint.address.port, {
+    ca: [ca.toString()],
+    rejectUnauthorized: false,
+    ...versions,
+  });
 
-// Test that Symbol.asyncDispose exists.
-assert.strictEqual(typeof session[Symbol.asyncDispose], 'function');
-assert.strictEqual(typeof endpoint[Symbol.asyncDispose], 'function');
+  await session.opened;
 
-// Dispose the session.
-await session[Symbol.asyncDispose]();
+  // Test that Symbol.asyncDispose exists.
+  assert.strictEqual(typeof session[Symbol.asyncDispose], 'function');
+  assert.strictEqual(typeof endpoint[Symbol.asyncDispose], 'function');
 
-// Dispose the endpoint.
-await endpoint[Symbol.asyncDispose]();
+  // Dispose the session.
+  await session[Symbol.asyncDispose]();
+
+  // Dispose the endpoint.
+  await endpoint[Symbol.asyncDispose]();
+}
