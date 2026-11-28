@@ -1,9 +1,10 @@
 'use strict';
 
-const { enoughTestMem, skipIfSQLiteMissing } = require('../common');
+const { enoughTestMem, mustNotCall, skipIfSQLiteMissing } = require('../common');
 skipIfSQLiteMissing();
 const { Database, constants: { SQLITE_OK } } = require('node:sqlite');
 const { constants } = require('node:buffer');
+const dc = require('node:diagnostics_channel');
 const { suite, test } = require('node:test');
 
 // These queries allocate strings and blobs of several hundred megabytes.
@@ -56,5 +57,27 @@ suite('values larger than the maximum string length', { skip: !enoughTestMem }, 
     }, tooLong);
     using stmt = db.prepare('SELECT count(*) AS count FROM data');
     t.assert.deepStrictEqual(stmt.get(), { __proto__: null, count: 0 });
+  });
+
+  test('sourceSQL, expandedSQL and column names throw for oversized SQL', (t) => {
+    using db = new Database(':memory:');
+    using stmt = db.prepare(`SELECT 1 AS "${longIdentifier}"`);
+    t.assert.throws(() => stmt.sourceSQL, tooLong);
+    t.assert.throws(() => stmt.expandedSQL, tooLong);
+    t.assert.throws(() => stmt.get(), tooLong);
+    t.assert.throws(() => stmt.columns(), tooLong);
+  });
+
+  test('sqlite.db.query skips statements with oversized SQL', (t) => {
+    const onQuery = mustNotCall();
+    dc.subscribe('sqlite.db.query', onQuery);
+    t.after(() => dc.unsubscribe('sqlite.db.query', onQuery));
+
+    using db = new Database(':memory:');
+    using stmt = db.prepare(`SELECT 1 AS "${longIdentifier}"`);
+    stmt.run();
+    // Make sqlite3_expanded_sql() return NULL to test the source SQL fallback.
+    db.limits.length = constants.MAX_STRING_LENGTH;
+    stmt.run();
   });
 });

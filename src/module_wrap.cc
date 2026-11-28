@@ -1244,23 +1244,32 @@ void ModuleWrap::SetImportMetaResolveInitializer(
   realm->set_host_import_meta_resolve_initializer(initializer);
 }
 
+// The import.meta lazy getters have no JavaScript function representation and
+// are not invoked in the creation context. When they are invoked in a vm
+// context, `Realm::GetCurrent(info)` returns nullptr, so retrieve the creation
+// context via the holder object instead. Throws and returns false on failure.
+static bool GetHolderCreationContext(const PropertyCallbackInfo<Value>& info,
+                                     Local<Context>* context) {
+  Local<Value> receiver_val = info.Holder();
+  if (!receiver_val->IsObject() ||
+      !receiver_val.As<Object>()->GetCreationContext().ToLocal(context)) {
+    THROW_ERR_INVALID_INVOCATION(info.GetIsolate());
+    return false;
+  }
+  return true;
+}
+
 static void ImportMetaResolveLazyGetter(
     Local<v8::Name> name, const PropertyCallbackInfo<Value>& info) {
   Isolate* isolate = info.GetIsolate();
-  Local<Value> receiver_val = info.Holder();
-  if (!receiver_val->IsObject()) {
-    THROW_ERR_INVALID_INVOCATION(isolate);
-    return;
-  }
-  Local<Object> receiver = receiver_val.As<Object>();
   Local<Context> context;
-  if (!receiver->GetCreationContext().ToLocal(&context)) {
-    THROW_ERR_INVALID_INVOCATION(isolate);
+  if (!GetHolderCreationContext(info, &context)) {
     return;
   }
   Realm* realm = Realm::GetCurrent(context);
   if (realm == nullptr) {
     THROW_ERR_INVALID_INVOCATION(isolate);
+    return;
   }
   Local<Function> initializer = realm->host_import_meta_resolve_initializer();
   if (initializer.IsEmpty()) {
@@ -1283,20 +1292,8 @@ static void ImportMetaResolveLazyGetter(
 static void PathHelpersLazyGetter(Local<v8::Name> name,
                                   const PropertyCallbackInfo<Value>& info) {
   Isolate* isolate = info.GetIsolate();
-  // This getter has no JavaScript function representation and is not
-  // invoked in the creation context.
-  // When this getter is invoked in a vm context, the `Realm::GetCurrent(info)`
-  // returns a nullptr and retrieve the creation context via `this` object and
-  // get the creation Realm.
-  Local<Value> receiver_val = info.Holder();
-  if (!receiver_val->IsObject()) {
-    THROW_ERR_INVALID_INVOCATION(isolate);
-    return;
-  }
-  Local<Object> receiver = receiver_val.As<Object>();
   Local<Context> context;
-  if (!receiver->GetCreationContext().ToLocal(&context)) {
-    THROW_ERR_INVALID_INVOCATION(isolate);
+  if (!GetHolderCreationContext(info, &context)) {
     return;
   }
   Environment* env = Environment::GetCurrent(context);

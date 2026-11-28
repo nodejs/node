@@ -14,14 +14,13 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 const assert = require('assert');
 const fs = require('fs');
-const path = require('path');
 const http2 = require('http2');
 const tmpdir = require('../common/tmpdir');
 
 tmpdir.refresh();
 
 function testCleanCompletion(next) {
-  const smallPath = path.join(tmpdir.path, 'small.bin');
+  const smallPath = tmpdir.resolve('small.bin');
   const smallSize = 64;
   fs.writeFileSync(smallPath, Buffer.alloc(smallSize));
 
@@ -57,7 +56,7 @@ function testCleanCompletion(next) {
 }
 
 function testAbortBeforeCompletion() {
-  const smallPath = path.join(tmpdir.path, 'small-abort.bin');
+  const smallPath = tmpdir.resolve('small-abort.bin');
   const smallSize = 64;
   fs.writeFileSync(smallPath, Buffer.alloc(smallSize));
 

@@ -22,6 +22,7 @@
 
 using node::kAllowedInEnvvar;
 using node::kDisallowedInEnvvar;
+using v8::AccessorNameGetterCallback;
 using v8::Array;
 using v8::ArrayBuffer;
 using v8::Boolean;
@@ -34,6 +35,7 @@ using v8::Float64Array;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
+using v8::HeapProfiler;
 using v8::HeapStatistics;
 using v8::Integer;
 using v8::Isolate;
@@ -41,11 +43,13 @@ using v8::Local;
 using v8::Locker;
 using v8::Maybe;
 using v8::MaybeLocal;
+using v8::Name;
 using v8::NewStringType;
 using v8::Null;
 using v8::Number;
 using v8::Object;
 using v8::ObjectTemplate;
+using v8::PropertyCallbackInfo;
 using v8::ResourceConstraints;
 using v8::SealHandleScope;
 using v8::String;
@@ -1058,6 +1062,84 @@ class WorkerHeapProfileTaker final : public AsyncWrap {
   SET_SELF_SIZE(WorkerHeapProfileTaker)
 };
 
+void Worker::SetHeapProfileSampleInterval(
+    const FunctionCallbackInfo<Value>& args) {
+  Worker* w;
+  ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
+  Environment* env = w->env();
+  CHECK_EQ(args.Length(), 1);
+  CHECK(args[0]->IsNumber());
+  double interval = args[0].As<Number>()->Value();
+  CHECK_GE(interval, 1);
+  CHECK_LE(interval, kMaxSafeJsInteger);
+
+  AsyncHooks::DefaultTriggerAsyncIdScope trigger_id_scope(w);
+  Local<Object> wrap;
+  if (!env->worker_heap_profile_taker_template()
+           ->NewInstance(env->context())
+           .ToLocal(&wrap)) {
+    return;
+  }
+  BaseObjectPtr<WorkerHeapProfileTaker> taker =
+      MakeDetachedBaseObject<WorkerHeapProfileTaker>(env, wrap);
+  bool queued = w->RequestInterrupt([taker = std::move(taker), env, interval](
+                                        Environment* worker_env) mutable {
+    auto* profiler = worker_env->isolate()->GetHeapProfiler();
+    profiler->SetSamplingHeapProfilerInterval(static_cast<uint64_t>(interval));
+    env->SetImmediateThreadsafe(
+        [taker = std::move(taker)](Environment* env) mutable {
+          Isolate* isolate = env->isolate();
+          HandleScope handle_scope(isolate);
+          Context::Scope context_scope(env->context());
+          AsyncHooks::DefaultTriggerAsyncIdScope trigger_id_scope(taker.get());
+          Local<Value> argv[] = {Null(isolate)};
+          taker->MakeCallback(env->ondone_string(), arraysize(argv), argv);
+        },
+        CallbackFlags::kUnrefed);
+  });
+  if (queued) {
+    args.GetReturnValue().Set(wrap);
+  }
+}
+
+void Worker::GetHeapProfileSamples(const FunctionCallbackInfo<Value>& args) {
+  Worker* w;
+  ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
+  Environment* env = w->env();
+  AsyncHooks::DefaultTriggerAsyncIdScope trigger_id_scope(w);
+  Local<Object> wrap;
+  if (!env->worker_heap_profile_taker_template()
+           ->NewInstance(env->context())
+           .ToLocal(&wrap)) {
+    return;
+  }
+  BaseObjectPtr<WorkerHeapProfileTaker> taker =
+      MakeDetachedBaseObject<WorkerHeapProfileTaker>(env, wrap);
+  bool scheduled = w->RequestInterrupt([taker = std::move(taker),
+                                        env](Environment* worker_env) mutable {
+    auto* profiler = worker_env->isolate()->GetHeapProfiler();
+    auto samples = profiler->GetSamplingHeapProfilerSamples();
+    env->SetImmediateThreadsafe(
+        [taker = std::move(taker),
+         samples = std::move(samples)](Environment* env) mutable {
+          Isolate* isolate = env->isolate();
+          HandleScope handle_scope(isolate);
+          Context::Scope context_scope(env->context());
+          AsyncHooks::DefaultTriggerAsyncIdScope trigger_id_scope(taker.get());
+          Local<Value> argv[] = {Null(isolate), Undefined(isolate)};
+          if (!HeapProfileSamplesToV8Value(isolate, env->context(), samples)
+                   .ToLocal(&argv[1])) {
+            return;
+          }
+          taker->MakeCallback(env->ondone_string(), arraysize(argv), argv);
+        },
+        CallbackFlags::kUnrefed);
+  });
+  if (scheduled) {
+    args.GetReturnValue().Set(wrap);
+  }
+}
+
 void Worker::StartHeapProfile(const FunctionCallbackInfo<Value>& args) {
   Worker* w;
   ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
@@ -1077,7 +1159,7 @@ void Worker::StartHeapProfile(const FunctionCallbackInfo<Value>& args) {
 
   bool scheduled = w->RequestInterrupt([taker = std::move(taker), env, options](
                                            Environment* worker_env) mutable {
-    v8::HeapProfiler* profiler = worker_env->isolate()->GetHeapProfiler();
+    HeapProfiler* profiler = worker_env->isolate()->GetHeapProfiler();
     bool success = profiler->StartSamplingHeapProfiler(
         options.sample_interval, options.stack_depth, options.flags);
     env->SetImmediateThreadsafe(
@@ -1434,14 +1516,12 @@ void GetEnvMessagePort(const FunctionCallbackInfo<Value>& args) {
 // Per-thread values of the `worker` binding are lazy properties of the
 // per-isolate template, so that a bootstrapped context carries none of them
 // and can be deserialized by any thread.
-void ThreadIdGetter(Local<v8::Name>,
-                    const v8::PropertyCallbackInfo<Value>& info) {
+void ThreadIdGetter(Local<Name>, const PropertyCallbackInfo<Value>& info) {
   Environment* env = Environment::GetCurrent(info);
   info.GetReturnValue().Set(static_cast<double>(env->thread_id()));
 }
 
-void ThreadNameGetter(Local<v8::Name>,
-                      const v8::PropertyCallbackInfo<Value>& info) {
+void ThreadNameGetter(Local<Name>, const PropertyCallbackInfo<Value>& info) {
   Environment* env = Environment::GetCurrent(info);
   Local<String> name;
   if (String::NewFromUtf8(info.GetIsolate(),
@@ -1453,19 +1533,18 @@ void ThreadNameGetter(Local<v8::Name>,
   }
 }
 
-void IsMainThreadGetter(Local<v8::Name>,
-                        const v8::PropertyCallbackInfo<Value>& info) {
+void IsMainThreadGetter(Local<Name>, const PropertyCallbackInfo<Value>& info) {
   info.GetReturnValue().Set(Environment::GetCurrent(info)->is_main_thread());
 }
 
-void OwnsProcessStateGetter(Local<v8::Name>,
-                            const v8::PropertyCallbackInfo<Value>& info) {
+void OwnsProcessStateGetter(Local<Name>,
+                            const PropertyCallbackInfo<Value>& info) {
   info.GetReturnValue().Set(
       Environment::GetCurrent(info)->owns_process_state());
 }
 
-void ResourceLimitsGetter(Local<v8::Name>,
-                          const v8::PropertyCallbackInfo<Value>& info) {
+void ResourceLimitsGetter(Local<Name>,
+                          const PropertyCallbackInfo<Value>& info) {
   Environment* env = Environment::GetCurrent(info);
   if (env->worker_context() != nullptr) {
     info.GetReturnValue().Set(
@@ -1477,7 +1556,7 @@ void CreateWorkerPerIsolateProperties(IsolateData* isolate_data,
                                       Local<ObjectTemplate> target) {
   {
     Isolate* isolate = isolate_data->isolate();
-    auto lazy = [&](const char* name, v8::AccessorNameGetterCallback getter) {
+    auto lazy = [&](const char* name, AccessorNameGetterCallback getter) {
       target->SetLazyDataProperty(OneByteString(isolate, name), getter);
     };
     lazy("threadId", ThreadIdGetter);
@@ -1511,6 +1590,12 @@ void CreateWorkerPerIsolateProperties(IsolateData* isolate_data,
     SetProtoMethod(isolate, w, "stopCpuProfile", Worker::StopCpuProfile);
     SetProtoMethod(isolate, w, "startHeapProfile", Worker::StartHeapProfile);
     SetProtoMethod(isolate, w, "stopHeapProfile", Worker::StopHeapProfile);
+    SetProtoMethod(isolate,
+                   w,
+                   "setHeapProfileSampleInterval",
+                   Worker::SetHeapProfileSampleInterval);
+    SetProtoMethod(
+        isolate, w, "getHeapProfileSamples", Worker::GetHeapProfileSamples);
 
     SetConstructorFunction(isolate, target, "Worker", w);
   }
@@ -1624,6 +1709,8 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Worker::StopCpuProfile);
   registry->Register(Worker::StartHeapProfile);
   registry->Register(Worker::StopHeapProfile);
+  registry->Register(Worker::SetHeapProfileSampleInterval);
+  registry->Register(Worker::GetHeapProfileSamples);
 }
 
 }  // anonymous namespace

@@ -3,13 +3,12 @@ const { skipIfSQLiteMissing } = require('../common');
 skipIfSQLiteMissing();
 const tmpdir = require('../common/tmpdir');
 const { WPTRunner } = require('../common/wpt');
-const { join } = require('node:path');
 const runner = new WPTRunner('webstorage', { concurrency: 1 });
 
 if (!runner.isListing) tmpdir.refresh();
 
 runner.setFlags([
-  '--localstorage-file', join(tmpdir.path, 'wpt-tests.localstorage'),
+  '--localstorage-file', tmpdir.resolve('wpt-tests.localstorage'),
 ]);
 runner.setInitScript(`
   globalThis.window = globalThis;

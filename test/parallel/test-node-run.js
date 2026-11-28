@@ -232,7 +232,7 @@ describe('node --run [command]', { concurrency: !process.env.TEST_PARALLEL }, ()
      { skip: !common.isWindows }, async () => {
        tmpdir.refresh();
 
-       const projectDir = path.join(tmpdir.path, 'node-run-\u{20BB7}');
+       const projectDir = tmpdir.resolve('node-run-\u{20BB7}');
        const packageJsonPath = path.join(projectDir, 'package.json');
        const nodeModulesBin = path.join(projectDir, 'node_modules', '.bin');
        const checkScript = path.join(projectDir, 'check.js');

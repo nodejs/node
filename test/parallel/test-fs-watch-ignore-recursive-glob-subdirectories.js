@@ -13,8 +13,8 @@ const tmpdir = require('../common/tmpdir');
 
 tmpdir.refresh();
 
-const nodeModules = path.join(tmpdir.path, 'node_modules');
-const srcDir = path.join(tmpdir.path, 'src');
+const nodeModules = tmpdir.resolve('node_modules');
+const srcDir = tmpdir.resolve('src');
 
 fs.mkdirSync(nodeModules);
 fs.mkdirSync(srcDir);

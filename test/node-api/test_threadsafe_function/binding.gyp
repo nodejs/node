@@ -18,6 +18,20 @@
         'NAPI_EXPERIMENTAL'
       ],
       'sources': ['test_uncaught_exception.c']
+    },
+    {
+      'target_name': 'test_uncaught_exception_reentry',
+      'defines': [
+        'NAPI_EXPERIMENTAL'
+      ],
+      'sources': ['test_uncaught_exception_reentry.c']
+    },
+    {
+      'target_name': 'test_uncaught_exception_reentry_v10',
+      'defines': [
+        'NAPI_VERSION=10'
+      ],
+      'sources': ['test_uncaught_exception_reentry.c']
     }
   ]
 }

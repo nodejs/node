@@ -4490,6 +4490,53 @@ the server, then [`Http2Stream`][]s are destroyed when they time out. If a
 handler is assigned to the request, the response, or the server's `'timeout'`
 events, timed out sockets must be handled explicitly.
 
+#### `request.signal`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {AbortSignal}
+
+An {AbortSignal} that is aborted when the underlying [`Http2Stream`][] is
+closed before the response has been sent completely. Other streams on the
+same session do not affect the signal.
+The signal is created lazily on first access — no {AbortController} is
+allocated for requests that never use this property.
+
+This is useful for cancelling downstream asynchronous work such as database
+queries or `fetch` calls when a client cancels the request.
+
+```mjs
+import http2 from 'node:http2';
+
+http2.createServer(async (req, res) => {
+  try {
+    const data = await fetch('https://example.com/api', { signal: req.signal });
+    res.end(JSON.stringify(await data.json()));
+  } catch (err) {
+    if (err.name === 'AbortError') return;
+    res.statusCode = 500;
+    res.end('Internal Server Error');
+  }
+}).listen(3000);
+```
+
+```cjs
+const http2 = require('node:http2');
+
+http2.createServer(async (req, res) => {
+  try {
+    const data = await fetch('https://example.com/api', { signal: req.signal });
+    res.end(JSON.stringify(await data.json()));
+  } catch (err) {
+    if (err.name === 'AbortError') return;
+    res.statusCode = 500;
+    res.end('Internal Server Error');
+  }
+}).listen(3000);
+```
+
 #### `request.socket`
 
 <!-- YAML

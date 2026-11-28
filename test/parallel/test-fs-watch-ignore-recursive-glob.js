@@ -13,7 +13,7 @@ const tmpdir = require('../common/tmpdir');
 
 tmpdir.refresh();
 
-const subDirectory = path.join(tmpdir.path, 'subdir');
+const subDirectory = tmpdir.resolve('subdir');
 fs.mkdirSync(subDirectory);
 
 const testFileName = 'file.txt';

@@ -226,7 +226,7 @@ class EnvironmentOptions : public Options {
   DEFINE_BOOL_FIELD(experimental_quic) = EXPERIMENTALS_DEFAULT_VALUE;
   DEFINE_BOOL_FIELD(experimental_global_navigator) = true;
   DEFINE_BOOL_FIELD(experimental_global_web_crypto) = true;
-  DEFINE_BOOL_FIELD(experimental_import_text) = EXPERIMENTALS_DEFAULT_VALUE;
+  DEFINE_BOOL_FIELD(experimental_import_text) = true;
   DEFINE_BOOL_FIELD(experimental_import_meta_resolve) =
       EXPERIMENTALS_DEFAULT_VALUE;
   DEFINE_BOOL_FIELD(entry_is_url) = false;

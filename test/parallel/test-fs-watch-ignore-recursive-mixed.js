@@ -13,7 +13,7 @@ const tmpdir = require('../common/tmpdir');
 
 tmpdir.refresh();
 
-const subDirectory = path.join(tmpdir.path, 'deep');
+const subDirectory = tmpdir.resolve('deep');
 fs.mkdirSync(subDirectory);
 
 const testFileName = 'visible.txt';

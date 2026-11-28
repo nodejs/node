@@ -17,7 +17,7 @@ const TARGET = 260; // Shortest length that used to trigger the bug
 const fixedLen = tmpdir.path.length + 2 + 'package.json'.length;
 const dirNameLen = Math.max(TARGET - fixedLen, 1);
 
-const dir = path.join(tmpdir.path, 'a'.repeat(dirNameLen));
+const dir = tmpdir.resolve('a'.repeat(dirNameLen));
 const depDir = path.join(dir, 'node_modules', 'dep');
 const packageJsonPath = path.join(dir, 'package.json');
 

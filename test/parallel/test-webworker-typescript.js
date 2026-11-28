@@ -8,7 +8,6 @@ if (!process.config.variables.node_use_amaro) {
 // Strip file entry types without changing the worker's module semantics.
 const assert = require('node:assert');
 const { mkdirSync, writeFileSync } = require('node:fs');
-const { join } = require('node:path');
 const { pathToFileURL } = require('node:url');
 const fixtures = require('../common/fixtures');
 const tmpdir = require('../common/tmpdir');
@@ -16,7 +15,7 @@ const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
 function createEntry(name, source) {
-  const path = join(tmpdir.path, name);
+  const path = tmpdir.resolve(name);
   writeFileSync(path, source);
   return pathToFileURL(path);
 }
@@ -39,7 +38,7 @@ function expectError(url, code, type = 'module') {
 }
 
 // Worker type takes precedence over both the extension and package type.
-writeFileSync(join(tmpdir.path, 'package.json'), '{ "type": "commonjs" }');
+writeFileSync(tmpdir.resolve('package.json'), '{ "type": "commonjs" }');
 for (const extension of ['ts', 'mts', 'cts']) {
   const url = createEntry(`entry.${extension}`, 'const type: string = typeof require; postMessage(type);');
   expectMessage(url, 'undefined');
@@ -54,7 +53,7 @@ for (const extension of ['ts', 'mts', 'cts']) {
 }
 
 // Stripping errors reach the parent's error handler.
-mkdirSync(join(tmpdir.path, 'node_modules'));
+mkdirSync(tmpdir.resolve('node_modules'));
 expectError(createEntry('node_modules/entry.ts', 'postMessage(1);'),
             'ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING');
 

@@ -8,13 +8,12 @@
 
 const common = require('../common');
 const { mkdirSync, promises } = require('fs');
-const { join } = require('path');
 const tmpdir = require('../common/tmpdir');
 
 tmpdir.refresh();
 
-const tmpA = join(tmpdir.path, 'a');
-const tmpB = join(tmpdir.path, 'b');
+const tmpA = tmpdir.resolve('a');
+const tmpB = tmpdir.resolve('b');
 
 mkdirSync(tmpA, { recursive: true });
 

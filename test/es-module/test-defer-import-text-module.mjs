@@ -1,4 +1,4 @@
-// Flags: --js-defer-import-eval --experimental-import-text
+// Flags: --js-defer-import-eval
 
 // Test that uses import.defer for a text module. Currently
 // defer importing of a synthetic module should be a no-op

@@ -6,7 +6,6 @@ const {
 skipIfSQLiteMissing();
 const tmpdir = require('../common/tmpdir');
 const assert = require('node:assert');
-const { join } = require('node:path');
 const { readdir } = require('node:fs/promises');
 const { endianness } = require('node:os');
 const { DatabaseSync } = require('node:sqlite');
@@ -16,13 +15,13 @@ let cnt = 0;
 tmpdir.refresh();
 
 function nextLocalStorage() {
-  return join(tmpdir.path, `${++cnt}.localstorage`);
+  return tmpdir.resolve(`${++cnt}.localstorage`);
 }
 
 // The tests below assert on which .localstorage files exist, so malformed
 // fixtures are named so as not to be counted among them.
 function nextMalformedLocalStorage() {
-  return join(tmpdir.path, `malformed-${++cnt}.db`);
+  return tmpdir.resolve(`malformed-${++cnt}.db`);
 }
 
 async function localStorageFiles() {

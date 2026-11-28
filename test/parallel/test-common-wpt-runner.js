@@ -65,7 +65,7 @@ function main() {
   const atob = discover('atob');
   assert.strictEqual(atob.serial, false);
   assert.deepStrictEqual(atob.tests.map((test) => test.id), ['base64.any.html', 'base64.any.worker.html']);
-  const reportRoot = path.join(tmpdir.path, 'reports');
+  const reportRoot = tmpdir.resolve('reports');
   const canReport = ['darwin', 'linux', 'win32'].includes(process.platform);
   if (canReport) fs.mkdirSync(reportRoot, { recursive: true });
   for (const [index, group] of atob.tests.entries()) {
@@ -104,7 +104,7 @@ function main() {
   assert.doesNotMatch(skippedOutput, /\[PASS\]/);
 
   if (common.hasSQLite) {
-    const root = path.join(tmpdir.path, 'discovery');
+    const root = tmpdir.resolve('discovery');
     const directory = path.join(root, '.tmp.probe');
     fs.mkdirSync(directory, { recursive: true });
     const sentinel = path.join(directory, 'sentinel');

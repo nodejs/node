@@ -11,7 +11,7 @@ let cnt = 0;
 tmpdir.refresh();
 
 function nextDb() {
-  return join(tmpdir.path, `database-${cnt++}.db`);
+  return tmpdir.resolve(`database-${cnt++}.db`);
 }
 
 suite('Database() constructor', () => {
@@ -335,7 +335,7 @@ suite('Database.prototype.open()', () => {
 
   test('does not leave the database open after a failed open', (t) => {
     // Regression test for https://github.com/nodejs/node/issues/63831
-    const dbDir = join(tmpdir.path, `database-dir-${cnt++}`);
+    const dbDir = tmpdir.resolve(`database-dir-${cnt++}`);
     const dbPath = join(dbDir, 'failed-open.db');
     using db = new Database(dbPath, { open: false });
 

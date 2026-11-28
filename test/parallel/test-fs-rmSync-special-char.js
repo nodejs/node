@@ -3,7 +3,6 @@ require('../common');
 const tmpdir = require('../common/tmpdir');
 const assert = require('node:assert');
 const fs = require('node:fs');
-const path = require('node:path');
 
 // This test ensures that fs.rmSync handles non-ASCII characters in file paths,
 // and that errors contain correctly encoded paths and err.path values.
@@ -11,8 +10,8 @@ const path = require('node:path');
 tmpdir.refresh(); // Prepare a clean temporary directory
 
 // Define paths with non-ASCII characters
-const dirPath = path.join(tmpdir.path, '速_dir');
-const filePath = path.join(tmpdir.path, '速.txt');
+const dirPath = tmpdir.resolve('速_dir');
+const filePath = tmpdir.resolve('速.txt');
 
 // Create a directory and a file with non-ASCII characters
 fs.mkdirSync(dirPath);

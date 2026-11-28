@@ -4,7 +4,6 @@ import * as common from '../common/index.mjs';
 import assert from 'node:assert';
 import { setTimeout } from 'node:timers/promises';
 import { writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
 import { run } from 'node:test';
 import tmpdir from '../common/tmpdir.js';
 import { skipIfNoWatch } from '../common/watch.js';
@@ -12,7 +11,7 @@ import { skipIfNoWatch } from '../common/watch.js';
 skipIfNoWatch();
 tmpdir.refresh();
 
-await writeFile(join(tmpdir.path, 'test.js'), `
+await writeFile(tmpdir.resolve('test.js'), `
 const test = require('node:test');
 
 test('test ran from cwd', () => {});

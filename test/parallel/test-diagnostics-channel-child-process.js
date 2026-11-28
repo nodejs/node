@@ -3,7 +3,6 @@ const common = require('../common');
 const assert = require('assert');
 const { spawn, ChildProcess } = require('child_process');
 const dc = require('diagnostics_channel');
-const path = require('path');
 const fs = require('fs');
 const tmpdir = require('../common/tmpdir');
 
@@ -67,7 +66,7 @@ const testFailingSpawnENOENT = common.mustCall(() => {
 
 const testFailingSpawnEACCES = !common.isWindows ? common.mustCall(() => {
   tmpdir.refresh();
-  const noExecFile = path.join(tmpdir.path, 'no-exec');
+  const noExecFile = tmpdir.resolve('no-exec');
   fs.writeFileSync(noExecFile, '');
   fs.chmodSync(noExecFile, 0o644);
 

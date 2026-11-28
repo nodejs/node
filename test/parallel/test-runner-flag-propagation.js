@@ -97,7 +97,7 @@ describe('test runner flag propagation', () => {
         tmpdir.refresh();
 
         // Create a temporary config file
-        const configFile = path.join(tmpdir.path, 'test-config.json');
+        const configFile = tmpdir.resolve('test-config.json');
         const configContent = {
           [namespace]: {
             [flagName.replace('--', '')]: configValue

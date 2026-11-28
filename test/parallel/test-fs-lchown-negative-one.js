@@ -3,13 +3,12 @@
 const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
-const path = require('path');
 const tmpdir = require('../common/tmpdir');
 
 tmpdir.refresh();
 
-const testFile = path.join(tmpdir.path, 'lchown-test-file.txt');
-const testLink = path.join(tmpdir.path, 'lchown-test-link');
+const testFile = tmpdir.resolve('lchown-test-file.txt');
+const testLink = tmpdir.resolve('lchown-test-link');
 
 fs.writeFileSync(testFile, 'test content for lchown');
 fs.symlinkSync(testFile, testLink);

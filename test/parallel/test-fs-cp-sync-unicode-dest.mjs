@@ -8,12 +8,12 @@ import tmpdir from '../common/tmpdir.js';
 
 tmpdir.refresh();
 
-const src = join(tmpdir.path, 'src');
+const src = tmpdir.resolve('src');
 mkdirSync(join(src, 'subdir'), { recursive: true });
 writeFileSync(join(src, 'file1.txt'), 'Hello World');
 writeFileSync(join(src, 'subdir', 'nested.txt'), 'Nested File');
 
-const dest = join(tmpdir.path, 'Eyjafjallajökull-Pranckevičius');
+const dest = tmpdir.resolve('Eyjafjallajökull-Pranckevičius');
 cpSync(src, dest, { recursive: true, force: true });
 
 const destFiles = readdirSync(dest);
