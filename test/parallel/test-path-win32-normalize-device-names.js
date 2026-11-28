@@ -28,7 +28,7 @@ const normalizeDeviceNameTests = [
   { input: 'con:', expected: '.\\con:.' },
   { input: 'CON:.', expected: '.\\CON:.' },
   { input: 'coN:', expected: '.\\coN:.' },
-  { input: 'LPT9.foo', expected: 'LPT9.foo' },
+  { input: 'LPT9.foo', expected: '.\\LPT9.foo' },
   { input: 'COM9:', expected: '.\\COM9:.' },
   { input: 'COM9.', expected: '.\\COM9.' },
   { input: 'C:COM9', expected: 'C:COM9' },
@@ -76,7 +76,7 @@ const normalizeDeviceNameTests = [
   { input: 'D:bar', expected: 'D:bar' },
 
   { input: 'CON', expected: 'CON' },
-  { input: 'CON.TXT', expected: 'CON.TXT' },
+  { input: 'CON.TXT', expected: '.\\CON.TXT' },
   { input: 'COM10:', expected: '.\\COM10:' },
   { input: 'LPT10:', expected: '.\\LPT10:' },
   { input: 'CONNINGTOWER:', expected: '.\\CONNINGTOWER:' },
@@ -110,6 +110,30 @@ const normalizeDeviceNameTests = [
 ];
 
 for (const { input, expected } of normalizeDeviceNameTests) {
+  const actual = path.win32.normalize(input);
+  assert.strictEqual(actual, expected,
+                     `path.win32.normalize(${JSON.stringify(input)}) === ${JSON.stringify(expected)}, but got ${JSON.stringify(actual)}`);
+}
+
+const reservedNameBoundaryTests = [
+  { input: 'NUL.txt', expected: '.\\NUL.txt' },
+  { input: 'NUL.tar.gz', expected: '.\\NUL.tar.gz' },
+  { input: 'CON.TXT', expected: '.\\CON.TXT' },
+  { input: 'LPT9.foo', expected: '.\\LPT9.foo' },
+  { input: 'COM1.prn', expected: '.\\COM1.prn' },
+  { input: 'COM¹.txt', expected: '.\\COM¹.txt' },
+  { input: 'con.txt', expected: '.\\con.txt' },
+  { input: 'CONx', expected: 'CONx' },
+  { input: 'NULLED.txt', expected: 'NULLED.txt' },
+  { input: 'COM10.txt', expected: 'COM10.txt' },
+  { input: 'LPT10.foo', expected: 'LPT10.foo' },
+  { input: 'PRNINTER.tar', expected: 'PRNINTER.tar' },
+  { input: 'C:file.txt', expected: 'C:file.txt' },
+  { input: 'CON\\path', expected: 'CON\\path' },
+  { input: 'NUL/path', expected: 'NUL\\path' },
+];
+
+for (const { input, expected } of reservedNameBoundaryTests) {
   const actual = path.win32.normalize(input);
   assert.strictEqual(actual, expected,
                      `path.win32.normalize(${JSON.stringify(input)}) === ${JSON.stringify(expected)}, but got ${JSON.stringify(actual)}`);
