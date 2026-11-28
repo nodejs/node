@@ -722,6 +722,11 @@ Intercepted ContextifyContext::PropertyDefinerCallback(
 
   Local<Object> sandbox = ctx->sandbox();
 
+  if (is_declared &&
+      !sandbox->HasOwnProperty(context, property).FromMaybe(true)) {
+    return Intercepted::kNo;
+  }
+
   auto result =
       WithPropertyDescriptorCopied(isolate, desc, [&](PropertyDescriptor& d) {
         return sandbox->DefineProperty(context, property, d);
