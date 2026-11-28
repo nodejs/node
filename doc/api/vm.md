@@ -976,13 +976,20 @@ const contextifiedObject = vm.createContext({ secret: 42 });
 added:
  - v13.7.0
  - v12.17.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/67508
+    description: This method can be called after the module has been
+                 evaluated.
 -->
 
 * Returns: {Buffer}
 
 Creates a code cache that can be used with the `SourceTextModule` constructor's
 `cachedData` option. Returns a `Buffer`. This method may be called any number
-of times before the module has been evaluated.
+of times before the module is evaluated, and after the module has been
+evaluated. It throws [`ERR_VM_MODULE_CANNOT_CREATE_CACHED_DATA`][] if the
+status of the module is `'evaluating'` or `'errored'`.
 
 The code cache of the `SourceTextModule` doesn't contain any JavaScript
 observable states. The code cache is safe to be saved along side the script
@@ -992,7 +999,15 @@ Functions in the `SourceTextModule` source can be marked as lazily compiled
 and they are not compiled at construction of the `SourceTextModule`. These
 functions are going to be compiled when they are invoked the first time. The
 code cache serializes the metadata that V8 currently knows about the
-`SourceTextModule` that it can use to speed up future compilations.
+`SourceTextModule` that it can use to speed up future compilations. If you
+create the code cache after the module has been evaluated, the code cache can
+also contain the functions that were compiled while the module ran, or when
+they were called later.
+
+If the module or one of its dependencies uses top-level `await`,
+`sourceTextModule.status` is `'evaluated'` while the `await` is pending. In
+this case, the code cache can contain only the functions that are compiled at
+the time of the call.
 
 ```js
 // Create an initial module
@@ -2574,6 +2589,7 @@ const { Script, SyntheticModule } = require('node:vm');
 [WithClause]: https://tc39.es/ecma262/#prod-WithClause
 [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING_FLAG`]: errors.md#err_vm_dynamic_import_callback_missing_flag
 [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`]: errors.md#err_vm_dynamic_import_callback_missing
+[`ERR_VM_MODULE_CANNOT_CREATE_CACHED_DATA`]: errors.md#err_vm_module_cannot_create_cached_data
 [`Error`]: errors.md#class-error
 [`URL`]: url.md#class-url
 [`eval()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/eval
