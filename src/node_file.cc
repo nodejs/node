@@ -5492,16 +5492,9 @@ void BindingData::LegacyMainResolve(const FunctionCallbackInfo<Value>& args) {
 
     for (int i = 0; i < legacy_main_extensions_with_main_end; i++) {
       file_path = *initial_file_path + std::string(legacy_main_extensions[i]);
-      // TODO(anonrig): Remove this when ToNamespacedPath supports std::string
-      Local<Value> local_file_path;
-      if (!Buffer::Copy(env->isolate(), file_path.c_str(), file_path.size())
-               .ToLocal(&local_file_path)) {
-        return;
-      }
-      BufferValue buff_file_path(isolate, local_file_path);
-      ToNamespacedPath(env, &buff_file_path);
+      ToNamespacedPath(env, &file_path);
 
-      switch (FilePathIsFile(env, buff_file_path.ToString())) {
+      switch (FilePathIsFile(env, file_path)) {
         case BindingData::FilePathIsFileReturnType::kIsFile:
           return args.GetReturnValue().Set(i);
         case BindingData::FilePathIsFileReturnType::kIsNotFile:
@@ -5529,16 +5522,9 @@ void BindingData::LegacyMainResolve(const FunctionCallbackInfo<Value>& args) {
        i < legacy_main_extensions_package_fallback_end;
        i++) {
     file_path = *initial_file_path + std::string(legacy_main_extensions[i]);
-    // TODO(anonrig): Remove this when ToNamespacedPath supports std::string
-    Local<Value> local_file_path;
-    if (!Buffer::Copy(env->isolate(), file_path.c_str(), file_path.size())
-             .ToLocal(&local_file_path)) {
-      return;
-    }
-    BufferValue buff_file_path(isolate, local_file_path);
-    ToNamespacedPath(env, &buff_file_path);
+    ToNamespacedPath(env, &file_path);
 
-    switch (FilePathIsFile(env, buff_file_path.ToString())) {
+    switch (FilePathIsFile(env, file_path)) {
       case BindingData::FilePathIsFileReturnType::kIsFile:
         return args.GetReturnValue().Set(i);
       case BindingData::FilePathIsFileReturnType::kIsNotFile:

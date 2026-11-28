@@ -42,6 +42,7 @@ constexpr bool IsWindowsDriveLetter(const std::string_view path) noexcept {
 #endif  // _WIN32
 
 void ToNamespacedPath(Environment* env, BufferValue* path);
+void ToNamespacedPath(Environment* env, std::string* path);
 void FromNamespacedPath(std::string* path);
 
 }  // namespace node

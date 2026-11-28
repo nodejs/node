@@ -1,4 +1,5 @@
 #include "path.h"
+#include <optional>
 #include <string>
 #include <vector>
 #include "ada.h"
@@ -261,50 +262,55 @@ std::string PathResolve(Environment* env,
 }
 #endif  // _WIN32
 
-void ToNamespacedPath(Environment* env, BufferValue* path) {
 #ifdef _WIN32
-  if (path->length() == 0) return;
-  std::string resolved_path = node::PathResolve(env, {path->ToStringView()});
+// Returns the namespace-prefixed form of `path`, or std::nullopt when `path`
+// must be left unchanged.
+static std::optional<std::string> NamespacedPath(Environment* env,
+                                                 std::string_view path) {
+  if (path.empty()) return std::nullopt;
+  std::string resolved_path = PathResolve(env, {path});
   if (resolved_path.size() <= 2) {
-    return;
+    return std::nullopt;
   }
 
   // SAFETY: We know that resolved_path.size() > 2, therefore accessing [0],
   // [1], and [2] is safe.
   if (resolved_path[0] == '\\') {
     // Possible UNC root
-    if (resolved_path[1] == '\\') {
-      if (resolved_path[2] != '?' && resolved_path[2] != '.') {
-        // Matched non-long UNC root, convert the path to a long UNC path
-        std::string_view unc_prefix = R"(\\?\UNC\)";
-        size_t new_length = unc_prefix.size() + resolved_path.size() - 2;
-        path->AllocateSufficientStorage(new_length + 1);
-        path->SetLength(new_length);
-        memcpy(path->out(), unc_prefix.data(), unc_prefix.size());
-        memcpy(path->out() + unc_prefix.size(),
-               resolved_path.c_str() + 2,
-               resolved_path.size() - 2 + 1);
-        return;
-      }
+    if (resolved_path[1] == '\\' && resolved_path[2] != '?' &&
+        resolved_path[2] != '.') {
+      // Matched non-long UNC root, convert the path to a long UNC path
+      resolved_path.replace(0, 2, R"(\\?\UNC\)");
     }
   } else if (IsWindowsDeviceRoot(resolved_path[0]) && resolved_path[1] == ':' &&
              resolved_path[2] == '\\') {
     // Matched device root, convert the path to a long UNC path
-    std::string_view new_prefix = R"(\\?\)";
-    size_t new_length = new_prefix.size() + resolved_path.size();
-    path->AllocateSufficientStorage(new_length + 1);
-    path->SetLength(new_length);
-    memcpy(path->out(), new_prefix.data(), new_prefix.size());
-    memcpy(path->out() + new_prefix.size(),
-           resolved_path.c_str(),
-           resolved_path.size() + 1);
-    return;
+    resolved_path.insert(0, R"(\\?\)");
   }
 
-  size_t new_length = resolved_path.size();
+  return resolved_path;
+}
+#endif  // _WIN32
+
+void ToNamespacedPath(Environment* env, BufferValue* path) {
+#ifdef _WIN32
+  std::optional<std::string> namespaced_path =
+      NamespacedPath(env, path->ToStringView());
+  if (!namespaced_path.has_value()) return;
+
+  size_t new_length = namespaced_path->size();
   path->AllocateSufficientStorage(new_length + 1);
   path->SetLength(new_length);
-  memcpy(path->out(), resolved_path.c_str(), resolved_path.size() + 1);
+  memcpy(path->out(), namespaced_path->c_str(), new_length + 1);
+#endif
+}
+
+void ToNamespacedPath(Environment* env, std::string* path) {
+#ifdef _WIN32
+  std::optional<std::string> namespaced_path = NamespacedPath(env, *path);
+  if (namespaced_path.has_value()) {
+    *path = std::move(*namespaced_path);
+  }
 #endif
 }
 
