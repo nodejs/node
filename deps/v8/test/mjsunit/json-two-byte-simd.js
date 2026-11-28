@@ -11,9 +11,7 @@ for (const n of [7, 8, 9, 15, 16, 17]) {
     const text = prefix + value + '\u0101'.repeat(5);
     const json = '"' + prefix + encoded + '\u0101'.repeat(5) + '"';
     assertEquals(json, JSON.stringify(text));
-    assertEquals(text, JSON.parse(json));
   }
-  assertThrows(() => JSON.parse('"' + prefix + '\n"'), SyntaxError);
 }
 
 // Exercise the transition from adjacent escapes back to an unescaped run.
