@@ -842,6 +842,13 @@ const util = require('util');
   assert(blockList.check('127.255.255.255'));
   assert(blockList.check('::1', 'ipv6'));
 
+  // IPv4 "this" network / unspecified (alternate localhost spellings)
+  assert(blockList.check('0.0.0.0'));
+  assert(blockList.check('0.0.0.1'));
+
+  // IPv6 unspecified
+  assert(blockList.check('::', 'ipv6'));
+
   // Link-local
   assert(blockList.check('169.254.0.1'));
   assert(blockList.check('fe80::1', 'ipv6'));
@@ -849,6 +856,12 @@ const util = require('util');
   // ULA
   assert(blockList.check('fc00::1', 'ipv6'));
   assert(blockList.check('fd00::1', 'ipv6'));
+
+  // CGNAT (RFC 6598) and benchmarking (RFC 2544)
+  assert(blockList.check('100.64.0.1'));
+  assert(blockList.check('100.127.255.255'));
+  assert(blockList.check('198.18.0.1'));
+  assert(blockList.check('198.19.255.255'));
 
   // Public addresses should not match
   assert(!blockList.check('8.8.8.8'));
