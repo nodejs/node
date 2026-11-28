@@ -39,10 +39,14 @@ class SerializerContext : public BaseObject,
 
   void ThrowDataCloneError(Local<String> message) override;
   Maybe<bool> WriteHostObject(Isolate* isolate, Local<Object> object) override;
+  bool HasCustomHostObject(Isolate* isolate) override { return true; }
+  Maybe<bool> IsHostObject(Isolate* isolate, Local<Object> object) override;
   Maybe<uint32_t> GetSharedArrayBufferId(
       Isolate* isolate, Local<SharedArrayBuffer> shared_array_buffer) override;
 
   static void SetTreatArrayBufferViewsAsHostObjects(
+      const FunctionCallbackInfo<Value>& args);
+  static void SetTreatDOMExceptionsAsHostObjects(
       const FunctionCallbackInfo<Value>& args);
 
   static void New(const FunctionCallbackInfo<Value>& args);
@@ -61,6 +65,7 @@ class SerializerContext : public BaseObject,
 
  private:
   ValueSerializer serializer_;
+  bool treat_dom_exceptions_as_host_objects_ = false;
 };
 
 class DeserializerContext : public BaseObject,
@@ -170,6 +175,15 @@ Maybe<bool> SerializerContext::WriteHostObject(Isolate* isolate,
   return Just(true);
 }
 
+Maybe<bool> SerializerContext::IsHostObject(Isolate* isolate,
+                                            Local<Object> object) {
+  if (treat_dom_exceptions_as_host_objects_ && object->IsNativeError()) {
+    return object->HasPrivate(env()->context(),
+                              env()->transfer_mode_private_symbol());
+  }
+  return ValueSerializer::Delegate::IsHostObject(isolate, object);
+}
+
 void SerializerContext::New(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   if (!args.IsConstructCall()) {
@@ -202,6 +216,13 @@ void SerializerContext::SetTreatArrayBufferViewsAsHostObjects(
 
   bool value = args[0]->BooleanValue(ctx->env()->isolate());
   ctx->serializer_.SetTreatArrayBufferViewsAsHostObjects(value);
+}
+
+void SerializerContext::SetTreatDOMExceptionsAsHostObjects(
+    const FunctionCallbackInfo<Value>& args) {
+  SerializerContext* ctx;
+  ASSIGN_OR_RETURN_UNWRAP(&ctx, args[0]);
+  ctx->treat_dom_exceptions_as_host_objects_ = true;
 }
 
 void SerializerContext::ReleaseBuffer(const FunctionCallbackInfo<Value>& args) {
@@ -494,6 +515,10 @@ void Initialize(Local<Object> target,
 
   ser->ReadOnlyPrototype();
   SetConstructorFunction(context, target, "Serializer", ser);
+  SetMethod(context,
+            target,
+            "setTreatDOMExceptionsAsHostObjects",
+            SerializerContext::SetTreatDOMExceptionsAsHostObjects);
 
   Local<FunctionTemplate> des =
       NewFunctionTemplate(isolate, DeserializerContext::New);
@@ -534,6 +559,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(SerializerContext::WriteDouble);
   registry->Register(SerializerContext::WriteRawBytes);
   registry->Register(SerializerContext::SetTreatArrayBufferViewsAsHostObjects);
+  registry->Register(SerializerContext::SetTreatDOMExceptionsAsHostObjects);
 
   registry->Register(DeserializerContext::New);
   registry->Register(DeserializerContext::ReadHeader);
