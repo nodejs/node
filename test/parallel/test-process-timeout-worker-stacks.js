@@ -32,8 +32,8 @@ function runUntilReady(args, isReady) {
   }
 }
 
-// One Worker is executing JavaScript, one is idle with a timer and has created
-// a Worker of its own that is executing JavaScript, and one is unref'd.
+// One Worker is executing JavaScript, one is unref'd, and one is idle with a
+// timer and has created a Worker of its own that is executing JavaScript.
 const script = `
   const { writeSync } = require('fs');
   const { Worker } = require('worker_threads');
@@ -44,13 +44,17 @@ const script = `
     if (++started === 3) writeSync(1, 'ready\\n');
   }
   new Worker(spin, { eval: true, name: 'spinning' }).once('message', onStarted);
+  new Worker(spin, { eval: true }).once('message', onStarted).unref();
+  // Thread ids are allocated when a Worker is constructed, so this Worker is
+  // created last. Otherwise the Worker it creates could be constructed before
+  // the main thread has constructed its remaining Workers, and take one of
+  // their thread ids.
   new Worker(\`
     const { parentPort, Worker } = require('worker_threads');
     new Worker(\${JSON.stringify(spin)}, { eval: true, name: 'nested' })
       .once('message', () => parentPort.postMessage(0));
     setTimeout(() => {}, 60_000);
   \`, { eval: true, name: 'idle' }).once('message', onStarted);
-  new Worker(spin, { eval: true }).once('message', onStarted).unref();
 `;
 const isReady = (child) => child.stdout === 'ready\n';
 
@@ -64,7 +68,7 @@ const isReady = (child) => child.stdout === 'ready\n';
   // The resources keeping a Worker thread's event loop alive are listed after
   // its state.
   assert.match(stderr, new RegExp(
-    "^Worker thread 2 \\(name 'idle'\\) was not executing JavaScript\\.\\r?\\n" +
+    "^Worker thread 3 \\(name 'idle'\\) was not executing JavaScript\\.\\r?\\n" +
     'Resources keeping its event loop alive:\\r?\\n' +
     ' {4}Timeout \\(next due in \\d+ms\\)\\r?\\n' +
     " {4}Worker \\(thread 4, name 'nested'\\)\\r?\\n" +
@@ -72,11 +76,11 @@ const isReady = (child) => child.stdout === 'ready\n';
   assert.match(stderr,
                /^No resources keeping its event loop alive were found\.$/m);
   assert.match(stderr, new RegExp(
-    "^Worker thread 4 \\(name 'nested'\\), created by Worker thread 2, was " +
+    "^Worker thread 4 \\(name 'nested'\\), created by Worker thread 3, was " +
     'executing JavaScript:\\r?\\n {4}at spin \\(\\[worker eval\\]:1:\\d+\\)$', 'm'));
   // Workers that do not keep the event loop alive are included too.
   assert.match(stderr, new RegExp(
-    "^Worker thread 3 \\(name 'WorkerThread'\\) was executing JavaScript:\\r?\\n" +
+    "^Worker thread 2 \\(name 'WorkerThread'\\) was executing JavaScript:\\r?\\n" +
     ' {4}at spin \\(\\[worker eval\\]:1:\\d+\\)$', 'm'));
   // The Workers are listed by thread id, after the main thread's summary.
   const order = [...stderr.matchAll(/^Worker thread (\d+)/mg)].map((m) => m[1]);
