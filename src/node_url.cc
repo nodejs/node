@@ -23,7 +23,6 @@ namespace url {
 
 using v8::CFunction;
 using v8::Context;
-using v8::FastApiCallbackOptions;
 using v8::FunctionCallbackInfo;
 using v8::HandleScope;
 using v8::Isolate;
@@ -318,45 +317,34 @@ void BindingData::CanParse(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(can_parse);
 }
 
-bool BindingData::FastCanParse(
-    Local<Value> receiver,
-    Local<Value> input,
-    // NOLINTNEXTLINE(runtime/references) This is V8 api.
-    FastApiCallbackOptions& options) {
-  TRACK_V8_FAST_API_CALL("url.canParse");
-  auto isolate = options.isolate;
-  HandleScope handleScope(isolate);
-  Local<String> str;
-  if (!input->ToString(isolate->GetCurrentContext()).ToLocal(&str)) {
-    return false;
-  }
-  Utf8Value utf8(isolate, str);
-  return ada::can_parse(utf8.ToStringView());
+// The fast API's slow fallback must not convert or flatten strings either: it
+// uses the same unsupported lazy-deoptimization continuation as the fast
+// callbacks. Return a Smi sentinel so JavaScript calls the regular binding.
+void BindingData::CanParseFastFallback(
+    const FunctionCallbackInfo<Value>& args) {
+  args.GetReturnValue().Set(-1);
 }
 
-bool BindingData::FastCanParseWithBase(
-    Local<Value> receiver,
-    Local<Value> input,
-    Local<Value> base,
-    // NOLINTNEXTLINE(runtime/references) This is V8 api.
-    FastApiCallbackOptions& options) {
-  TRACK_V8_FAST_API_CALL("url.canParse.withBase");
-  auto isolate = options.isolate;
-  HandleScope handleScope(isolate);
-  auto context = isolate->GetCurrentContext();
-  Local<String> input_str;
-  if (!input->ToString(context).ToLocal(&input_str)) {
-    return false;
-  }
-  Local<String> base_str;
-  if (!base->ToString(context).ToLocal(&base_str)) {
-    return false;
-  }
-  Utf8Value input_utf8(isolate, input_str);
-  Utf8Value base_utf8(isolate, base_str);
+int32_t BindingData::FastCanParse(Local<Value> receiver,
+                                  const v8::FastOneByteString& input) {
+  TRACK_V8_FAST_API_CALL("url.canParse");
+  // Latin-1 is only UTF-8 compatible for ASCII.
+  if (!simdutf::validate_ascii(input.data, input.length)) return -1;
+  return ada::can_parse(std::string_view(input.data, input.length)) ? 1 : 0;
+}
 
-  auto base_view = base_utf8.ToStringView();
-  return ada::can_parse(input_utf8.ToStringView(), &base_view);
+int32_t BindingData::FastCanParseWithBase(Local<Value> receiver,
+                                          const v8::FastOneByteString& input,
+                                          const v8::FastOneByteString& base) {
+  TRACK_V8_FAST_API_CALL("url.canParse.withBase");
+  if (!simdutf::validate_ascii(input.data, input.length) ||
+      !simdutf::validate_ascii(base.data, base.length)) {
+    return -1;
+  }
+  std::string_view base_view(base.data, base.length);
+  return ada::can_parse(std::string_view(input.data, input.length), &base_view)
+             ? 1
+             : 0;
 }
 
 CFunction BindingData::fast_can_parse_methods_[] = {
@@ -584,8 +572,12 @@ void BindingData::CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "parse", Parse);
   SetMethod(isolate, target, "pathToFileURL", PathToFileURL);
   SetMethod(isolate, target, "update", Update);
-  SetFastMethodNoSideEffect(
-      isolate, target, "canParse", CanParse, {fast_can_parse_methods_, 2});
+  SetMethodNoSideEffect(isolate, target, "canParse", CanParse);
+  SetFastMethodNoSideEffect(isolate,
+                            target,
+                            "canParseFast",
+                            CanParseFastFallback,
+                            {fast_can_parse_methods_, 2});
 }
 
 void BindingData::CreatePerContextProperties(Local<Object> target,
@@ -606,6 +598,7 @@ void BindingData::RegisterExternalReferences(
   registry->Register(PathToFileURL);
   registry->Register(Update);
   registry->Register(CanParse);
+  registry->Register(CanParseFastFallback);
   for (const CFunction& method : fast_can_parse_methods_) {
     registry->Register(method);
   }

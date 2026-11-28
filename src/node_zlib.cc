@@ -2137,6 +2137,14 @@ static void CRC32(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(CRC32Impl(args.GetIsolate(), args[0], value));
 }
 
+// Strings use CRC32 above: the fast API path must not flatten them.
+static void CRC32Buffer(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsArrayBufferView());
+  CHECK(args[1]->IsUint32());
+  uint32_t value = args[1].As<v8::Uint32>()->Value();
+  args.GetReturnValue().Set(CRC32Impl(args.GetIsolate(), args[0], value));
+}
+
 static uint32_t FastCRC32(v8::Local<v8::Value> receiver,
                           v8::Local<v8::Value> data,
                           uint32_t value,
@@ -2144,7 +2152,7 @@ static uint32_t FastCRC32(v8::Local<v8::Value> receiver,
                           v8::FastApiCallbackOptions& options) {
   TRACK_V8_FAST_API_CALL("zlib.crc32");
   v8::HandleScope handle_scope(options.isolate);
-  CHECK(data->IsArrayBufferView() || data->IsString());
+  CHECK(data->IsArrayBufferView());
   return CRC32Impl(options.isolate, data, value);
 }
 
@@ -2167,6 +2175,13 @@ static void CRC32C(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(CRC32CImpl(args.GetIsolate(), args[0], value));
 }
 
+static void CRC32CBuffer(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsArrayBufferView());
+  CHECK(args[1]->IsUint32());
+  uint32_t value = args[1].As<v8::Uint32>()->Value();
+  args.GetReturnValue().Set(CRC32CImpl(args.GetIsolate(), args[0], value));
+}
+
 static uint32_t FastCRC32C(v8::Local<v8::Value> receiver,
                            v8::Local<v8::Value> data,
                            uint32_t value,
@@ -2174,7 +2189,7 @@ static uint32_t FastCRC32C(v8::Local<v8::Value> receiver,
                            v8::FastApiCallbackOptions& options) {
   TRACK_V8_FAST_API_CALL("zlib.crc32c");
   v8::HandleScope handle_scope(options.isolate);
-  CHECK(data->IsArrayBufferView() || data->IsString());
+  CHECK(data->IsArrayBufferView());
   return CRC32CImpl(options.isolate, data, value);
 }
 
@@ -2192,8 +2207,12 @@ void Initialize(Local<Object> target,
   MakeClass<ZstdCompressStream>::Make(env, target, "ZstdCompress");
   MakeClass<ZstdDecompressStream>::Make(env, target, "ZstdDecompress");
 
-  SetFastMethodNoSideEffect(context, target, "crc32", CRC32, &fast_crc32_);
-  SetFastMethodNoSideEffect(context, target, "crc32c", CRC32C, &fast_crc32c_);
+  SetMethodNoSideEffect(context, target, "crc32", CRC32);
+  SetMethodNoSideEffect(context, target, "crc32c", CRC32C);
+  SetFastMethodNoSideEffect(
+      context, target, "crc32Buffer", CRC32Buffer, &fast_crc32_);
+  SetFastMethodNoSideEffect(
+      context, target, "crc32cBuffer", CRC32CBuffer, &fast_crc32c_);
   target->Set(env->context(),
               FIXED_ONE_BYTE_STRING(env->isolate(), "ZLIB_VERSION"),
               FIXED_ONE_BYTE_STRING(env->isolate(), ZLIB_VERSION)).Check();
@@ -2206,8 +2225,10 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   MakeClass<ZstdCompressStream>::Make(registry);
   MakeClass<ZstdDecompressStream>::Make(registry);
   registry->Register(CRC32);
+  registry->Register(CRC32Buffer);
   registry->Register(fast_crc32_);
   registry->Register(CRC32C);
+  registry->Register(CRC32CBuffer);
   registry->Register(fast_crc32c_);
 }
 
