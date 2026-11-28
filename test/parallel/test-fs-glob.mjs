@@ -223,6 +223,18 @@ const patterns = {
     'a/symlink/a/b/c/a/b/c/a/b/c/a/b/c/a/b/c/a/b/c/a/b',
     'a/symlink/a/b/c/a/b/c/a/b/c/a/b/c/a/b/c/a/b/c/a/b/c',
   ],
+  // Leading '..' walks up from cwd; results must use the platform separator
+  // throughout, not only after the first segment.
+  '../abs/*': [
+    '../abs/asdf',
+    '../abs/bar',
+    '../abs/baz',
+    '../abs/foo',
+    '../abs/quux',
+    '../abs/qwer',
+    '../abs/rewq',
+  ],
+  '../abs/foo': ['../abs/foo'],
   [`{./*/*,${absDir}/*}`]: [
     `${absDir}/asdf`,
     `${absDir}/bar`,

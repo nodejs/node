@@ -86,7 +86,9 @@ std::string Join(std::string_view a, std::string_view b) {
   if (a.empty()) return b.empty() ? std::string(".") : Normalize(b);
   if (b.empty()) return Normalize(a);
   std::string joined(a);
-  joined += kWindows ? '\\' : '/';
+  // Joining onto a root such as '\' must not produce '\\b', which
+  // Normalize() keeps as a UNC prefix. path.win32.join() avoids it too.
+  if (!IsPathSeparator(joined.back())) joined += kWindows ? '\\' : '/';
   joined += b;
   return Normalize(joined);
 }
@@ -1461,13 +1463,20 @@ class WalkerState {
     if (is_first && IsLiteral(first_part) && first_part->literal.empty()) {
       IndexSet next;
       next.Add(1);
-      ctx.AddChildRedirect("/", pattern.Child(std::move(next)));
+      // Use the platform separator: JoinEntry() appends child names right
+      // after a trailing one, so a '/' here would leak into Windows results
+      // ('/a\b'). The previous JS implementation built child paths with
+      // path.join(), which normalized it.
+      ctx.AddChildRedirect(kWindows ? "\\" : "/",
+                           pattern.Child(std::move(next)));
       return;
     }
     if (is_first && IsLiteral(first_part) && first_part->literal == u"..") {
       IndexSet next;
       next.Add(1);
-      ctx.AddChildRedirect("../", pattern.Child(std::move(next)));
+      // Platform separator, as above ('../a\b' otherwise).
+      ctx.AddChildRedirect(kWindows ? "..\\" : "../",
+                           pattern.Child(std::move(next)));
       return;
     }
     if (is_first && IsLiteral(first_part) && first_part->literal == u".") {
