@@ -435,6 +435,8 @@ class InitializationResultImpl final : public InitializationResult {
 
 void SetIsolateMiscHandlers(v8::Isolate* isolate, const IsolateSettings& s);
 void SetIsolateCreateParamsForNode(v8::Isolate::CreateParams* params);
+void SetIsolateMaxOldGenerationSize(v8::ResourceConstraints* constraints,
+                                    uint64_t max_old_space_size_mb);
 
 #if HAVE_INSPECTOR
 namespace profiler {

@@ -1,3 +1,4 @@
+// Flags: --max-old-space-size=512
 'use strict';
 const common = require('../common');
 const assert = require('assert');
@@ -6,6 +7,20 @@ const { Worker, resourceLimits, isMainThread } = require('worker_threads');
 
 if (isMainThread) {
   assert.deepStrictEqual(resourceLimits, {});
+  const defaultLimitWorker = new Worker(
+    'const { parentPort, resourceLimits } = require("worker_threads");' +
+    'parentPort.postMessage(resourceLimits.maxOldGenerationSizeMb);',
+    { eval: true });
+  defaultLimitWorker.on('message', common.mustCall((limit) => {
+    assert.strictEqual(limit, 512);
+  }));
+  const execArgvWorker = new Worker(
+    'const { parentPort, resourceLimits } = require("worker_threads");' +
+    'parentPort.postMessage(resourceLimits.maxOldGenerationSizeMb);',
+    { eval: true, execArgv: ['--max-old-space-size=128'] });
+  execArgvWorker.on('message', common.mustCall((limit) => {
+    assert.strictEqual(limit, 128);
+  }));
 }
 
 const testResourceLimits = {

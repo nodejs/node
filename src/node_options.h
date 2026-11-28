@@ -348,6 +348,7 @@ class PerIsolateOptions : public Options {
 
   std::string max_old_space_size_percentage;
   std::string max_old_space_size;
+  uint64_t max_old_space_size_mb = 0;
   std::string report_signal = "SIGUSR2";
   std::string build_snapshot_config;
 
@@ -362,6 +363,7 @@ class PerIsolateOptions : public Options {
   inline EnvironmentOptions* get_per_env_options();
   void CheckOptions(std::vector<std::string>* errors,
                     std::vector<std::string>* argv) override;
+  void HandleMaxOldSpaceSize(std::vector<std::string>* errors);
   void HandleMaxOldSpaceSizePercentage(std::vector<std::string>* errors,
                                        std::string* max_old_space_size);
 

@@ -238,6 +238,21 @@ void PerProcessOptions::CheckProcessTimeoutOptions(
   }
 }
 
+void PerIsolateOptions::HandleMaxOldSpaceSize(
+    std::vector<std::string>* errors) {
+  uint64_t parsed_mb = 0;
+  const char* begin = max_old_space_size.data();
+  const char* end = begin + max_old_space_size.size();
+  auto [ptr, ec] = std::from_chars(begin, end, parsed_mb);
+  if (ec != std::errc() || ptr != end) {
+    errors->push_back("--max-old-space-size must be a valid non-negative "
+                      "integer. Got: " +
+                      max_old_space_size);
+    return;
+  }
+  max_old_space_size_mb = parsed_mb;
+}
+
 void PerIsolateOptions::HandleMaxOldSpaceSizePercentage(
     std::vector<std::string>* errors,
     std::string* max_old_space_size_percentage) {
@@ -284,12 +299,14 @@ void PerIsolateOptions::HandleMaxOldSpaceSizePercentage(
   uint64_t memory_mb = available_memory / (1024 * 1024);
   uint64_t calculated_mb = static_cast<size_t>(memory_mb * percentage / 100.0);
 
-  // Convert back to string
-  max_old_space_size = std::to_string(calculated_mb);
+  max_old_space_size_mb = calculated_mb;
 }
 
 void PerIsolateOptions::CheckOptions(std::vector<std::string>* errors,
                                      std::vector<std::string>* argv) {
+  if (!max_old_space_size.empty()) {
+    HandleMaxOldSpaceSize(errors);
+  }
   if (!max_old_space_size_percentage.empty()) {
     HandleMaxOldSpaceSizePercentage(errors, &max_old_space_size_percentage);
   }
@@ -1579,7 +1596,10 @@ PerIsolateOptionsParser::PerIsolateOptionsParser(
             V8Option{},
             kAllowedInEnvvar);
   AddOption("--max-heap-size", "", V8Option{}, kAllowedInEnvvar);
-  AddOption("--max-old-space-size", "", V8Option{}, kAllowedInEnvvar);
+  AddOption("--max-old-space-size",
+            "set V8's max old space size (in MiB)",
+            &PerIsolateOptions::max_old_space_size,
+            kAllowedInEnvvar);
   AddOption("--max-old-space-size-percentage",
             "set V8's max old space size as a percentage of available memory "
             "(e.g., '50%'). Takes precedence over --max-old-space-size.",
