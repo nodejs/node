@@ -1293,8 +1293,10 @@ InitializeOncePerProcessInternal(
   if (per_process::cli_options->has_run) {
     auto positional_args = task_runner::GetPositionalArgs(args);
     result->early_return_ = true;
-    task_runner::RunTask(
-        result, per_process::cli_options->run, positional_args);
+    task_runner::RunTask(result,
+                         per_process::cli_options->run,
+                         positional_args,
+                         per_process::cli_options->enable_run_hooks);
     return result;
   }
 
