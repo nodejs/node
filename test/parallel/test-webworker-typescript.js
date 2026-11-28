@@ -53,10 +53,9 @@ for (const extension of ['ts', 'mts', 'cts']) {
   expectMessage(url, 42);
 }
 
-// Stripping errors reach the parent's error handler.
+// Type stripping applies inside node_modules the same way it does elsewhere.
 mkdirSync(join(tmpdir.path, 'node_modules'));
-expectError(createEntry('node_modules/entry.ts', 'postMessage(1);'),
-            'ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING');
+expectMessage(createEntry('node_modules/entry.ts', 'postMessage(1);'), 1);
 
 // Classic workers and `.js` entries are not stripped.
 expectError(fixtures.fileURL('web-worker', 'typescript', 'entry.ts'), 'SyntaxError', 'classic');

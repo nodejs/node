@@ -1497,8 +1497,8 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             HAVE_AMARO);
   AddAlias("--experimental-strip-types", "--strip-types");
   AddOption("--experimental-strip-private-modules",
-            "Type-stripping for TypeScript files under node_modules "
-            "belonging to packages marked \"private\": true",
+            "Ignored. Type-stripping under node_modules no longer "
+            "requires this flag",
             BOOL_FIELD(experimental_strip_private_modules),
             kAllowedInEnvvar);
   AddOption("--interactive",
