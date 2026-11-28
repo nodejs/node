@@ -1,6 +1,18 @@
-# YAML
+# Formats
 
 <!--introduced_in=REPLACEME-->
+
+The `node:formats/*` modules read data interchange formats into JavaScript
+values. Each format has its own module, and each module is documented in its
+own section with its own stability index.
+
+The modules are only available under the `node:` scheme.
+
+| Module              | Format       |
+| ------------------- | ------------ |
+| `node:formats/yaml` | [YAML 1.2][] |
+
+## YAML
 
 <!-- YAML
 added: REPLACEME
@@ -11,7 +23,7 @@ added: REPLACEME
 <!-- source_link=lib/formats/yaml.js -->
 
 The `node:formats/yaml` module parses [YAML 1.2][] into JavaScript values.
-Enable it with [`--experimental-yaml`][] and import it with `node:`:
+Enable it with [`--experimental-yaml`][]:
 
 ```mjs
 import yaml from 'node:formats/yaml';
@@ -23,7 +35,7 @@ const yaml = require('node:formats/yaml');
 
 Loading the module emits an `ExperimentalWarning`.
 
-## `yaml.parse(input[, options])`
+### `yaml.parse(input[, options])`
 
 <!-- YAML
 added: REPLACEME

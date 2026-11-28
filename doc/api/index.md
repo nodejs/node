@@ -29,6 +29,7 @@
 * [Events](events.md)
 * [File system](fs.md)
 * [FFI](ffi.md)
+* [Formats](formats.md)
 * [Globals](globals.md)
 * [HTTP](http.md)
 * [HTTP/2](http2.md)
@@ -71,7 +72,6 @@
 * [Web Crypto API](webcrypto.md)
 * [Web Streams API](webstreams.md)
 * [Worker threads](worker_threads.md)
-* [YAML](yaml.md)
 * [Zlib](zlib.md)
 
 <hr class="line"/>

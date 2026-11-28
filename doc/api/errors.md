@@ -4925,7 +4925,7 @@ An error occurred trying to allocate memory. This should never happen.
 [`util.parseArgs()`]: util.md#utilparseargsconfig
 [`v8.startupSnapshot.setDeserializeMainFunction()`]: v8.md#v8startupsnapshotsetdeserializemainfunctioncallback-data
 [`vfs.mount()`]: vfs.md#vfsmount
-[`yaml.parse()`]: yaml.md#yamlparseinput-options
+[`yaml.parse()`]: formats.md#yamlparseinput-options
 [`zlib`]: zlib.md
 [crypto digest algorithm]: crypto.md#cryptogethashes
 [debugger]: debugger.md
