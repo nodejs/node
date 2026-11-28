@@ -842,7 +842,7 @@ navigator.locks.request('shared_resource', { mode: 'shared' }, async (lock) => {
 });
 ```
 
-See [`worker_threads.locks`][] for detailed API documentation.
+See [Web Locks][] for detailed API documentation.
 
 ### `navigator.platform`
 
@@ -1501,7 +1501,7 @@ changes:
 > [`--no-experimental-web-worker`][] CLI flag.
 
 A mostly browser-compatible implementation of Web Workers of the [HTML Standard][],
-implemented on top of [`node:worker_threads`][]. Threads created with it
+implemented on top of [`node:threads/worker`][]. Threads created with it
 are given the {DedicatedWorkerGlobalScope} API (`self`,
 `name`, `location`, `navigator`, `postMessage()`, `close()`, and
 `importScripts()`), in addition to the usual Node.js globals, such as `process`.
@@ -1556,7 +1556,7 @@ run, so a `.cts` entry is still evaluated as an ES module.
 Package resolution within a Web Worker, including the entry point, its
 dependencies, `import()`, `require()`, and `import.meta.resolve()`, applies
 the `"worker"` [package condition][] in addition to the usual conditions.
-Threads created through [`node:worker_threads`][] from within a Web Worker do
+Threads created through [`node:threads/worker`][] from within a Web Worker do
 not apply it.
 
 ### Differences from the HTML Standard
@@ -1585,24 +1585,24 @@ Besides script loading, mentioned above:
   `preventDefault()` behavior required by the HTML Standard.
 * Module workers loaded from `file:` URLs support [type stripping][].
 
-### Web Workers and `node:worker_threads`
+### Web Workers and `node:threads/worker`
 
-Every Web Worker is backed by a [`node:worker_threads`][] {Worker}, so the
+Every Web Worker is backed by a [`node:threads/worker`][] {Worker}, so the
 two APIs share their threading, structured clone, and transfer semantics.
-Inside a worker, \[`worker_threads.parentPort`]\[] is the port behind
+Inside a worker, [`parentPort`][] is the port behind
 `self.postMessage()` and the worker's `message` events, `isMainThread` is
 `false`, and `workerData` is `undefined`.
 
-Web Workers, like `node:worker_threads` workers, keep the event loop alive by
+Web Workers, like `node:threads/worker` workers, keep the event loop alive by
 default. In Node.js, Web Workers implement the [Refable protocol][], and can be
 ref'd and unref'd using `process.ref(worker)` and `process.unref(worker)`.
 
-As a rule of thumb, use [`node:worker_threads`][] directly when a program
+As a rule of thumb, use [`node:threads/worker`][] directly when a program
 needs `workerData`, a custom `env` or `execArgv`, resource limits, stdio
 redirection, the `'online'` and `'exit'` events, or `worker.threadId`;
 `Worker` accepts only the `name`, `type`, and `credentials` options and,
 per the specification, its `terminate()` returns `undefined`, rather than
-a promise. Threads started through [`node:worker_threads`][] are ordinary
+a promise. Threads started through [`node:threads/worker`][] are ordinary
 Node.js threads and do not get the worker global scope APIs.
 
 ## Class: `WritableStream`
@@ -1657,6 +1657,7 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [Refable protocol]: process.md#processrefmayberefable
 [WHATWG Encoding Standard]: https://encoding.spec.whatwg.org/
 [Web Crypto API]: webcrypto.md
+[Web Locks]: threads.md#web-locks
 [`--experimental-eventsource`]: cli.md#--experimental-eventsource
 [`--localstorage-file`]: cli.md#--localstorage-filefile
 [`--no-experimental-global-navigator`]: cli.md#--no-experimental-global-navigator
@@ -1669,9 +1670,9 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [`EventTarget` and `Event` API]: events.md#eventtarget-and-event-api
 [`FormData`]: #class-formdata
 [`Headers`]: #class-headers
-[`LockManager`]: worker_threads.md#class-lockmanager
-[`MessageChannel`]: worker_threads.md#class-messagechannel
-[`MessagePort`]: worker_threads.md#class-messageport
+[`LockManager`]: threads.md#class-lockmanager
+[`MessageChannel`]: threads.md#class-messagechannel
+[`MessagePort`]: threads.md#class-messageport
 [`PerformanceEntry`]: perf_hooks.md#class-performanceentry
 [`PerformanceMark`]: perf_hooks.md#class-performancemark
 [`PerformanceMeasure`]: perf_hooks.md#class-performancemeasure
@@ -1711,7 +1712,8 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [`globalThis`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/globalThis
 [`localStorage`]: https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage
 [`module`]: modules.md#module
-[`node:worker_threads`]: worker_threads.md
+[`node:threads/worker`]: threads.md#the-nodethreadsworker-module
+[`parentPort`]: threads.md#parentport
 [`perf_hooks.performance`]: perf_hooks.md#perf_hooksperformance
 [`process.nextTick()`]: process.md#processnexttickcallback-args
 [`process` object]: process.md#process
@@ -1722,7 +1724,6 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [`setTimeout`]: timers.md#settimeoutcallback-delay-args
 [`structuredClone`]: https://developer.mozilla.org/en-US/docs/Web/API/Window/structuredClone
 [`window.navigator`]: https://developer.mozilla.org/en-US/docs/Web/API/Window/navigator
-[`worker_threads.locks`]: worker_threads.md#worker_threadslocks
 [browser `LockManager`]: https://developer.mozilla.org/en-US/docs/Web/API/LockManager
 [buffer section]: buffer.md
 [built-in objects]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects

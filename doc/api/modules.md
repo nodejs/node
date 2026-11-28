@@ -553,6 +553,9 @@ taken the name. Currently the built-in modules that requires the `node:` prefix 
 * [`node:sqlite`][]
 * [`node:test`][]
 * [`node:test/reporters`][]
+* [`node:threads`][]
+* [`node:threads/messaging`][]
+* [`node:threads/worker`][]
 
 The list of these modules is exposed in [`module.builtinModules`][], including the prefix.
 
@@ -1309,6 +1312,9 @@ This section was moved to
 [`node:sqlite`]: sqlite.md
 [`node:test/reporters`]: test.md#test-reporters
 [`node:test`]: test.md
+[`node:threads/messaging`]: threads.md#the-nodethreadsmessaging-module
+[`node:threads/worker`]: threads.md#the-nodethreadsworker-module
+[`node:threads`]: threads.md#the-nodethreads-module
 [`package.json`]: packages.md#nodejs-packagejson-field-definitions
 [`path.dirname()`]: path.md#pathdirnamepath
 [`process.features.require_module`]: process.md#processfeaturesrequire_module

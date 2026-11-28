@@ -8,6 +8,8 @@ declare namespace InternalWorkerBinding {
       execArgv: string[] | null | undefined,
       resourceLimits: Float64Array,
       trackUnmanagedFds: boolean,
+      name: string,
+      isolateGroup: IsolateGroup | undefined,
     );
     startThread(): void;
     stopThread(): void;
@@ -23,6 +25,10 @@ declare namespace InternalWorkerBinding {
     loopIdleTime(): number;
     loopStartTime(): number;
   }
+
+  class IsolateGroup {
+    constructor(current: boolean);
+  }
 }
 
 export interface CPUProfileHandle {
@@ -37,6 +43,8 @@ export interface HeapProfileHandle {
 
 export interface WorkerBinding {
   Worker: typeof InternalWorkerBinding.Worker;
+  IsolateGroup: typeof InternalWorkerBinding.IsolateGroup;
+  isolateGroupsSupported: boolean;
   getEnvMessagePort(): InternalMessagingBinding.MessagePort;
   threadId: number;
   threadName: string;

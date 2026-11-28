@@ -406,6 +406,13 @@ v8::Isolate* NewIsolate(v8::Isolate::CreateParams* params,
                         MultiIsolatePlatform* platform,
                         const SnapshotData* snapshot_data = nullptr,
                         const IsolateSettings& settings = {});
+// Creates the isolate in `group` instead of a group of its own.
+v8::Isolate* NewIsolate(v8::Isolate::CreateParams* params,
+                        uv_loop_t* event_loop,
+                        MultiIsolatePlatform* platform,
+                        const SnapshotData* snapshot_data,
+                        const IsolateSettings& settings,
+                        const v8::IsolateGroup& group);
 // This overload automatically picks the right 'main_script_id' if no callback
 // was provided by the embedder.
 v8::MaybeLocal<v8::Value> StartExecution(

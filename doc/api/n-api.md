@@ -7011,7 +7011,7 @@ the add-on's file name during loading.
 [`'uncaughtException'`]: process.md#event-uncaughtexception
 [`Number.MAX_SAFE_INTEGER`]: https://tc39.es/ecma262/#sec-number.max_safe_integer
 [`Number.MIN_SAFE_INTEGER`]: https://tc39.es/ecma262/#sec-number.min_safe_integer
-[`Worker`]: worker_threads.md#class-worker
+[`Worker`]: threads.md#class-worker
 [`async_hooks.executionAsyncResource()`]: async_hooks.md#async_hooksexecutionasyncresource
 [`build_with_cmake`]: https://github.com/nodejs/node-addon-examples/tree/main/src/8-tooling/build_with_cmake
 [`global`]: globals.md#global
@@ -7083,7 +7083,7 @@ the add-on's file name during loading.
 [`process.release`]: process.md#processrelease
 [`uv_ref`]: https://docs.libuv.org/en/v1.x/handle.html#c.uv_ref
 [`uv_unref`]: https://docs.libuv.org/en/v1.x/handle.html#c.uv_unref
-[`worker.terminate()`]: worker_threads.md#workerterminate
+[`worker.terminate()`]: threads.md#workerterminate
 [async_hooks `type`]: async_hooks.md#type
 [context-aware addons]: addons.md#context-aware-addons
 [docs]: https://github.com/nodejs/node-addon-api#api-documentation
@@ -7097,4 +7097,4 @@ the add-on's file name during loading.
 [node-pre-gyp]: https://github.com/mapbox/node-pre-gyp
 [prebuild]: https://github.com/prebuild/prebuild
 [prebuildify]: https://github.com/prebuild/prebuildify
-[worker threads]: https://nodejs.org/api/worker_threads.html
+[worker threads]: https://nodejs.org/api/threads.html

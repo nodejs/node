@@ -167,7 +167,7 @@ added:
 Coerce a `Timeout` to a primitive. The primitive can be used to
 clear the `Timeout`. The primitive can only be used in the
 same thread where the timeout was created. Therefore, to use it
-across [`worker_threads`][] it must first be passed to the correct
+across [threads][] it must first be passed to the correct
 thread. This allows enhanced compatibility with browser
 `setTimeout()` and `setInterval()` implementations.
 
@@ -613,5 +613,5 @@ Calling `timersPromises.scheduler.yield()` is equivalent to calling
 [`timersPromises.setImmediate()`]: #timerspromisessetimmediatevalue-options
 [`timersPromises.setInterval()`]: #timerspromisessetintervaldelay-value-options
 [`timersPromises.setTimeout()`]: #timerspromisessettimeoutdelay-value-options
-[`worker_threads`]: worker_threads.md
 [primitive]: #timeoutsymboltoprimitive
+[threads]: threads.md

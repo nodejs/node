@@ -1472,7 +1472,7 @@ console.log(result);
 [Node-API]: n-api.md
 [V8]: https://v8.dev/
 [`--experimental-addon-modules`]: cli.md#--experimental-addon-modules
-[`Worker`]: worker_threads.md#class-worker
+[`Worker`]: threads.md#class-worker
 [`libuv`]: https://github.com/libuv/libuv
 [`node-gyp`]: https://github.com/nodejs/node-gyp
 [`require()`]: modules.md#requireid

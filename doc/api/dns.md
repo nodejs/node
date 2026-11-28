@@ -1743,4 +1743,4 @@ uses. For instance, they do not use the configuration from `/etc/hosts`.
 [`socket.connect()`]: net.md#socketconnectoptions-connectlistener
 [`util.promisify()`]: util.md#utilpromisifyoriginal
 [supported `getaddrinfo` flags]: #supported-getaddrinfo-flags
-[worker threads]: worker_threads.md
+[worker threads]: threads.md

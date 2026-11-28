@@ -144,7 +144,36 @@ class Worker : public AsyncWrap {
   Environment* env_ = nullptr;
 
   const SnapshotData* snapshot_data_ = nullptr;
+  // The isolate group of the `isolateGroup` option. Without it, the isolate
+  // is in a group of its own where builds support more than one.
+  std::optional<v8::IsolateGroup> isolate_group_;
   friend class WorkerThreadData;
+};
+
+// A reference to a V8 isolate group, behind the `IsolateGroup` class of
+// `node:threads`.
+class IsolateGroupWrap final : public BaseObject {
+ public:
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
+
+  // new IsolateGroup(current): a reference to the group of the current
+  // isolate if `current` is true, or to a new group.
+  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  const v8::IsolateGroup& group() const { return group_; }
+
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(IsolateGroupWrap)
+  SET_SELF_SIZE(IsolateGroupWrap)
+
+ private:
+  IsolateGroupWrap(Environment* env,
+                   v8::Local<v8::Object> object,
+                   v8::IsolateGroup group);
+
+  // Isolates hold references of their own to their group, so this only keeps
+  // the group alive for the isolates that are yet to be created in it.
+  v8::IsolateGroup group_;
 };
 
 template <typename Fn>

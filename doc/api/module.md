@@ -1436,5 +1436,5 @@ returned object contains the following keys:
 [resolve hook]: #resolvespecifier-context-nextresolve
 [source map include directives]: https://tc39.es/ecma426/#sec-linking-generated-code
 [the `module` object]: modules.md#the-module-object
-[the documentation of `Worker`]: worker_threads.md#new-workerfilename-options
+[the documentation of `Worker`]: threads.md#new-workerfilename-options
 [type-stripping]: typescript.md#type-stripping

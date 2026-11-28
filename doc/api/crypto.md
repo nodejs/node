@@ -8038,7 +8038,7 @@ See the [list of SSL OP Flags][] for details.
 [`keyObject.export()`]: #keyobjectexportoptions
 [`mac.final()`]: #macfinaloutputencoding
 [`mac.update()`]: #macupdatedata-inputencoding
-[`postMessage()`]: worker_threads.md#portpostmessagevalue-transferlist
+[`postMessage()`]: threads.md#portpostmessagevalue-transferlist
 [`sign.sign()`]: #signsignprivatekey-outputencoding
 [`sign.update()`]: #signupdatedata-inputencoding
 [`stream.Transform`]: stream.md#class-streamtransform

@@ -966,7 +966,7 @@ The documentation for this class has moved [`AsyncLocalStorage`][].
 [`AsyncHook`]: #class-asynchook
 [`AsyncLocalStorage`]: async_context.md#class-asynclocalstorage
 [`AsyncResource`]: async_context.md#class-asyncresource
-[`Worker`]: worker_threads.md#class-worker
+[`Worker`]: threads.md#class-worker
 [`after` callback]: #afterasyncid
 [`before` callback]: #beforeasyncid
 [`createHook`]: #async_hookscreatehookoptions

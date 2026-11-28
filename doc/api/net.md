@@ -476,7 +476,7 @@ added: v0.1.90
 This class is used to create a TCP or [IPC][] server.
 
 A listening TCP `net.Server` can be transferred to a worker thread by listing it
-in the `transferList` of a [`worker_threads`][] `postMessage()` call. This moves
+in the `transferList` of a [`port.postMessage()`][] call. This moves
 the underlying listening socket to the receiving thread, where it resumes
 accepting connections. See [Transferring TCP handles to other threads][].
 
@@ -976,7 +976,7 @@ it to interact with the client.
 ### Transferring TCP handles to other threads
 
 A connected TCP `net.Socket` can be moved to another thread by listing it in the
-`transferList` of a [`worker_threads`][] `postMessage()` call. After the
+`transferList` of a [`port.postMessage()`][] call. After the
 transfer, the source socket is destroyed on the sending thread (further use
 fails with `ERR_STREAM_DESTROYED` rather than silently dropping data), and the
 socket continues to work on the receiving thread. This makes it possible to
@@ -991,7 +991,7 @@ have started reading or have buffered data. Otherwise `postMessage()` throws
 
 ```cjs
 const net = require('node:net');
-const { Worker } = require('node:worker_threads');
+const { Worker } = require('node:threads/worker');
 
 // worker.js receives `{ socket }` messages and handles each connection.
 const worker = new Worker('./worker.js');
@@ -1971,7 +1971,7 @@ When a pipe `BoundSocket` bound to a source `path` is adopted as a client, that
 path is reported as the socket's `localAddress` once it connects.
 
 An un-adopted TCP `BoundSocket` can be moved to another thread by listing it in
-the `transferList` of a [`worker_threads`][] `postMessage()` call, see
+the `transferList` of a [`port.postMessage()`][] call, see
 [Transferring TCP handles to other threads][]. It can likewise be sent to a
 child process as the `sendHandle` argument of [`subprocess.send()`][]. In both
 cases the source is left in the adopted state. Pipe binds cannot be moved
@@ -2672,6 +2672,7 @@ console.log('listening on', server.address().port);
 [`net.getDefaultAutoSelectFamilyAttemptTimeout()`]: #netgetdefaultautoselectfamilyattempttimeout
 [`netPromises.listen()`]: #netpromiseslistenoptions
 [`new net.Socket(options)`]: #new-netsocketoptions
+[`port.postMessage()`]: threads.md#portpostmessagevalue-transferlist
 [`readable.setEncoding()`]: stream.md#readablesetencodingencoding
 [`server.address()`]: #serveraddress
 [`server.close()`]: #serverclosecallback
@@ -2703,7 +2704,6 @@ console.log('listening on', server.address().port);
 [`socket.setTimeout(timeout)`]: #socketsettimeouttimeout-callback
 [`stream.getDefaultHighWaterMark()`]: stream.md#streamgetdefaulthighwatermarkobjectmode
 [`subprocess.send()`]: child_process.md#subprocesssendmessage-sendhandle-options-callback
-[`worker_threads`]: worker_threads.md
 [`writable.destroy()`]: stream.md#writabledestroyerror
 [`writable.destroyed`]: stream.md#writabledestroyed
 [`writable.end()`]: stream.md#writableendchunk-encoding-callback

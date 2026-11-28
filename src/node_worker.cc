@@ -39,6 +39,7 @@ using v8::HeapProfiler;
 using v8::HeapStatistics;
 using v8::Integer;
 using v8::Isolate;
+using v8::IsolateGroup;
 using v8::Local;
 using v8::Locker;
 using v8::Maybe;
@@ -184,7 +185,14 @@ class WorkerThreadData {
     w->UpdateResourceConstraints(&params.constraints);
     params.array_buffer_allocator_shared = allocator;
     Isolate* isolate =
-        NewIsolate(&params, &loop_, w->platform_, w->snapshot_data());
+        w->isolate_group_.has_value()
+            ? NewIsolate(&params,
+                         &loop_,
+                         w->platform_,
+                         w->snapshot_data(),
+                         {},
+                         *w->isolate_group_)
+            : NewIsolate(&params, &loop_, w->platform_, w->snapshot_data());
     if (isolate == nullptr) {
       // TODO(joyeecheung): maybe this should be kBootstrapFailure instead?
       w->Exit(ExitCode::kGenericUserError,
@@ -550,6 +558,14 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
     url.append(value.out(), value.length());
   }
 
+  // args[6]: the handle of an IsolateGroup, or undefined.
+  std::optional<IsolateGroup> isolate_group;
+  if (!args[6]->IsUndefined()) {
+    IsolateGroupWrap* group;
+    ASSIGN_OR_RETURN_UNWRAP(&group, args[6]);
+    isolate_group = group->group();
+  }
+
   if (!args[5]->IsNullOrUndefined()) {
     Utf8Value value(
         isolate, args[5]->ToString(env->context()).FromMaybe(Local<String>()));
@@ -720,6 +736,8 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
                               std::move(exec_argv_out),
                               env_vars,
                               snapshot_data);
+
+  worker->isolate_group_ = std::move(isolate_group);
 
   CHECK(args[3]->IsFloat64Array());
   Local<Float64Array> limit_info = args[3].As<Float64Array>();
@@ -1422,6 +1440,29 @@ void Worker::LoopStartTime(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(loop_start_time / 1e6);
 }
 
+IsolateGroupWrap::IsolateGroupWrap(Environment* env,
+                                   Local<Object> object,
+                                   IsolateGroup group)
+    : BaseObject(env, object), group_(std::move(group)) {
+  MakeWeak();
+}
+
+void IsolateGroupWrap::New(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args.IsConstructCall());
+  Environment* env = Environment::GetCurrent(args);
+  if (args[0]->IsTrue()) {
+    new IsolateGroupWrap(env, args.This(), env->isolate()->GetGroup());
+    return;
+  }
+  CHECK(IsolateGroup::CanCreateNewGroups());
+  new IsolateGroupWrap(env, args.This(), IsolateGroup::Create());
+}
+
+void IsolateGroupWrap::RegisterExternalReferences(
+    ExternalReferenceRegistry* registry) {
+  registry->Register(New);
+}
+
 namespace {
 
 // Return the MessagePort that is global for this Environment and communicates
@@ -1585,6 +1626,16 @@ void CreateWorkerPerIsolateProperties(IsolateData* isolate_data,
         wst->InstanceTemplate());
   }
 
+  {
+    Local<FunctionTemplate> group =
+        NewFunctionTemplate(isolate, IsolateGroupWrap::New);
+    group->InstanceTemplate()->SetInternalFieldCount(
+        IsolateGroupWrap::kInternalFieldCount);
+    SetConstructorFunction(isolate, target, "IsolateGroup", group);
+    target->Set(FIXED_ONE_BYTE_STRING(isolate, "isolateGroupsSupported"),
+                Boolean::New(isolate, IsolateGroup::CanCreateNewGroups()));
+  }
+
   SetMethod(isolate, target, "getEnvMessagePort", GetEnvMessagePort);
 }
 
@@ -1625,6 +1676,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Worker::StopCpuProfile);
   registry->Register(Worker::StartHeapProfile);
   registry->Register(Worker::StopHeapProfile);
+  IsolateGroupWrap::RegisterExternalReferences(registry);
 }
 
 }  // anonymous namespace

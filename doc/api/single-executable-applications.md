@@ -281,7 +281,7 @@ in a [`Worker`][], which reaches the other assets the same way the main
 script does:
 
 ```cjs
-const { Worker } = require('node:worker_threads');
+const { Worker } = require('node:threads/worker');
 const path = require('node:path');
 
 // worker.js is bundled as an asset, at the root of the mount.
@@ -331,7 +331,7 @@ in [worker threads](#worker-threads) as well. A path into the archive, such
 as the main script's `__filename`, can therefore be loaded in a worker:
 
 ```cjs
-const { Worker, isMainThread } = require('node:worker_threads');
+const { Worker, isMainThread } = require('node:threads/worker');
 
 if (isMainThread) {
   new Worker(__filename);
@@ -922,7 +922,7 @@ to help us document them.
 [`--enable-source-maps`]: cli.md#--enable-source-maps
 [`--vfs-load`]: cli.md#--vfs-loadsource
 [`NODE_OPTIONS`]: cli.md#node_optionsoptions
-[`Worker`]: worker_threads.md#class-worker
+[`Worker`]: threads.md#class-worker
 [`module.findSourceMap()`]: module.md#modulefindsourcemappath
 [`node:zlib`]: zlib.md
 [`process.execPath`]: process.md#processexecpath
