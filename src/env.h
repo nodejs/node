@@ -120,9 +120,6 @@ inline constexpr std::array<std::string_view,
                             "node_sqlite3.BackupJob",
                             "zlib"};
 
-namespace shadow_realm {
-class ShadowRealm;
-}
 namespace contextify {
 class ContextifyScript;
 class CompiledFnEntry;
@@ -762,8 +759,7 @@ class Cleanable {
 
 /**
  * Environment is a per-isolate data structure that represents an execution
- * environment. Each environment has a principal realm. An environment can
- * create multiple subsidiary synthetic realms.
+ * environment. Each environment has a principal realm.
  */
 class Environment final : public MemoryRetainer {
  public:
@@ -854,8 +850,6 @@ class Environment final : public MemoryRetainer {
                        Realm* realm,
                        const ContextInfo& info);
   void UnassignFromContext(v8::Local<v8::Context> context);
-  void TrackShadowRealm(shadow_realm::ShadowRealm* realm);
-  void UntrackShadowRealm(shadow_realm::ShadowRealm* realm);
 
   void StartProfilerIdleNotifier();
 
@@ -1357,7 +1351,6 @@ class Environment final : public MemoryRetainer {
 
   size_t async_callback_scope_depth_ = 0;
   std::vector<double> destroy_async_id_list_;
-  std::unordered_set<shadow_realm::ShadowRealm*> shadow_realms_;
 
 #if HAVE_INSPECTOR
   std::unique_ptr<profiler::V8CoverageConnection> coverage_connection_;

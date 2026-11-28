@@ -1,1 +1,0 @@
-globalThis.preload = 42;

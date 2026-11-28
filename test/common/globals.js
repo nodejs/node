@@ -49,7 +49,6 @@ const intrinsics = new Set([
   'WeakSet',
   'Proxy',
   'Reflect',
-  'ShadowRealm',
   'FinalizationRegistry',
   'WeakRef',
   'decodeURI',

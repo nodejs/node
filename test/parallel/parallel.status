@@ -5,9 +5,6 @@ prefix parallel
 # sample-test                        : PASS,FLAKY
 
 [true] # This section applies to all platforms
-# https://github.com/nodejs/node/issues/52273
-test-shadow-realm-gc: SKIP
-test-shadow-realm-gc-module: SKIP
 
 # Until V8 provides a better way to check for flag mismatch without
 # making the code cache/snapshot unreproducible, disable the test
