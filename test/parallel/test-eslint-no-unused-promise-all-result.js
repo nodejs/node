@@ -13,10 +13,7 @@ const rule = require('../../tools/eslint-rules/no-unused-promise-all-result');
 function error(name, output) {
   return {
     message: `The fulfill value of \`${name}\` is not used, use \`SafePromiseAllReturnVoid\` instead.`,
-    suggestions: output === undefined ? [] : [{
-      desc: `Replace \`${name}\` with \`SafePromiseAllReturnVoid\`.`,
-      output,
-    }],
+    suggestions: Number(output !== undefined),
   };
 }
 
@@ -30,22 +27,21 @@ new RuleTester({
     'SafePromiseAllReturnVoid(promises)',
     'async function f() { await SafePromiseAllReturnVoid(promises); }',
     'const values = SafePromiseAll(promises)',
-    'async function f() { const values = await SafePromiseAll(promises); }',
+    'async function f() { const values = await SafePromiseAllReturnArrayLike(promises); }',
     'async function f() { return SafePromiseAll(promises); }',
     'async function f() { return await SafePromiseAllReturnArrayLike(promises); }',
-    'async function f() { const { 0: a } = await PromiseAll(promises); }',
     'const f = () => SafePromiseAll(promises)',
     'foo(SafePromiseAll(promises))',
-    'PromisePrototypeThen(SafePromiseAll(promises), (values) => {})',
-    'PromisePrototypeThen(SafePromiseAll(promises), function({ 0: a }) {})',
-    'const p = PromisePrototypeThen(SafePromiseAll(promises), undefined, onError)',
-    'const p = PromisePrototypeCatch(SafePromiseAll(promises), onError)',
-    'SafePromiseAll(promises).then((values) => {})',
-    'const p = SafePromiseAll(promises).catch(onError)',
-    'if (SafePromiseAll(promises)) {}',
-    'SafePromiseAll(promises) ? a : b',
-    'const x = (a, SafePromiseAll(promises))',
-    'const x = a || SafePromiseAll(promises)',
+    'PromisePrototypeThen(SafePromiseAllReturnArrayLike(promises), (values) => {})',
+    'PromisePrototypeThen(SafePromiseAllReturnArrayLike(promises), function({ 0: a }) {})',
+    'const p = PromisePrototypeThen(SafePromiseAllReturnArrayLike(promises), undefined, onError)',
+    'const p = PromisePrototypeCatch(SafePromiseAllReturnArrayLike(promises), onError)',
+    'SafePromiseAllReturnArrayLike(promises).then((values) => {})',
+    'const p = SafePromiseAllReturnArrayLike(promises).catch(onError)',
+    'if (SafePromiseAllReturnArrayLike(promises)) {}',
+    'SafePromiseAllReturnArrayLike(promises) ? a : b',
+    'const x = (a, SafePromiseAllReturnArrayLike(promises))',
+    'const x = a || SafePromiseAllReturnArrayLike(promises)',
     'SafePromiseAllSettled(promises)',
     'Promise.all(promises)',
     'PromisePrototypeThen(promise, () => SafePromiseAll(promises))',
@@ -125,6 +121,96 @@ new RuleTester({
     {
       code: 'SafePromiseAll(promises)?.then()',
       errors: [error('SafePromiseAll', 'SafePromiseAllReturnVoid(promises)?.then()')],
+    },
+
+    {
+      code: 'async function f() { const { 0: a, 1: b } = await SafePromiseAll(promises); }',
+      errors: [{
+        message: 'The fulfill value of `SafePromiseAll` is only read by index, ' +
+        'use `SafePromiseAllReturnArrayLike` instead.',
+        suggestions: 1,
+      }],
+    },
+    {
+      code: 'async function f() { const { 0: { 0: code, 1: signal } } = await SafePromiseAll(promises); }',
+      errors: [{
+        message: 'The fulfill value of `SafePromiseAll` is only read by index, ' +
+        'use `SafePromiseAllReturnArrayLike` instead.',
+        suggestions: 1,
+      }],
+    },
+    {
+      code: 'async function f() { const { length, ...rest } = await SafePromiseAll(promises); }',
+      errors: [{
+        message: 'The fulfill value of `SafePromiseAll` is only read by index, ' +
+        'use `SafePromiseAllReturnArrayLike` instead.',
+        suggestions: 1,
+      }],
+    },
+    {
+      code: 'async function f() { const values = await SafePromiseAll(promises); return values[0]; }',
+      errors: [{
+        message: 'The fulfill value of `SafePromiseAll` is only read by index, ' +
+        'use `SafePromiseAllReturnArrayLike` instead.',
+        suggestions: 1,
+      }],
+    },
+    {
+      code: 'async function f() { const values = await SafePromiseAll(promises, fn); ' +
+            'for (let i = 0; i < values.length; i++) foo(values[i]); }',
+      errors: [{
+        message: 'The fulfill value of `SafePromiseAll` is only read by index, ' +
+        'use `SafePromiseAllReturnArrayLike` instead.',
+        suggestions: 1,
+      }],
+    },
+    {
+      code: 'async function f() { const values = await SafePromiseAll(promises); values[0].bar(); }',
+      errors: [{
+        message: 'The fulfill value of `SafePromiseAll` is only read by index, ' +
+        'use `SafePromiseAllReturnArrayLike` instead.',
+        suggestions: 1,
+      }],
+    },
+    {
+      code: 'async function f() { const values = await SafePromiseAll(promises); values["1"]; }',
+      errors: [{
+        message: 'The fulfill value of `SafePromiseAll` is only read by index, ' +
+        'use `SafePromiseAllReturnArrayLike` instead.',
+        suggestions: 1,
+      }],
+    },
+    {
+      code: 'async function f() { return (await SafePromiseAll(promises))[0]; }',
+      errors: [{
+        message: 'The fulfill value of `SafePromiseAll` is only read by index, ' +
+        'use `SafePromiseAllReturnArrayLike` instead.',
+        suggestions: 1,
+      }],
+    },
+    {
+      code: 'PromisePrototypeThen(SafePromiseAll(promises), ({ 0: a }) => a)',
+      errors: [{
+        message: 'The fulfill value of `SafePromiseAll` is only read by index, ' +
+        'use `SafePromiseAllReturnArrayLike` instead.',
+        suggestions: 1,
+      }],
+    },
+    {
+      code: 'PromisePrototypeThen(SafePromiseAll(promises), function(values) { return values[0]; })',
+      errors: [{
+        message: 'The fulfill value of `SafePromiseAll` is only read by index, ' +
+        'use `SafePromiseAllReturnArrayLike` instead.',
+        suggestions: 1,
+      }],
+    },
+    {
+      code: 'SafePromiseAll(promises).then((values) => values.length)',
+      errors: [{
+        message: 'The fulfill value of `SafePromiseAll` is only read by index, ' +
+        'use `SafePromiseAllReturnArrayLike` instead.',
+        suggestions: 1,
+      }],
     },
   ],
 });
