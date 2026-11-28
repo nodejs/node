@@ -529,6 +529,9 @@
               'message': 'generating: >@(_outputs)',
               'inputs': [
                 '<(INTERMEDIATE_DIR)/embedded.S',
+                # MSBuild checks all CustomBuild items up front, without cascading;
+                # track mksnapshot.exe so this reruns whenever run_mksnapshot does.
+                '<(mksnapshot_exec)',
               ],
               'outputs': [
                 '<(INTERMEDIATE_DIR)/embedded.cc',
@@ -537,7 +540,7 @@
               'action': [
                 '<(python)',
                 '<(V8_ROOT)/tools/snapshot/asm_to_inline_asm.py',
-                '<@(_inputs)',
+                '<(INTERMEDIATE_DIR)/embedded.S',
                 '<(INTERMEDIATE_DIR)/embedded.cc',
               ],
             },
