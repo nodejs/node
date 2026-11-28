@@ -36,6 +36,19 @@ assert.throws(() => {
   code: 'ERR_INVALID_ARG_VALUE',
 });
 
+for (const validateStream of [0, 0n, '', NaN, 1, 'false', {}, []]) {
+  assert.throws(() => {
+    util.styleText('red', 'test', { validateStream });
+  }, {
+    code: 'ERR_INVALID_ARG_TYPE',
+  }, `validateStream=${String(validateStream)}`);
+}
+
+assert.strictEqual(
+  util.styleText('red', 'test', { validateStream: false, stream: {} }),
+  '\u001b[31mtest\u001b[39m',
+);
+
 assert.strictEqual(
   util.styleText('red', 'test', { validateStream: false }),
   '\u001b[31mtest\u001b[39m',
