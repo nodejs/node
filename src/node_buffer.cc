@@ -37,8 +37,12 @@
 #include "v8.h"
 
 #include <stdint.h>
+#include <algorithm>
+#include <array>
 #include <climits>
 #include <cstring>
+#include <memory>
+#include <vector>
 #include "nbytes.h"
 
 #define THROW_AND_RETURN_UNLESS_BUFFER(env, obj)                            \
@@ -1877,6 +1881,161 @@ void CreateUnsafeArrayBuffer(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+}  // anonymous namespace
+
+class CopyStorePool {
+ public:
+  using Store = std::unique_ptr<BackingStore>;
+
+  size_t Take(unsigned index,
+              size_t size,
+              Store* stores,
+              size_t count,
+              uint64_t* generation) {
+    Mutex::ScopedLock lock(mutex_);
+    auto& slot = slots_[index];
+    if (slot.size != size) {
+      Clear(slot);
+      slot.size = size;
+      slot.idle.reserve(std::min(kMaxEntries, kMaxIdleBytes / size));
+    }
+    *generation = slot.generation;
+    const size_t n = std::min(count, slot.idle.size());
+    for (size_t i = 0; i < n; ++i) {
+      stores[i] = std::move(slot.idle.back());
+      slot.idle.pop_back();
+    }
+    idle_bytes_ -= n * size;
+    idle_count_ -= n;
+    return n;
+  }
+
+  void Return(unsigned index, uint64_t generation, Store store) {
+    if (store->IsImmutable() || store->IsShared() ||
+        store->IsResizableByUserJavaScript()) {
+      return;
+    }
+    const size_t size = store->ByteLength();
+    Mutex::ScopedLock lock(mutex_);
+    auto& slot = slots_[index];
+    if (slot.generation != generation || slot.size != size ||
+        size != store->MaxByteLength() || idle_count_ == kMaxEntries ||
+        size > kMaxIdleBytes - idle_bytes_) {
+      return;
+    }
+    std::memset(store->Data(), 0, size);
+    slot.idle.push_back(std::move(store));
+    idle_count_++;
+    idle_bytes_ += size;
+  }
+
+  void Trim() {
+    Mutex::ScopedLock lock(mutex_);
+    for (auto& slot : slots_) Clear(slot);
+  }
+
+ private:
+  static constexpr size_t kMaxEntries = 960;
+  static constexpr size_t kMaxIdleBytes = 960 * 1024;
+  struct Slot {
+    size_t size = 0;
+    uint64_t generation = 0;
+    std::vector<Store> idle;
+  };
+
+  void Clear(Slot& slot) {
+    idle_bytes_ -= slot.idle.size() * slot.size;
+    idle_count_ -= slot.idle.size();
+    slot.idle.clear();
+    slot.size = 0;
+    ++slot.generation;
+  }
+
+  Mutex mutex_;
+  std::array<Slot, 2> slots_;
+  size_t idle_bytes_ = 0;
+  size_t idle_count_ = 0;
+};
+
+namespace {
+
+constexpr uint32_t kMaxCopyBatchCount = 64;
+
+static void RefillCopyStorePool(const FunctionCallbackInfo<Value>& args,
+                                const std::shared_ptr<CopyStorePool>& pool,
+                                unsigned index,
+                                uint32_t size,
+                                uint32_t count) {
+  Isolate* isolate = args.GetIsolate();
+  std::array<CopyStorePool::Store, kMaxCopyBatchCount> stores;
+  uint64_t generation;
+  const size_t reused =
+      pool->Take(index, size, stores.data(), count, &generation);
+  for (size_t i = reused; i < count; ++i) {
+    stores[i] = ArrayBuffer::NewBackingStore(
+        isolate,
+        size,
+        BackingStoreInitializationMode::kZeroInitialized,
+        BackingStoreOnFailureMode::kReturnNull);
+    if (!stores[i]) return;
+  }
+  std::array<Local<Value>, kMaxCopyBatchCount> buffers;
+  std::weak_ptr<CopyStorePool> target = pool;
+  for (unsigned i = 0; i < count; ++i) {
+    auto& store = stores[i];
+    std::shared_ptr<BackingStore> publication(
+        store.release(), [target, index, generation](BackingStore* ptr) {
+          CopyStorePool::Store owned(ptr);
+          if (auto alive = target.lock())
+            alive->Return(index, generation, std::move(owned));
+        });
+    buffers[i] = ArrayBuffer::New(isolate, std::move(publication));
+  }
+  args.GetReturnValue().Set(v8::Array::New(isolate, buffers.data(), count));
+}
+
+static void TrimCopyStorePool(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  const auto& pool = env->isolate_data()->copy_store_pool();
+  if (pool) pool->Trim();
+}
+
+void CreateArrayBufferBatch(const FunctionCallbackInfo<Value>& args) {
+  constexpr uint32_t kMaxBytes = 64 * 1024;
+  CHECK(args.Length() == 2 || args.Length() == 3);
+  CHECK(args[0]->IsUint32());
+  CHECK(args[1]->IsUint32());
+  const uint32_t size = args[0].As<Uint32>()->Value();
+  const uint32_t count = args[1].As<Uint32>()->Value();
+  if (count < 2 || count > kMaxCopyBatchCount || size == 0 ||
+      size > kMaxBytes / count) {
+    return;
+  }
+
+  Isolate* isolate = args.GetIsolate();
+  if (args.Length() == 3 && args[2]->IsUint32() && size > 64 && size <= 8192) {
+    const unsigned index = args[2].As<Uint32>()->Value();
+    Environment* env = Environment::GetCurrent(args);
+    auto* isolate_data = env->isolate_data();
+    auto* allocator = isolate_data->node_allocator();
+    if (index < 2 && !isolate_data->is_building_snapshot() &&
+        allocator != nullptr &&
+        allocator == isolate->GetArrayBufferAllocator()) {
+      auto& pool = isolate_data->copy_store_pool();
+      if (!pool) pool = std::make_shared<CopyStorePool>();
+      RefillCopyStorePool(args, pool, index, size, count);
+      return;
+    }
+  }
+  std::array<Local<Value>, kMaxCopyBatchCount> buffers;
+  for (uint32_t i = 0; i < count; i++) {
+    Local<ArrayBuffer> buffer;
+    if (!ArrayBuffer::MaybeNew(isolate, size).ToLocal(&buffer)) return;
+    buffers[i] = buffer;
+  }
+  args.GetReturnValue().Set(v8::Array::New(isolate, buffers.data(), count));
+}
+
 // arrayBufferAlignedOffset(arrayBuffer, alignment)
 //
 // Returns the offset of the first byte of `arrayBuffer` that is located at a
@@ -2055,6 +2214,8 @@ void Initialize(Local<Object> target,
                 &fast_copy_array_buffer);
   SetMethodNoSideEffect(
       context, target, "createUnsafeArrayBuffer", CreateUnsafeArrayBuffer);
+  SetMethod(context, target, "createArrayBufferBatch", CreateArrayBufferBatch);
+  SetMethod(context, target, "trimCopyStorePool", TrimCopyStorePool);
   SetMethodNoSideEffect(
       context, target, "arrayBufferAlignedOffset", ArrayBufferAlignedOffset);
 
@@ -2181,6 +2342,8 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(CopyArrayBuffer);
   registry->Register(fast_copy_array_buffer);
   registry->Register(CreateUnsafeArrayBuffer);
+  registry->Register(CreateArrayBufferBatch);
+  registry->Register(TrimCopyStorePool);
   registry->Register(ArrayBufferAlignedOffset);
 
   registry->Register(Atob);

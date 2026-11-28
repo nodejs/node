@@ -3349,6 +3349,14 @@ changes:
 * `streamWritable` {stream.Writable}
 * Returns: {WritableStream}
 
+For streams not operating in object mode, a mutable {Buffer}, {TypedArray},
+{DataView}, {ArrayBuffer}, or {SharedArrayBuffer} passed to the returned stream's
+writer can be reused after the promise returned by `writer.write()` is
+fulfilled. Do not modify the chunk or its underlying bytes while that promise
+is pending. The adapter may copy the chunk, so the underlying Node.js stream is
+not guaranteed to receive the same object. Chunks written to streams operating
+in object mode are passed by reference without copying.
+
 ### `stream.Duplex.from(src)`
 
 <!-- YAML
@@ -3516,6 +3524,10 @@ changes:
 * Returns: {Object}
   * `readable` {ReadableStream}
   * `writable` {WritableStream}
+
+If the writable side is in byte mode, reusing a chunk after `writer.write()`
+fulfills does not change any bytes the readable side has retained. See
+[`stream.Writable.toWeb()`][] for details on chunk reuse.
 
 ```mjs
 import { Duplex } from 'node:stream';
@@ -5098,6 +5110,7 @@ contain multi-byte characters.
 [`readable.push('')`]: #readablepush
 [`readable.setEncoding()`]: #readablesetencodingencoding
 [`stream.Readable.from()`]: #streamreadablefromiterable-options
+[`stream.Writable.toWeb()`]: #streamwritabletowebstreamwritable
 [`stream.addAbortSignal()`]: #streamaddabortsignalsignal-stream
 [`stream.compose(...streams)`]: #streamcomposestreams
 [`stream.cork()`]: #writablecork

@@ -167,6 +167,10 @@ struct IsolateDataSerializeInfo {
                                   const IsolateDataSerializeInfo& i);
 };
 
+namespace Buffer {
+class CopyStorePool;
+}  // namespace Buffer
+
 struct PerIsolateWrapperData {
   uint16_t cppgc_id;
   uint16_t non_cppgc_id;
@@ -222,6 +226,9 @@ class NODE_EXTERN_PRIVATE IsolateData : public MemoryRetainer {
   inline std::shared_ptr<PerIsolateOptions> options();
 
   inline NodeArrayBufferAllocator* node_allocator() const;
+  std::shared_ptr<Buffer::CopyStorePool>& copy_store_pool() {
+    return copy_store_pool_;
+  }
 
   inline worker::Worker* worker_context() const;
   inline void set_worker_context(worker::Worker* context);
@@ -322,6 +329,7 @@ class NODE_EXTERN_PRIVATE IsolateData : public MemoryRetainer {
   v8::Isolate* const isolate_;
   uv_loop_t* const event_loop_;
   NodeArrayBufferAllocator* const node_allocator_;
+  std::shared_ptr<Buffer::CopyStorePool> copy_store_pool_;
   MultiIsolatePlatform* platform_;
 
   const SnapshotData* snapshot_data_;

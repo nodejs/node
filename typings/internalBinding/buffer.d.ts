@@ -3,6 +3,8 @@ export interface BufferBinding {
   btoa(input: string): string | -1;
 
   setBufferPrototype(proto: object): void;
+  createArrayBufferBatch(byteLength: number, count: number, cacheSlot?: 0 | 1): ArrayBuffer[] | undefined;
+  trimCopyStorePool(): void;
 
   byteLengthUtf8(str: string): number;
   byteLengthUtf8Fast(str: string): number;
