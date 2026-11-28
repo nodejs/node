@@ -50,6 +50,8 @@ const char *nghttp3_strerror(int liberr) {
     return "ERR_CONN_CLOSING";
   case NGHTTP3_ERR_STREAM_DATA_OVERFLOW:
     return "ERR_STREAM_DATA_OVERFLOW";
+  case NGHTTP3_ERR_MAX_FIELD_SECTION_SIZE_EXCEEDED:
+    return "ERR_MAX_FIELD_SECTION_SIZE_EXCEEDED";
   case NGHTTP3_ERR_QPACK_DECOMPRESSION_FAILED:
     return "ERR_QPACK_DECOMPRESSION_FAILED";
   case NGHTTP3_ERR_QPACK_ENCODER_STREAM_ERROR:
@@ -76,6 +78,10 @@ const char *nghttp3_strerror(int liberr) {
     return "ERR_H3_STREAM_CREATION_ERROR";
   case NGHTTP3_ERR_H3_EXCESSIVE_LOAD:
     return "ERR_H3_EXCESSIVE_LOAD";
+  case NGHTTP3_ERR_WT_SESSION_GONE:
+    return "ERR_WT_SESSION_GONE";
+  case NGHTTP3_ERR_WT_BUFFERED_STREAM_REJECTED:
+    return "ERR_WT_BUFFERED_STREAM_REJECTED";
   case NGHTTP3_ERR_NOMEM:
     return "ERR_NOMEM";
   case NGHTTP3_ERR_CALLBACK_FAILURE:
@@ -122,10 +128,20 @@ uint64_t nghttp3_err_infer_quic_app_error_code(int liberr) {
     return NGHTTP3_H3_EXCESSIVE_LOAD;
   case NGHTTP3_ERR_MALFORMED_HTTP_HEADER:
   case NGHTTP3_ERR_MALFORMED_HTTP_MESSAGING:
+  case NGHTTP3_ERR_H3_MESSAGE_ERROR:
     return NGHTTP3_H3_MESSAGE_ERROR;
+  case NGHTTP3_ERR_WT_SESSION_GONE:
+    return NGHTTP3_WT_SESSION_GONE;
+  case NGHTTP3_ERR_WT_BUFFERED_STREAM_REJECTED:
+    return NGHTTP3_WT_BUFFERED_STREAM_REJECTED;
   default:
     return NGHTTP3_H3_GENERAL_PROTOCOL_ERROR;
   }
 }
 
 int nghttp3_err_is_fatal(int liberr) { return liberr < NGHTTP3_ERR_FATAL; }
+
+int nghttp3_err_is_wt(int liberr) {
+  return liberr == NGHTTP3_ERR_WT_SESSION_GONE ||
+         liberr == NGHTTP3_ERR_WT_BUFFERED_STREAM_REJECTED;
+}
