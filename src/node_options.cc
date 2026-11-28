@@ -1833,6 +1833,11 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             "--process-timeout expires",
             BOOL_FIELD(process_timeout_worker_stacks));
 
+  AddOption("--trace-sigterm",
+            "enable printing JavaScript stacktrace on SIGTERM",
+            BOOL_FIELD(trace_sigterm),
+            kAllowedInEnvvar);
+
   Insert(iop, &PerProcessOptions::get_per_isolate_options);
 
   AddOption("--node-memory-debug",
